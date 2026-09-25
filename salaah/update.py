@@ -50,6 +50,8 @@ PUBLIC_KEY = "mQwe463MZ8zDcutwC2QJzrrCvqsAIkpJoyqe4ThDZ44="
 DEFAULT_URL = "https://raw.githubusercontent.com/ProntoHS/Mysalaah/main/latest.json"
 
 TIMEOUT = 20            # seconds for any one request
+TRIES = 3               # attempts at a download before giving up: home wifi drops things
+PAUSE = 1.0             # seconds between attempts
 MOST = 64 * 1024 * 1024  # the largest release we will pull down: a runaway file is a full disk
 CHUNK = 64 * 1024
 
@@ -127,36 +129,78 @@ def read_manifest(raw: bytes, key: str = "") -> Release:
         raise Refused("the update file is missing something it needs")
 
 
-def fetch(url: str, into: Path | None = None, most: int = MOST, opener=None) -> bytes | Path:
+def headers() -> dict:
+    """Who we say we are. Python's own default is "Python-urllib/3.x", which a good many
+    content networks treat as a robot worth hanging up on -- and hanging up is exactly what a
+    reset connection is. Saying plainly what this is, and where it comes from, costs nothing
+    and means anyone looking at their logs can tell a prayer mat from a nuisance."""
+    from . import __version__
+    return {"User-Agent": f"Salaah/{__version__} (+https://github.com/ProntoHS/Mysalaah)",
+            "Accept": "*/*"}
+
+
+def open_url(url: str, timeout: float | None = None):
+    return urllib.request.urlopen(urllib.request.Request(url, headers=headers()),
+                                  timeout=timeout)
+
+
+def fetch(url: str, into: Path | None = None, most: int = MOST, opener=None,
+          tries: int = TRIES) -> bytes | Path:
     """Fetches a URL, giving up rather than filling the disk. Returns the bytes, or the path if
-    [into] was given."""
-    opener = opener or urllib.request.urlopen
-    try:
-        with opener(url, timeout=TIMEOUT) as answer:
-            if into is None:
-                data = answer.read(most + 1)
-                if len(data) > most:
-                    raise Refused("the update file is far larger than it should be")
-                return data
-            got = 0
-            with open(into, "wb") as out:
-                while True:
-                    lump = answer.read(CHUNK)
-                    if not lump:
-                        break
-                    got += len(lump)
-                    if got > most:
-                        raise Refused("the download is far larger than it should be")
-                    out.write(lump)
-            return into
-    except Refused:
-        raise
-    except urllib.error.HTTPError as problem:
-        if problem.code == 404:
-            raise Refused("nothing has been published to update to yet")
-        raise Refused(f"could not reach the update: {problem}")
-    except (urllib.error.URLError, OSError, ValueError) as problem:
-        raise Refused(f"could not reach the update: {problem}")
+    [into] was given.
+
+    A download cut off part way is not a fault worth showing anyone: home wifi does this, and
+    the answer is to ask again rather than to put an error on a prayer mat. So a connection
+    that drops is retried. A refusal that would come back the same every time -- a missing
+    file, a file that is too big -- is not.
+    """
+    opener = opener or open_url
+    last = None
+    for attempt in range(1, max(1, tries) + 1):
+        try:
+            return fetch_once(url, into, most, opener)
+        except Refused:
+            raise                       # our own refusals are decisions, not accidents
+        except urllib.error.HTTPError as problem:
+            # 404 is its own case because it is the ordinary one: it means no release has been
+            # published at this address yet. Saying "HTTP Error 404: Not Found" on a prayer mat
+            # tells the person nothing, and the honest words are shorter anyway.
+            if problem.code == 404:
+                raise Refused("nothing has been published to update to yet")
+            if problem.code < 500:
+                raise Refused(f"could not reach the update: {problem}")
+            last = problem              # the far end is having a bad day; it may pass
+        except ValueError as problem:
+            raise Refused(f"could not reach the update: {problem}")
+        except (urllib.error.URLError, OSError) as problem:
+            last = problem              # dropped, reset, timed out: worth another go
+        if attempt < max(1, tries):
+            time.sleep(PAUSE)
+    raise Refused(f"could not reach the update: {last}")
+
+
+def fetch_once(url: str, into: Path | None, most: int, opener) -> bytes | Path:
+    """One attempt. Raises the underlying network error so fetch() can decide about trying
+    again; raises Refused only for things that would happen again anyway."""
+    with opener(url, timeout=TIMEOUT) as answer:
+        if into is None:
+            data = answer.read(most + 1)
+            if len(data) > most:
+                raise Refused("the update file is far larger than it should be")
+            return data
+        got = 0
+        # "wb" truncates, so a retry starts the file again rather than appending to the
+        # wreckage of the attempt before it.
+        with open(into, "wb") as out:
+            while True:
+                lump = answer.read(CHUNK)
+                if not lump:
+                    break
+                got += len(lump)
+                if got > most:
+                    raise Refused("the download is far larger than it should be")
+                out.write(lump)
+        return into
 
 
 def check(url: str = "", opener=None, key: str = "") -> Release:
