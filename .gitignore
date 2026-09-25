@@ -1,0 +1,12 @@
+# Licensed translations: private use only. These must never reach a public repository, and git
+# remembers a file for ever once it is committed, so this has to be right from the first commit.
+assets/content/translations/*.personal.json
+
+__pycache__/
+*.pyc
+.venv/
+update-state.json
+salaah.prev/
+assets.prev/
+salaah.failed/
+assets.failed/
