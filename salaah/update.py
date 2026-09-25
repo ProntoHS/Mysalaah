@@ -47,7 +47,7 @@ PUBLIC_KEY = "mQwe463MZ8zDcutwC2QJzrrCvqsAIkpJoyqe4ThDZ44="
 # Where the manifest is fetched from. A setting can point a mat somewhere else -- at a laptop
 # while this is being tested, or at a new home if this one ever has to move -- but the default
 # is what every mat uses, so it is the address that has to keep working.
-DEFAULT_URL = "http://localhost:8000/latest.json"
+DEFAULT_URL = "https://raw.githubusercontent.com/ProntoHS/Mysalaah/main/latest.json"
 
 TIMEOUT = 20            # seconds for any one request
 MOST = 64 * 1024 * 1024  # the largest release we will pull down: a runaway file is a full disk
