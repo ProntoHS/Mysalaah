@@ -151,6 +151,10 @@ def fetch(url: str, into: Path | None = None, most: int = MOST, opener=None) -> 
             return into
     except Refused:
         raise
+    except urllib.error.HTTPError as problem:
+        if problem.code == 404:
+            raise Refused("nothing has been published to update to yet")
+        raise Refused(f"could not reach the update: {problem}")
     except (urllib.error.URLError, OSError, ValueError) as problem:
         raise Refused(f"could not reach the update: {problem}")
 
