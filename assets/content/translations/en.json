@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "lang": "en",
+  "name": "English",
+  "nativeName": "English",
+  "dir": "ltr",
+  "about": "Plain modern English written for this app, so it is free of any translator's copyright and can be read aloud without archaic wording. DRAFT: to be checked by a qualified reviewer. Pickthall's 1930 wording was used up to v0.47 and was dropped as too archaic; a recognised modern translation would need the publisher's permission.",
+  "sources": {
+    "alhamdulillah": "written for this app (draft, needs review)",
+    "allahu_akbar": "written for this app (draft, needs review)",
+    "ameen": "written for this app (draft, needs review)",
+    "ayat_kursi": "written for this app (draft, needs review)",
+    "dhikr_salam": "written for this app (draft, needs review)",
+    "dhikr_tahlil": "written for this app (draft, needs review)",
+    "falaq": "written for this app (draft, needs review)",
+    "fatiha": "written for this app (draft, needs review)",
+    "ikhlas": "written for this app (draft, needs review)",
+    "istiftah": "written for this app (draft, needs review)",
+    "istighfar": "written for this app (draft, needs review)",
+    "jalsa_dua": "written for this app (draft, needs review)",
+    "kawthar": "written for this app (draft, needs review)",
+    "nas": "written for this app (draft, needs review)",
+    "qunut_1": "written for this app (draft, needs review)",
+    "qunut_2": "written for this app (draft, needs review)",
+    "rabbana_atina": "written for this app (draft, needs review)",
+    "ruku_tasbih": "written for this app (draft, needs review)",
+    "salam": "written for this app (draft, needs review)",
+    "salawat": "written for this app (draft, needs review)",
+    "subhanallah": "written for this app (draft, needs review)",
+    "sujood_tasbih": "written for this app (draft, needs review)",
+    "taawwudh_basmala": "written for this app (draft, needs review)",
+    "takbir": "written for this app (draft, needs review)",
+    "tashahhud": "written for this app (draft, needs review)",
+    "tasmi_tahmid": "written for this app (draft, needs review)"
+  },
+  "intention": "I intend to perform {n} Rakats {kind} of {prayer}",
+  "kinds": {
+    "farz": "Fardh",
+    "sunnah": "Sunnah",
+    "nafl": "Nafl",
+    "witr": "Witr"
+  },
+  "prayers": {
+    "fajr": "Fajr",
+    "dhuhr": "Dhuhr",
+    "asr": "Asr",
+    "maghrib": "Maghrib",
+    "isha": "Isha"
+  },
+  "lines": {
+    "alhamdulillah": [
+      "All praise is for Allah."
+    ],
+    "allahu_akbar": [
+      "Allah is the greatest."
+    ],
+    "ameen": [
+      "O Allah, answer our prayer."
+    ],
+    "ayat_kursi": [
+      "Allah: there is no god but Him, the Ever-Living, the Sustainer of all.",
+      "Neither drowsiness nor sleep overtakes Him.",
+      "To Him belongs whatever is in the heavens and whatever is on the earth.",
+      "Who could intercede with Him except by His leave?",
+      "He knows what is before them and what is behind them,",
+      "and they grasp nothing of His knowledge except what He wills.",
+      "His Seat extends over the heavens and the earth,",
+      "and guarding them does not tire Him.",
+      "He is the Most High, the Tremendous."
+    ],
+    "dhikr_salam": [
+      "O Allah, You are Peace and from You comes peace.",
+      "Blessed are You, Owner of majesty and honour."
+    ],
+    "dhikr_tahlil": [
+      "There is no god but Allah alone, with no partner.",
+      "His is the dominion and His is the praise,",
+      "and He has power over all things."
+    ],
+    "falaq": [
+      "In the name of Allah, the Most Merciful, the Most Compassionate.",
+      "Say: I seek refuge with the Lord of the daybreak",
+      "from the harm of what He created,",
+      "from the harm of darkness as it settles,",
+      "from the harm of those who blow on knots,",
+      "and from the harm of an envier when he envies."
+    ],
+    "fatiha": [
+      "In the name of Allah, the Most Merciful, the Most Compassionate.",
+      "All praise belongs to Allah, Lord of all the worlds,",
+      "the Most Merciful, the Most Compassionate,",
+      "Master of the Day of Judgement.",
+      "You alone we worship, and You alone we ask for help.",
+      "Guide us along the straight path,",
+      "the path of those You have blessed, not of those who earned anger, nor of those who went astray."
+    ],
+    "ikhlas": [
+      "In the name of Allah, the Most Merciful, the Most Compassionate.",
+      "Say: He is Allah, the One.",
+      "Allah, the Eternal, on whom all depend.",
+      "He does not give birth, nor was He born,",
+      "and there is none comparable to Him."
+    ],
+    "istiftah": [
+      "Glory be to You, O Allah, and all praise is Yours.",
+      "Blessed is Your name and exalted is Your majesty.",
+      "There is no god but You."
+    ],
+    "istighfar": [
+      "I ask Allah's forgiveness."
+    ],
+    "jalsa_dua": [
+      "My Lord, forgive me."
+    ],
+    "kawthar": [
+      "In the name of Allah, the Most Merciful, the Most Compassionate.",
+      "We have surely given you abundance.",
+      "So pray to your Lord and sacrifice.",
+      "It is the one who hates you who is cut off."
+    ],
+    "nas": [
+      "In the name of Allah, the Most Merciful, the Most Compassionate.",
+      "Say: I seek refuge with the Lord of people,",
+      "the King of people,",
+      "the Allah of people,",
+      "from the harm of the whisperer who withdraws,",
+      "who whispers into the hearts of people,",
+      "from among jinn and people."
+    ],
+    "qunut_1": [
+      "O Allah, we ask You for help, we ask Your forgiveness, we believe in You and we rely on You.",
+      "We praise You for all good, we thank You and we are not ungrateful to You.",
+      "We cast off and leave whoever disobeys You."
+    ],
+    "qunut_2": [
+      "O Allah, You alone we worship; for You we pray and prostrate.",
+      "To You we strive and hasten. We hope for Your mercy and fear Your punishment.",
+      "Your punishment surely reaches those who reject faith."
+    ],
+    "rabbana_atina": [
+      "Our Lord, give us good in this world",
+      "and good in the hereafter, and protect us from the punishment of the Fire."
+    ],
+    "ruku_tasbih": [
+      "Glory to my Lord, the Most Great."
+    ],
+    "salam": [
+      "Peace be upon you, and the mercy of Allah."
+    ],
+    "salawat": [
+      "O Allah, send Your grace upon Muhammad and upon the family of Muhammad,",
+      "as You sent grace upon Abraham and upon the family of Abraham. You are worthy of praise, full of glory.",
+      "O Allah, send Your blessings upon Muhammad and upon the family of Muhammad,",
+      "as You blessed Abraham and the family of Abraham. You are worthy of praise, full of glory."
+    ],
+    "subhanallah": [
+      "Glory be to Allah."
+    ],
+    "sujood_tasbih": [
+      "Glory to my Lord, the Most High."
+    ],
+    "taawwudh_basmala": [
+      "I seek refuge with Allah from Satan, the rejected."
+    ],
+    "takbir": [
+      "Allah is the greatest."
+    ],
+    "tashahhud": [
+      "All greetings, prayers and good things belong to Allah.",
+      "Peace be upon you, O Prophet, and the mercy of Allah and His blessings.",
+      "Peace be upon us and upon the righteous servants of Allah.",
+      "I bear witness that there is no god but Allah, and that Muhammad is His servant and messenger."
+    ],
+    "tasmi_tahmid": [
+      "Allah hears the one who praises Him.",
+      "Our Lord, to You belongs all praise."
+    ]
+  }
+}

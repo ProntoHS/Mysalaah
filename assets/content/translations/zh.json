@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "lang": "zh",
+  "name": "Chinese",
+  "nativeName": "中文",
+  "dir": "ltr",
+  "about": "Plain modern Mandarin written for this app, so it is free of any translator's copyright and can ship on a device that is sold or given away. Simplified characters; 安拉 is used for Allah. DRAFT: every line needs checking by a qualified Chinese speaker. No published Chinese translation was used: Ma Jian's is in copyright until 2029 at the earliest and 2048 in the UK, and Wang Jingzhai's (out of copyright) has never been digitised.",
+  "sources": {
+    "takbir": "written for this app (draft, needs review)",
+    "allahu_akbar": "written for this app (draft, needs review)",
+    "subhanallah": "written for this app (draft, needs review)",
+    "alhamdulillah": "written for this app (draft, needs review)",
+    "istighfar": "written for this app (draft, needs review)",
+    "ameen": "written for this app (draft, needs review)",
+    "jalsa_dua": "written for this app (draft, needs review)",
+    "ruku_tasbih": "written for this app (draft, needs review)",
+    "sujood_tasbih": "written for this app (draft, needs review)",
+    "salam": "written for this app (draft, needs review)",
+    "taawwudh_basmala": "written for this app (draft, needs review)",
+    "istiftah": "written for this app (draft, needs review)",
+    "tasmi_tahmid": "written for this app (draft, needs review)",
+    "rabbana_atina": "written for this app (draft, needs review)",
+    "dhikr_salam": "written for this app (draft, needs review)",
+    "dhikr_tahlil": "written for this app (draft, needs review)",
+    "tashahhud": "written for this app (draft, needs review)",
+    "salawat": "written for this app (draft, needs review)",
+    "qunut_1": "written for this app (draft, needs review)",
+    "qunut_2": "written for this app (draft, needs review)",
+    "fatiha": "written for this app (draft, needs review)",
+    "kawthar": "written for this app (draft, needs review)",
+    "ikhlas": "written for this app (draft, needs review)",
+    "falaq": "written for this app (draft, needs review)",
+    "nas": "written for this app (draft, needs review)",
+    "ayat_kursi": "written for this app (draft, needs review)"
+  },
+  "intention": "我立意礼{prayer}的{kind}，共{n}拜",
+  "kinds": {
+    "farz": "主命",
+    "sunnah": "圣行",
+    "nafl": "副功",
+    "witr": "威特尔"
+  },
+  "prayers": {
+    "fajr": "晨礼",
+    "dhuhr": "晌礼",
+    "asr": "晡礼",
+    "maghrib": "昏礼",
+    "isha": "宵礼"
+  },
+  "lines": {
+    "alhamdulillah": [
+      "一切赞颂全归安拉。"
+    ],
+    "allahu_akbar": [
+      "安拉至大。"
+    ],
+    "ameen": [
+      "主啊，求你应答我们的祈求。"
+    ],
+    "ayat_kursi": [
+      "安拉，除他之外绝无应受崇拜者；他是永生的，是维护万物的。",
+      "睡意和睡眠都不能侵袭他。",
+      "天地万物都是他的。",
+      "不经他的许可，谁能在他那里替人说情呢？",
+      "他知道他们面前的事，也知道他们身后的事，",
+      "除他所意欲的以外，他们绝不能窥测他的知识。",
+      "他的宝座广阔，包罗天地，",
+      "维护天地，不使他疲倦。",
+      "他是至尊的，是至大的。"
+    ],
+    "dhikr_salam": [
+      "主啊，你是平安，平安来自于你。",
+      "多福哉，尊严和尊贵的主。"
+    ],
+    "dhikr_tahlil": [
+      "除安拉之外，绝无应受崇拜者，他是独一的，没有伙伴。",
+      "国权归他，赞颂归他，",
+      "他对万事都是全能的。"
+    ],
+    "falaq": [
+      "奉安拉之名，至仁的，至慈的。",
+      "你说：我求庇于破晓的主，",
+      "免受他所创造的一切的伤害，",
+      "免受黑夜降临时的伤害，",
+      "免受吹破魔结者的伤害，",
+      "免受嫉妒者嫉妒时的伤害。"
+    ],
+    "fatiha": [
+      "奉安拉之名，至仁的，至慈的。",
+      "一切赞颂全归安拉，众世界的主，",
+      "至仁的，至慈的，",
+      "报应日的主宰。",
+      "我们只崇拜你，只求你援助。",
+      "求你引导我们走上正路，",
+      "你所喜悦者的路，不是受谴怒者的路，也不是迷误者的路。"
+    ],
+    "ikhlas": [
+      "奉安拉之名，至仁的，至慈的。",
+      "你说：他是安拉，是独一的主。",
+      "安拉是万物所仰赖的。",
+      "他没有生育，也没有被生育，",
+      "没有任何物可以与他匹敌。"
+    ],
+    "istiftah": [
+      "主啊，赞你超绝，一切赞颂全归你。",
+      "你的名多福，你的尊严崇高。",
+      "除你之外，绝无应受崇拜者。"
+    ],
+    "istighfar": [
+      "我求安拉恕饶。"
+    ],
+    "jalsa_dua": [
+      "我的主啊，求你恕饶我。"
+    ],
+    "kawthar": [
+      "奉安拉之名，至仁的，至慈的。",
+      "我确已赐你许多福泽。",
+      "所以你应当礼拜你的主，并宰牲献祭。",
+      "怨恨你的人，才是绝后的。"
+    ],
+    "nas": [
+      "奉安拉之名，至仁的，至慈的。",
+      "你说：我求庇于世人的主，",
+      "世人的君王，",
+      "世人所当崇拜者，",
+      "免受潜伏的低语者的伤害，",
+      "他在世人的心中低语，",
+      "他来自精灵和人类之中。"
+    ],
+    "qunut_1": [
+      "主啊，我们求你援助，求你恕饶，我们信仰你，信托你。",
+      "我们为一切美好赞颂你，感谢你，绝不忘恩负义。",
+      "我们摒弃并离开一切违抗你的人。"
+    ],
+    "qunut_2": [
+      "主啊，我们只崇拜你；我们为你礼拜，为你叩头。",
+      "我们为你奋斗，向你奔赴。我们企望你的慈悯，畏惧你的刑罚。",
+      "你的刑罚必将降临于不信道的人。"
+    ],
+    "rabbana_atina": [
+      "我们的主啊，求你在今世赐我们幸福，",
+      "在后世也赐我们幸福，并保护我们免受火狱的刑罚。"
+    ],
+    "ruku_tasbih": [
+      "赞颂我的主，至大的主。"
+    ],
+    "salam": [
+      "愿平安和安拉的慈悯降临于你们。"
+    ],
+    "salawat": [
+      "主啊，求你赐福于穆罕默德和穆罕默德的家属，",
+      "犹如你赐福于易卜拉欣和易卜拉欣的家属。你是可赞颂的，是尊荣的。",
+      "主啊，求你降福于穆罕默德和穆罕默德的家属，",
+      "犹如你降福于易卜拉欣和易卜拉欣的家属。你是可赞颂的，是尊荣的。"
+    ],
+    "subhanallah": [
+      "赞美安拉。"
+    ],
+    "sujood_tasbih": [
+      "赞颂我的主，至高的主。"
+    ],
+    "taawwudh_basmala": [
+      "我求安拉保护，免受被弃绝的恶魔的伤害。"
+    ],
+    "takbir": [
+      "安拉至大。"
+    ],
+    "tashahhud": [
+      "一切敬意、祈祷和善行都归于安拉。",
+      "先知啊，愿平安、安拉的慈悯和福泽降临于你。",
+      "愿平安降临于我们，和安拉的众善仆。",
+      "我作证：除安拉之外，绝无应受崇拜者；我又作证：穆罕默德是他的仆人和使者。"
+    ],
+    "tasmi_tahmid": [
+      "安拉听取了赞颂他的人。",
+      "我们的主啊，一切赞颂全归你。"
+    ]
+  }
+}

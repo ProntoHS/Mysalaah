@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "id": "hanafi",
+  "status": "draft_needs_review",
+  "prayers": {
+    "fajr": [
+      {
+        "kind": "sunnah",
+        "unit": "two_rakat"
+      },
+      {
+        "kind": "farz",
+        "unit": "two_rakat"
+      }
+    ],
+    "dhuhr": [
+      {
+        "kind": "sunnah",
+        "unit": "four_sunnah"
+      },
+      {
+        "kind": "farz",
+        "unit": "four_farz"
+      },
+      {
+        "kind": "sunnah",
+        "unit": "two_rakat"
+      },
+      {
+        "kind": "nafl",
+        "unit": "two_rakat"
+      }
+    ],
+    "asr": [
+      {
+        "kind": "sunnah",
+        "unit": "four_sunnah"
+      },
+      {
+        "kind": "farz",
+        "unit": "four_farz"
+      }
+    ],
+    "maghrib": [
+      {
+        "kind": "farz",
+        "unit": "three_farz"
+      },
+      {
+        "kind": "sunnah",
+        "unit": "two_rakat"
+      },
+      {
+        "kind": "nafl",
+        "unit": "two_rakat"
+      }
+    ],
+    "isha": [
+      {
+        "kind": "sunnah",
+        "unit": "four_sunnah"
+      },
+      {
+        "kind": "farz",
+        "unit": "four_farz"
+      },
+      {
+        "kind": "sunnah",
+        "unit": "two_rakat"
+      },
+      {
+        "kind": "nafl",
+        "unit": "two_rakat"
+      },
+      {
+        "kind": "witr",
+        "unit": "three_witr"
+      },
+      {
+        "kind": "nafl",
+        "unit": "two_rakat"
+      }
+    ]
+  },
+  "prayerTimes": {
+    "asrMethod": "hanafi"
+  },
+  "stepOverrides": {}
+}

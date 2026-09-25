@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "file": "tashahhud.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.987,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.779
+        },
+        {
+          "start": 0.779,
+          "end": 1.169
+        },
+        {
+          "start": 1.169,
+          "end": 2.078
+        },
+        {
+          "start": 2.078,
+          "end": 2.987
+        }
+      ]
+    },
+    {
+      "start": 2.987,
+      "end": 7.143,
+      "words": [
+        {
+          "start": 2.987,
+          "end": 3.637
+        },
+        {
+          "start": 3.637,
+          "end": 4.156
+        },
+        {
+          "start": 4.156,
+          "end": 4.676
+        },
+        {
+          "start": 4.676,
+          "end": 5.195
+        },
+        {
+          "start": 5.195,
+          "end": 5.845
+        },
+        {
+          "start": 5.845,
+          "end": 6.234
+        },
+        {
+          "start": 6.234,
+          "end": 7.143
+        }
+      ]
+    },
+    {
+      "start": 7.143,
+      "end": 10.65,
+      "words": [
+        {
+          "start": 7.143,
+          "end": 7.793
+        },
+        {
+          "start": 7.793,
+          "end": 8.442
+        },
+        {
+          "start": 8.442,
+          "end": 8.962
+        },
+        {
+          "start": 8.962,
+          "end": 9.481
+        },
+        {
+          "start": 9.481,
+          "end": 9.871
+        },
+        {
+          "start": 9.871,
+          "end": 10.65
+        }
+      ]
+    },
+    {
+      "start": 11.45,
+      "end": 16.75,
+      "words": [
+        {
+          "start": 11.45,
+          "end": 11.994
+        },
+        {
+          "start": 11.994,
+          "end": 12.265
+        },
+        {
+          "start": 12.265,
+          "end": 12.537
+        },
+        {
+          "start": 12.537,
+          "end": 12.945
+        },
+        {
+          "start": 12.945,
+          "end": 13.353
+        },
+        {
+          "start": 13.353,
+          "end": 13.76
+        },
+        {
+          "start": 13.76,
+          "end": 14.44
+        },
+        {
+          "start": 14.44,
+          "end": 14.712
+        },
+        {
+          "start": 14.712,
+          "end": 15.391
+        },
+        {
+          "start": 15.391,
+          "end": 15.935
+        },
+        {
+          "start": 15.935,
+          "end": 16.75
+        }
+      ]
+    }
+  ]
+}

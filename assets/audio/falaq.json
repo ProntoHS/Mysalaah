@@ -1,0 +1,153 @@
+{
+  "schema": 1,
+  "file": "falaq.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.25,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.422
+        },
+        {
+          "start": 0.422,
+          "end": 0.844
+        },
+        {
+          "start": 0.844,
+          "end": 1.547
+        },
+        {
+          "start": 1.547,
+          "end": 2.25
+        }
+      ]
+    },
+    {
+      "start": 2.55,
+      "end": 4.45,
+      "words": [
+        {
+          "start": 2.55,
+          "end": 2.842
+        },
+        {
+          "start": 2.842,
+          "end": 3.427
+        },
+        {
+          "start": 3.427,
+          "end": 3.865
+        },
+        {
+          "start": 3.865,
+          "end": 4.45
+        }
+      ]
+    },
+    {
+      "start": 5.0,
+      "end": 6.45,
+      "words": [
+        {
+          "start": 5.0,
+          "end": 5.322
+        },
+        {
+          "start": 5.322,
+          "end": 5.644
+        },
+        {
+          "start": 5.644,
+          "end": 5.967
+        },
+        {
+          "start": 5.967,
+          "end": 6.45
+        }
+      ]
+    },
+    {
+      "start": 6.8,
+      "end": 9.15,
+      "words": [
+        {
+          "start": 6.8,
+          "end": 7.27
+        },
+        {
+          "start": 7.27,
+          "end": 7.583
+        },
+        {
+          "start": 7.583,
+          "end": 8.21
+        },
+        {
+          "start": 8.21,
+          "end": 8.68
+        },
+        {
+          "start": 8.68,
+          "end": 9.15
+        }
+      ]
+    },
+    {
+      "start": 9.5,
+      "end": 11.7,
+      "words": [
+        {
+          "start": 9.5,
+          "end": 9.888
+        },
+        {
+          "start": 9.888,
+          "end": 10.147
+        },
+        {
+          "start": 10.147,
+          "end": 10.924
+        },
+        {
+          "start": 10.924,
+          "end": 11.182
+        },
+        {
+          "start": 11.182,
+          "end": 11.7
+        }
+      ]
+    },
+    {
+      "start": 12.1,
+      "end": 14.4,
+      "words": [
+        {
+          "start": 12.1,
+          "end": 12.56
+        },
+        {
+          "start": 12.56,
+          "end": 12.867
+        },
+        {
+          "start": 12.867,
+          "end": 13.48
+        },
+        {
+          "start": 13.48,
+          "end": 13.94
+        },
+        {
+          "start": 13.94,
+          "end": 14.4
+        }
+      ]
+    }
+  ]
+}

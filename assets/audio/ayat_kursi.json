@@ -1,0 +1,263 @@
+{
+  "schema": 1,
+  "file": "ayat_kursi.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 3.7,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.529
+        },
+        {
+          "start": 0.529,
+          "end": 0.881
+        },
+        {
+          "start": 0.881,
+          "end": 1.41
+        },
+        {
+          "start": 1.41,
+          "end": 1.938
+        },
+        {
+          "start": 1.938,
+          "end": 2.29
+        },
+        {
+          "start": 2.29,
+          "end": 2.819
+        },
+        {
+          "start": 2.819,
+          "end": 3.7
+        }
+      ]
+    },
+    {
+      "start": 4.05,
+      "end": 6.6,
+      "words": [
+        {
+          "start": 4.05,
+          "end": 4.369
+        },
+        {
+          "start": 4.369,
+          "end": 5.166
+        },
+        {
+          "start": 5.166,
+          "end": 5.644
+        },
+        {
+          "start": 5.644,
+          "end": 6.122
+        },
+        {
+          "start": 6.122,
+          "end": 6.6
+        }
+      ]
+    },
+    {
+      "start": 7.0,
+      "end": 9.7,
+      "words": [
+        {
+          "start": 7.0,
+          "end": 7.27
+        },
+        {
+          "start": 7.27,
+          "end": 7.54
+        },
+        {
+          "start": 7.54,
+          "end": 7.81
+        },
+        {
+          "start": 7.81,
+          "end": 8.485
+        },
+        {
+          "start": 8.485,
+          "end": 8.89
+        },
+        {
+          "start": 8.89,
+          "end": 9.16
+        },
+        {
+          "start": 9.16,
+          "end": 9.7
+        }
+      ]
+    },
+    {
+      "start": 10.05,
+      "end": 13.2,
+      "words": [
+        {
+          "start": 10.05,
+          "end": 10.324
+        },
+        {
+          "start": 10.324,
+          "end": 10.598
+        },
+        {
+          "start": 10.598,
+          "end": 11.009
+        },
+        {
+          "start": 11.009,
+          "end": 11.557
+        },
+        {
+          "start": 11.557,
+          "end": 12.104
+        },
+        {
+          "start": 12.104,
+          "end": 12.515
+        },
+        {
+          "start": 12.515,
+          "end": 13.2
+        }
+      ]
+    },
+    {
+      "start": 13.55,
+      "end": 16.35,
+      "words": [
+        {
+          "start": 13.55,
+          "end": 14.037
+        },
+        {
+          "start": 14.037,
+          "end": 14.28
+        },
+        {
+          "start": 14.28,
+          "end": 14.646
+        },
+        {
+          "start": 14.646,
+          "end": 15.376
+        },
+        {
+          "start": 15.376,
+          "end": 15.741
+        },
+        {
+          "start": 15.741,
+          "end": 16.35
+        }
+      ]
+    },
+    {
+      "start": 16.6,
+      "end": 20.65,
+      "words": [
+        {
+          "start": 16.6,
+          "end": 17.034
+        },
+        {
+          "start": 17.034,
+          "end": 17.902
+        },
+        {
+          "start": 17.902,
+          "end": 18.48
+        },
+        {
+          "start": 18.48,
+          "end": 18.77
+        },
+        {
+          "start": 18.77,
+          "end": 19.348
+        },
+        {
+          "start": 19.348,
+          "end": 19.782
+        },
+        {
+          "start": 19.782,
+          "end": 20.216
+        },
+        {
+          "start": 20.216,
+          "end": 20.65
+        }
+      ]
+    },
+    {
+      "start": 21.25,
+      "end": 24.0,
+      "words": [
+        {
+          "start": 21.25,
+          "end": 21.708
+        },
+        {
+          "start": 21.708,
+          "end": 22.472
+        },
+        {
+          "start": 22.472,
+          "end": 23.236
+        },
+        {
+          "start": 23.236,
+          "end": 24.0
+        }
+      ]
+    },
+    {
+      "start": 24.25,
+      "end": 26.4,
+      "words": [
+        {
+          "start": 24.25,
+          "end": 24.711
+        },
+        {
+          "start": 24.711,
+          "end": 25.479
+        },
+        {
+          "start": 25.479,
+          "end": 26.4
+        }
+      ]
+    },
+    {
+      "start": 26.8,
+      "end": 28.55,
+      "words": [
+        {
+          "start": 26.8,
+          "end": 27.238
+        },
+        {
+          "start": 27.238,
+          "end": 27.821
+        },
+        {
+          "start": 27.821,
+          "end": 28.55
+        }
+      ]
+    }
+  ]
+}

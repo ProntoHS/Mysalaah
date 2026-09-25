@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "file": "qunut_2.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.35,
+      "end": 3.65,
+      "words": [
+        {
+          "start": 0.35,
+          "end": 0.9
+        },
+        {
+          "start": 0.9,
+          "end": 1.45
+        },
+        {
+          "start": 1.45,
+          "end": 2.0
+        },
+        {
+          "start": 2.0,
+          "end": 2.413
+        },
+        {
+          "start": 2.413,
+          "end": 2.963
+        },
+        {
+          "start": 2.963,
+          "end": 3.65
+        }
+      ]
+    },
+    {
+      "start": 3.9,
+      "end": 8.544,
+      "words": [
+        {
+          "start": 3.9,
+          "end": 4.525
+        },
+        {
+          "start": 4.525,
+          "end": 5.025
+        },
+        {
+          "start": 5.025,
+          "end": 5.65
+        },
+        {
+          "start": 5.85,
+          "end": 6.62
+        },
+        {
+          "start": 6.62,
+          "end": 7.261
+        },
+        {
+          "start": 7.261,
+          "end": 7.903
+        },
+        {
+          "start": 7.903,
+          "end": 8.544
+        }
+      ]
+    },
+    {
+      "start": 8.544,
+      "end": 10.8,
+      "words": [
+        {
+          "start": 8.544,
+          "end": 8.81
+        },
+        {
+          "start": 8.81,
+          "end": 9.473
+        },
+        {
+          "start": 9.473,
+          "end": 10.269
+        },
+        {
+          "start": 10.269,
+          "end": 10.8
+        }
+      ]
+    }
+  ]
+}

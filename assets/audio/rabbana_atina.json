@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "file": "rabbana_atina.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.3,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.46
+        },
+        {
+          "start": 0.46,
+          "end": 0.92
+        },
+        {
+          "start": 0.92,
+          "end": 1.15
+        },
+        {
+          "start": 1.15,
+          "end": 1.84
+        },
+        {
+          "start": 1.84,
+          "end": 2.3
+        }
+      ]
+    },
+    {
+      "start": 2.7,
+      "end": 5.95,
+      "words": [
+        {
+          "start": 2.7,
+          "end": 3.075
+        },
+        {
+          "start": 3.075,
+          "end": 3.825
+        },
+        {
+          "start": 3.825,
+          "end": 4.325
+        },
+        {
+          "start": 4.325,
+          "end": 4.825
+        },
+        {
+          "start": 4.825,
+          "end": 5.325
+        },
+        {
+          "start": 5.325,
+          "end": 5.95
+        }
+      ]
+    }
+  ]
+}

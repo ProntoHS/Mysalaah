@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "file": "ruku_tasbih.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.2,
+      "end": 1.75,
+      "words": [
+        {
+          "start": 0.2,
+          "end": 0.796
+        },
+        {
+          "start": 0.796,
+          "end": 1.154
+        },
+        {
+          "start": 1.154,
+          "end": 1.75
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "file": "salam.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.1,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.583
+        },
+        {
+          "start": 0.583,
+          "end": 1.167
+        },
+        {
+          "start": 1.167,
+          "end": 1.75
+        },
+        {
+          "start": 1.75,
+          "end": 2.1
+        }
+      ]
+    }
+  ]
+}

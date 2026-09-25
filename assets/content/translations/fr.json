@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "lang": "fr",
+  "name": "French",
+  "nativeName": "Français",
+  "dir": "ltr",
+  "about": "Passages du Coran : traduction d'Albert Kazimirski de Biberstein (1840 ; édition Charpentier), domaine public. La Fatiha et le verset du Trône sont repris de Wikisource ; les sourates 108, 112, 113 et 114 ont été saisies d'après le texte de Kazimirski et doivent être vérifiées sur l'édition imprimée. Invocations et dhikr : traduction rédigée pour cette application, BROUILLON, à faire relire par une personne qualifiée.",
+  "sources": {
+    "takbir": "written for this app (draft, needs review)",
+    "allahu_akbar": "written for this app (draft, needs review)",
+    "subhanallah": "written for this app (draft, needs review)",
+    "alhamdulillah": "written for this app (draft, needs review)",
+    "istiftah": "written for this app (draft, needs review)",
+    "taawwudh_basmala": "written for this app (draft, needs review)",
+    "ameen": "written for this app (draft, needs review)",
+    "ruku_tasbih": "written for this app (draft, needs review)",
+    "sujood_tasbih": "written for this app (draft, needs review)",
+    "tasmi_tahmid": "written for this app (draft, needs review)",
+    "jalsa_dua": "written for this app (draft, needs review)",
+    "tashahhud": "written for this app (draft, needs review)",
+    "salawat": "written for this app (draft, needs review)",
+    "rabbana_atina": "written for this app (draft, needs review)",
+    "salam": "written for this app (draft, needs review)",
+    "istighfar": "written for this app (draft, needs review)",
+    "qunut_1": "written for this app (draft, needs review)",
+    "qunut_2": "written for this app (draft, needs review)",
+    "dhikr_salam": "written for this app (draft, needs review)",
+    "dhikr_tahlil": "written for this app (draft, needs review)",
+    "fatiha": "Kazimirski 1840 (Wikisource)",
+    "ayat_kursi": "Kazimirski 1840 (Wikisource)",
+    "kawthar": "Kazimirski 1840 (to check against the printed text)",
+    "ikhlas": "Kazimirski 1840 (to check against the printed text)",
+    "falaq": "Kazimirski 1840 (to check against the printed text)",
+    "nas": "Kazimirski 1840 (to check against the printed text)"
+  },
+  "intention": "J'ai l'intention d'accomplir {n} rak'ats {kind} de {prayer}",
+  "kinds": {
+    "farz": "fardh",
+    "sunnah": "sunnah",
+    "nafl": "nafl",
+    "witr": "witr"
+  },
+  "prayers": {
+    "fajr": "Fajr",
+    "dhuhr": "Dhuhr",
+    "asr": "Asr",
+    "maghrib": "Maghrib",
+    "isha": "Isha"
+  },
+  "lines": {
+    "alhamdulillah": [
+      "Louange à Dieu."
+    ],
+    "allahu_akbar": [
+      "Dieu est le plus grand."
+    ],
+    "ameen": [
+      "Ô Dieu, exauce notre prière."
+    ],
+    "ayat_kursi": [
+      "Dieu est le seul Dieu ; il n'y a point d'autre Dieu que lui, le Vivant, l'Immuable.",
+      "Ni l'assoupissement ni le sommeil n'ont de prise sur lui.",
+      "Tout ce qui est dans les cieux et sur la terre lui appartient.",
+      "Qui peut intercéder auprès de lui sans sa permission ?",
+      "Il connaît ce qui est devant eux et ce qui est derrière eux,",
+      "et les hommes n'embrassent de sa science que ce qu'il a voulu leur apprendre.",
+      "Son trône s'étend sur les cieux et sur la terre,",
+      "et leur garde ne lui coûte aucune peine.",
+      "Il est le Très-Haut, le Grand."
+    ],
+    "dhikr_salam": [
+      "Ô Dieu, tu es la Paix et de toi vient la paix.",
+      "Béni sois-tu, ô Détenteur de la majesté et de la générosité."
+    ],
+    "dhikr_tahlil": [
+      "Il n'y a de divinité que Dieu seul, sans associé.",
+      "À lui la royauté et à lui la louange,",
+      "et il est capable de toute chose."
+    ],
+    "falaq": [
+      "Au nom du Dieu clément et miséricordieux.",
+      "Dis : Je cherche un refuge auprès du Seigneur de l'aube du jour",
+      "contre la méchanceté des êtres qu'il a créés,",
+      "contre le mal de la nuit sombre quand elle nous surprend,",
+      "contre la méchanceté de celles qui soufflent sur les nœuds,",
+      "contre le mal de l'envieux qui nous porte envie."
+    ],
+    "fatiha": [
+      "Au nom du Dieu clément et miséricordieux.",
+      "Louange à Dieu, maître de l'univers,",
+      "le clément, le miséricordieux,",
+      "souverain au jour de la rétribution.",
+      "C'est toi que nous adorons, c'est toi dont nous implorons le secours.",
+      "Dirige-nous dans le sentier droit,",
+      "dans le sentier de ceux que tu as comblés de tes bienfaits, non pas de ceux qui ont encouru ta colère, ni de ceux qui s'égarent."
+    ],
+    "ikhlas": [
+      "Au nom du Dieu clément et miséricordieux.",
+      "Dis : Dieu est un.",
+      "C'est le Dieu éternel.",
+      "Il n'a point enfanté, et n'a point été enfanté.",
+      "Il n'a point d'égal."
+    ],
+    "istiftah": [
+      "Gloire à toi, ô Dieu, et louange à toi.",
+      "Béni soit ton nom et exaltée soit ta majesté.",
+      "Il n'y a point de divinité hors de toi."
+    ],
+    "istighfar": [
+      "Je demande pardon à Dieu."
+    ],
+    "jalsa_dua": [
+      "Seigneur, pardonne-moi."
+    ],
+    "kawthar": [
+      "Au nom du Dieu clément et miséricordieux.",
+      "Nous t'avons donné l'abondance.",
+      "Adresse donc tes prières au Seigneur, et immole des victimes.",
+      "Celui qui te hait mourra sans postérité."
+    ],
+    "nas": [
+      "Au nom du Dieu clément et miséricordieux.",
+      "Dis : Je cherche un refuge auprès du Seigneur des hommes,",
+      "Roi des hommes,",
+      "Dieu des hommes,",
+      "contre la méchanceté de celui qui suggère les mauvaises pensées et se dérobe,",
+      "qui souffle le mal dans les cœurs des hommes,",
+      "contre les génies et les hommes."
+    ],
+    "qunut_1": [
+      "Ô Dieu, nous te demandons ton aide et ton pardon, nous croyons en toi et nous plaçons notre confiance en toi.",
+      "Nous te louons pour tout bien, nous te remercions et ne sommes point ingrats envers toi.",
+      "Nous rejetons et délaissons quiconque te désobéit."
+    ],
+    "qunut_2": [
+      "Ô Dieu, c'est toi seul que nous adorons ; pour toi nous prions et nous prosternons.",
+      "Vers toi nous accourons et nous nous empressons. Nous espérons ta miséricorde et craignons ton châtiment.",
+      "Ton châtiment atteint certes les mécréants."
+    ],
+    "rabbana_atina": [
+      "Notre Seigneur, accorde-nous une belle part ici-bas",
+      "et une belle part dans l'au-delà, et préserve-nous du châtiment du Feu."
+    ],
+    "ruku_tasbih": [
+      "Gloire à mon Seigneur, le Très-Grand."
+    ],
+    "salam": [
+      "Que la paix soit sur vous, ainsi que la miséricorde de Dieu."
+    ],
+    "salawat": [
+      "Ô Dieu, prie sur Muhammad et sur la famille de Muhammad,",
+      "comme tu as prié sur Abraham et sur la famille d'Abraham. Tu es digne de louange et de gloire.",
+      "Ô Dieu, bénis Muhammad et la famille de Muhammad,",
+      "comme tu as béni Abraham et la famille d'Abraham. Tu es digne de louange et de gloire."
+    ],
+    "subhanallah": [
+      "Gloire à Dieu."
+    ],
+    "sujood_tasbih": [
+      "Gloire à mon Seigneur, le Très-Haut."
+    ],
+    "taawwudh_basmala": [
+      "Je cherche refuge auprès de Dieu contre Satan le lapidé."
+    ],
+    "takbir": [
+      "Dieu est le plus grand."
+    ],
+    "tashahhud": [
+      "Les salutations, les prières et les bonnes œuvres sont à Dieu.",
+      "Que la paix soit sur toi, ô Prophète, ainsi que la miséricorde de Dieu et ses bénédictions.",
+      "Que la paix soit sur nous et sur les serviteurs vertueux de Dieu.",
+      "J'atteste qu'il n'y a de divinité que Dieu, et que Muhammad est son serviteur et son messager."
+    ],
+    "tasmi_tahmid": [
+      "Dieu entend celui qui le loue.",
+      "Notre Seigneur, à toi la louange."
+    ]
+  }
+}

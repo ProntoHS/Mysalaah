@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "file": "dhikr_tahlil.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 4.05,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.337
+        },
+        {
+          "start": 0.337,
+          "end": 0.844
+        },
+        {
+          "start": 0.844,
+          "end": 1.35
+        },
+        {
+          "start": 1.35,
+          "end": 2.025
+        },
+        {
+          "start": 2.025,
+          "end": 2.7
+        },
+        {
+          "start": 2.7,
+          "end": 3.037
+        },
+        {
+          "start": 3.037,
+          "end": 3.712
+        },
+        {
+          "start": 3.712,
+          "end": 4.05
+        }
+      ]
+    },
+    {
+      "start": 4.65,
+      "end": 6.35,
+      "words": [
+        {
+          "start": 4.65,
+          "end": 4.877
+        },
+        {
+          "start": 4.877,
+          "end": 5.443
+        },
+        {
+          "start": 5.443,
+          "end": 5.783
+        },
+        {
+          "start": 5.783,
+          "end": 6.35
+        }
+      ]
+    },
+    {
+      "start": 6.7,
+      "end": 9.1,
+      "words": [
+        {
+          "start": 6.7,
+          "end": 7.18
+        },
+        {
+          "start": 7.18,
+          "end": 7.66
+        },
+        {
+          "start": 7.66,
+          "end": 7.98
+        },
+        {
+          "start": 7.98,
+          "end": 8.46
+        },
+        {
+          "start": 8.46,
+          "end": 9.1
+        }
+      ]
+    }
+  ]
+}

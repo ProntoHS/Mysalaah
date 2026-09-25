@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "status": "draft_needs_review",
+  "note": "The dhikr after a fardh prayer, shown in place of the daily passage. Each entry names a recitation in core/arabic.json, which holds the words (split where the recordings pause) and which the recordings in assets/audio are timed against. Needs checking by a qualified reviewer.",
+  "after_farz": {
+    "salam": "dhikr_salam",
+    "tahlil": "dhikr_tahlil",
+    "beads": [
+      {
+        "key": "subhanallah",
+        "count": 33
+      },
+      {
+        "key": "alhamdulillah",
+        "count": 33
+      },
+      {
+        "key": "allahu_akbar",
+        "count": 33
+      }
+    ]
+  }
+}

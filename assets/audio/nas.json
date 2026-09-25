@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "file": "nas.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.15,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.403
+        },
+        {
+          "start": 0.403,
+          "end": 0.806
+        },
+        {
+          "start": 0.806,
+          "end": 1.478
+        },
+        {
+          "start": 1.478,
+          "end": 2.15
+        }
+      ]
+    },
+    {
+      "start": 2.75,
+      "end": 4.55,
+      "words": [
+        {
+          "start": 2.75,
+          "end": 3.027
+        },
+        {
+          "start": 3.027,
+          "end": 3.581
+        },
+        {
+          "start": 3.581,
+          "end": 3.996
+        },
+        {
+          "start": 3.996,
+          "end": 4.55
+        }
+      ]
+    },
+    {
+      "start": 4.95,
+      "end": 6.0,
+      "words": [
+        {
+          "start": 4.95,
+          "end": 5.4
+        },
+        {
+          "start": 5.4,
+          "end": 6.0
+        }
+      ]
+    },
+    {
+      "start": 6.35,
+      "end": 7.4,
+      "words": [
+        {
+          "start": 6.35,
+          "end": 6.8
+        },
+        {
+          "start": 6.8,
+          "end": 7.4
+        }
+      ]
+    },
+    {
+      "start": 8.05,
+      "end": 11.02,
+      "words": [
+        {
+          "start": 8.05,
+          "end": 8.446
+        },
+        {
+          "start": 8.446,
+          "end": 8.842
+        },
+        {
+          "start": 8.842,
+          "end": 10.03
+        },
+        {
+          "start": 10.03,
+          "end": 11.02
+        }
+      ]
+    },
+    {
+      "start": 11.02,
+      "end": 13.85,
+      "words": [
+        {
+          "start": 11.02,
+          "end": 11.492
+        },
+        {
+          "start": 11.492,
+          "end": 12.278
+        },
+        {
+          "start": 12.278,
+          "end": 12.592
+        },
+        {
+          "start": 12.592,
+          "end": 13.221
+        },
+        {
+          "start": 13.221,
+          "end": 13.85
+        }
+      ]
+    },
+    {
+      "start": 14.15,
+      "end": 16.5,
+      "words": [
+        {
+          "start": 14.15,
+          "end": 14.833
+        },
+        {
+          "start": 14.833,
+          "end": 16.2
+        },
+        {
+          "start": 16.4,
+          "end": 16.5
+        }
+      ]
+    }
+  ]
+}

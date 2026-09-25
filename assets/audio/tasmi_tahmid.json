@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "file": "tasmi_tahmid.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.25,
+      "end": 2.257,
+      "words": [
+        {
+          "start": 0.25,
+          "end": 0.713
+        },
+        {
+          "start": 0.713,
+          "end": 1.176
+        },
+        {
+          "start": 1.176,
+          "end": 1.639
+        },
+        {
+          "start": 1.639,
+          "end": 2.257
+        }
+      ]
+    },
+    {
+      "start": 2.257,
+      "end": 3.8,
+      "words": [
+        {
+          "start": 2.257,
+          "end": 2.874
+        },
+        {
+          "start": 2.874,
+          "end": 3.183
+        },
+        {
+          "start": 3.183,
+          "end": 3.8
+        }
+      ]
+    }
+  ]
+}

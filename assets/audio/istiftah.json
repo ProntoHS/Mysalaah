@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "file": "istiftah.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.18,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.77
+        },
+        {
+          "start": 0.77,
+          "end": 1.411
+        },
+        {
+          "start": 1.411,
+          "end": 2.18
+        }
+      ]
+    },
+    {
+      "start": 2.18,
+      "end": 4.617,
+      "words": [
+        {
+          "start": 2.18,
+          "end": 2.95
+        },
+        {
+          "start": 2.95,
+          "end": 3.463
+        },
+        {
+          "start": 3.463,
+          "end": 4.233
+        },
+        {
+          "start": 4.233,
+          "end": 4.617
+        }
+      ]
+    },
+    {
+      "start": 4.617,
+      "end": 5.9,
+      "words": [
+        {
+          "start": 4.617,
+          "end": 5.002
+        },
+        {
+          "start": 5.002,
+          "end": 5.387
+        },
+        {
+          "start": 5.387,
+          "end": 5.9
+        }
+      ]
+    }
+  ]
+}

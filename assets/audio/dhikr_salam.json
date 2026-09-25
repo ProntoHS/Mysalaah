@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "file": "dhikr_salam.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.5,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.521
+        },
+        {
+          "start": 0.521,
+          "end": 0.833
+        },
+        {
+          "start": 0.833,
+          "end": 1.458
+        },
+        {
+          "start": 1.458,
+          "end": 1.875
+        },
+        {
+          "start": 1.875,
+          "end": 2.5
+        }
+      ]
+    },
+    {
+      "start": 3.05,
+      "end": 5.1,
+      "words": [
+        {
+          "start": 3.05,
+          "end": 3.563
+        },
+        {
+          "start": 3.563,
+          "end": 3.733
+        },
+        {
+          "start": 3.733,
+          "end": 3.904
+        },
+        {
+          "start": 3.904,
+          "end": 4.417
+        },
+        {
+          "start": 4.417,
+          "end": 5.1
+        }
+      ]
+    }
+  ]
+}

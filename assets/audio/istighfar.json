@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "file": "istighfar.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 1.15,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.69
+        },
+        {
+          "start": 0.69,
+          "end": 1.15
+        }
+      ]
+    }
+  ]
+}

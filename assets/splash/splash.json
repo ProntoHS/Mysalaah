@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "source": "Logo.gif",
+  "note": "Built by tools/build_splash.py. Units: the original GIF's pixel rows, x from the middle of the circle, with the GIF's 10% squash taken out.",
+  "design_height": 1020,
+  "circle": {
+    "x": 0.0,
+    "y": 268.0,
+    "r": 203.5
+  },
+  "layers": {
+    "my": {
+      "file": "my.png",
+      "x": -472.56,
+      "y": 610.0,
+      "w": 347.82,
+      "h": 185.0
+    },
+    "saalah": {
+      "file": "saalah.png",
+      "x": 112.9,
+      "y": 604.0,
+      "w": 711.11,
+      "h": 144.0
+    },
+    "www": {
+      "file": "www.png",
+      "x": -655.57,
+      "y": 708.0,
+      "w": 179.37,
+      "h": 47.0
+    },
+    "com": {
+      "file": "com.png",
+      "x": 662.85,
+      "y": 783.0,
+      "w": 138.4,
+      "h": 48.0
+    },
+    "boy": {
+      "file": "boy.png",
+      "x": -193.03,
+      "y": 506.0,
+      "w": 380.6,
+      "h": 455.0
+    },
+    "hands_pressed": {
+      "file": "hands_pressed.png",
+      "x": -199.4,
+      "y": 69.0,
+      "w": 399.72,
+      "h": 399.0
+    },
+    "hands_open": {
+      "file": "hands_open.png",
+      "x": -199.4,
+      "y": 69.0,
+      "w": 399.72,
+      "h": 399.0
+    }
+  }
+}

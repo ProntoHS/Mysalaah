@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "file": "taawwudh_basmala.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.4,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.48
+        },
+        {
+          "start": 0.48,
+          "end": 0.96
+        },
+        {
+          "start": 0.96,
+          "end": 1.2
+        },
+        {
+          "start": 1.2,
+          "end": 1.8
+        },
+        {
+          "start": 1.8,
+          "end": 2.4
+        }
+      ]
+    }
+  ]
+}

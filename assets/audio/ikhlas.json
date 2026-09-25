@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "file": "ikhlas.mp3",
+  "reciter": "",
+  "estimated": true,
+  "note": "Verse ends that line up with a pause in the audio are real; the rest are shared out by text length. Replace with timings taken by ear using tools/tap_timings.py.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.25,
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.422
+        },
+        {
+          "start": 0.422,
+          "end": 0.844
+        },
+        {
+          "start": 0.844,
+          "end": 1.547
+        },
+        {
+          "start": 1.547,
+          "end": 2.25
+        }
+      ]
+    },
+    {
+      "start": 2.9,
+      "end": 4.55,
+      "words": [
+        {
+          "start": 2.9,
+          "end": 3.23
+        },
+        {
+          "start": 3.23,
+          "end": 3.56
+        },
+        {
+          "start": 3.56,
+          "end": 4.055
+        },
+        {
+          "start": 4.055,
+          "end": 4.55
+        }
+      ]
+    },
+    {
+      "start": 4.9,
+      "end": 6.25,
+      "words": [
+        {
+          "start": 4.9,
+          "end": 5.479
+        },
+        {
+          "start": 5.479,
+          "end": 6.25
+        }
+      ]
+    },
+    {
+      "start": 6.75,
+      "end": 8.45,
+      "words": [
+        {
+          "start": 6.75,
+          "end": 7.033
+        },
+        {
+          "start": 7.033,
+          "end": 7.458
+        },
+        {
+          "start": 7.458,
+          "end": 7.883
+        },
+        {
+          "start": 7.883,
+          "end": 8.45
+        }
+      ]
+    },
+    {
+      "start": 8.85,
+      "end": 11.0,
+      "words": [
+        {
+          "start": 8.85,
+          "end": 9.28
+        },
+        {
+          "start": 9.28,
+          "end": 9.71
+        },
+        {
+          "start": 9.71,
+          "end": 9.997
+        },
+        {
+          "start": 9.997,
+          "end": 10.57
+        },
+        {
+          "start": 10.57,
+          "end": 11.0
+        }
+      ]
+    }
+  ]
+}

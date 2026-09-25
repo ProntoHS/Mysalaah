@@ -1,0 +1,296 @@
+{
+  "schema": 1,
+  "source": "Arabic: the first twenty passages are the Uthmani text from The Noble Qur'an Encyclopedia (quranenc.com), reproduced verbatim. The rest are from the Hafs mushaf published as the 'quran-text' package on PyPI (CC BY 4.0), with its pause marks re-attached and its three 'open' tanwin codepoints mapped to the set the first twenty use; that conversion was checked by rebuilding all twenty of the originals from it, eighteen of which came back character for character and two of which differed only by a presentational tatweel that the original text itself uses in only two places out of twenty-eight. English: a plain rendering written for this app, not a published translation; each one covers the whole of the Arabic beside it. Where a verse was too long to read across a room, the Arabic is a clause of it, cut at a sentence boundary from the verbatim text (10 of the passages); the reference is still the verse it comes from. DRAFT: needs review.",
+  "passages": [
+    {
+      "reference": "94:5",
+      "arabic": "فَإِنَّ مَعَ ٱلۡعُسۡرِ يُسۡرًا",
+      "english": "So truly, with hardship comes ease."
+    },
+    {
+      "reference": "2:152",
+      "arabic": "فَٱذۡكُرُونِيٓ أَذۡكُرۡكُمۡ وَٱشۡكُرُواْ لِي وَلَا تَكۡفُرُونِ",
+      "english": "So remember Me, and I will remember you; and be thankful to Me, and do not be ungrateful."
+    },
+    {
+      "reference": "13:28",
+      "arabic": "ٱلَّذِينَ ءَامَنُواْ وَتَطۡمَئِنُّ قُلُوبُهُم بِذِكۡرِ ٱللَّهِۗ أَلَا بِذِكۡرِ ٱللَّهِ تَطۡمَئِنُّ ٱلۡقُلُوبُ",
+      "english": "Those who believe, and whose hearts find rest in the remembrance of Allah. Surely it is in the remembrance of Allah that hearts find rest."
+    },
+    {
+      "reference": "2:286",
+      "arabic": "لَا يُكَلِّفُ ٱللَّهُ نَفۡسًا إِلَّا وُسۡعَهَاۚ لَهَا مَا كَسَبَتۡ وَعَلَيۡهَا مَا ٱكۡتَسَبَتۡۗ",
+      "english": "Allah does not burden any soul beyond what it can bear. To it belongs what it has earned, and against it what it has brought upon itself."
+    },
+    {
+      "reference": "29:69",
+      "arabic": "وَٱلَّذِينَ جَٰهَدُواْ فِينَا لَنَهۡدِيَنَّهُمۡ سُبُلَنَاۚ وَإِنَّ ٱللَّهَ لَمَعَ ٱلۡمُحۡسِنِينَ",
+      "english": "And those who strive for Our sake, We shall surely guide them to Our ways; and Allah is with those who do good."
+    },
+    {
+      "reference": "55:13",
+      "arabic": "فَبِأَيِّ ءَالَآءِ رَبِّكُمَا تُكَذِّبَانِ",
+      "english": "So which of your Lord's blessings would you deny?"
+    },
+    {
+      "reference": "2:45",
+      "arabic": "وَٱسۡتَعِينُواْ بِٱلصَّبۡرِ وَٱلصَّلَوٰةِۚ وَإِنَّهَا لَكَبِيرَةٌ إِلَّا عَلَى ٱلۡخَٰشِعِينَ",
+      "english": "And seek help through patience and prayer; and it is hard indeed, except for the humble."
+    },
+    {
+      "reference": "20:114",
+      "arabic": "فَتَعَٰلَى ٱللَّهُ ٱلۡمَلِكُ ٱلۡحَقُّۗ وَلَا تَعۡجَلۡ بِٱلۡقُرۡءَانِ مِن قَبۡلِ أَن يُقۡضَىٰٓ إِلَيۡكَ وَحۡيُهُۥۖ وَقُل رَّبِّ زِدۡنِي عِلۡمٗا",
+      "english": "So exalted is Allah, the True King. Do not hasten with the Qur'an before its revelation to you is complete, but say: my Lord, increase me in knowledge."
+    },
+    {
+      "reference": "49:13",
+      "arabic": "يَـٰٓأَيُّهَا ٱلنَّاسُ إِنَّا خَلَقۡنَٰكُم مِّن ذَكَرٖ وَأُنثَىٰ وَجَعَلۡنَٰكُمۡ شُعُوبٗا وَقَبَآئِلَ لِتَعَارَفُوٓاْۚ إِنَّ أَكۡرَمَكُمۡ عِندَ ٱللَّهِ أَتۡقَىٰكُمۡۚ إِنَّ ٱللَّهَ عَلِيمٌ خَبِيرٞ",
+      "english": "People, We created you from a male and a female, and made you into nations and tribes so that you may know one another. The most honoured of you in the sight of Allah is the most mindful of Him. Allah is all-knowing, all-aware."
+    },
+    {
+      "reference": "31:17",
+      "arabic": "يَٰبُنَيَّ أَقِمِ ٱلصَّلَوٰةَ وَأۡمُرۡ بِٱلۡمَعۡرُوفِ وَٱنۡهَ عَنِ ٱلۡمُنكَرِ وَٱصۡبِرۡ عَلَىٰ مَآ أَصَابَكَۖ إِنَّ ذَٰلِكَ مِنۡ عَزۡمِ ٱلۡأُمُورِ",
+      "english": "My son, keep up the prayer, command what is right, forbid what is wrong, and endure whatever happens to you; that is a matter of real resolve."
+    },
+    {
+      "reference": "3:139",
+      "arabic": "وَلَا تَهِنُواْ وَلَا تَحۡزَنُواْ وَأَنتُمُ ٱلۡأَعۡلَوۡنَ إِن كُنتُم مُّؤۡمِنِينَ",
+      "english": "And do not lose heart, and do not grieve: you shall be the uppermost, if you are believers."
+    },
+    {
+      "reference": "39:53",
+      "arabic": "۞قُلۡ يَٰعِبَادِيَ ٱلَّذِينَ أَسۡرَفُواْ عَلَىٰٓ أَنفُسِهِمۡ لَا تَقۡنَطُواْ مِن رَّحۡمَةِ ٱللَّهِۚ إِنَّ ٱللَّهَ يَغۡفِرُ ٱلذُّنُوبَ جَمِيعًاۚ إِنَّهُۥ هُوَ ٱلۡغَفُورُ ٱلرَّحِيمُ",
+      "english": "Say: my servants who have wronged themselves, do not despair of Allah's mercy. Allah forgives all sins; He is the Ever-Forgiving, the Most Merciful."
+    },
+    {
+      "reference": "14:7",
+      "arabic": "وَإِذۡ تَأَذَّنَ رَبُّكُمۡ لَئِن شَكَرۡتُمۡ لَأَزِيدَنَّكُمۡۖ وَلَئِن كَفَرۡتُمۡ إِنَّ عَذَابِي لَشَدِيدٞ",
+      "english": "And when your Lord proclaimed: if you are thankful, I shall surely give you more; but if you are ungrateful, My punishment is severe."
+    },
+    {
+      "reference": "2:186",
+      "arabic": "وَإِذَا سَأَلَكَ عِبَادِي عَنِّي فَإِنِّي قَرِيبٌۖ أُجِيبُ دَعۡوَةَ ٱلدَّاعِ إِذَا دَعَانِۖ فَلۡيَسۡتَجِيبُواْ لِي وَلۡيُؤۡمِنُواْ بِي لَعَلَّهُمۡ يَرۡشُدُونَ",
+      "english": "And when My servants ask you about Me, I am near. I answer the call of the one who calls on Me; so let them answer Me, and believe in Me, that they may be guided."
+    },
+    {
+      "reference": "65:3",
+      "arabic": "وَيَرۡزُقۡهُ مِنۡ حَيۡثُ لَا يَحۡتَسِبُۚ وَمَن يَتَوَكَّلۡ عَلَى ٱللَّهِ فَهُوَ حَسۡبُهُۥٓۚ إِنَّ ٱللَّهَ بَٰلِغُ أَمۡرِهِۦۚ قَدۡ جَعَلَ ٱللَّهُ لِكُلِّ شَيۡءٖ قَدۡرٗا",
+      "english": "And He provides for them from where they did not expect. Whoever puts their trust in Allah, He is enough for them. Allah brings about what He decrees; Allah has set a measure for everything."
+    },
+    {
+      "reference": "93:5",
+      "arabic": "وَلَسَوۡفَ يُعۡطِيكَ رَبُّكَ فَتَرۡضَىٰٓ",
+      "english": "And your Lord will give to you, and you will be satisfied."
+    },
+    {
+      "reference": "17:23",
+      "arabic": "۞وَقَضَىٰ رَبُّكَ أَلَّا تَعۡبُدُوٓاْ إِلَّآ إِيَّاهُ وَبِٱلۡوَٰلِدَيۡنِ إِحۡسَٰنًاۚ إِمَّا يَبۡلُغَنَّ عِندَكَ ٱلۡكِبَرَ أَحَدُهُمَآ أَوۡ كِلَاهُمَا فَلَا تَقُل لَّهُمَآ أُفّٖ وَلَا تَنۡهَرۡهُمَا وَقُل لَّهُمَا قَوۡلٗا كَرِيمٗا",
+      "english": "Your Lord has commanded that you worship none but Him, and that you be good to your parents. If one or both of them reach old age with you, do not say a word of complaint to them, nor rebuke them, but speak to them kindly."
+    },
+    {
+      "reference": "16:90",
+      "arabic": "۞إِنَّ ٱللَّهَ يَأۡمُرُ بِٱلۡعَدۡلِ وَٱلۡإِحۡسَٰنِ وَإِيتَآيِٕ ذِي ٱلۡقُرۡبَىٰ وَيَنۡهَىٰ عَنِ ٱلۡفَحۡشَآءِ وَٱلۡمُنكَرِ وَٱلۡبَغۡيِۚ يَعِظُكُمۡ لَعَلَّكُمۡ تَذَكَّرُونَ",
+      "english": "Allah commands justice, doing good, and generosity to relatives; and He forbids indecency, wrongdoing and oppression. He instructs you, so that you may take heed."
+    },
+    {
+      "reference": "103:3",
+      "arabic": "إِلَّا ٱلَّذِينَ ءَامَنُواْ وَعَمِلُواْ ٱلصَّـٰلِحَٰتِ وَتَوَاصَوۡاْ بِٱلۡحَقِّ وَتَوَاصَوۡاْ بِٱلصَّبۡرِ",
+      "english": "Except those who believe, do good, and urge one another to truth and to patience."
+    },
+    {
+      "reference": "76:9",
+      "arabic": "إِنَّمَا نُطۡعِمُكُمۡ لِوَجۡهِ ٱللَّهِ لَا نُرِيدُ مِنكُمۡ جَزَآءٗ وَلَا شُكُورًا",
+      "english": "We feed you only for the sake of Allah. We want no reward from you, and no thanks."
+    },
+    {
+      "reference": "2:153",
+      "arabic": "يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُواْ ٱسۡتَعِينُواْ بِٱلصَّبۡرِ وَٱلصَّلَوٰةِۚ إِنَّ ٱللَّهَ مَعَ ٱلصَّٰبِرِينَ",
+      "english": "You who believe, seek help in patience and in prayer. Allah is with those who are patient."
+    },
+    {
+      "reference": "2:177",
+      "arabic": "لَّيۡسَ ٱلۡبِرَّ أَن تُوَلُّواْ وُجُوهَكُمۡ قِبَلَ ٱلۡمَشۡرِقِ وَٱلۡمَغۡرِبِ وَلَٰكِنَّ ٱلۡبِرَّ مَنۡ ءَامَنَ بِٱللَّهِ وَٱلۡيَوۡمِ ٱلۡأٓخِرِ وَٱلۡمَلَٰٓئِكَةِ وَٱلۡكِتَٰبِ وَٱلنَّبِيِّـۧنَ",
+      "english": "Goodness is not in turning your faces to the east or the west; goodness is in the one who believes in Allah, and the Last Day, and the angels, and the Book, and the prophets."
+    },
+    {
+      "reference": "2:195",
+      "arabic": "وَأَنفِقُواْ فِي سَبِيلِ ٱللَّهِ وَلَا تُلۡقُواْ بِأَيۡدِيكُمۡ إِلَى ٱلتَّهۡلُكَةِ وَأَحۡسِنُوٓاْۚ إِنَّ ٱللَّهَ يُحِبُّ ٱلۡمُحۡسِنِينَ",
+      "english": "And give for the sake of Allah, and do not bring ruin on yourselves by your own hands; and do good. Allah loves those who do good."
+    },
+    {
+      "reference": "2:216",
+      "arabic": "وَعَسَىٰٓ أَن تَكۡرَهُواْ شَيۡـٔٗا وَهُوَ خَيۡرٞ لَّكُمۡۖ وَعَسَىٰٓ أَن تُحِبُّواْ شَيۡـٔٗا وَهُوَ شَرّٞ لَّكُمۡۚ",
+      "english": "And it may be that you dislike a thing and it is good for you, and it may be that you like a thing and it is bad for you."
+    },
+    {
+      "reference": "2:257",
+      "arabic": "ٱللَّهُ وَلِيُّ ٱلَّذِينَ ءَامَنُواْ يُخۡرِجُهُم مِّنَ ٱلظُّلُمَٰتِ إِلَى ٱلنُّورِۖ",
+      "english": "Allah is the protector of those who believe; He brings them out of the darkness into the light."
+    },
+    {
+      "reference": "3:8",
+      "arabic": "رَبَّنَا لَا تُزِغۡ قُلُوبَنَا بَعۡدَ إِذۡ هَدَيۡتَنَا وَهَبۡ لَنَا مِن لَّدُنكَ رَحۡمَةًۚ إِنَّكَ أَنتَ ٱلۡوَهَّابُ",
+      "english": "Our Lord, do not let our hearts turn aside after You have guided us, and grant us mercy from Yourself: You are indeed the Giver."
+    },
+    {
+      "reference": "3:26",
+      "arabic": "قُلِ ٱللَّهُمَّ مَٰلِكَ ٱلۡمُلۡكِ تُؤۡتِي ٱلۡمُلۡكَ مَن تَشَآءُ وَتَنزِعُ ٱلۡمُلۡكَ مِمَّن تَشَآءُ وَتُعِزُّ مَن تَشَآءُ وَتُذِلُّ مَن تَشَآءُۖ بِيَدِكَ ٱلۡخَيۡرُۖ إِنَّكَ عَلَىٰ كُلِّ شَيۡءٖ قَدِيرٞ",
+      "english": "Say: Allah, Master of all dominion, You give dominion to whom You please and take it from whom You please; You honour whom You please and humble whom You please. All good is in Your hand; You have power over all things."
+    },
+    {
+      "reference": "3:103",
+      "arabic": "وَٱعۡتَصِمُواْ بِحَبۡلِ ٱللَّهِ جَمِيعٗا وَلَا تَفَرَّقُواْۚ وَٱذۡكُرُواْ نِعۡمَتَ ٱللَّهِ عَلَيۡكُمۡ إِذۡ كُنتُمۡ أَعۡدَآءٗ فَأَلَّفَ بَيۡنَ قُلُوبِكُمۡ فَأَصۡبَحۡتُم بِنِعۡمَتِهِۦٓ إِخۡوَٰنٗا",
+      "english": "And hold fast, all of you, to the rope of Allah, and do not fall apart. Remember Allah's favour to you: you were enemies, and He brought your hearts together, so that by His favour you became brothers."
+    },
+    {
+      "reference": "3:134",
+      "arabic": "ٱلَّذِينَ يُنفِقُونَ فِي ٱلسَّرَّآءِ وَٱلضَّرَّآءِ وَٱلۡكَٰظِمِينَ ٱلۡغَيۡظَ وَٱلۡعَافِينَ عَنِ ٱلنَّاسِۗ وَٱللَّهُ يُحِبُّ ٱلۡمُحۡسِنِينَ",
+      "english": "Those who give in ease and in hardship, who hold back their anger and forgive people. Allah loves those who do good."
+    },
+    {
+      "reference": "3:159",
+      "arabic": "فَٱعۡفُ عَنۡهُمۡ وَٱسۡتَغۡفِرۡ لَهُمۡ وَشَاوِرۡهُمۡ فِي ٱلۡأَمۡرِۖ فَإِذَا عَزَمۡتَ فَتَوَكَّلۡ عَلَى ٱللَّهِۚ",
+      "english": "So pardon them, and ask forgiveness for them, and consult them in the matter; then when you have decided, put your trust in Allah."
+    },
+    {
+      "reference": "3:173",
+      "arabic": "ٱلَّذِينَ قَالَ لَهُمُ ٱلنَّاسُ إِنَّ ٱلنَّاسَ قَدۡ جَمَعُواْ لَكُمۡ فَٱخۡشَوۡهُمۡ فَزَادَهُمۡ إِيمَٰنٗا وَقَالُواْ حَسۡبُنَا ٱللَّهُ وَنِعۡمَ ٱلۡوَكِيلُ",
+      "english": "Those to whom people said: the enemy has gathered against you, so fear them — but it only increased them in faith, and they said: Allah is enough for us, and He is the best to trust in."
+    },
+    {
+      "reference": "3:200",
+      "arabic": "يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُواْ ٱصۡبِرُواْ وَصَابِرُواْ وَرَابِطُواْ وَٱتَّقُواْ ٱللَّهَ لَعَلَّكُمۡ تُفۡلِحُونَ",
+      "english": "You who believe, be patient and steadfast, and stand firm, and be mindful of Allah, so that you may do well."
+    },
+    {
+      "reference": "4:36",
+      "arabic": "وَٱعۡبُدُواْ ٱللَّهَ وَلَا تُشۡرِكُواْ بِهِۦ شَيۡـٔٗاۖ وَبِٱلۡوَٰلِدَيۡنِ إِحۡسَٰنٗا وَبِذِي ٱلۡقُرۡبَىٰ وَٱلۡيَتَٰمَىٰ وَٱلۡمَسَٰكِينِ",
+      "english": "And worship Allah, and associate nothing with Him; and be good to your parents, and to relatives, and to orphans, and to the needy."
+    },
+    {
+      "reference": "4:86",
+      "arabic": "وَإِذَا حُيِّيتُم بِتَحِيَّةٖ فَحَيُّواْ بِأَحۡسَنَ مِنۡهَآ أَوۡ رُدُّوهَآۗ إِنَّ ٱللَّهَ كَانَ عَلَىٰ كُلِّ شَيۡءٍ حَسِيبًا",
+      "english": "When you are greeted with a greeting, answer with something better, or at least return the same. Allah takes account of everything."
+    },
+    {
+      "reference": "5:8",
+      "arabic": "يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُواْ كُونُواْ قَوَّٰمِينَ لِلَّهِ شُهَدَآءَ بِٱلۡقِسۡطِۖ وَلَا يَجۡرِمَنَّكُمۡ شَنَـَٔانُ قَوۡمٍ عَلَىٰٓ أَلَّا تَعۡدِلُواْۚ ٱعۡدِلُواْ هُوَ أَقۡرَبُ لِلتَّقۡوَىٰۖ وَٱتَّقُواْ ٱللَّهَۚ إِنَّ ٱللَّهَ خَبِيرُۢ بِمَا تَعۡمَلُونَ",
+      "english": "You who believe, stand up firmly for Allah as witnesses to justice. Do not let your dislike of a people turn you away from justice. Be just: that is nearer to being mindful of Allah. Allah is aware of what you do."
+    },
+    {
+      "reference": "6:160",
+      "arabic": "مَن جَآءَ بِٱلۡحَسَنَةِ فَلَهُۥ عَشۡرُ أَمۡثَالِهَاۖ وَمَن جَآءَ بِٱلسَّيِّئَةِ فَلَا يُجۡزَىٰٓ إِلَّا مِثۡلَهَا وَهُمۡ لَا يُظۡلَمُونَ",
+      "english": "Whoever brings a good deed will have ten like it, and whoever brings a bad deed will be repaid only with its like; and they will not be wronged."
+    },
+    {
+      "reference": "7:31",
+      "arabic": "۞يَٰبَنِيٓ ءَادَمَ خُذُواْ زِينَتَكُمۡ عِندَ كُلِّ مَسۡجِدٖ وَكُلُواْ وَٱشۡرَبُواْ وَلَا تُسۡرِفُوٓاْۚ إِنَّهُۥ لَا يُحِبُّ ٱلۡمُسۡرِفِينَ",
+      "english": "Children of Adam, dress well for every place of prayer; and eat and drink, but do not waste: He does not love those who waste."
+    },
+    {
+      "reference": "7:55",
+      "arabic": "ٱدۡعُواْ رَبَّكُمۡ تَضَرُّعٗا وَخُفۡيَةًۚ إِنَّهُۥ لَا يُحِبُّ ٱلۡمُعۡتَدِينَ",
+      "english": "Call on your Lord humbly and quietly. He does not love those who go too far."
+    },
+    {
+      "reference": "7:199",
+      "arabic": "خُذِ ٱلۡعَفۡوَ وَأۡمُرۡ بِٱلۡعُرۡفِ وَأَعۡرِضۡ عَنِ ٱلۡجَٰهِلِينَ",
+      "english": "Take to forgiveness, tell people what is right, and turn away from the foolish."
+    },
+    {
+      "reference": "11:88",
+      "arabic": "وَمَا تَوۡفِيقِيٓ إِلَّا بِٱللَّهِۚ عَلَيۡهِ تَوَكَّلۡتُ وَإِلَيۡهِ أُنِيبُ",
+      "english": "And my success is only through Allah. In Him I trust, and to Him I turn."
+    },
+    {
+      "reference": "11:114",
+      "arabic": "وَأَقِمِ ٱلصَّلَوٰةَ طَرَفَيِ ٱلنَّهَارِ وَزُلَفٗا مِّنَ ٱلَّيۡلِۚ إِنَّ ٱلۡحَسَنَٰتِ يُذۡهِبۡنَ ٱلسَّيِّـَٔاتِۚ ذَٰلِكَ ذِكۡرَىٰ لِلذَّٰكِرِينَ",
+      "english": "And keep up the prayer at both ends of the day, and in the early part of the night. Good deeds drive away bad ones. That is a reminder for those who remember."
+    },
+    {
+      "reference": "13:11",
+      "arabic": "إِنَّ ٱللَّهَ لَا يُغَيِّرُ مَا بِقَوۡمٍ حَتَّىٰ يُغَيِّرُواْ مَا بِأَنفُسِهِمۡۗ",
+      "english": "Indeed, Allah does not change the state of a people until they change what is in themselves."
+    },
+    {
+      "reference": "15:88",
+      "arabic": "لَا تَمُدَّنَّ عَيۡنَيۡكَ إِلَىٰ مَا مَتَّعۡنَا بِهِۦٓ أَزۡوَٰجٗا مِّنۡهُمۡ وَلَا تَحۡزَنۡ عَلَيۡهِمۡ وَٱخۡفِضۡ جَنَاحَكَ لِلۡمُؤۡمِنِينَ",
+      "english": "Do not strain your eyes after what We have given some of them to enjoy, and do not grieve over them; and lower your wing to the believers."
+    },
+    {
+      "reference": "16:97",
+      "arabic": "مَنۡ عَمِلَ صَٰلِحٗا مِّن ذَكَرٍ أَوۡ أُنثَىٰ وَهُوَ مُؤۡمِنٞ فَلَنُحۡيِيَنَّهُۥ حَيَوٰةٗ طَيِّبَةٗۖ وَلَنَجۡزِيَنَّهُمۡ أَجۡرَهُم بِأَحۡسَنِ مَا كَانُواْ يَعۡمَلُونَ",
+      "english": "Whoever does good, whether man or woman, and believes, We shall give a good life, and We shall reward them by the best of what they did."
+    },
+    {
+      "reference": "17:53",
+      "arabic": "وَقُل لِّعِبَادِي يَقُولُواْ ٱلَّتِي هِيَ أَحۡسَنُۚ إِنَّ ٱلشَّيۡطَٰنَ يَنزَغُ بَيۡنَهُمۡۚ إِنَّ ٱلشَّيۡطَٰنَ كَانَ لِلۡإِنسَٰنِ عَدُوّٗا مُّبِينٗا",
+      "english": "And tell My servants to say what is best. Satan sows discord among them; Satan is a clear enemy to man."
+    },
+    {
+      "reference": "17:80",
+      "arabic": "وَقُل رَّبِّ أَدۡخِلۡنِي مُدۡخَلَ صِدۡقٖ وَأَخۡرِجۡنِي مُخۡرَجَ صِدۡقٖ وَٱجۡعَل لِّي مِن لَّدُنكَ سُلۡطَٰنٗا نَّصِيرٗا",
+      "english": "My Lord, let me come in with truth and go out with truth, and grant me from Yourself a helping strength."
+    },
+    {
+      "reference": "18:46",
+      "arabic": "ٱلۡمَالُ وَٱلۡبَنُونَ زِينَةُ ٱلۡحَيَوٰةِ ٱلدُّنۡيَاۖ وَٱلۡبَٰقِيَٰتُ ٱلصَّٰلِحَٰتُ خَيۡرٌ عِندَ رَبِّكَ ثَوَابٗا وَخَيۡرٌ أَمَلٗا",
+      "english": "Wealth and children are the ornament of this life, but lasting good deeds are better in your Lord's sight, and better as a hope."
+    },
+    {
+      "reference": "20:44",
+      "arabic": "فَقُولَا لَهُۥ قَوۡلٗا لَّيِّنٗا لَّعَلَّهُۥ يَتَذَكَّرُ أَوۡ يَخۡشَىٰ",
+      "english": "So speak to him gently; perhaps he will take heed."
+    },
+    {
+      "reference": "23:118",
+      "arabic": "وَقُل رَّبِّ ٱغۡفِرۡ وَٱرۡحَمۡ وَأَنتَ خَيۡرُ ٱلرَّٰحِمِينَ",
+      "english": "My Lord, forgive and have mercy: You are the best of those who show mercy."
+    },
+    {
+      "reference": "25:63",
+      "arabic": "وَعِبَادُ ٱلرَّحۡمَٰنِ ٱلَّذِينَ يَمۡشُونَ عَلَى ٱلۡأَرۡضِ هَوۡنٗا وَإِذَا خَاطَبَهُمُ ٱلۡجَٰهِلُونَ قَالُواْ سَلَٰمٗا",
+      "english": "The servants of the Most Merciful are those who walk humbly on the earth, and when the foolish speak to them, say: peace."
+    },
+    {
+      "reference": "25:74",
+      "arabic": "وَٱلَّذِينَ يَقُولُونَ رَبَّنَا هَبۡ لَنَا مِنۡ أَزۡوَٰجِنَا وَذُرِّيَّٰتِنَا قُرَّةَ أَعۡيُنٖ وَٱجۡعَلۡنَا لِلۡمُتَّقِينَ إِمَامًا",
+      "english": "Our Lord, grant us joy in our wives and our children, and make us a guide for those who are mindful of You."
+    },
+    {
+      "reference": "28:77",
+      "arabic": "وَٱبۡتَغِ فِيمَآ ءَاتَىٰكَ ٱللَّهُ ٱلدَّارَ ٱلۡأٓخِرَةَۖ وَلَا تَنسَ نَصِيبَكَ مِنَ ٱلدُّنۡيَاۖ وَأَحۡسِن كَمَآ أَحۡسَنَ ٱللَّهُ إِلَيۡكَۖ وَلَا تَبۡغِ ٱلۡفَسَادَ فِي ٱلۡأَرۡضِۖ إِنَّ ٱللَّهَ لَا يُحِبُّ ٱلۡمُفۡسِدِينَ",
+      "english": "And seek, with what Allah has given you, the life to come; and do not forget your share of this world. Do good, as Allah has been good to you; and do not seek to spread ruin in the land. Allah does not love those who spread ruin."
+    },
+    {
+      "reference": "31:14",
+      "arabic": "وَوَصَّيۡنَا ٱلۡإِنسَٰنَ بِوَٰلِدَيۡهِ حَمَلَتۡهُ أُمُّهُۥ وَهۡنًا عَلَىٰ وَهۡنٖ وَفِصَٰلُهُۥ فِي عَامَيۡنِ أَنِ ٱشۡكُرۡ لِي وَلِوَٰلِدَيۡكَ إِلَيَّ ٱلۡمَصِيرُ",
+      "english": "And We have charged man to be good to his parents: his mother bore him in weakness upon weakness, and his weaning took two years. Be thankful to Me, and to your parents."
+    },
+    {
+      "reference": "41:34",
+      "arabic": "وَلَا تَسۡتَوِي ٱلۡحَسَنَةُ وَلَا ٱلسَّيِّئَةُۚ ٱدۡفَعۡ بِٱلَّتِي هِيَ أَحۡسَنُ فَإِذَا ٱلَّذِي بَيۡنَكَ وَبَيۡنَهُۥ عَدَٰوَةٞ كَأَنَّهُۥ وَلِيٌّ حَمِيمٞ",
+      "english": "Good and evil are not equal. Repay a bad deed with a better one, and the one who was your enemy will become a close friend."
+    },
+    {
+      "reference": "42:43",
+      "arabic": "وَلَمَن صَبَرَ وَغَفَرَ إِنَّ ذَٰلِكَ لَمِنۡ عَزۡمِ ٱلۡأُمُورِ",
+      "english": "But whoever is patient and forgives, that is a matter of real resolve."
+    },
+    {
+      "reference": "57:20",
+      "arabic": "ٱعۡلَمُوٓاْ أَنَّمَا ٱلۡحَيَوٰةُ ٱلدُّنۡيَا لَعِبٞ وَلَهۡوٞ وَزِينَةٞ وَتَفَاخُرُۢ بَيۡنَكُمۡ وَتَكَاثُرٞ فِي ٱلۡأَمۡوَٰلِ وَٱلۡأَوۡلَٰدِۖ",
+      "english": "Know that the life of this world is only play and amusement, display and boasting among yourselves, and rivalry in wealth and children."
+    },
+    {
+      "reference": "64:16",
+      "arabic": "فَٱتَّقُواْ ٱللَّهَ مَا ٱسۡتَطَعۡتُمۡ وَٱسۡمَعُواْ وَأَطِيعُواْ وَأَنفِقُواْ خَيۡرٗا لِّأَنفُسِكُمۡۗ وَمَن يُوقَ شُحَّ نَفۡسِهِۦ فَأُوْلَٰٓئِكَ هُمُ ٱلۡمُفۡلِحُونَ",
+      "english": "So be mindful of Allah as far as you are able, and listen, and obey, and give. Whoever is saved from the greed of his own soul, those are the ones who succeed."
+    },
+    {
+      "reference": "94:6",
+      "arabic": "إِنَّ مَعَ ٱلۡعُسۡرِ يُسۡرٗا",
+      "english": "Truly, with hardship comes ease."
+    }
+  ]
+}

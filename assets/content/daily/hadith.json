@@ -1,0 +1,216 @@
+{
+  "schema": 1,
+  "source": "Arabic: the saying itself, copied verbatim from the public-domain hadith-api dataset (github.com/fawazahmed0/hadith-api, Unlicense), cut to the part inside the quotation marks so the chain of narrators is left out, and kept with its canonical reference so it can be checked on sunnah.com. Every one of the forty-two was then looked for, letter for letter, in a corpus that had no part in producing this file: the MIT-licensed 'hadith' package on PyPI, 62,178 narrations across the nine collections. All forty-two are there; one candidate that was not was thrown away rather than patched. Re-run that check with tools/check_hadith.py. English: a plain rendering written for this app, not a published translation. DRAFT: every line still needs checking by a qualified reviewer, and the reference numbers need checking one at a time on sunnah.com.",
+  "sayings": [
+    {
+      "arabic": "لا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ",
+      "english": "None of you truly believes until he loves for his brother what he loves for himself.",
+      "reference": "Sahih al-Bukhari 13"
+    },
+    {
+      "arabic": "مَنْ سَلِمَ الْمُسْلِمُونَ مِنْ لِسَانِهِ وَيَدِهِ",
+      "english": "A Muslim is one from whose tongue and hand other Muslims are safe.",
+      "reference": "Sahih al-Bukhari 11"
+    },
+    {
+      "arabic": "يَسِّرُوا وَلاَ تُعَسِّرُوا، وَبَشِّرُوا وَلاَ تُنَفِّرُوا",
+      "english": "Make things easy and do not make them hard. Give good news and do not drive people away.",
+      "reference": "Sahih al-Bukhari 69"
+    },
+    {
+      "arabic": "مَنْ لاَ يَرْحَمُ لاَ يُرْحَمُ",
+      "english": "Whoever shows no mercy will be shown no mercy.",
+      "reference": "Sahih al-Bukhari 5997"
+    },
+    {
+      "arabic": "لَيْسَ الشَّدِيدُ بِالصُّرَعَةِ، إِنَّمَا الشَّدِيدُ الَّذِي يَمْلِكُ نَفْسَهُ عِنْدَ الْغَضَبِ",
+      "english": "The strong man is not the one who wrestles well. The strong man is the one who controls himself when he is angry.",
+      "reference": "Sahih al-Bukhari 6114"
+    },
+    {
+      "arabic": "سِبَابُ الْمُسْلِمِ فُسُوقٌ، وَقِتَالُهُ كُفْرٌ",
+      "english": "Abusing a Muslim is wrongdoing, and fighting him is disbelief.",
+      "reference": "Sahih al-Bukhari 48"
+    },
+    {
+      "arabic": "إِذَا أَنْفَقَ الرَّجُلُ عَلَى أَهْلِهِ يَحْتَسِبُهَا فَهُوَ لَهُ صَدَقَةٌ",
+      "english": "When a man spends on his family, hoping for its reward, it counts for him as charity.",
+      "reference": "Sahih al-Bukhari 55"
+    },
+    {
+      "arabic": "تُطْعِمُ الطَّعَامَ، وَتَقْرَأُ السَّلاَمَ عَلَى مَنْ عَرَفْتَ وَمَنْ لَمْ تَعْرِفْ",
+      "english": "Feed people, and greet those you know and those you do not.",
+      "reference": "Sahih al-Bukhari 12"
+    },
+    {
+      "arabic": "الإِيمَانُ بِضْعٌ وَسِتُّونَ شُعْبَةً، وَالْحَيَاءُ شُعْبَةٌ مِنَ الإِيمَانِ",
+      "english": "Faith has some sixty branches, and modesty is a branch of faith.",
+      "reference": "Sahih al-Bukhari 9"
+    },
+    {
+      "arabic": "دَعْهُ فَإِنَّ الْحَيَاءَ مِنَ الإِيمَانِ",
+      "english": "Leave him be. Modesty is part of faith.",
+      "reference": "Sahih al-Bukhari 24"
+    },
+    {
+      "arabic": "الْحَيَاءُ لاَ يَأْتِي إِلاَّ بِخَيْرٍ",
+      "english": "Modesty brings nothing but good.",
+      "reference": "Sahih Muslim 158"
+    },
+    {
+      "arabic": "لاَ يَدْخُلُ الْجَنَّةَ مَنْ لاَ يَأْمَنُ جَارُهُ بَوَائِقَهُ",
+      "english": "He will not enter the Garden whose neighbour is not safe from his mischief.",
+      "reference": "Sahih Muslim 172"
+    },
+    {
+      "arabic": "مَنْ مَاتَ وَهُوَ يَعْلَمُ أَنَّهُ لاَ إِلَهَ إِلاَّ اللَّهُ دَخَلَ الْجَنَّةَ",
+      "english": "Whoever dies knowing that there is no god but Allah will enter the Garden.",
+      "reference": "Sahih Muslim 136"
+    },
+    {
+      "arabic": "قُلْ آمَنْتُ بِاللَّهِ فَاسْتَقِمْ",
+      "english": "Say: I believe in Allah. Then hold to that straight.",
+      "reference": "Sahih Muslim 159"
+    },
+    {
+      "arabic": "الْحَيَاءُ مِنَ الإِيمَانِ",
+      "english": "Modesty is part of faith.",
+      "reference": "Sahih Muslim 154"
+    },
+    {
+      "arabic": "آيَةُ الْمُنَافِقِ ثَلاَثٌ إِذَا حَدَّثَ كَذَبَ، وَإِذَا وَعَدَ أَخْلَفَ، وَإِذَا اؤْتُمِنَ خَانَ",
+      "english": "There are three signs of a hypocrite: when he speaks he lies, when he promises he breaks it, and when he is trusted he betrays.",
+      "reference": "Sahih al-Bukhari 33"
+    },
+    {
+      "arabic": "اتَّقُوا النَّارَ وَلَوْ بِشِقِّ تَمْرَةٍ",
+      "english": "Guard yourselves against the Fire, even with half a date given in charity.",
+      "reference": "Sahih al-Bukhari 1417"
+    },
+    {
+      "arabic": "انْصُرْ أَخَاكَ ظَالِمًا أَوْ مَظْلُومًا",
+      "english": "Help your brother, whether he is doing wrong or being wronged.",
+      "reference": "Sahih al-Bukhari 2443"
+    },
+    {
+      "arabic": "الظُّلْمُ ظُلُمَاتٌ يَوْمَ الْقِيَامَةِ",
+      "english": "Wrongdoing will be darkness on the Day of Resurrection.",
+      "reference": "Sahih al-Bukhari 2447"
+    },
+    {
+      "arabic": "اتَّقِ دَعْوَةَ الْمَظْلُومِ، فَإِنَّهَا لَيْسَ بَيْنَهَا وَبَيْنَ اللَّهِ حِجَابٌ",
+      "english": "Beware the prayer of the one you have wronged: there is nothing between it and Allah.",
+      "reference": "Sahih al-Bukhari 2448"
+    },
+    {
+      "arabic": "إِنَّ أَبْغَضَ الرِّجَالِ إِلَى اللَّهِ الأَلَدُّ الْخَصِمُ",
+      "english": "The man most hated by Allah is the one who argues the hardest.",
+      "reference": "Sahih al-Bukhari 2457"
+    },
+    {
+      "arabic": "الصَّلاَةُ عَلَى وَقْتِهَا",
+      "english": "Prayer at its proper time.",
+      "reference": "Sahih al-Bukhari 5970"
+    },
+    {
+      "arabic": "إِنَّ مِنْ أَكْبَرِ الْكَبَائِرِ أَنْ يَلْعَنَ الرَّجُلُ وَالِدَيْهِ",
+      "english": "Among the greatest of the great sins is that a man should curse his parents.",
+      "reference": "Sahih al-Bukhari 5973"
+    },
+    {
+      "arabic": "الَّذِي لاَ يَأْمَنُ جَارُهُ بَوَايِقَهُ",
+      "english": "He whose neighbour is not safe from the harm he does.",
+      "reference": "Sahih al-Bukhari 6016"
+    },
+    {
+      "arabic": "كُلُّ مَعْرُوفٍ صَدَقَةٌ",
+      "english": "Every good turn is charity.",
+      "reference": "Sahih al-Bukhari 6021"
+    },
+    {
+      "arabic": "يُسَلِّمُ الصَّغِيرُ عَلَى الْكَبِيرِ، وَالْمَارُّ عَلَى الْقَاعِدِ، وَالْقَلِيلُ عَلَى الْكَثِيرِ",
+      "english": "The young greet the old, the one passing greets the one sitting, and the few greet the many.",
+      "reference": "Sahih al-Bukhari 6231"
+    },
+    {
+      "arabic": "يُسَلِّمُ الرَّاكِبُ عَلَى الْمَاشِي، وَالْمَاشِي عَلَى الْقَاعِدِ، وَالْقَلِيلُ عَلَى الْكَثِيرِ",
+      "english": "The rider greets the one walking, the one walking greets the one sitting, and the few greet the many.",
+      "reference": "Sahih al-Bukhari 6232"
+    },
+    {
+      "arabic": "لاَ يُقِيمُ الرَّجُلُ الرَّجُلَ مِنْ مَجْلِسِهِ، ثُمَّ يَجْلِسُ فِيهِ",
+      "english": "No one should make another man get up from his seat and then sit in it himself.",
+      "reference": "Sahih al-Bukhari 6269"
+    },
+    {
+      "arabic": "نِعْمَتَانِ مَغْبُونٌ فِيهِمَا كَثِيرٌ مِنَ النَّاسِ، الصِّحَّةُ وَالْفَرَاغُ",
+      "english": "Two blessings that many people waste: good health, and time with nothing to do.",
+      "reference": "Sahih al-Bukhari 6412"
+    },
+    {
+      "arabic": "كُنْ فِي الدُّنْيَا كَأَنَّكَ غَرِيبٌ، أَوْ عَابِرُ سَبِيلٍ",
+      "english": "Be in this world like a stranger, or like someone passing through.",
+      "reference": "Sahih al-Bukhari 6416"
+    },
+    {
+      "arabic": "لَيْسَ الْغِنَى عَنْ كَثْرَةِ الْعَرَضِ، وَلَكِنَّ الْغِنَى غِنَى النَّفْسِ",
+      "english": "Being rich is not having a great deal; being rich is a contented heart.",
+      "reference": "Sahih al-Bukhari 6446"
+    },
+    {
+      "arabic": "اللَّهُمَّ ارْزُقْ آلَ مُحَمَّدٍ قُوتًا",
+      "english": "O Allah, give the family of Muhammad enough to live on.",
+      "reference": "Sahih al-Bukhari 6460"
+    },
+    {
+      "arabic": "بَشِّرُوا وَلاَ تُنَفِّرُوا وَيَسِّرُوا وَلاَ تُعَسِّرُوا",
+      "english": "Give people good news and do not drive them away; make things easy and do not make them hard.",
+      "reference": "Sahih Muslim 4519"
+    },
+    {
+      "arabic": "أُمُّكَ ثُمَّ أُمُّكَ ثُمَّ أُمُّكَ ثُمَّ أَبُوكَ ثُمَّ أَدْنَاكَ أَدْنَاكَ",
+      "english": "Your mother, then your mother, then your mother, then your father, then those closest to you.",
+      "reference": "Sahih Muslim 6501"
+    },
+    {
+      "arabic": "إِنَّ أَبَرَّ الْبِرِّ صِلَةُ الْوَلَدِ أَهْلَ وُدِّ أَبِيهِ",
+      "english": "The very best kindness is to keep up with those your father loved.",
+      "reference": "Sahih Muslim 6513"
+    },
+    {
+      "arabic": "الْبِرُّ حُسْنُ الْخُلُقِ وَالإِثْمُ مَا حَاكَ فِي صَدْرِكَ وَكَرِهْتَ أَنْ يَطَّلِعَ عَلَيْهِ النَّاسُ",
+      "english": "Goodness is good character; and wrongdoing is what unsettles your heart and you would hate people to find out.",
+      "reference": "Sahih Muslim 6516"
+    },
+    {
+      "arabic": "الرَّحِمُ مُعَلَّقَةٌ بِالْعَرْشِ تَقُولُ مَنْ وَصَلَنِي وَصَلَهُ اللَّهُ وَمَنْ قَطَعَنِي قَطَعَهُ اللَّهُ",
+      "english": "Kinship hangs from the Throne, saying: whoever keeps me, Allah keeps him; whoever cuts me off, Allah cuts him off.",
+      "reference": "Sahih Muslim 6519"
+    },
+    {
+      "arabic": "لاَ يَدْخُلُ الْجَنَّةَ قَاطِعٌ",
+      "english": "No one who cuts off his relatives will enter the Garden.",
+      "reference": "Sahih Muslim 6520"
+    },
+    {
+      "arabic": "مَنْ سَرَّهُ أَنْ يُبْسَطَ عَلَيْهِ رِزْقُهُ أَوْ يُنْسَأَ فِي أَثَرِهِ فَلْيَصِلْ رَحِمَهُ",
+      "english": "Whoever would like more provision and a longer trace behind him, let him keep up with his relatives.",
+      "reference": "Sahih Muslim 6523"
+    },
+    {
+      "arabic": "لاَ يَحِلُّ لِلْمُؤْمِنِ أَنْ يَهْجُرَ أَخَاهُ فَوْقَ ثَلاَثَةِ أَيَّامٍ",
+      "english": "It is not right for a believer to keep away from his brother for more than three days.",
+      "reference": "Sahih Muslim 6534"
+    },
+    {
+      "arabic": "لاَ هِجْرَةَ بَعْدَ ثَلاَثٍ",
+      "english": "There is no keeping away after three days.",
+      "reference": "Sahih Muslim 6535"
+    },
+    {
+      "arabic": "عَائِدُ الْمَرِيضِ فِي مَخْرَفَةِ الْجَنَّةِ حَتَّى يَرْجِعَ",
+      "english": "The one who visits the sick is walking in the gardens of the Garden until he returns.",
+      "reference": "Sahih Muslim 6551"
+    }
+  ]
+}

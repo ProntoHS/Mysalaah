@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "steps": {
+    "intention": {
+      "posture": "standing",
+      "recitation": "intention",
+      "repeat": 1
+    },
+    "takbir_tahrimah": {
+      "posture": "standing",
+      "recitation": "takbir",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide2.png"
+    },
+    "istiftah": {
+      "posture": "standing",
+      "recitation": "istiftah",
+      "repeat": 1
+    },
+    "taawwudh_basmala": {
+      "posture": "standing",
+      "recitation": "taawwudh_basmala",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide4.png"
+    },
+    "fatiha_a": {
+      "posture": "standing",
+      "recitation": "fatiha",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide5.png"
+    },
+    "surah_kawthar": {
+      "posture": "standing",
+      "recitation": "kawthar",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide6.png"
+    },
+    "takbir_standing_a": {
+      "posture": "standing",
+      "recitation": "takbir",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide7.png"
+    },
+    "ruku_a": {
+      "posture": "ruku",
+      "recitation": "ruku_tasbih",
+      "repeat": 3,
+      "legacySource": "2_rakat/Slide8.png"
+    },
+    "qawmah_a": {
+      "posture": "standing",
+      "recitation": "tasmi_tahmid",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide9.png"
+    },
+    "takbir_standing_b": {
+      "posture": "standing",
+      "recitation": "takbir",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide10.png"
+    },
+    "sujood_a": {
+      "posture": "sujood",
+      "recitation": "sujood_tasbih",
+      "repeat": 3,
+      "legacySource": "2_rakat/Slide11.png"
+    },
+    "takbir_jalsa_a": {
+      "posture": "sitting",
+      "recitation": "takbir",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide12.png"
+    },
+    "jalsa_dua": {
+      "posture": "sitting",
+      "recitation": "jalsa_dua",
+      "repeat": 2
+    },
+    "sujood_b": {
+      "posture": "sujood",
+      "recitation": "sujood_tasbih",
+      "repeat": 3,
+      "legacySource": "2_rakat/Slide13.png"
+    },
+    "fatiha_b": {
+      "posture": "standing",
+      "recitation": "fatiha",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide15.png"
+    },
+    "ameen": {
+      "posture": "standing",
+      "recitation": "ameen",
+      "repeat": 1
+    },
+    "surah_ikhlas_a": {
+      "posture": "standing",
+      "recitation": "ikhlas",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide16.png"
+    },
+    "ruku_b": {
+      "posture": "ruku",
+      "recitation": "ruku_tasbih",
+      "repeat": 3,
+      "legacySource": "2_rakat/Slide18.png"
+    },
+    "qawmah_b": {
+      "posture": "standing",
+      "recitation": "tasmi_tahmid",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide19.png"
+    },
+    "takbir_standing_c": {
+      "posture": "standing",
+      "recitation": "takbir",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide20.png"
+    },
+    "takbir_jalsa_b": {
+      "posture": "sitting",
+      "recitation": "takbir",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide22.png"
+    },
+    "tashahhud": {
+      "posture": "sitting",
+      "recitation": "tashahhud",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide24.png"
+    },
+    "salawat": {
+      "posture": "sitting",
+      "recitation": "salawat",
+      "repeat": 1,
+      "legacySource": "2_rakat/Slide25.png"
+    },
+    "dua_rabbana_atina": {
+      "posture": "sitting",
+      "recitation": "rabbana_atina",
+      "repeat": 1
+    },
+    "salam": {
+      "posture": "salam",
+      "recitation": "salam",
+      "repeat": 2,
+      "legacySource": "2_rakat/Slide28.png"
+    },
+    "takbir_standing_d": {
+      "posture": "standing",
+      "recitation": "takbir",
+      "repeat": 1,
+      "legacySource": "3_faraz/Slide14.png"
+    },
+    "takbir_sitting_a": {
+      "posture": "sitting",
+      "recitation": "takbir",
+      "repeat": 1,
+      "legacySource": "3_faraz/Slide24.png"
+    },
+    "takbir_sitting_b": {
+      "posture": "sitting",
+      "recitation": "takbir",
+      "repeat": 1,
+      "legacySource": "3_faraz/Slide35.png"
+    },
+    "qunut_1": {
+      "posture": "standing",
+      "recitation": "qunut_1",
+      "repeat": 1,
+      "legacySource": "3_witr/Slide18.png"
+    },
+    "qunut_2": {
+      "posture": "standing",
+      "recitation": "qunut_2",
+      "repeat": 1,
+      "legacySource": "3_witr/Slide19.png"
+    },
+    "surah_ikhlas_b": {
+      "posture": "standing",
+      "recitation": "ikhlas",
+      "repeat": 1,
+      "legacySource": "3_witr/Slide31.png"
+    },
+    "surah_falaq": {
+      "posture": "standing",
+      "recitation": "falaq",
+      "repeat": 1,
+      "legacySource": "4_sunnah/Slide28.png"
+    },
+    "surah_nas": {
+      "posture": "standing",
+      "recitation": "nas",
+      "repeat": 1,
+      "legacySource": "4_sunnah/Slide38.png"
+    },
+    "istighfar": {
+      "posture": "sitting",
+      "recitation": "istighfar",
+      "repeat": 3
+    },
+    "ayat_kursi": {
+      "posture": "sitting",
+      "recitation": "ayat_kursi",
+      "repeat": 1
+    }
+  },
+  "note": "A step is a posture plus what is recited there. The picture and the words are chosen at display time: postures from assets/postures, text from content/core/arabic.json and the language packs. legacySource records which slide of the original Pi app this step came from."
+}

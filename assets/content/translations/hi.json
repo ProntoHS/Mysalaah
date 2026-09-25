@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "lang": "hi",
+  "name": "Hindi",
+  "nativeName": "हिन्दी",
+  "dir": "ltr",
+  "about": "Plain modern Hindi written for this app, so it is free of any translator's copyright and can ship on a device that is sold or given away. Devanagari script, left to right. DRAFT: every line needs checking by a qualified Hindi speaker. No published Hindi translation was used: every one in circulation is in copyright, and the only pre-1930 Hindi Qur'an (Ahmad Shah, 1915) has never been digitised.",
+  "sources": {
+    "takbir": "written for this app (draft, needs review)",
+    "allahu_akbar": "written for this app (draft, needs review)",
+    "subhanallah": "written for this app (draft, needs review)",
+    "alhamdulillah": "written for this app (draft, needs review)",
+    "istighfar": "written for this app (draft, needs review)",
+    "ameen": "written for this app (draft, needs review)",
+    "jalsa_dua": "written for this app (draft, needs review)",
+    "ruku_tasbih": "written for this app (draft, needs review)",
+    "sujood_tasbih": "written for this app (draft, needs review)",
+    "salam": "written for this app (draft, needs review)",
+    "taawwudh_basmala": "written for this app (draft, needs review)",
+    "istiftah": "written for this app (draft, needs review)",
+    "tasmi_tahmid": "written for this app (draft, needs review)",
+    "rabbana_atina": "written for this app (draft, needs review)",
+    "dhikr_salam": "written for this app (draft, needs review)",
+    "dhikr_tahlil": "written for this app (draft, needs review)",
+    "tashahhud": "written for this app (draft, needs review)",
+    "salawat": "written for this app (draft, needs review)",
+    "qunut_1": "written for this app (draft, needs review)",
+    "qunut_2": "written for this app (draft, needs review)",
+    "fatiha": "written for this app (draft, needs review)",
+    "kawthar": "written for this app (draft, needs review)",
+    "ikhlas": "written for this app (draft, needs review)",
+    "falaq": "written for this app (draft, needs review)",
+    "nas": "written for this app (draft, needs review)",
+    "ayat_kursi": "written for this app (draft, needs review)"
+  },
+  "intention": "मैं {prayer} की {n} रकअत {kind} की नीयत करता हूँ",
+  "kinds": {
+    "farz": "फ़र्ज़",
+    "sunnah": "सुन्नत",
+    "nafl": "नफ़्ल",
+    "witr": "वित्र"
+  },
+  "prayers": {
+    "fajr": "फ़ज्र",
+    "dhuhr": "ज़ुहर",
+    "asr": "अस्र",
+    "maghrib": "मग़रिब",
+    "isha": "इशा"
+  },
+  "lines": {
+    "alhamdulillah": [
+      "सारी प्रशंसा अल्लाह के लिए है।"
+    ],
+    "allahu_akbar": [
+      "अल्लाह सबसे बड़ा है।"
+    ],
+    "ameen": [
+      "ऐ अल्लाह, हमारी प्रार्थना स्वीकार कर।"
+    ],
+    "ayat_kursi": [
+      "अल्लाह, उसके सिवा कोई पूज्य नहीं, वह सदा जीवित और सबको संभालने वाला है।",
+      "उसे न ऊँघ आती है और न नींद।",
+      "जो कुछ आकाशों में है और जो कुछ धरती में है, सब उसी का है।",
+      "कौन है जो उसकी अनुमति के बिना उसके पास सिफ़ारिश कर सके?",
+      "वह जानता है जो उनके आगे है और जो उनके पीछे है,",
+      "और वे उसके ज्ञान में से कुछ भी नहीं पा सकते, सिवाय उसके जो वह चाहे।",
+      "उसकी कुर्सी आकाशों और धरती पर छाई हुई है,",
+      "और उनकी देखभाल उसे थकाती नहीं।",
+      "वह सर्वोच्च और महान है।"
+    ],
+    "dhikr_salam": [
+      "ऐ अल्लाह, तू ही शांति है और शांति तुझी से आती है।",
+      "तू बरकत वाला है, ऐ महिमा और सम्मान के स्वामी।"
+    ],
+    "dhikr_tahlil": [
+      "अल्लाह के सिवा कोई पूज्य नहीं, वह अकेला है, उसका कोई साझी नहीं।",
+      "उसी का राज्य है और उसी की प्रशंसा है,",
+      "और वह हर चीज़ पर सामर्थ्य रखता है।"
+    ],
+    "falaq": [
+      "अल्लाह के नाम से, जो अत्यंत दयावान और अत्यंत कृपाशील है।",
+      "कह दो: मैं भोर के पालनहार की शरण चाहता हूँ,",
+      "उसकी पैदा की हुई चीज़ों की बुराई से,",
+      "रात के अंधेरे की बुराई से जब वह छा जाए,",
+      "गाँठों पर फूँकने वालों की बुराई से,",
+      "और जलने वाले की बुराई से जब वह जले।"
+    ],
+    "fatiha": [
+      "अल्लाह के नाम से, जो अत्यंत दयावान और अत्यंत कृपाशील है।",
+      "सारी प्रशंसा अल्लाह के लिए है, जो सारे संसारों का पालनहार है,",
+      "अत्यंत दयावान, अत्यंत कृपाशील,",
+      "न्याय के दिन का मालिक।",
+      "हम केवल तेरी ही उपासना करते हैं और केवल तुझी से सहायता माँगते हैं।",
+      "हमें सीधे मार्ग पर चला,",
+      "उन लोगों के मार्ग पर जिन पर तूने कृपा की, न उनके जिन पर प्रकोप हुआ और न उनके जो भटक गए।"
+    ],
+    "ikhlas": [
+      "अल्लाह के नाम से, जो अत्यंत दयावान और अत्यंत कृपाशील है।",
+      "कह दो: वह अल्लाह है, अकेला है।",
+      "अल्लाह निरपेक्ष है, सब उसी के मुहताज हैं।",
+      "उसने न किसी को जन्म दिया और न वह जन्मा,",
+      "और उसके बराबर कोई नहीं।"
+    ],
+    "istiftah": [
+      "ऐ अल्लाह, तेरी महिमा है और सारी प्रशंसा तेरे लिए है।",
+      "तेरा नाम बरकत वाला है और तेरी महानता सर्वोच्च है।",
+      "तेरे सिवा कोई पूज्य नहीं।"
+    ],
+    "istighfar": [
+      "मैं अल्लाह से क्षमा माँगता हूँ।"
+    ],
+    "jalsa_dua": [
+      "ऐ मेरे पालनहार, मुझे क्षमा कर।"
+    ],
+    "kawthar": [
+      "अल्लाह के नाम से, जो अत्यंत दयावान और अत्यंत कृपाशील है।",
+      "निश्चय ही हमने तुझे बहुत कुछ दिया है।",
+      "तो अपने पालनहार की नमाज़ पढ़ और कुर्बानी कर।",
+      "निश्चय ही तुझसे बैर रखने वाला ही निःसंतान रहेगा।"
+    ],
+    "nas": [
+      "अल्लाह के नाम से, जो अत्यंत दयावान और अत्यंत कृपाशील है।",
+      "कह दो: मैं लोगों के पालनहार की शरण चाहता हूँ,",
+      "लोगों के बादशाह की,",
+      "लोगों के पूज्य की,",
+      "उस छिप जाने वाले फुसफुसाने वाले की बुराई से,",
+      "जो लोगों के दिलों में फुसफुसाता है,",
+      "जिन्नों और इंसानों में से।"
+    ],
+    "qunut_1": [
+      "ऐ अल्लाह, हम तुझी से सहायता माँगते हैं, तुझी से क्षमा माँगते हैं, तुझ पर ईमान रखते हैं और तुझ पर भरोसा करते हैं।",
+      "हम हर भलाई के लिए तेरी प्रशंसा करते हैं, तेरा शुक्र करते हैं और तेरी नाशुक्री नहीं करते।",
+      "हम उसे छोड़ देते हैं और उससे अलग होते हैं जो तेरी नाफ़रमानी करता है।"
+    ],
+    "qunut_2": [
+      "ऐ अल्लाह, हम केवल तेरी उपासना करते हैं; तेरे लिए नमाज़ पढ़ते और सजदा करते हैं।",
+      "तेरी ही ओर हम प्रयास करते और दौड़ते हैं। हम तेरी दया की आशा रखते और तेरे अज़ाब से डरते हैं।",
+      "तेरा अज़ाब निश्चय ही इनकार करने वालों पर आता है।"
+    ],
+    "rabbana_atina": [
+      "ऐ हमारे पालनहार, हमें इस दुनिया में भलाई दे",
+      "और परलोक में भी भलाई दे, और हमें आग के अज़ाब से बचा।"
+    ],
+    "ruku_tasbih": [
+      "महिमा है मेरे पालनहार की, जो महान है।"
+    ],
+    "salam": [
+      "तुम पर शांति हो और अल्लाह की दया हो।"
+    ],
+    "salawat": [
+      "ऐ अल्लाह, मुहम्मद पर और मुहम्मद के परिवार पर कृपा कर,",
+      "जैसे तूने इबराहीम पर और इबराहीम के परिवार पर कृपा की। तू ही प्रशंसा योग्य और महिमावान है।",
+      "ऐ अल्लाह, मुहम्मद पर और मुहम्मद के परिवार पर बरकत भेज,",
+      "जैसे तूने इबराहीम पर और इबराहीम के परिवार पर बरकत भेजी। तू ही प्रशंसा योग्य और महिमावान है।"
+    ],
+    "subhanallah": [
+      "अल्लाह की महिमा है।"
+    ],
+    "sujood_tasbih": [
+      "महिमा है मेरे पालनहार की, जो सर्वोच्च है।"
+    ],
+    "taawwudh_basmala": [
+      "मैं धिक्कारे हुए शैतान से अल्लाह की शरण चाहता हूँ।"
+    ],
+    "takbir": [
+      "अल्लाह सबसे बड़ा है।"
+    ],
+    "tashahhud": [
+      "सारे अभिवादन, नमाज़ें और भली बातें अल्लाह के लिए हैं।",
+      "ऐ नबी, आप पर शांति हो और अल्लाह की दया और उसकी बरकतें हों।",
+      "हम पर और अल्लाह के नेक बंदों पर शांति हो।",
+      "मैं गवाही देता हूँ कि अल्लाह के सिवा कोई पूज्य नहीं, और मुहम्मद उसके बंदे और उसके रसूल हैं।"
+    ],
+    "tasmi_tahmid": [
+      "अल्लाह ने उसकी सुन ली जिसने उसकी प्रशंसा की।",
+      "ऐ हमारे पालनहार, सारी प्रशंसा तेरे लिए है।"
+    ]
+  }
+}

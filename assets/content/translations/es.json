@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "lang": "es",
+  "name": "Spanish",
+  "nativeName": "Español",
+  "dir": "ltr",
+  "about": "Plain modern Spanish written for this app, so it is free of any translator's copyright and can ship on a device that is sold or given away. 'Dios' is used for Allah, as in the French. DRAFT: every line needs checking by a qualified Spanish speaker. No published Spanish translation was used: the only public-domain one (Joaquin Garcia Bravo, 1907) is an indirect rendering from Savary's French and survives only as uncorrected OCR, and every modern Spanish translation is in copyright.",
+  "sources": {
+    "takbir": "written for this app (draft, needs review)",
+    "allahu_akbar": "written for this app (draft, needs review)",
+    "subhanallah": "written for this app (draft, needs review)",
+    "alhamdulillah": "written for this app (draft, needs review)",
+    "istighfar": "written for this app (draft, needs review)",
+    "ameen": "written for this app (draft, needs review)",
+    "jalsa_dua": "written for this app (draft, needs review)",
+    "ruku_tasbih": "written for this app (draft, needs review)",
+    "sujood_tasbih": "written for this app (draft, needs review)",
+    "salam": "written for this app (draft, needs review)",
+    "taawwudh_basmala": "written for this app (draft, needs review)",
+    "istiftah": "written for this app (draft, needs review)",
+    "tasmi_tahmid": "written for this app (draft, needs review)",
+    "rabbana_atina": "written for this app (draft, needs review)",
+    "dhikr_salam": "written for this app (draft, needs review)",
+    "dhikr_tahlil": "written for this app (draft, needs review)",
+    "tashahhud": "written for this app (draft, needs review)",
+    "salawat": "written for this app (draft, needs review)",
+    "qunut_1": "written for this app (draft, needs review)",
+    "qunut_2": "written for this app (draft, needs review)",
+    "fatiha": "written for this app (draft, needs review)",
+    "kawthar": "written for this app (draft, needs review)",
+    "ikhlas": "written for this app (draft, needs review)",
+    "falaq": "written for this app (draft, needs review)",
+    "nas": "written for this app (draft, needs review)",
+    "ayat_kursi": "written for this app (draft, needs review)"
+  },
+  "intention": "Tengo la intención de realizar {n} rakats {kind} de {prayer}",
+  "kinds": {
+    "farz": "Fard",
+    "sunnah": "Sunnah",
+    "nafl": "Nafl",
+    "witr": "Witr"
+  },
+  "prayers": {
+    "fajr": "Fajr",
+    "dhuhr": "Dhuhr",
+    "asr": "Asr",
+    "maghrib": "Magrib",
+    "isha": "Isha"
+  },
+  "lines": {
+    "alhamdulillah": [
+      "Toda alabanza es para Dios."
+    ],
+    "allahu_akbar": [
+      "Dios es el más grande."
+    ],
+    "ameen": [
+      "Dios mío, responde a nuestra súplica."
+    ],
+    "ayat_kursi": [
+      "Dios: no hay dios sino Él, el Viviente, el Sustentador de todo.",
+      "Ni la somnolencia ni el sueño Lo alcanzan.",
+      "Suyo es cuanto hay en los cielos y cuanto hay en la tierra.",
+      "¿Quién podría interceder ante Él sino con Su permiso?",
+      "Él sabe lo que tienen delante y lo que tienen detrás,",
+      "y no abarcan nada de Su conocimiento salvo lo que Él quiere.",
+      "Su Trono se extiende sobre los cielos y la tierra,",
+      "y custodiarlos no Lo fatiga.",
+      "Él es el Altísimo, el Inmenso."
+    ],
+    "dhikr_salam": [
+      "Dios mío, Tú eres la Paz y de Ti viene la paz.",
+      "Bendito seas, Dueño de la majestad y la generosidad."
+    ],
+    "dhikr_tahlil": [
+      "No hay dios sino Dios, único, sin asociado.",
+      "Suyo es el dominio y Suya es la alabanza,",
+      "y Él tiene poder sobre todas las cosas."
+    ],
+    "falaq": [
+      "En el nombre de Dios, el Clemente, el Misericordioso.",
+      "Di: Me refugio en el Señor del alba",
+      "del mal de lo que ha creado,",
+      "del mal de la oscuridad cuando se extiende,",
+      "del mal de quienes soplan sobre los nudos,",
+      "y del mal del envidioso cuando envidia."
+    ],
+    "fatiha": [
+      "En el nombre de Dios, el Clemente, el Misericordioso.",
+      "Toda alabanza es para Dios, Señor de todos los mundos,",
+      "el Clemente, el Misericordioso,",
+      "Soberano del Día del Juicio.",
+      "Solo a Ti adoramos y solo a Ti pedimos ayuda.",
+      "Guíanos por el camino recto,",
+      "el camino de aquellos a quienes has favorecido, no de los que incurrieron en Tu ira, ni de los que se extraviaron."
+    ],
+    "ikhlas": [
+      "En el nombre de Dios, el Clemente, el Misericordioso.",
+      "Di: Él es Dios, el Uno.",
+      "Dios, el Eterno, de quien todo depende.",
+      "No engendró ni fue engendrado,",
+      "y no hay nada comparable a Él."
+    ],
+    "istiftah": [
+      "Gloria a Ti, Dios mío, y Tuya es toda alabanza.",
+      "Bendito sea Tu nombre y excelsa Tu majestad.",
+      "No hay dios sino Tú."
+    ],
+    "istighfar": [
+      "Pido perdón a Dios."
+    ],
+    "jalsa_dua": [
+      "Señor mío, perdóname."
+    ],
+    "kawthar": [
+      "En el nombre de Dios, el Clemente, el Misericordioso.",
+      "En verdad te hemos dado la abundancia.",
+      "Reza, pues, a tu Señor y ofrece el sacrificio.",
+      "Es quien te odia el que queda sin posteridad."
+    ],
+    "nas": [
+      "En el nombre de Dios, el Clemente, el Misericordioso.",
+      "Di: Me refugio en el Señor de los hombres,",
+      "el Rey de los hombres,",
+      "el Dios de los hombres,",
+      "del mal del susurrador que se retira,",
+      "que susurra en los corazones de los hombres,",
+      "de entre los genios y los hombres."
+    ],
+    "qunut_1": [
+      "Dios mío, Te pedimos ayuda, Te pedimos perdón, creemos en Ti y en Ti confiamos.",
+      "Te alabamos por todo bien, Te damos gracias y no somos ingratos contigo.",
+      "Nos apartamos y dejamos a quien Te desobedece."
+    ],
+    "qunut_2": [
+      "Dios mío, solo a Ti adoramos; para Ti oramos y ante Ti nos prosternamos.",
+      "Hacia Ti nos esforzamos y acudimos. Esperamos Tu misericordia y tememos Tu castigo.",
+      "Tu castigo alcanza sin duda a quienes rechazan la fe."
+    ],
+    "rabbana_atina": [
+      "Señor nuestro, concédenos bien en esta vida",
+      "y bien en la otra, y protégenos del castigo del Fuego."
+    ],
+    "ruku_tasbih": [
+      "Gloria a mi Señor, el Grandioso."
+    ],
+    "salam": [
+      "La paz sea con vosotros, y la misericordia de Dios."
+    ],
+    "salawat": [
+      "Dios mío, concede Tu gracia a Muhammad y a la familia de Muhammad,",
+      "como la concediste a Abraham y a la familia de Abraham. Tú eres digno de alabanza, lleno de gloria.",
+      "Dios mío, bendice a Muhammad y a la familia de Muhammad,",
+      "como bendijiste a Abraham y a la familia de Abraham. Tú eres digno de alabanza, lleno de gloria."
+    ],
+    "subhanallah": [
+      "Gloria a Dios."
+    ],
+    "sujood_tasbih": [
+      "Gloria a mi Señor, el Altísimo."
+    ],
+    "taawwudh_basmala": [
+      "Me refugio en Dios del demonio maldito."
+    ],
+    "takbir": [
+      "Dios es el más grande."
+    ],
+    "tashahhud": [
+      "Todos los saludos, las oraciones y las buenas obras son para Dios.",
+      "La paz sea contigo, Profeta, y la misericordia de Dios y Sus bendiciones.",
+      "La paz sea con nosotros y con los siervos rectos de Dios.",
+      "Doy testimonio de que no hay dios sino Dios, y de que Muhammad es Su siervo y Su mensajero."
+    ],
+    "tasmi_tahmid": [
+      "Dios escucha a quien Lo alaba.",
+      "Señor nuestro, Tuya es toda alabanza."
+    ]
+  }
+}
