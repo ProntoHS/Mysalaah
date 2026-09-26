@@ -1,0 +1,14 @@
+The Qur'an text, transliteration and translations in this folder come from quran-json
+version 3.1.2 (https://github.com/risan/quran-json), which carries the Creative Commons
+Attribution-ShareAlike 4.0 International licence.
+
+    Arabic text:      the Noble Qur'an Encyclopedia, https://quranenc.com
+    Transliteration:  Tanzil, https://tanzil.net/trans/en.transliteration
+
+That licence requires attribution, which is why this file exists and why the app names
+the source on screen. It also requires that anything derived from this material is shared
+under the same licence.
+
+Verified on conversion: 114 surahs, 6236 verses, every surah matching the canonical verse
+count, in Arabic and in all five translations, with no verse left empty. That checks the
+shape of the text, not the words themselves.

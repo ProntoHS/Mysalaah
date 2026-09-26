@@ -54,9 +54,13 @@ def why_not(path: Path) -> str:
     return ""
 
 
+def zip_name(number: str) -> str:
+    return f"salaah-{number}.zip"
+
+
 def build(out: Path, number: str) -> tuple[Path, int, str]:
     out.mkdir(parents=True, exist_ok=True)
-    zip_path = out / f"salaah-{number}.zip"
+    zip_path = out / zip_name(number)
     licensed, junk = [], 0
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipped:
         for folder in PACKS:
@@ -107,6 +111,22 @@ def main() -> int:
         return 1
 
     number = version()
+
+    # Refuse to sign a manifest that points somewhere other than the file being built. Getting
+    # this wrong produces a release that verifies perfectly and then cannot be downloaded, which
+    # is a horrible thing to debug from the other end -- the mat says the download failed and
+    # gives no hint that the address was never right in the first place.
+    if args.url:
+        asked = args.url.rstrip("/").rsplit("/", 1)[-1]
+        if asked != zip_name(number):
+            print(f"\nThat address ends in {asked}, but this build is {zip_name(number)}.",
+                  file=sys.stderr)
+            print(f"\nsalaah/__init__.py says the version is {number}. Either that line needs",
+                  file=sys.stderr)
+            print("changing, or the --url does. Nothing has been built and nothing signed.",
+                  file=sys.stderr)
+            return 1
+
     zip_path, size, sha = build(args.out, number)
     body = {
         "version": number,

@@ -180,6 +180,12 @@
     "update.not_now": "نماز کے دوران نہیں",
     "call.title": "نماز کا وقت",
     "call.stop": "بند کریں",
+    "corner.title": "علم کا گوشہ",
+    "corner.back": "تمام سورتیں",
+    "corner.surahs": "114 سورتیں",
+    "corner.not_yet": "ابھی تیار نہیں۔",
+    "quran.arabic_only": "صرف عربی",
+    "quran.page": "صفحہ {at} از {of}",
     "update.close": "بند کریں",
     "update.now": "ابھی اپ ڈیٹ کریں",
     "update.later": "ابھی نہیں"

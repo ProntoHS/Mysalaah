@@ -182,6 +182,12 @@
     "update.not_now": "No durante una oración",
     "call.title": "HORA DE REZAR",
     "call.stop": "Parar",
+    "corner.title": "Rincón del saber",
+    "corner.back": "Todas las suras",
+    "corner.surahs": "Las 114 suras",
+    "corner.not_yet": "Todavía sin contenido.",
+    "quran.arabic_only": "Solo árabe",
+    "quran.page": "Página {at} de {of}",
     "update.close": "Cerrar",
     "update.now": "Actualizar ahora",
     "update.later": "Ahora no"

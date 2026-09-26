@@ -182,6 +182,12 @@
     "update.not_now": "नमाज़ के दौरान नहीं",
     "call.title": "नमाज़ का समय",
     "call.stop": "रोकें",
+    "corner.title": "ज्ञान कोना",
+    "corner.back": "सभी सूरतें",
+    "corner.surahs": "114 सूरतें",
+    "corner.not_yet": "अभी तैयार नहीं।",
+    "quran.arabic_only": "केवल अरबी",
+    "quran.page": "पृष्ठ {at} / {of}",
     "update.close": "बंद करें",
     "update.now": "अभी अपडेट करें",
     "update.later": "अभी नहीं"

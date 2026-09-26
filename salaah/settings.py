@@ -25,6 +25,10 @@ class Settings:
     side_output: str = ""  # the 7" posture screen last time; both are worked out if they are wrong
     recitation: bool = True  # play the recorded recitation and follow the words in red
     volume: int = 80  # 0-100: how loud the recitation is, set by the bar on the prayer screen
+    quran_lang: str = ""      # the meaning shown beside the Qur'an: "" for Arabic alone, or
+                              # en/fr/ur/es/zh. Kept apart from `translation`, which is the
+                              # meaning shown during a prayer -- reading and praying are not
+                              # the same thing and may well want different languages.
     azaan: bool = True        # call to prayer when a prayer falls due
     sleep_after: int = 3      # minutes with nothing pressed before the screens go off; 0 never.
                               # Not on the Settings screen: two more rows there would push a

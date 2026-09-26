@@ -15,6 +15,7 @@ screen. Its touch has to be tied to that screen too, or a touch on the 7" lands 
 """
 from __future__ import annotations
 
+from .knowledge import KnowledgeScreen
 from .qt import QtGui, QtWidgets, Qt
 from .render import Fonts, PostureView
 from .theme import palette
@@ -39,6 +40,12 @@ class SideWindow(QtWidgets.QWidget):
         lay.addWidget(self.stack)
 
         # The compass. It keeps watching after it is lined up, as the mat can be moved.
+        # What the 7" offers between prayers now that the compass has gone: three things to
+        # read, chosen here and opened on the big screen.
+        self.corner = KnowledgeScreen(window)
+        self.corner.chose.connect(window.open_corner)
+        self.stack.addWidget(self.corner)
+
         self.compass = compass_screen
         if self.compass is not None:
             self.compass.stays = True
@@ -67,19 +74,19 @@ class SideWindow(QtWidgets.QWidget):
     # What to show
 
     def show_idle(self) -> None:
-        """Between prayers: the compass, or with it switched off the standing figure."""
+        """Between prayers: the Knowledge Corner, or the compass where one is switched on."""
         self.set_dim(0)
-        if self.compass is None or not self.win.settings.qibla_start:
-            self.posture.set_repeat(1)
-            self.posture.set_image(self.win.picture(self.IDLE_PICTURE))
-            self.stack.setCurrentWidget(self.prayer)
+        self.idle = True
+        if self.compass is not None and self.win.settings.qibla_start:
+            self.stack.setCurrentWidget(self.compass)
+            self.compass.open()
             return
-        self.stack.setCurrentWidget(self.compass)
-        self.compass.open()
+        self.stack.setCurrentWidget(self.corner)
 
     show_compass = show_idle
 
     def show_prayer(self) -> None:
+        self.idle = False
         if self.compass is not None:
             self.compass.close_screen()
         self.stack.setCurrentWidget(self.prayer)
@@ -87,6 +94,20 @@ class SideWindow(QtWidgets.QWidget):
     def close_screens(self) -> None:
         if self.compass is not None:
             self.compass.close_screen()
+
+    @property
+    def showing_idle(self) -> bool:
+        """Whether the 7" is showing what it shows between prayers -- whichever that is.
+
+        Asked rather than worked out from the page on top, because between prayers and during
+        one the same page can be in front: with the compass switched off, both are the posture
+        view, showing a standing figure in one case and the posture being prayed in the other.
+        """
+        return getattr(self, "idle", True)
+
+    @property
+    def showing_corner(self) -> bool:
+        return self.stack.currentWidget() is self.corner
 
     @property
     def showing_compass(self) -> bool:
@@ -102,6 +123,7 @@ class SideWindow(QtWidgets.QWidget):
         self.dim.raise_()
 
     def follow_theme(self) -> None:
+        self.corner.follow_theme()
         pal = self.palette()
         pal.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(palette().paper))
         self.setPalette(pal)

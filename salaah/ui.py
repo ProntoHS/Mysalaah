@@ -24,6 +24,8 @@ from .tasbih import TasbihScreen
 from .timing import TimingScreen
 from .compass import CompassScreen
 from .side import SideWindow
+from .quran import Quran
+from .reading import Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
 from .power import Outputs
 from .settings import Settings
@@ -58,11 +60,11 @@ NEXT_KEYS = {
 BACK_KEYS = {Qt.Key.Key_VolumeDown, Qt.Key.Key_Left, Qt.Key.Key_PageUp, Qt.Key.Key_MediaPrevious,
              Qt.Key.Key_Backspace}
 
-# The Qibla compass: at start-up it goes on the 7" screen when there is one, with the main menu
-# coming straight up on the big screen, and it keeps watching there between prayers. With no
-# compass chip fitted it shows the bearing to line up against (118.5 from Bury), which is
-# useful on its own. False takes it out altogether, along with its rows in Settings.
-QIBLA = True
+# The Qibla compass. Off, because the mat has a mechanical compass set into its frame: a needle
+# that needs no power, no calibration and no screen, and is easier to trust than a chip. The
+# code stays because it works and costs nothing switched off -- turn this back on and the
+# compass returns to the 7" screen, to start-up and to Settings exactly as it was.
+QIBLA = False
 
 # Two clicks closer together than this leave the prayer.
 DOUBLE_CLICK = 0.55
@@ -509,6 +511,7 @@ class MainWindow(QtWidgets.QWidget):
         self.outputs = Outputs()
         self.notice = None          # the update dialog, while one is on screen
         self.backlight = Backlight()
+        self.quran = Quran(self.assets)
         self.call = Call(volume=settings.volume)   # the call to prayer
         self.call_box = None                       # the TIME TO PRAY notice, while it is up
         self.called: dict[str, object] = {}        # prayer -> the day it was last called
@@ -707,7 +710,9 @@ class MainWindow(QtWidgets.QWidget):
         self.player = self.build_player()
         self.settings_screen = self.build_settings()
         self.timing_screen = self.build_timing()
-        screens = [self.home, self.pick, self.player, self.settings_screen, self.timing_screen]
+        self.corner_screen = self.build_corner()
+        screens = [self.home, self.pick, self.player, self.settings_screen, self.timing_screen,
+                   self.corner_screen]
         if QIBLA:
             self.compass_screen = CompassScreen(self, self.facing)
             self.compass_screen.done.connect(self.qibla_done)
@@ -820,6 +825,32 @@ class MainWindow(QtWidgets.QWidget):
                                         border-radius:{px(8)}px; }}
             QPushButton#updateButton:pressed {{ background:#8E342C; }}
             QPushButton#updateButton:disabled {{ background:#8E342C; color:#E3BDB9; }}
+            QWidget#knowledge {{ background:{c.paper}; }}
+            QLabel#cornerTitle {{ font-size:{px(40)}px; font-weight:bold; color:{c.strong}; }}
+            QAbstractButton#tile {{ background:transparent; border:none; }}
+            QWidget#corner, QWidget#surahList, QWidget#reader {{ background:{c.paper}; }}
+            QScrollArea {{ background:{c.paper}; }}
+            QPushButton#surahRow {{ background:{c.paper}; border:{px(2)}px solid {c.line};
+                                    border-radius:{px(12)}px; text-align:left; }}
+            QPushButton#surahRow:pressed {{ background:{c.pressed}; border-color:{c.lapis}; }}
+            QPushButton#surahRow QLabel {{ background:transparent; }}
+            QLabel#surahNumber {{ font-size:{px(30)}px; font-weight:bold; color:{c.lapis}; }}
+            QLabel#surahName {{ font-size:{px(28)}px; font-weight:bold; color:{c.strong}; }}
+            QLabel#surahMeaning {{ font-size:{px(20)}px; color:{c.stone}; }}
+            QLabel#surahArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
+                                  font-size:{px(34)}px; color:{c.strong}; }}
+            QLabel#readerTitle {{ font-size:{px(30)}px; font-weight:bold; color:{c.strong}; }}
+            QLabel#readerWhere {{ font-size:{px(24)}px; color:{c.stone};
+                                  min-width:{px(200)}px; qproperty-alignment:AlignCenter; }}
+            QPushButton#turnPage {{ background:{c.chip}; color:{c.paper}; border:none;
+                                    border-radius:{px(10)}px; font-size:{px(34)}px;
+                                    font-weight:bold; min-width:{px(70)}px;
+                                    padding:{px(4)}px {px(16)}px; }}
+            QPushButton#turnPage:disabled {{ background:{c.line}; color:{c.stone}; }}
+            QPushButton#tongue {{ background:{c.paper}; color:{c.strong};
+                                  border:{px(2)}px solid {c.line}; border-radius:{px(10)}px;
+                                  font-size:{px(22)}px; padding:{px(6)}px {px(14)}px; }}
+            QPushButton#tongue:checked {{ background:{BRICK}; color:white; border-color:{BRICK}; }}
             QSlider#brightness::groove:horizontal {{ height:{px(14)}px; background:{c.line};
                                                      border-radius:{px(7)}px; }}
             QSlider#brightness::sub-page:horizontal {{ background:{BRICK};
@@ -965,6 +996,76 @@ class MainWindow(QtWidgets.QWidget):
         bottom.addWidget(settings)
         lay.addLayout(bottom)
         return w
+
+    # The Knowledge Corner
+
+    def build_corner(self) -> QtWidgets.QWidget:
+        """What the big screen shows when something is chosen on the 7": the list of surahs,
+        one of them open, or -- for the two sections not filled in yet -- a plain word to that
+        effect rather than an empty screen that looks broken."""
+        stack = QtWidgets.QStackedWidget()
+        stack.setObjectName("corner")
+
+        self.surah_list = SurahList(self, self.quran)
+        self.surah_list.chose.connect(self.open_surah)
+        self.surah_list.leave.connect(self.go_home)
+        stack.addWidget(self.surah_list)
+
+        self.reader = Reader(self, self.quran)
+        self.reader.back.connect(self.open_corner_list)
+        stack.addWidget(self.reader)
+
+        self.corner_soon = self.page_soon()
+        stack.addWidget(self.corner_soon)
+        return stack
+
+    def page_soon(self) -> QtWidgets.QWidget:
+        w, lay = self.page(self.t("corner.title"), "")
+        lay.addStretch(1)
+        said = QtWidgets.QLabel(self.t("corner.not_yet"))
+        said.setObjectName("settingHead")
+        said.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        said.setWordWrap(True)
+        lay.addWidget(said)
+        lay.addStretch(1)
+        row = QtWidgets.QHBoxLayout()
+        row.addStretch(1)
+        home = no_focus(QtWidgets.QPushButton(self.t("settings.main_screen")))
+        home.setObjectName("mainScreen")
+        home.clicked.connect(self.go_home)
+        row.addWidget(home)
+        lay.addLayout(row)
+        return w
+
+    def open_corner(self, which: str) -> None:
+        """Something was touched on the 7". Open it on the big screen -- unless a prayer is
+        going on, when the big screen is busy and the touch is almost certainly a stray knee."""
+        if self.playing or self.asleep:
+            return
+        self.stir()
+        if which == "quran" and self.quran.there:
+            self.open_corner_list()
+            return
+        self.corner_screen.setCurrentWidget(self.corner_soon)
+        self.stack.setCurrentWidget(self.corner_screen)
+
+    def open_corner_list(self) -> None:
+        self.surah_list.to_the_top()
+        self.corner_screen.setCurrentWidget(self.surah_list)
+        self.stack.setCurrentWidget(self.corner_screen)
+
+    def open_surah(self, number: int) -> None:
+        self.reader.open(number)
+        self.corner_screen.setCurrentWidget(self.reader)
+        self.stack.setCurrentWidget(self.corner_screen)
+
+    @property
+    def reading(self) -> bool:
+        return self.stack.currentWidget() is self.corner_screen
+
+    def pack_name(self, lang: str) -> str:
+        pack = self.packs.get(lang)
+        return pack.native_name if pack is not None else lang.upper()
 
     # The call to prayer, and going to sleep on its own
 

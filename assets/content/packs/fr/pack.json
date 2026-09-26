@@ -180,6 +180,12 @@
     "update.not_now": "Pas pendant une prière",
     "call.title": "C'EST L'HEURE DE LA PRIÈRE",
     "call.stop": "Arrêter",
+    "corner.title": "Coin du savoir",
+    "corner.back": "Toutes les sourates",
+    "corner.surahs": "Les 114 sourates",
+    "corner.not_yet": "Pas encore rempli.",
+    "quran.arabic_only": "Arabe seul",
+    "quran.page": "Page {at} sur {of}",
     "update.close": "Fermer",
     "update.now": "Mettre à jour",
     "update.later": "Plus tard"

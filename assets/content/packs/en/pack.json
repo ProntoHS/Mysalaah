@@ -180,6 +180,12 @@
     "update.not_now": "Not while a prayer is going on",
     "call.title": "TIME TO PRAY",
     "call.stop": "Stop",
+    "corner.title": "Knowledge Corner",
+    "corner.back": "All surahs",
+    "corner.surahs": "The 114 surahs",
+    "corner.not_yet": "Not filled in yet.",
+    "quran.arabic_only": "Arabic only",
+    "quran.page": "Page {at} of {of}",
     "update.close": "Close",
     "update.now": "Update now",
     "update.later": "Not now"

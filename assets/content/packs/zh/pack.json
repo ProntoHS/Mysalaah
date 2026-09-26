@@ -182,6 +182,12 @@
     "update.not_now": "礼拜期间不可更新",
     "call.title": "礼拜时间到了",
     "call.stop": "停止",
+    "corner.title": "知识角",
+    "corner.back": "全部章节",
+    "corner.surahs": "全部 114 章",
+    "corner.not_yet": "尚未填写。",
+    "quran.arabic_only": "仅阿拉伯文",
+    "quran.page": "第 {at} 页，共 {of} 页",
     "update.close": "关闭",
     "update.now": "立即更新",
     "update.later": "暂不更新"

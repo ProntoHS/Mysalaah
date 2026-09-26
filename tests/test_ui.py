@@ -1019,6 +1019,8 @@ class TapAlongTest(unittest.TestCase):
             w.deleteLater()
 
 
+@unittest.skipUnless(__import__("salaah.ui", fromlist=["QIBLA"]).QIBLA,
+                     "the Qibla compass is switched off: the mat has a mechanical one")
 class QiblaScreenTest(unittest.TestCase):
     """The compass before the main screen."""
 
@@ -1486,6 +1488,8 @@ class TranslationScreenTest(unittest.TestCase):
         self.assertEqual("", w.settings.translation)
 
 
+@unittest.skipUnless(__import__("salaah.ui", fromlist=["QIBLA"]).QIBLA,
+                     "the Qibla compass is switched off: the mat has a mechanical one")
 class QiblaAtStartTest(unittest.TestCase):
     """The compass is back: on the 7" at start-up, with the main menu on the big screen."""
 
@@ -2632,6 +2636,8 @@ class SettingsTidiedTest(unittest.TestCase):
         return [b.text() for b in w.settings_screen.findChildren(QtWidgets.QAbstractButton)
                 if b.text()]
 
+    @unittest.skipUnless(__import__("salaah.ui", fromlist=["QIBLA"]).QIBLA,
+                         "the Qibla compass is switched off")
     def test_no_show_the_qibla_button(self):
         """With a 7 inch screen the compass is on it the whole time Settings is up."""
         w = self.window()
@@ -2642,6 +2648,8 @@ class SettingsTidiedTest(unittest.TestCase):
         for lang, pack in available_packs(ASSETS).items():
             self.assertNotIn("settings.qibla_show", pack.ui, f"{lang} still carries the wording")
 
+    @unittest.skipUnless(__import__("salaah.ui", fromlist=["QIBLA"]).QIBLA,
+                         "the Qibla compass is switched off")
     def test_the_qibla_rows_that_matter_are_still_there(self):
         w = self.window()
         words = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel) if x.text()]
@@ -2999,7 +3007,7 @@ class SleepTest(unittest.TestCase):
         self.assertFalse(w.side.showing_compass, "the posture should be up during a prayer")
         self.press(w)
         self.press(w)
-        self.assertTrue(w.side.showing_compass,
+        self.assertTrue(w.side.showing_idle,
                         "the 7in is still showing the posture from the prayer")
 
     def test_the_screens_are_handed_back_on_the_way_out(self):
@@ -3458,3 +3466,308 @@ class CallToPrayerTest(unittest.TestCase):
         w = self.window(sleep_after=0)
         w.stir()
         self.assertFalse(w.idle.isActive(), "0 means never")
+
+
+class NoQiblaTest(unittest.TestCase):
+    """The compass is switched off: the mat has a mechanical one set into its frame.
+
+    The tests that guard the compass itself skip while it is off. These assert the other side
+    of it -- that with it off, nothing of it reaches the screens.
+    """
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1200)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        APP.processEvents()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_it_is_switched_off(self):
+        from salaah import ui
+        self.assertFalse(ui.QIBLA, "the mat has a compass in its frame; the screen one is off")
+
+    def test_settings_says_nothing_about_the_qibla(self):
+        w = self.window()
+        said = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)]
+        said += [x.text() for x in w.settings_screen.findChildren(QtWidgets.QAbstractButton)]
+        self.assertFalse([s for s in said if "qibla" in s.lower()],
+                         f"Settings still mentions the Qibla: {[s for s in said if 'qibla' in s.lower()]}")
+
+    def test_the_small_screen_has_no_compass_on_it(self):
+        w = self.window()
+        self.assertIsNone(w.side.compass, "no compass should be built for the 7 inch screen")
+        self.assertFalse(w.side.showing_compass)
+
+    def test_the_app_does_not_open_on_a_compass(self):
+        w = self.window()
+        w.begin()
+        APP.processEvents()
+        self.assertIs(w.home, w.stack.currentWidget(), "it should start at the mosque")
+
+    def test_the_compass_code_is_still_there_to_switch_back_on(self):
+        """Switched off, not torn out. A mat with a sensor fitted should need one line."""
+        from salaah.compass import CompassScreen        # noqa: F401
+        from salaah import qibla                        # noqa: F401
+
+
+class KnowledgeCornerTest(unittest.TestCase):
+    """The 7" menu and what it opens on the big screen."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1200)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_the_small_screen_offers_three_things_between_prayers(self):
+        w = self.window()
+        self.assertTrue(w.side.showing_corner, "the 7in should show the corner between prayers")
+        self.assertEqual(["quran", "duas", "kalima"], [t.name for t in w.side.corner.tiles])
+
+    def test_the_posture_takes_the_small_screen_back_during_a_prayer(self):
+        w = self.window()
+        w.open_prayer("dhuhr")
+        w.start("dhuhr", w.school.prayers["dhuhr"][0])
+        APP.processEvents()
+        self.assertFalse(w.side.showing_corner, "the posture is what matters during a prayer")
+
+    def test_touching_the_quran_opens_the_list_on_the_big_screen(self):
+        w = self.window()
+        w.side.corner.tiles[0].click()
+        APP.processEvents()
+        self.assertTrue(w.reading, "the big screen should have opened the corner")
+        self.assertIs(w.surah_list, w.corner_screen.currentWidget())
+
+    def test_a_touch_during_a_prayer_is_ignored(self):
+        """Mid-prayer the big screen is busy and a touch on the 7in is most likely a knee."""
+        w = self.window()
+        w.open_prayer("asr")
+        w.start("asr", w.school.prayers["asr"][0])
+        APP.processEvents()
+        w.open_corner("quran")
+        self.assertFalse(w.reading, "the prayer should not be shoved aside")
+
+    def test_the_two_unfinished_sections_say_so_rather_than_showing_nothing(self):
+        w = self.window()
+        for which in ("duas", "kalima"):
+            w.open_corner(which)
+            APP.processEvents()
+            self.assertIs(w.corner_soon, w.corner_screen.currentWidget(), which)
+            said = [x.text() for x in w.corner_soon.findChildren(QtWidgets.QLabel)]
+            self.assertTrue(any("not" in s.lower() for s in said), said)
+
+
+class QuranTest(unittest.TestCase):
+    """The Qur'an on the big screen: the list of 114, and reading one as an open book."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1200)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_all_one_hundred_and_fourteen_are_listed(self):
+        w = self.window()
+        w.open_corner_list()            # the list is built when it is opened, not at start-up
+        settle()
+        rows = w.surah_list.findChildren(QtWidgets.QPushButton)
+        rows = [b for b in rows if b.objectName() == "surahRow"]
+        self.assertEqual(114, len(rows))
+
+    def test_each_is_named_in_arabic_and_in_english(self):
+        w = self.window()
+        w.open_corner_list()
+        settle()
+        said = [x.text() for x in w.surah_list.findChildren(QtWidgets.QLabel)]
+        for wanted in ("Al-Fatihah", "الفاتحة", "An-Nas", "الناس", "Al-Mu'minun"):
+            self.assertIn(wanted, said, f"{wanted} is missing from the list")
+
+    def test_opening_one_shows_that_surah(self):
+        w = self.window()
+        w.open_surah(23)
+        settle()
+        self.assertIn("Al-Mu'minun", w.reader.title.text())
+        self.assertIn("المؤمنون", w.reader.title.text())
+
+    def every_verse_once(self, w, number, lang):
+        """The invariant that matters: the pages between them hold every verse of the surah,
+        each exactly once, in order. A reader that quietly drops a verse would be far worse
+        than one that looked wrong."""
+        w.settings.quran_lang = lang
+        w.open_surah(number)
+        settle()
+        spread = w.reader.spread
+        seen = []
+        for start, end in spread.pages:
+            seen.extend(v.number for v in spread.verses[start:end])
+        wanted = list(range(1, w.quran.surah(number).verses + 1))
+        self.assertEqual(wanted, seen,
+                         f"surah {number} in {lang or 'arabic'}: the pages do not add up")
+        self.assertTrue(all(end > start for start, end in spread.pages), "an empty page")
+
+    def test_the_pages_hold_every_verse_exactly_once(self):
+        w = self.window()
+        for number, lang in ((1, "en"), (23, "en"), (2, "en"), (36, ""), (112, "ur"),
+                             (18, "fr"), (55, "zh"), (114, "es"), (9, "")):
+            self.every_verse_once(w, number, lang)
+
+    def test_a_long_surah_takes_more_than_one_page(self):
+        w = self.window()
+        w.settings.quran_lang = "en"
+        w.open_surah(2)
+        settle()
+        self.assertGreater(w.reader.spread.pages_count, 10, "Al-Baqarah is 286 verses")
+
+    def test_a_short_one_fits_on_a_single_page(self):
+        w = self.window()
+        w.settings.quran_lang = "en"
+        w.open_surah(112)
+        settle()
+        self.assertEqual(1, w.reader.spread.pages_count, "Al-Ikhlas is four verses")
+
+    def test_the_page_count_on_screen_is_the_real_one(self):
+        """It used to be written before the widget had a size, so it said 50 when it was 8."""
+        w = self.window()
+        w.settings.quran_lang = "en"
+        w.open_surah(23)
+        settle()
+        self.assertIn(f"of {w.reader.spread.pages_count}", w.reader.where.text())
+
+    def test_turning_past_either_end_does_nothing(self):
+        w = self.window()
+        w.open_surah(112)
+        settle()
+        self.assertFalse(w.reader.turn(False), "there is nothing before the first page")
+        self.assertFalse(w.reader.turn(True), "nor after the last")
+
+    def test_turning_forward_and_back_comes_home(self):
+        w = self.window()
+        w.settings.quran_lang = "en"
+        w.open_surah(2)
+        settle()
+        first = w.reader.spread.pages[0]
+        self.assertTrue(w.reader.turn(True))
+        self.assertNotEqual(first, w.reader.spread.pages[w.reader.spread.at])
+        self.assertTrue(w.reader.turn(False))
+        self.assertEqual(0, w.reader.spread.at)
+
+    def test_with_no_translation_the_arabic_takes_both_pages(self):
+        w = self.window(quran_lang="")
+        w.open_surah(36)
+        settle()
+        spread = w.reader.spread
+        self.assertFalse(spread.translated)
+        self.assertTrue(spread.left.isVisible() and spread.right.isVisible())
+        self.assertFalse(spread.parallel.isVisible())
+        self.assertTrue(spread.right.lines, "the right page is read first and must be filled")
+        self.assertTrue(spread.left.lines, "and the left page carries the rest")
+
+    def test_with_a_translation_it_is_the_left_page(self):
+        w = self.window(quran_lang="en")
+        w.open_surah(36)
+        settle()
+        spread = w.reader.spread
+        self.assertTrue(spread.translated)
+        self.assertTrue(spread.parallel.isVisible())
+        self.assertFalse(spread.left.isVisible() or spread.right.isVisible())
+        self.assertTrue(all(spread.parallel.meaning), "every verse should have its meaning")
+
+    def test_every_language_we_have_is_offered_and_hindi_is_not_pretended(self):
+        """The source has no Hindi. Offering it and showing English would be worse than five."""
+        w = self.window()
+        offered = set(w.reader.buttons) - {""}
+        self.assertEqual({"en", "fr", "ur", "es", "zh"}, offered)
+        self.assertNotIn("hi", offered)
+
+    def test_choosing_a_language_changes_what_is_read_and_is_remembered(self):
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        w.reader.set_language("fr")
+        settle()
+        self.assertEqual("fr", w.settings.quran_lang)
+        self.assertTrue(any("Allah" in m or "Dieu" in m for m in w.reader.spread.parallel.meaning),
+                        w.reader.spread.parallel.meaning[:2])
+
+    def test_urdu_is_laid_out_right_to_left(self):
+        w = self.window(quran_lang="ur")
+        w.open_surah(1)
+        settle()
+        self.assertTrue(w.reader.spread.parallel.meaning_rtl, "Urdu reads the other way")
+
+    def test_a_swipe_turns_the_page(self):
+        from salaah.qt import QtCore, QtGui
+        w = self.window(quran_lang="en")
+        w.open_surah(2)
+        settle()
+        spread = w.reader.spread
+        was = spread.at
+        middle = spread.rect().center()
+        for kind, where in ((QtCore.QEvent.Type.MouseButtonPress, middle),
+                            (QtCore.QEvent.Type.MouseButtonRelease,
+                             QtCore.QPoint(middle.x() - 400, middle.y()))):
+            APP.sendEvent(spread, QtGui.QMouseEvent(
+                kind, QtCore.QPointF(where), Qt.MouseButton.LeftButton,
+                Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier))
+        self.assertEqual(was + 1, spread.at, "a swipe leftwards should go forward")
+
+    def test_a_small_wobble_is_not_a_swipe(self):
+        """A finger resting on the page, or a tap that drifts, must not turn it."""
+        from salaah.qt import QtCore, QtGui
+        w = self.window(quran_lang="en")
+        w.open_surah(2)
+        settle()
+        spread = w.reader.spread
+        was = spread.at
+        middle = spread.rect().center()
+        for kind, where in ((QtCore.QEvent.Type.MouseButtonPress, middle),
+                            (QtCore.QEvent.Type.MouseButtonRelease,
+                             QtCore.QPoint(middle.x() - 8, middle.y()))):
+            APP.sendEvent(spread, QtGui.QMouseEvent(
+                kind, QtCore.QPointF(where), Qt.MouseButton.LeftButton,
+                Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier))
+        self.assertEqual(was, spread.at)
+
+    def test_the_list_is_not_built_until_somebody_asks_for_it(self):
+        """114 rows is the better part of six hundred widgets. Most times the mat is switched
+        on nobody opens this screen at all, and a Pi should not pay for it."""
+        w = self.window()
+        self.assertFalse(w.surah_list.filled, "the list should be empty until it is opened")
+        w.open_corner_list()
+        settle()
+        self.assertTrue(w.surah_list.filled)
+
+    def test_there_is_a_way_back_to_the_mosque_from_the_list(self):
+        """Without it the only escape from 114 surahs is the power button."""
+        w = self.window()
+        w.open_corner_list()
+        settle()
+        out = [b for b in w.surah_list.findChildren(QtWidgets.QPushButton)
+               if b.objectName() == "mainScreen"]
+        self.assertEqual(1, len(out), "the list needs one way out")
+        out[0].click()
+        settle()
+        self.assertIs(w.home, w.stack.currentWidget(), "it should go back to the mosque")
+
+    def test_the_reader_goes_back_to_the_list(self):
+        w = self.window()
+        w.open_surah(23)
+        settle()
+        w.reader.back_button.click()
+        settle()
+        self.assertIs(w.surah_list, w.corner_screen.currentWidget())
