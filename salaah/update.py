@@ -60,6 +60,13 @@ CHUNK = 64 * 1024
 REPLACES = ("salaah", "assets")
 STATE = "update-state.json"
 
+# The exit code the app uses to say "I have installed an update; start me again". It has to be a
+# code of its own rather than an ordinary clean exit, because run.sh cannot otherwise tell the
+# difference between an update wanting the new version started and somebody closing the app --
+# and getting that wrong means either a mat that will not shut down or, as happened here, one
+# that installs an update and then quietly drops to the desktop. run.sh has this number in it.
+RESTART = 42
+
 
 def parts(version: str) -> tuple:
     """A version as something that can be compared. "1.9" is older than "1.12", which is the

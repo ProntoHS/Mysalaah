@@ -1852,8 +1852,14 @@ class MainWindow(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(1200, self.restart)
 
     def restart(self) -> None:
-        """Quit, so run.sh starts the new version -- and puts this one back if it will not go."""
-        QtWidgets.QApplication.instance().quit()
+        """Stand down with the agreed code, so run.sh starts the new version -- and puts this
+        one back if it will not go.
+
+        Not quit(). A clean exit is what closing the app looks like, and run.sh rightly stops
+        when that happens; an update that quit cleanly left the mat sitting on the desktop.
+        """
+        from .update import RESTART
+        QtWidgets.QApplication.instance().exit(RESTART)
 
     def settled(self) -> None:
         """Called once this version has run long enough to be trusted, so the guard stops
