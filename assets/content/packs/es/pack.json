@@ -69,8 +69,8 @@
     "mat.posture_panel": "Panel de la postura",
     "mat.words_panel": "Panel de las palabras",
     "mat.redraws": "Redibujados: {n}",
-    "settings.dim": "Atenuar la pantalla de la oración",
-    "settings.dim_hint": "Oscurece las diapositivas para las oraciones nocturnas. Bajar el brillo del propio monitor reduce más el reflejo y el consumo.",
+    "settings.brightness": "Brillo de la pantalla",
+    "settings.brightness_veil": "Este monitor no acepta órdenes de brillo, así que se oscurece la pantalla de oración. Parece más tenue pero gasta lo mismo; los botones del monitor hacen más.",
     "settings.buttons": "Botones Bluetooth",
     "settings.buttons_hint": "Empareja el anillo o el botón disparador una vez en los ajustes de Bluetooth de la Pi. Los botones conectados aparecen aquí.",
     "settings.no_buttons": "Ninguno conectado",
@@ -175,6 +175,9 @@
     "update.downloading": "Descargando la versión {number}…",
     "update.restarting": "Iniciando la nueva versión…",
     "update.failed": "No se pudo actualizar: {why}",
-    "update.not_now": "No durante una oración"
+    "update.not_now": "No durante una oración",
+    "update.close": "Cerrar",
+    "update.now": "Actualizar ahora",
+    "update.later": "Ahora no"
   }
 }

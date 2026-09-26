@@ -67,8 +67,8 @@
     "mat.posture_panel": "Posture panel",
     "mat.words_panel": "Words panel",
     "mat.redraws": "Redraws: {n}",
-    "settings.dim": "Assombrir l'écran de prière",
-    "settings.dim_hint": "Assombrit les écrans pour les prières de nuit. Baisser la luminosité du moniteur lui-même est encore plus efficace.",
+    "settings.brightness": "Luminosité de l'écran",
+    "settings.brightness_veil": "Ce moniteur n'accepte pas les commandes de luminosité ; l'écran de prière est donc assombri à la place. Cela paraît plus sombre mais consomme autant — les boutons du moniteur font mieux.",
     "settings.buttons": "Boutons Bluetooth",
     "settings.buttons_hint": "Appairez la bague ou le déclencheur une fois dans les réglages Bluetooth du Pi. Les boutons connectés apparaissent ici.",
     "settings.no_buttons": "Aucun connecté",
@@ -173,7 +173,10 @@
     "update.downloading": "Téléchargement de la version {number}…",
     "update.restarting": "Démarrage de la nouvelle version…",
     "update.failed": "Mise à jour impossible : {why}",
-    "update.not_now": "Pas pendant une prière"
+    "update.not_now": "Pas pendant une prière",
+    "update.close": "Fermer",
+    "update.now": "Mettre à jour",
+    "update.later": "Plus tard"
   },
   "transliteration": {},
   "translation": {}

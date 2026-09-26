@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .buttons import BACK, NEXT
+from .backlight import Backlight
 from .audio import Recitation, Timings, clamp_volume
 from .audio import Span
 from .content import PRAYERS, Content, LanguagePack, StepRef, UnitEntry
@@ -136,6 +137,138 @@ class ProgressLine(QtWidgets.QWidget):
         p.fillRect(self.rect(), QtGui.QColor(colours.progress_track))
         w = int(self.width() * self.value)
         p.fillRect(0, 0, w, self.height(), QtGui.QColor(colours.progress_fill))
+
+
+class Notice(QtWidgets.QDialog):
+    """A message in the middle of the screen that cannot be missed or mistaken for decoration.
+
+    Deliberately not a QMessageBox. Those are drawn by the desktop rather than by us, they
+    ignore half of what a stylesheet tells them, and the two Qt kits disagree about the rest --
+    so the one thing they will not reliably do is look like part of this app. This is a plain
+    dialog we draw ourselves: black, white text, big enough to read across a room, and framed
+    so it reads as a thing on top of the screen rather than part of it.
+
+    It stays black in both themes on purpose. A message about the app itself is not part of the
+    prayer, and looking different from everything around it is the point.
+    """
+
+    def __init__(self, parent, px, title: str):
+        super().__init__(parent)
+        self.setObjectName("notice")
+        self.setModal(True)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        self.setStyleSheet(f"""
+            QDialog#notice {{ background:#000000; border:{px(3)}px solid #FFFFFF;
+                              border-radius:{px(20)}px; }}
+            QDialog#notice QLabel {{ color:#FFFFFF; background:transparent; }}
+            QLabel#noticeTitle {{ font-size:{px(44)}px; font-weight:bold; }}
+            QLabel#noticeText {{ font-size:{px(32)}px; }}
+            QLabel#noticeNotes {{ font-size:{px(24)}px; color:#C9C9C9; }}
+            QDialog#notice QPushButton {{ background:{BRICK}; color:#FFFFFF; border:none;
+                                          border-radius:{px(8)}px; font-size:{px(28)}px;
+                                          font-weight:bold;
+                                          padding:{px(14)}px {px(34)}px; }}
+            QDialog#notice QPushButton:pressed {{ background:#8E342C; }}
+            QDialog#notice QPushButton#quiet {{ background:transparent;
+                                                border:{px(2)}px solid #FFFFFF; }}
+            QDialog#notice QPushButton#quiet:pressed {{ background:#333333; }}
+        """)
+        self.least = px(620)          # never narrower than this, however short the message
+
+        lay = QtWidgets.QVBoxLayout(self)
+        lay.setContentsMargins(px(44), px(40), px(44), px(36))
+        lay.setSpacing(px(20))
+
+        head = QtWidgets.QLabel(title)
+        head.setObjectName("noticeTitle")
+        lay.addWidget(head)
+
+        self.text = QtWidgets.QLabel("")
+        self.text.setObjectName("noticeText")
+        self.text.setWordWrap(True)
+        lay.addWidget(self.text)
+
+        self.notes = QtWidgets.QLabel("")
+        self.notes.setObjectName("noticeNotes")
+        self.notes.setWordWrap(True)
+        self.notes.hide()
+        lay.addWidget(self.notes)
+
+        lay.addSpacing(px(8))
+        self.buttons = QtWidgets.QHBoxLayout()
+        self.buttons.addStretch(1)
+        lay.addLayout(self.buttons)
+
+    def say(self, message: str) -> None:
+        """Show a message with nothing to press: the app is busy and about to say more."""
+        self.text.setText(message)
+        self.notes.hide()
+        self.clear_buttons()
+        self.settle()
+
+    def finish(self, message: str, close_label: str) -> None:
+        """The last word. One button, which closes."""
+        self.text.setText(message)
+        self.notes.hide()
+        self.clear_buttons()
+        self.add_button(close_label, self.accept, quiet=True)
+        self.settle()
+
+    def ask(self, message: str, yes_label: str, no_label: str, notes: str = "") -> None:
+        self.text.setText(message)
+        self.notes.setText(notes)
+        self.notes.setVisible(bool(notes))
+        self.clear_buttons()
+        self.add_button(no_label, self.reject, quiet=True)
+        self.add_button(yes_label, self.accept)
+        self.settle()
+
+    def add_button(self, label: str, does, quiet: bool = False) -> QtWidgets.QPushButton:
+        b = no_focus(QtWidgets.QPushButton(label))
+        if quiet:
+            b.setObjectName("quiet")
+        b.clicked.connect(does)
+        self.buttons.addWidget(b)
+        return b
+
+    def clear_buttons(self) -> None:
+        while self.buttons.count() > 1:                  # the stretch at the front stays
+            item = self.buttons.takeAt(1)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+
+    def settle(self) -> None:
+        """Size to the words, sit in the middle of the parent, and paint before anything slow
+        happens next -- the check runs on this thread, so nothing repaints while it waits.
+
+        The width is fixed first and the heights worked out from it, in that order. A wrapped
+        label has no height until it knows its width: asking a layout to size itself around one
+        in a single pass gives a box that is too short, and the last line is cut in half.
+        """
+        parent = self.parentWidget()
+        wide = self.least if parent is None else max(self.least, int(parent.width() * 0.55))
+        self.setFixedWidth(wide)
+        edges = self.layout().contentsMargins()
+        inner = wide - edges.left() - edges.right()
+        for label in (self.text, self.notes):
+            if not label.isVisible():
+                label.setMinimumHeight(0)
+                continue
+            # heightForWidth is the exact minimum, which leaves the last line's descenders
+            # sitting on the boundary. A few pixels of air costs nothing and reads far better.
+            label.setMinimumHeight(label.heightForWidth(inner)
+                                   + max(2, label.fontMetrics().descent()))
+        self.adjustSize()
+
+        if parent is not None:
+            here = parent.geometry()
+            self.move(here.center().x() - self.width() // 2,
+                      here.center().y() - self.height() // 2)
+        if not self.isVisible():
+            self.show()
+        self.raise_()
+        QtWidgets.QApplication.processEvents()
 
 
 class BigButton(QtWidgets.QPushButton):
@@ -368,6 +501,8 @@ class MainWindow(QtWidgets.QWidget):
         self.bridge.power.connect(self.toggle_sleep)
         self.asleep = False
         self.outputs = Outputs()
+        self.notice = None          # the update dialog, while one is on screen
+        self.backlight = Backlight()
 
         self.setWindowTitle("Salaah")
         # No layout: the stack is placed by hand in resizeEvent, so the drawing area keeps its
@@ -552,6 +687,9 @@ class MainWindow(QtWidgets.QWidget):
         for w in screens:
             self.stack.addWidget(w)
         self.stack.setCurrentWidget(self.home)
+        # The monitor is a thing in the world and keeps whatever it was last told, including by
+        # somebody else. Say it again at startup so the setting and the screen agree.
+        self.apply_brightness()
 
     def colours(self) -> SimpleNamespace:
         """The stylesheet's colours for the theme in use. By day they are the app's own black
@@ -646,9 +784,21 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#compassTitle {{ font-size:{px(44)}px; font-weight:bold; }}
             QLabel#compassArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                     font-size:{px(52)}px; font-weight:bold; }}
-            QPushButton#updateButton {{ font-size:{px(22)}px; font-weight:bold;
-                                        padding:{px(8)}px {px(18)}px;
+            QPushButton#updateButton {{ background:{BRICK}; color:white; border:none;
+                                        font-size:{px(22)}px; font-weight:bold;
+                                        padding:{px(10)}px {px(24)}px;
                                         border-radius:{px(8)}px; }}
+            QPushButton#updateButton:pressed {{ background:#8E342C; }}
+            QPushButton#updateButton:disabled {{ background:#8E342C; color:#E3BDB9; }}
+            QSlider#brightness::groove:horizontal {{ height:{px(14)}px; background:{c.line};
+                                                     border-radius:{px(7)}px; }}
+            QSlider#brightness::sub-page:horizontal {{ background:{BRICK};
+                                                       border-radius:{px(7)}px; }}
+            QSlider#brightness::handle:horizontal {{ background:{c.strong};
+                                                     border:{px(2)}px solid {c.paper};
+                                                     width:{px(44)}px; height:{px(44)}px;
+                                                     margin:{-px(16)}px 0;
+                                                     border-radius:{px(22)}px; }}
             QLabel#compassBearing {{ font-size:{px(150)}px; font-weight:bold; color:{c.strong}; }}
             QLabel#compassStatus {{ font-size:{px(40)}px; font-weight:bold; }}
             QLabel#compassDetail {{ font-size:{px(24)}px; color:{c.hint}; }}
@@ -1171,10 +1321,10 @@ class MainWindow(QtWidgets.QWidget):
         self.arabic_name.setText(self.content.prayer_names.get(prayer, ""))
         self.bar.place_centre()
         self.stack.setCurrentWidget(self.player)
-        self.slide.set_dim(self.settings.dim)
+        self.slide.set_dim(self.veil_percent())
         if self.side is not None:
             self.side.show_prayer()
-            self.side.set_dim(self.settings.dim)
+            self.side.set_dim(self.veil_percent())
         self.show_volume()
         unit_rakats = self.content.units[entry.unit_id].rakats
         translation = self.translation
@@ -1747,9 +1897,11 @@ class MainWindow(QtWidgets.QWidget):
             # No button for tapping the timings in: that is a job for whoever is building the
             # mat, not for whoever is praying on it. Start with --tap-timings to get at it.
 
-        section(right, "settings.dim")
-        right.addLayout(self.circles([(str(v), f"{v}%") for v in (0, 20, 40, 60, 80)],
-                                     str(self.settings.dim), self.set_dim, across=True))
+        # No explanation when it works: a brightness slider explains itself. The words are for
+        # the case where it cannot do what it appears to, which is the one that needs saying.
+        section(right, "settings.brightness",
+                "" if self.backlight.available else self.t("settings.brightness_veil"))
+        right.addLayout(self.brightness_slider())
 
         section(right, "settings.inset")
         right.addLayout(self.circles([(str(v), f"{v} px") for v in (0, 20, 40, 60)],
@@ -1781,10 +1933,6 @@ class MainWindow(QtWidgets.QWidget):
         self.update_button.setObjectName("updateButton")
         self.update_button.clicked.connect(self.check_for_update)
         foot.addWidget(self.update_button)
-        self.update_note = QtWidgets.QLabel()
-        self.update_note.setObjectName("settingValue")
-        self.update_note.setWordWrap(True)
-        foot.addWidget(self.update_note, 1)
         foot.addStretch(1)
         outer.addLayout(foot)
         return w
@@ -1802,52 +1950,61 @@ class MainWindow(QtWidgets.QWidget):
         return self.settings.update_url or DEFAULT_URL
 
     def say(self, message: str) -> None:
-        self.update_note.setText(message)
-        QtWidgets.QApplication.processEvents()      # it is about to go and wait on the network
+        """Put a message in front of the person, in a box they cannot overlook.
+
+        The whole business of updating happens on this thread, so nothing repaints while the
+        network is being waited on. Every message therefore has to be painted BEFORE the slow
+        thing starts, which is what settle() ends with.
+        """
+        if self.notice is None:
+            self.notice = Notice(self, self.px, self.t("update.title"))
+            self.notice.finished.connect(self.notice_closed)
+        self.notice.say(message)
+
+    def notice_closed(self, *_) -> None:
+        self.notice = None
+        self.update_button.setEnabled(True)
+
+    def done_saying(self, message: str) -> None:
+        """The last word on this attempt: a message and a way out."""
+        if self.notice is None:
+            return self.say(message)
+        self.notice.finish(message, self.t("update.close"))
 
     def check_for_update(self) -> None:
         """Ask what is being offered, and say so. Nothing is installed without being asked."""
         from . import update as updater
         if self.playing:
-            return self.say(self.t("update.not_now"))
+            return self.done_saying(self.t("update.not_now"))
         self.update_button.setEnabled(False)
         self.say(self.t("update.looking"))
         try:
             release = updater.check(self.update_url())
         except updater.Refused as why:
-            self.say(self.t("update.failed", why=str(why)))
-            return self.update_button.setEnabled(True)
-        finally:
-            self.update_button.setEnabled(True)
+            return self.done_saying(self.t("update.failed", why=str(why)))
         if not updater.newer(release.version, __version__):
-            return self.say(self.t("update.current", number=__version__))
+            return self.done_saying(self.t("update.current", number=__version__))
         self.offer(release)
 
     def offer(self, release) -> None:
         """A newer version exists. Say which, and what it changes, and let it be refused."""
-        ask = QtWidgets.QMessageBox(self)
-        ask.setIcon(QtWidgets.QMessageBox.Icon.Question)
-        ask.setWindowTitle(self.t("update.title"))
-        ask.setText(self.t("update.found", number=release.version))
-        if release.notes:
-            ask.setInformativeText(release.notes)
-        ask.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes
-                               | QtWidgets.QMessageBox.StandardButton.No)
-        ask.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
-        if ask.exec() != QtWidgets.QMessageBox.StandardButton.Yes:
-            return self.say("")
-        self.apply_update(release)
+        if self.notice is None:
+            self.say("")
+        self.notice.ask(self.t("update.found", number=release.version),
+                        self.t("update.now"), self.t("update.later"), release.notes)
+        # Taken off first, or a second press would install twice while the first is still going.
+        self.notice.accepted.connect(lambda: self.apply_update(release))
 
     def apply_update(self, release) -> None:
         from .update import Refused, install
-        self.update_button.setEnabled(False)
+        # ask() closed the dialog when it was accepted, so a fresh one carries the progress.
+        self.notice = None
         self.say(self.t("update.downloading", number=release.version))
         try:
             install(release, self.root)
         except Refused as why:
             # Nothing has been changed: install() only swaps once everything has checked out.
-            self.say(self.t("update.failed", why=str(why)))
-            return self.update_button.setEnabled(True)
+            return self.done_saying(self.t("update.failed", why=str(why)))
         self.say(self.t("update.restarting"))
         QtCore.QTimer.singleShot(1200, self.restart)
 
@@ -1966,9 +2123,45 @@ class MainWindow(QtWidgets.QWidget):
         self.settings.qibla_start = v == "1"
         self.persist()
 
-    def set_dim(self, v: str) -> None:
-        self.settings.dim = int(v)
+    def brightness_slider(self) -> QtWidgets.QHBoxLayout:
+        """One bar rather than five buttons. Brightness is a continuous thing, and a monitor
+        that takes real instruction can sit anywhere on the range rather than at five stops."""
+        from .backlight import LEAST
+        row = QtWidgets.QHBoxLayout()
+        bar = no_focus(QtWidgets.QSlider(Qt.Orientation.Horizontal))
+        bar.setObjectName("brightness")
+        bar.setRange(LEAST, 100)          # never to nothing: a dark mat cannot be turned back up
+        bar.setSingleStep(5)
+        bar.setPageStep(10)
+        bar.setValue(max(LEAST, min(100, self.settings.brightness)))
+        bar.setMinimumHeight(self.px(56))     # a finger, not a mouse
+        reading = QtWidgets.QLabel(f"{bar.value()}%")
+        reading.setObjectName("settingValue")
+        reading.setMinimumWidth(self.px(90))   # so the row does not twitch as the number changes
+        bar.valueChanged.connect(lambda v: (reading.setText(f"{v}%"), self.set_brightness(v)))
+        self.brightness_bar = bar
+        row.addWidget(bar, 1)
+        row.addWidget(reading)
+        return row
+
+    def set_brightness(self, value: int) -> None:
+        self.settings.brightness = int(value)
         self.persist()
+        self.apply_brightness()
+
+    def veil_percent(self) -> int:
+        """How dark to draw the fallback veil. Nothing at all when the monitor is doing it for
+        real -- veiling a backlight that has already been turned down would darken it twice."""
+        if self.backlight.available:
+            return 0
+        return min(80, 100 - self.settings.brightness)
+
+    def apply_brightness(self) -> None:
+        if self.backlight.available:
+            self.backlight.set(self.settings.brightness)
+        self.slide.set_dim(self.veil_percent())
+        if self.side is not None:
+            self.side.set_dim(self.veil_percent())
 
     def set_cursor(self, v: str) -> None:
         self.settings.cursor = v == "1"

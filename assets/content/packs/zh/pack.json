@@ -69,8 +69,8 @@
     "mat.posture_panel": "姿势面板",
     "mat.words_panel": "经文面板",
     "mat.redraws": "重绘次数：{n}",
-    "settings.dim": "调暗礼拜屏幕",
-    "settings.dim_hint": "为夜间礼拜调暗画面。直接降低显示器本身的亮度，更能减少反光和耗电。",
+    "settings.brightness": "屏幕亮度",
+    "settings.brightness_veil": "这台显示器不接受亮度指令，因此改为调暗祈祷界面。看起来更暗，但耗电相同。",
     "settings.buttons": "蓝牙按钮",
     "settings.buttons_hint": "先在树莓派的蓝牙设置中配对一次指环或快门按钮。已连接的按钮会显示在这里。",
     "settings.no_buttons": "未连接",
@@ -175,6 +175,9 @@
     "update.downloading": "正在下载版本 {number}…",
     "update.restarting": "正在启动新版本…",
     "update.failed": "无法更新：{why}",
-    "update.not_now": "礼拜期间不可更新"
+    "update.not_now": "礼拜期间不可更新",
+    "update.close": "关闭",
+    "update.now": "立即更新",
+    "update.later": "暂不更新"
   }
 }

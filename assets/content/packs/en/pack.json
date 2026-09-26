@@ -67,8 +67,8 @@
     "mat.posture_panel": "Posture panel",
     "mat.words_panel": "Words panel",
     "mat.redraws": "Redraws: {n}",
-    "settings.dim": "Dim the prayer screen",
-    "settings.dim_hint": "Darkens the slides for night prayers. Turning down the monitor's own brightness saves more glare and battery.",
+    "settings.brightness": "Screen brightness",
+    "settings.brightness_veil": "This monitor will not take brightness commands, so the prayer screen is darkened instead. That looks dimmer but uses the same power — the monitor's own buttons do more.",
     "settings.buttons": "Bluetooth buttons",
     "settings.buttons_hint": "Pair the ring or shutter button once in the Pi's Bluetooth settings. Connected buttons appear here.",
     "settings.no_buttons": "None connected",
@@ -173,7 +173,10 @@
     "update.downloading": "Getting version {number}…",
     "update.restarting": "Starting the new version…",
     "update.failed": "Could not update: {why}",
-    "update.not_now": "Not while a prayer is going on"
+    "update.not_now": "Not while a prayer is going on",
+    "update.close": "Close",
+    "update.now": "Update now",
+    "update.later": "Not now"
   },
   "transliteration": {},
   "translation": {

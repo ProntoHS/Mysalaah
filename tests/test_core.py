@@ -1,5 +1,6 @@
 """Core checks. Run on the Pi or any computer: python3 -m unittest discover -s tests"""
 import unittest
+from unittest import mock
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -1189,6 +1190,191 @@ class UpdateTest(unittest.TestCase):
             with self.assertRaises(Refused):
                 read_manifest(rubbish, public)
 
+    def test_no_release_published_yet_is_said_in_words(self):
+        """Before the first release exists the address is simply empty, and that is not a
+        malfunction. "HTTP Error 404: Not Found" on a prayer mat tells nobody anything."""
+        import urllib.error
+        from salaah.update import fetch, Refused
+
+        def missing(url, timeout=None):
+            raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+
+        with self.assertRaises(Refused) as caught:
+            fetch("http://example/latest.json", opener=missing)
+        self.assertIn("nothing has been published", str(caught.exception))
+        self.assertNotIn("404", str(caught.exception))
+
+    def test_a_dropped_connection_is_tried_again_rather_than_shown_to_anyone(self):
+        """Home wifi resets connections. That is not a fault worth putting on a prayer mat."""
+        import io
+        from salaah.update import fetch
+
+        tried = []
+
+        def flaky(url, timeout=None):
+            tried.append(url)
+            if len(tried) < 3:
+                raise ConnectionResetError(104, "Connection reset by peer")
+            return io.BytesIO(b"the release")
+
+        with mock.patch("salaah.update.PAUSE", 0):
+            self.assertEqual(b"the release", fetch("http://example/x.zip", opener=flaky))
+        self.assertEqual(3, len(tried), "a dropped connection should be retried")
+
+    def test_giving_up_reports_the_last_thing_that_went_wrong(self):
+        from salaah.update import fetch, Refused
+
+        def dead(url, timeout=None):
+            raise ConnectionResetError(104, "Connection reset by peer")
+
+        with mock.patch("salaah.update.PAUSE", 0):
+            with self.assertRaises(Refused) as caught:
+                fetch("http://example/x.zip", opener=dead)
+        self.assertIn("Connection reset", str(caught.exception))
+
+    def test_a_missing_file_is_not_retried(self):
+        """Asking three times for something that is not there wastes a minute of someone's
+        evening to arrive at the same answer."""
+        import urllib.error
+        from salaah.update import fetch, Refused
+
+        tried = []
+
+        def missing(url, timeout=None):
+            tried.append(url)
+            raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+
+        with mock.patch("salaah.update.PAUSE", 0):
+            with self.assertRaises(Refused):
+                fetch("http://example/x.zip", opener=missing)
+        self.assertEqual(1, len(tried), "a 404 will say the same thing every time")
+
+    def test_we_do_not_knock_on_the_door_as_python_urllib(self):
+        """Python's default User-Agent is what a good many content networks hang up on, and a
+        hung-up connection is exactly the reset we were seeing."""
+        from salaah.update import headers
+        from salaah import __version__
+        said = headers()["User-Agent"]
+        self.assertNotIn("Python-urllib", said)
+        self.assertIn("Salaah", said)
+        self.assertIn(__version__, said)
+
+    def test_other_network_failures_still_say_what_went_wrong(self):
+        """A 404 is the ordinary case. Everything else keeps its detail, because a mat that
+        says nothing useful is a mat nobody can fix."""
+        import urllib.error
+        from salaah.update import fetch, Refused
+
+        def broken(url, timeout=None):
+            raise urllib.error.HTTPError(url, 500, "Server Error", {}, None)
+
+        with mock.patch("salaah.update.PAUSE", 0):
+            with self.assertRaises(Refused) as caught:
+                fetch("http://example/latest.json", opener=broken)
+        self.assertIn("500", str(caught.exception))
+
+    def fake_pi(self, behaviour: str) -> Path:
+        """A throwaway folder holding the real run.sh and a stand-in for python.
+
+        The guard is plain shell precisely so that it still works when the installed version
+        does not, which means no amount of Python testing covers it. The only way to know what
+        it does is to run it.
+        """
+        import os
+        import shutil
+        import tempfile
+        root = Path(tempfile.mkdtemp(prefix="salaah-guard-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        shutil.copy(Path(__file__).resolve().parent.parent / "run.sh", root / "run.sh")
+        stand_in = root / ".venv" / "bin"
+        stand_in.mkdir(parents=True)
+        # run.sh uses python for two quite different things: reading the state file with -c,
+        # which must really work, and starting the app, which is what we are pretending about.
+        (stand_in / "python").write_text(
+            '#!/bin/bash\n'
+            'if [ "$1" = "-c" ]; then exec python3 "$@"; fi\n'
+            'echo started >> starts\n'
+            + behaviour)
+        os.chmod(stand_in / "python", 0o755)
+        return root
+
+    @staticmethod
+    def guard(root: Path):
+        import subprocess
+        return subprocess.run(["bash", str(root / "run.sh")], capture_output=True, timeout=60)
+
+    @staticmethod
+    def starts(root: Path) -> int:
+        note = root / "starts"
+        return len(note.read_text().split()) if note.exists() else 0
+
+    def test_the_guard_starts_the_new_version_after_an_update(self):
+        """The defect that left the mat sitting on the desktop: the app installed 1.14, stood
+        down so the new version could start, and nothing started it."""
+        from salaah.update import RESTART
+        root = self.fake_pi(f'if [ "$(wc -l < starts)" -le 1 ]; then exit {RESTART}; fi\nexit 0\n')
+        done = self.guard(root)
+        self.assertEqual(0, done.returncode, done.stderr.decode())
+        self.assertEqual(2, self.starts(root),
+                         "the guard must start the app again after an update installs")
+
+    def test_an_older_version_that_quits_cleanly_after_updating_is_still_restarted(self):
+        """The trap that caught the 1.14 -> 1.15 update. The app that stands down is the OLD
+        one, so it stands down the old way -- a plain clean exit. The state file still shows
+        what happened: something is on trial that has never been started."""
+        # The trial appears DURING the run, because that is when the install happens -- which is
+        # exactly why the exit code alone was not enough to tell an update from a shutdown.
+        root = self.fake_pi(
+            'if [ "$(wc -l < starts)" -le 1 ]; then\n'
+            '  echo \'{"trial": "1.15", "attempts": 0}\' > update-state.json\n'
+            'fi\n'
+            'exit 0\n')
+
+        done = self.guard(root)
+
+        self.assertEqual(0, done.returncode, done.stderr.decode())
+        self.assertEqual(2, self.starts(root),
+                         "a freshly installed version must be started even by an old app's exit")
+
+    def test_closing_an_app_on_trial_still_closes_it(self):
+        """The line the rule above must not cross: once the trialled version has actually been
+        started, a clean exit is a person closing the app, and it must close."""
+        import json
+        root = self.fake_pi("exit 0\n")
+        (root / "update-state.json").write_text(json.dumps({"trial": "1.15", "attempts": 0}))
+
+        done = self.guard(root)
+
+        self.assertEqual(1, self.starts(root), "closing the app must close it")
+
+    def test_closing_the_app_really_closes_it(self):
+        """The other half of the same coin. If every exit restarted, the mat could never be
+        shut down, which is worse than the bug it would be fixing."""
+        root = self.fake_pi("exit 0\n")
+        done = self.guard(root)
+        self.assertEqual(0, done.returncode)
+        self.assertEqual(1, self.starts(root), "a clean exit must not start the app again")
+
+    def test_a_version_that_will_not_start_is_put_back_and_the_old_one_run(self):
+        """A bad update must not leave a dark mat, and the guard must do it without asking the
+        broken version for help."""
+        import json
+        root = self.fake_pi('if [ "$(wc -l < starts)" -le 1 ]; then exit 1; fi\nexit 0\n')
+        for name in ("salaah", "assets"):
+            (root / name).mkdir()
+            (root / name / "which").write_text("new")
+            (root / f"{name}.prev").mkdir()
+            (root / f"{name}.prev" / "which").write_text("old")
+        (root / "update-state.json").write_text(json.dumps({"trial": "9.9", "attempts": 0}))
+
+        done = self.guard(root)
+
+        self.assertEqual(0, done.returncode, done.stderr.decode())
+        self.assertEqual(2, self.starts(root), "the restored version must be started")
+        self.assertEqual("old", (root / "salaah" / "which").read_text())
+        self.assertEqual("old", (root / "assets" / "which").read_text())
+        self.assertNotIn("trial", json.loads((root / "update-state.json").read_text()))
+
     def zip_of(self, entries, symlink=None):
         import io
         import zipfile
@@ -1305,3 +1491,141 @@ class UpdateTest(unittest.TestCase):
         from salaah.update import PUBLIC_KEY
         self.assertEqual(32, len(base64.b64decode(PUBLIC_KEY, validate=True)),
                          "an Ed25519 public key is 32 bytes")
+
+
+class BacklightTest(unittest.TestCase):
+    """Turning the monitor's real backlight down, over the cable that carries the picture."""
+
+    @staticmethod
+    def monitor(detect_ok=True, present=True, fails=False, slow=0.0):
+        """A stand-in for ddcutil: records what it was asked to do."""
+        import subprocess
+        import time
+        asked = []
+
+        def run(args, **kw):
+            asked.append(args)
+            if fails:
+                raise subprocess.SubprocessError("the monitor said nothing")
+            if slow:
+                time.sleep(slow)
+            out = "Display 1\n" if detect_ok else ""
+            return SimpleNamespace(returncode=0 if detect_ok else 1, stdout=out, stderr="")
+
+        return run, (lambda name: "/usr/bin/ddcutil" if present else None), asked
+
+    # Exactly what a mat reports: the monitor answers, the small posture screen does not.
+    TWO_SCREENS = """Display 1
+   I2C bus:  /dev/i2c-13
+   DRM connector:              card1-HDMI-A-1
+   EDID synopsis:
+      Model:                   RTK FHD HDR
+   VCP version:         2.2
+
+Invalid display
+   I2C bus:  /dev/i2c-14
+   DRM connector:              card1-HDMI-A-2
+   EDID synopsis:
+      Model:                   MPI7002
+   DDC communication failed
+"""
+
+    def test_it_says_which_screen_it_means(self):
+        """A mat has two screens on one bus. The little posture screen has no brightness and
+        reports DDC communication failed; a command that does not say which display it means
+        may go nowhere at all."""
+        import subprocess
+        from salaah.backlight import Backlight
+        asked = []
+
+        def run(args, **kw):
+            asked.append(args)
+            out = self.TWO_SCREENS if "detect" in args else ""
+            return SimpleNamespace(returncode=0, stdout=out, stderr="")
+
+        light = Backlight(run=run, finder=lambda name: "/usr/bin/ddcutil")
+        self.assertTrue(light.available)
+        self.assertEqual("1", light.which, "it should pick the display that answered")
+        light.set(45)
+        light.settle()
+        sent = [a for a in asked if "setvcp" in a][-1]
+        self.assertIn("--display", sent, "the command must name a display")
+        self.assertEqual("1", sent[sent.index("--display") + 1])
+
+    def test_a_screen_that_cannot_talk_is_not_mistaken_for_one_that_can(self):
+        """If the only screen present is the posture screen, there is nothing to turn down."""
+        from salaah.backlight import Backlight
+        only_the_little_one = "Invalid display\n   DDC communication failed\n"
+
+        def run(args, **kw):
+            return SimpleNamespace(returncode=1, stdout=only_the_little_one, stderr="")
+
+        light = Backlight(run=run, finder=lambda name: "/usr/bin/ddcutil")
+        self.assertFalse(light.available)
+
+    def test_a_monitor_that_answers_is_used(self):
+        from salaah.backlight import Backlight
+        run, finder, asked = self.monitor()
+        light = Backlight(run=run, finder=finder)
+        self.assertTrue(light.available)
+        light.set(40)
+        light.settle()
+        sent = [a for a in asked if "setvcp" in a][-1]
+        self.assertEqual(["10", "40"], sent[-2:], f"asked: {sent}")
+
+    def test_without_ddcutil_nothing_is_attempted(self):
+        from salaah.backlight import Backlight
+        run, finder, asked = self.monitor(present=False)
+        light = Backlight(run=run, finder=finder)
+        self.assertFalse(light.available)
+        light.set(40)
+        light.settle()
+        self.assertEqual([], asked, "a mat without ddcutil should not be running commands")
+
+    def test_a_monitor_that_does_not_answer_is_left_alone(self):
+        from salaah.backlight import Backlight
+        run, finder, asked = self.monitor(detect_ok=False)
+        light = Backlight(run=run, finder=finder)
+        self.assertFalse(light.available)
+
+    def test_the_answer_is_only_worked_out_once(self):
+        """Asking is slow, and the answer cannot change without the cable changing."""
+        from salaah.backlight import Backlight
+        run, finder, asked = self.monitor()
+        light = Backlight(run=run, finder=finder)
+        for _ in range(5):
+            light.available
+        self.assertEqual(1, sum(1 for a in asked if "detect" in a))
+
+    def test_dragging_the_slider_does_not_queue_up_a_minute_of_work(self):
+        """DDC is slow. Every value a dragged slider produces would still be arriving long
+        after the person let go, so the ones overtaken on the way are dropped."""
+        from salaah.backlight import Backlight
+        run, finder, asked = self.monitor(slow=0.02)
+        light = Backlight(run=run, finder=finder)
+        self.assertTrue(light.available)
+        for value in range(100, 30, -1):        # a finger sweeping down the bar
+            light.set(value)
+        light.settle()
+        sent = [a[-1] for a in asked if a[1] == "setvcp"]
+        self.assertLess(len(sent), 20, f"far too many commands sent: {len(sent)}")
+        self.assertEqual("31", sent[-1], "the last thing sent must be where the finger stopped")
+
+    def test_it_never_turns_the_backlight_off(self):
+        from salaah.backlight import Backlight, LEAST
+        run, finder, asked = self.monitor()
+        light = Backlight(run=run, finder=finder)
+        light.set(0)
+        light.settle()
+        self.assertEqual(str(LEAST), [a[-1] for a in asked if a[1] == "setvcp"][-1])
+
+    def test_a_monitor_that_stops_answering_is_not_a_crash(self):
+        """It is a prayer mat. A monitor having a bad day must not take the app down with it."""
+        from salaah.backlight import Backlight
+        run, finder, asked = self.monitor()
+        light = Backlight(run=run, finder=finder)
+        self.assertTrue(light.available)
+        broken, _, _ = self.monitor(fails=True)
+        light.run = broken
+        light.set(50)
+        light.settle()                          # no exception reaches here

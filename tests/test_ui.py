@@ -3,6 +3,7 @@ import json
 import os
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -124,7 +125,7 @@ class UiTest(unittest.TestCase):
             key(w, Qt.Key.Key_Return)
         self.assertEqual("Rakat 3 of 3", w.rakat_label.text())
         self.shot("4-player-rakat3")
-        w.settings.dim = 40
+        w.settings.brightness = 60
         w.slide.set_dim(40)
         self.shot("5-player-dimmed")
         w.slide.set_dim(0)
@@ -762,6 +763,8 @@ class UiTest(unittest.TestCase):
 
     def test_only_two_settings_keep_their_explanation(self):
         w = self.win
+        w.backlight = FakeMonitor(answers=True)      # a monitor that does as it is told
+        w.rebuild()
         w.open_settings()
         APP.processEvents()
         hints = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
@@ -3005,3 +3008,230 @@ class SleepTest(unittest.TestCase):
         w.wake()
         w.wake()
         self.assertEqual([False, True], w.outputs.calls)
+
+
+class UpdateNoticeTest(unittest.TestCase):
+    """What the person actually sees when they press Check for updates.
+
+    Everything here was previously a line of small grey text in the corner of the Settings
+    screen, which on a mat across a room amounts to nothing happening at all.
+    """
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1200)
+        w.show()
+        APP.processEvents()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    @staticmethod
+    def manifest(version):
+        """Stands in for the network: hands back a signed release without one."""
+        from salaah.update import Release
+
+        def check(url="", opener=None, key=""):
+            return Release(version=version, url="http://example/x.zip", sha256="0" * 64)
+        return check
+
+    @staticmethod
+    def notice_words(w):
+        return [x.text() for x in w.notice.findChildren(QtWidgets.QLabel)]
+
+    @staticmethod
+    def notice_buttons(w):
+        return [x.text() for x in w.notice.findChildren(QtWidgets.QAbstractButton)]
+
+    def test_the_update_button_is_white_on_red(self):
+        """It is the one control on the Settings screen that does something irreversible, and
+        it used to look like a piece of text."""
+        w = self.window()
+        from salaah.ui import BRICK
+        sheet = w.styleSheet()
+        rule = sheet[sheet.index("QPushButton#updateButton"):]
+        rule = rule[:rule.index("}")]
+        self.assertIn(BRICK.lower(), rule.lower(), "the update button should be brick red")
+        self.assertIn("color:white", rule.replace(" ", ""))
+        self.assertEqual("updateButton", w.update_button.objectName())
+
+    def test_being_up_to_date_is_said_in_a_box_that_has_to_be_dismissed(self):
+        from salaah import __version__
+        import salaah.update as updater
+        w = self.window()
+        with mock.patch.object(updater, "check", self.manifest("0.1")):
+            w.check_for_update()
+        self.assertIsNotNone(w.notice, "a box should be on screen")
+        self.assertTrue(w.notice.isVisible())
+        self.assertTrue(any(__version__ in t for t in self.notice_words(w)),
+                        f"the box should name the version: {self.notice_words(w)}")
+        self.assertEqual(["Close"], self.notice_buttons(w))
+
+    def test_an_available_update_is_offered_with_a_way_to_decline(self):
+        import salaah.update as updater
+        w = self.window()
+        with mock.patch.object(updater, "check", self.manifest("99.0")):
+            w.check_for_update()
+        self.assertTrue(any("99.0" in t for t in self.notice_words(w)))
+        self.assertEqual(["Not now", "Update now"], self.notice_buttons(w))
+
+    def test_a_failure_says_why_rather_than_closing_silently(self):
+        import salaah.update as updater
+
+        def refuse(url="", opener=None, key=""):
+            raise updater.Refused("the roof fell in")
+
+        w = self.window()
+        with mock.patch.object(updater, "check", refuse):
+            w.check_for_update()
+        self.assertTrue(any("the roof fell in" in t for t in self.notice_words(w)),
+                        self.notice_words(w))
+        self.assertEqual(["Close"], self.notice_buttons(w))
+
+    def test_the_box_is_black_with_white_writing_whichever_theme_is_on(self):
+        """A message about the app is not part of the prayer, and should not be dressed as it."""
+        import salaah.update as updater
+        for theme in ("light", "dark"):
+            w = self.window(theme=theme)
+            with mock.patch.object(updater, "check", self.manifest("0.1")):
+                w.check_for_update()
+            sheet = w.notice.styleSheet().replace(" ", "").lower()
+            self.assertIn("background:#000000", sheet, f"{theme}: the box should be black")
+            self.assertIn("color:#ffffff", sheet, f"{theme}: the writing should be white")
+
+    def test_closing_the_box_lets_it_be_opened_again(self):
+        """It is a dialog now, not a label. One that cannot be reopened is worse than a label."""
+        import salaah.update as updater
+        w = self.window()
+        with mock.patch.object(updater, "check", self.manifest("0.1")):
+            w.check_for_update()
+        w.notice.accept()
+        APP.processEvents()
+        self.assertIsNone(w.notice, "the box should be forgotten once closed")
+        self.assertTrue(w.update_button.isEnabled(), "and the button usable again")
+        with mock.patch.object(updater, "check", self.manifest("0.1")):
+            w.check_for_update()
+        self.assertIsNotNone(w.notice, "pressing again should bring it back")
+
+    def test_it_will_not_check_in_the_middle_of_a_prayer(self):
+        w = self.window()
+        with mock.patch.object(MainWindow, "playing", True):
+            w.check_for_update()
+        self.assertTrue(any("prayer" in t.lower() for t in self.notice_words(w)),
+                        self.notice_words(w))
+
+    def test_a_message_that_wraps_is_not_cut_in_half(self):
+        """Found by looking at the box, not at the numbers that sized it. A wrapped label has
+        no height until it knows its width, so a single sizing pass leaves the last line sliced
+        through the middle -- which is exactly how it shipped the first time."""
+        import salaah.update as updater
+
+        long_one = ("the update could not be reached: the name of the server could not be "
+                    "looked up, which usually means this mat is not on the internet just now")
+
+        def refuse(url="", opener=None, key=""):
+            raise updater.Refused(long_one)
+
+        w = self.window()
+        with mock.patch.object(updater, "check", refuse):
+            w.check_for_update()
+        APP.processEvents()
+
+        note = w.notice
+        self.assertGreater(note.text.height(), note.text.fontMetrics().height() * 1.5,
+                           "this message must wrap, or the test proves nothing")
+
+        picture = note.grab().toImage()
+        top_left = note.text.mapTo(note, QtCore.QPoint(0, 0))
+        rows_with_ink = []
+        for y in range(note.text.height()):
+            line = top_left.y() + y
+            if any(QtGui.qGray(picture.pixel(top_left.x() + x, line)) > 120
+                   for x in range(0, note.text.width(), 2)):
+                rows_with_ink.append(y)
+        self.assertTrue(rows_with_ink, "no writing found in the message area at all")
+        self.assertLess(rows_with_ink[-1], note.text.height() - 2,
+                        "the writing runs to the very bottom of its area, so it is being cut off")
+
+
+class FakeMonitor:
+    """A monitor that either takes brightness commands or does not, without one being present."""
+
+    def __init__(self, answers=True):
+        self.available = answers
+        self.applied = []
+
+    def set(self, percent):
+        self.applied.append(percent)
+
+    def settle(self, seconds=0):
+        pass
+
+
+class BrightnessTest(unittest.TestCase):
+    """The screen brightness setting, which drives the monitor's own backlight where it can."""
+
+    def window(self, answers=True, **settings):
+        from salaah.ui import MainWindow as MW
+        with mock.patch.object(MW, "apply_brightness", lambda self: None):
+            w = MW(load(ASSETS), available_packs(ASSETS),
+                   Settings(**{"theme": "light", "recitation": False, **settings}),
+                   scale=1.0, save_settings=False, aspect=None)
+        w.backlight = FakeMonitor(answers=answers)
+        w.rebuild()
+        w.resize(1920, 1200)
+        w.show()
+        APP.processEvents()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_it_is_a_slider_not_five_buttons(self):
+        w = self.window(brightness=70)
+        bars = w.settings_screen.findChildren(QtWidgets.QSlider)
+        bars = [b for b in bars if b.objectName() == "brightness"]
+        self.assertEqual(1, len(bars), "there should be one brightness slider")
+        self.assertEqual(70, bars[0].value(), "it should start where the setting is")
+
+    def test_it_cannot_be_taken_down_to_nothing(self):
+        """A mat with the backlight off cannot be turned back up: you cannot see the slider."""
+        from salaah.backlight import LEAST
+        w = self.window()
+        bar = [b for b in w.settings_screen.findChildren(QtWidgets.QSlider)
+               if b.objectName() == "brightness"][0]
+        self.assertGreaterEqual(bar.minimum(), LEAST)
+        self.assertGreater(bar.minimum(), 0, "a slider that reaches zero is a trap")
+        bar.setValue(0)
+        self.assertGreaterEqual(bar.value(), LEAST)
+
+    def test_moving_it_tells_the_monitor_and_remembers(self):
+        w = self.window()
+        bar = [b for b in w.settings_screen.findChildren(QtWidgets.QSlider)
+               if b.objectName() == "brightness"][0]
+        bar.setValue(35)
+        APP.processEvents()
+        self.assertEqual(35, w.settings.brightness, "the setting should follow the slider")
+        self.assertIn(35, w.backlight.applied, "and the monitor should be told")
+
+    def test_the_veil_is_not_used_when_the_monitor_does_it_for_real(self):
+        """Turning the backlight down AND drawing a veil over it would darken it twice."""
+        w = self.window(answers=True, brightness=40)
+        self.assertEqual(0, w.veil_percent())
+
+    def test_a_monitor_that_will_not_listen_falls_back_to_the_veil(self):
+        w = self.window(answers=False, brightness=40)
+        self.assertEqual(60, w.veil_percent(), "60% dark for 40% brightness")
+        self.assertEqual([], w.backlight.applied, "nothing should be sent to a deaf monitor")
+
+    def test_the_veil_never_goes_fully_black(self):
+        w = self.window(answers=False, brightness=10)
+        self.assertLessEqual(w.veil_percent(), 80)
+
+    def test_the_fallback_says_so_and_a_working_monitor_does_not(self):
+        """The words exist for the case where the slider cannot do what it appears to."""
+        for answers, wanted in ((False, True), (True, False)):
+            w = self.window(answers=answers)
+            hints = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
+                     if x.objectName() == "settingHint"]
+            said = any("monitor" in h.lower() for h in hints)
+            self.assertEqual(wanted, said, f"backlight available={answers}: hints were {hints}")

@@ -67,8 +67,8 @@
     "mat.posture_panel": "Posture panel",
     "mat.words_panel": "Words panel",
     "mat.redraws": "Redraws: {n}",
-    "settings.dim": "نماز کی اسکرین مدھم کریں",
-    "settings.dim_hint": "رات کی نمازوں کے لیے اسکرین مدھم کرتا ہے۔ مانیٹر کی اپنی روشنی کم کرنا زیادہ مفید ہے۔",
+    "settings.brightness": "اسکرین کی روشنی",
+    "settings.brightness_veil": "یہ مانیٹر روشنی کے احکام قبول نہیں کرتا، اس لیے نماز کی اسکرین کو دھندلا کیا جاتا ہے۔ یہ مدھم دکھتا ہے مگر بجلی اتنی ہی خرچ ہوتی ہے۔",
     "settings.buttons": "بلوٹوتھ بٹن",
     "settings.buttons_hint": "انگوٹھی یا شٹر بٹن کو ایک بار پائی کی بلوٹوتھ ترتیبات میں جوڑیں۔ منسلک بٹن یہاں نظر آئیں گے۔",
     "settings.no_buttons": "کوئی منسلک نہیں",
@@ -173,7 +173,10 @@
     "update.downloading": "ورژن {number} ڈاؤن لوڈ ہو رہا ہے…",
     "update.restarting": "نیا ورژن شروع ہو رہا ہے…",
     "update.failed": "اپ ڈیٹ نہیں ہو سکا: {why}",
-    "update.not_now": "نماز کے دوران نہیں"
+    "update.not_now": "نماز کے دوران نہیں",
+    "update.close": "بند کریں",
+    "update.now": "ابھی اپ ڈیٹ کریں",
+    "update.later": "ابھی نہیں"
   },
   "transliteration": {},
   "translation": {}

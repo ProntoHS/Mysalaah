@@ -12,7 +12,9 @@ PATH = Path.home() / ".config" / "salaah" / "settings.json"
 class Settings:
     school: str = "hanafi"
     lang: str = "en"
-    dim: int = 0  # 0-80: percent the prayer screen is darkened (the monitor's own brightness is better still)
+    brightness: int = 100  # 10-100: the monitor's own backlight, over the cable (DDC/CI).
+                           # On a monitor that will not take instruction this dims the prayer
+                           # screen with a veil instead, which looks darker without saving power.
     translation: str = ""  # "" for Arabic only, or a language in content/translations (en, fr)
     figure: str = "boy"  # whose posture pictures to show: a set in assets/postures
     theme: str = "auto"  # "auto" (dark from Maghrib to sunrise), "light" or "dark"
@@ -38,6 +40,13 @@ class Settings:
     def load(path: Path = PATH) -> "Settings":
         try:
             data = json.loads(path.read_text())
+            # "dim" was how dark to make the screen; "brightness" is how bright to leave it.
+            # Carry the old answer across rather than quietly resetting somebody's setting.
+            if "dim" in data and "brightness" not in data:
+                try:
+                    data["brightness"] = max(10, 100 - int(data["dim"]))
+                except (TypeError, ValueError):
+                    pass
             return Settings(**{k: v for k, v in data.items() if k in Settings.__dataclass_fields__})
         except (OSError, ValueError, TypeError):
             return Settings()
