@@ -65,21 +65,56 @@ os.replace(path + ".tmp", path)' "$STATE" 2>/dev/null
     return 0
 }
 
-if [ -z "$SALAAH_NO_GUARD" ] && on_trial; then
-    if [ "$(attempts)" -ge 1 ]; then
-        put_the_old_one_back            # started before and never settled: it is not going to
-    else
-        count_attempt
-    fi
-fi
+# The app is started in a loop, because two things need it started again without anyone here to
+# do it: an update that has just been installed, and a version that has been put back after a
+# bad one. Everything else -- closing the app, Ctrl+Q -- exits cleanly and stops the loop.
+RESTART=42                        # must match RESTART in salaah/update.py
+restarts=0
 
-"$PY" -m salaah "$@"
-code=$?
-
-# Died before settling. Put the old one back and start that, rather than leaving a dark mat.
-if [ "$code" -ne 0 ] && [ -z "$SALAAH_NO_GUARD" ] && on_trial; then
-    if put_the_old_one_back; then
-        exec "$PY" -m salaah "$@"
+while true; do
+    if [ -z "$SALAAH_NO_GUARD" ] && on_trial; then
+        if [ "$(attempts)" -ge 1 ]; then
+            put_the_old_one_back        # started before and never settled: it is not going to
+        else
+            count_attempt
+        fi
     fi
-fi
-exit "$code"
+
+    "$PY" -m salaah "$@"
+    code=$?
+
+    # An update has been installed and wants the new version running.
+    if [ "$code" -eq "$RESTART" ]; then
+        restarts=$((restarts + 1))
+        if [ "$restarts" -le 5 ]; then
+            continue
+        fi
+        # Something is asking to restart over and over. Treat it as a failure so the guard
+        # below puts the previous version back, rather than spinning here for ever.
+        echo "salaah: asked to restart too many times; treating it as a failure" >&2
+        code=1
+    fi
+
+    # A version built before that code existed stands down with an ordinary clean exit after
+    # installing an update, so the exit code alone cannot be relied on. The state file says what
+    # happened regardless: a version on trial that has never been started means the app has just
+    # installed it and bowed out. Start it rather than leaving the mat on the desktop.
+    #
+    # This deliberately does not fire when the trialled version HAS been started -- then a clean
+    # exit is somebody closing the app, and closing the app must close it.
+    if [ "$code" -eq 0 ] && [ -z "$SALAAH_NO_GUARD" ] && on_trial \
+       && [ "$(attempts)" -eq 0 ]; then
+        restarts=$((restarts + 1))
+        if [ "$restarts" -le 5 ]; then
+            continue
+        fi
+    fi
+
+    # Died before settling. Put the old one back and start that, rather than leaving a dark mat.
+    if [ "$code" -ne 0 ] && [ -z "$SALAAH_NO_GUARD" ] && on_trial; then
+        if put_the_old_one_back; then
+            continue
+        fi
+    fi
+    exit "$code"
+done
