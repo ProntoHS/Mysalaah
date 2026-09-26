@@ -21,6 +21,19 @@ CONTENT = load(ASSETS)
 CONTENT_ARABIC = CONTENT.arabic
 
 
+def settle(rounds=5):
+    """Let queued work finish before looking at pixels.
+
+    Several things are scheduled with singleShot(0) -- the restyle above all -- and one
+    processEvents() does not reliably run them. Grabbing the screen before the restyle has
+    happened catches a frame with the previous theme still on it, which is why the theme tests
+    failed about one run in five while being perfectly correct about what they asked.
+    """
+    for _ in range(rounds):
+        APP.processEvents()
+        APP.sendPostedEvents()
+
+
 def pace(win):
     """Clears the double-click timer, so the next press counts as a fresh, unhurried click."""
     win.last_click = None
@@ -1156,7 +1169,7 @@ class ThemeTest(unittest.TestCase):
                        save_settings=False)
         w.resize(1920, 1080)
         w.show()
-        APP.processEvents()
+        settle()
         self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents(),
                                  theme.set_dark(False)))
         return w
@@ -1195,10 +1208,17 @@ class ThemeTest(unittest.TestCase):
         w = self.window(theme="dark")
         w.open_prayer("fajr")
         w.start("fajr", w.school.prayers["fajr"][-1])
-        APP.processEvents()
+        settle()                      # the posture frame has to be laid out before it is sized
         view = w.slide.posture
         pix = w.images.get(view.path, view.target()).toImage()
-        self.assertLess(pix.pixelColor(2, 2).lightness(), 30, "black round the figure")
+        # This fails about one run in five, and only inside the whole suite -- never alone. The
+        # message carries what it would take to explain it, so the next failure is evidence
+        # rather than another guess.
+        from salaah.render import palette
+        story = (f"lightness {pix.pixelColor(2, 2).lightness()} at (2,2); "
+                 f"image {pix.width()}x{pix.height()}; asked for {view.target()}; "
+                 f"palette dark={palette().dark}; path={view.path}")
+        self.assertLess(pix.pixelColor(2, 2).lightness(), 30, f"black round the figure -- {story}")
         shot = w.slide.grab().toImage()
         self.assertLess(shot.pixelColor(shot.width() - 5, shot.height() // 2).lightness(), 30)
         SHOTS.mkdir(parents=True, exist_ok=True)
@@ -3217,6 +3237,58 @@ class BrightnessTest(unittest.TestCase):
         """Turning the backlight down AND drawing a veil over it would darken it twice."""
         w = self.window(answers=True, brightness=40)
         self.assertEqual(0, w.veil_percent())
+
+    def two_screens(self, answers=True, **settings):
+        """A mat as it actually is: the monitor and the 7" posture screen beside it."""
+        from salaah.ui import MainWindow as MW
+        with mock.patch.object(MW, "apply_brightness", lambda self: None):
+            w = MW(load(ASSETS), available_packs(ASSETS),
+                   Settings(**{"theme": "light", "recitation": False, **settings}),
+                   scale=1.0, save_settings=False, aspect=None, side=True)
+        w.backlight = FakeMonitor(answers=answers)
+        w.resize(1920, 1200)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        APP.processEvents()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_the_little_screen_is_actually_veiled_and_the_big_one_is_not(self):
+        """The calculation being right is not the same as it reaching the screen. This checks
+        what each window was told, which is what the person sees."""
+        w = self.two_screens(answers=True, brightness=40)
+        w.apply_brightness()
+        APP.processEvents()
+        self.assertTrue(w.side.dim.isVisible(),
+                        "the posture screen must be veiled: it cannot dim itself")
+        self.assertFalse(w.slide.dim.isVisible(),
+                         "the monitor dims for real, so it must not be veiled as well")
+
+    def test_neither_screen_is_veiled_at_full_brightness(self):
+        w = self.two_screens(answers=True, brightness=100)
+        w.apply_brightness()
+        APP.processEvents()
+        self.assertFalse(w.side.dim.isVisible())
+        self.assertFalse(w.slide.dim.isVisible())
+
+    def test_the_posture_screen_is_always_dimmed_in_software(self):
+        """It has no brightness of its own: it gives its EDID on the bus and refuses every
+        brightness command, even slowed right down. Judging this once for the whole mat left
+        the little screen glaring at full power beside a monitor that had properly dimmed."""
+        w = self.window(answers=True, brightness=40)
+        self.assertEqual(0, w.veil_percent(), "the monitor dims for real")
+        self.assertEqual(60, w.side_veil_percent(), "the posture screen has only the veil")
+
+    def test_both_screens_are_veiled_when_neither_can_dim_itself(self):
+        w = self.window(answers=False, brightness=40)
+        self.assertEqual(60, w.veil_percent())
+        self.assertEqual(60, w.side_veil_percent())
+
+    def test_the_posture_screen_never_goes_fully_black(self):
+        w = self.window(answers=True, brightness=10)
+        self.assertLessEqual(w.side_veil_percent(), 80)
+        self.assertGreater(w.side_veil_percent(), 0)
 
     def test_a_monitor_that_will_not_listen_falls_back_to_the_veil(self):
         w = self.window(answers=False, brightness=40)

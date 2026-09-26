@@ -1324,7 +1324,7 @@ class MainWindow(QtWidgets.QWidget):
         self.slide.set_dim(self.veil_percent())
         if self.side is not None:
             self.side.show_prayer()
-            self.side.set_dim(self.veil_percent())
+            self.side.set_dim(self.side_veil_percent())
         self.show_volume()
         unit_rakats = self.content.units[entry.unit_id].rakats
         translation = self.translation
@@ -2150,10 +2150,19 @@ class MainWindow(QtWidgets.QWidget):
         self.apply_brightness()
 
     def veil_percent(self) -> int:
-        """How dark to draw the fallback veil. Nothing at all when the monitor is doing it for
-        real -- veiling a backlight that has already been turned down would darken it twice."""
-        if self.backlight.available:
-            return 0
+        """How dark to draw the veil on the main screen. Nothing at all when the monitor is
+        doing it for real -- veiling a backlight that has already been turned down would darken
+        it twice."""
+        return 0 if self.backlight.available else self.side_veil_percent()
+
+    def side_veil_percent(self) -> int:
+        """How dark to draw the veil on the posture screen.
+
+        Always in software, because that panel has no brightness of its own: it answers on the
+        bus with its EDID and refuses every brightness command, even slowed right down. Judging
+        this once for the whole mat was wrong -- it left the little screen glaring at full
+        power beside a monitor that had properly dimmed.
+        """
         return min(80, 100 - self.settings.brightness)
 
     def apply_brightness(self) -> None:
@@ -2161,7 +2170,7 @@ class MainWindow(QtWidgets.QWidget):
             self.backlight.set(self.settings.brightness)
         self.slide.set_dim(self.veil_percent())
         if self.side is not None:
-            self.side.set_dim(self.veil_percent())
+            self.side.set_dim(self.side_veil_percent())
 
     def set_cursor(self, v: str) -> None:
         self.settings.cursor = v == "1"
