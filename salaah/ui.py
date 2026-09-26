@@ -10,7 +10,7 @@ from pathlib import Path
 from . import __version__
 from .buttons import BACK, NEXT
 from .backlight import Backlight
-from .audio import Recitation, Timings, clamp_volume
+from .audio import Call, Recitation, Timings, clamp_volume
 from .audio import Span
 from .content import PRAYERS, Content, LanguagePack, StepRef, UnitEntry
 from .mosque import ArchButton, ArchShape, GearButton, MosqueScreen, ZoomVeil
@@ -37,6 +37,12 @@ STONE = "#6B737A"
 LINE = "#D9DCD6"
 MINT = "#3C8D6B"
 BRICK = "#B4443A"
+
+# The posture screen has no backlight of its own, so it is dimmed by drawing a black film over
+# it. These ease that off: matched one-for-one to the slider it runs ahead of the monitor, which
+# dims for real. 0.6 was picked by looking at the two screens side by side, not by arithmetic.
+VEIL_STRENGTH = 0.6
+VEIL_MOST = 60          # never darker than this: the postures still have to be followed
 NIGHT = "#0B0C0D"
 NIGHT_TEXT = "#E6E7E3"
 
@@ -503,6 +509,9 @@ class MainWindow(QtWidgets.QWidget):
         self.outputs = Outputs()
         self.notice = None          # the update dialog, while one is on screen
         self.backlight = Backlight()
+        self.call = Call(volume=settings.volume)   # the call to prayer
+        self.call_box = None                       # the TIME TO PRAY notice, while it is up
+        self.called: dict[str, object] = {}        # prayer -> the day it was last called
 
         self.setWindowTitle("Salaah")
         # No layout: the stack is placed by hand in resizeEvent, so the drawing area keeps its
@@ -521,6 +530,21 @@ class MainWindow(QtWidgets.QWidget):
                 self.side.compass.done.connect(self.side_lined_up)
         self.rebuild()
         QtWidgets.QApplication.instance().installEventFilter(self)
+
+        # These two run whatever else is happening, including while the mat is asleep -- which
+        # is the whole point of them. The ten-second clock is stopped when the screens go off,
+        # because nobody can see what it draws; a prayer falling due does not stop mattering.
+        self.muezzin = QtCore.QTimer(self)
+        self.muezzin.setInterval(15_000)
+        self.muezzin.timeout.connect(self.check_the_hour)
+        self.muezzin.start()
+        self.call_watch = QtCore.QTimer(self)       # notices when the call has finished
+        self.call_watch.setInterval(500)
+        self.call_watch.timeout.connect(self.watch_the_call)
+        self.idle = QtCore.QTimer(self)             # nothing pressed for a while -> sleep
+        self.idle.setSingleShot(True)
+        self.idle.timeout.connect(self.maybe_sleep)
+        self.stir()
 
     def content_box(self) -> QtCore.QRect:
         """The area the app draws in: the largest box of the right shape that fits, inset a
@@ -590,6 +614,7 @@ class MainWindow(QtWidgets.QWidget):
         if self.asleep:
             return
         self.asleep = True
+        self.idle.stop()     # nothing to count down to; waking starts it again
         self.stop_audio()
         if not self.outputs.set(False):
             print(f"sleep: {self.outputs.why}", file=sys.stderr)
@@ -619,6 +644,7 @@ class MainWindow(QtWidgets.QWidget):
         if getattr(self, "mosque", None) is not None and self.mosque.isVisible():
             self.mosque.flutter.start()
         self.tick()          # the time and the prayer due have moved on while it slept
+        self.stir()          # picked up: start the going-to-sleep clock from the top
 
     def shutdown(self) -> None:
         """Detach from the application before it closes (avoids a crash on exit with PyQt6)."""
@@ -627,6 +653,10 @@ class MainWindow(QtWidgets.QWidget):
         if self.asleep:
             self.outputs.set(True)
             self.asleep = False
+        for timer in ("muezzin", "call_watch", "idle"):
+            if hasattr(self, timer):
+                getattr(self, timer).stop()
+        self.call.stop()
         self.stop_audio()
         # The ten-second clock has to be stopped, not just left to be collected. It calls
         # apply_theme, which sets the light-or-dark palette for the whole app, so a window that
@@ -936,6 +966,89 @@ class MainWindow(QtWidgets.QWidget):
         lay.addLayout(bottom)
         return w
 
+    # The call to prayer, and going to sleep on its own
+
+    GRACE = 120.0        # seconds after a prayer falls due that the call is still worth making
+
+    @property
+    def azaan_file(self) -> Path:
+        return self.assets / "audio" / "azaan.mp3"
+
+    def check_the_hour(self) -> None:
+        """Has a prayer just fallen due? Runs every fifteen seconds, asleep or awake.
+
+        The grace period matters: the mat may have been busy, or the clock may have jumped
+        after an update. Without it a prayer missed by a second is missed for the day. With it,
+        a prayer missed by two minutes is not called at all -- which is right, because a call
+        long after the time is worse than none.
+        """
+        if not self.settings.azaan:
+            return
+        now = datetime.now()
+        times = self.prayer_times(now)
+        for prayer in PRAYERS:
+            due = times.get(prayer)
+            if due is None or self.called.get(prayer) == now.date():
+                continue
+            late = (now - datetime.combine(now.date(), due)).total_seconds()
+            if 0 <= late < self.GRACE:
+                self.called[prayer] = now.date()      # marked before calling: once a day, even
+                self.call_to_prayer(prayer)           # if something below goes wrong
+                return
+
+    def call_to_prayer(self, prayer: str) -> None:
+        """Wake the mat, say whose time it is, and give the call.
+
+        Nothing happens if somebody is already praying. A call over the top of the prayer it is
+        calling for would be absurd, and it is the one moment when an interruption is worst.
+        """
+        if self.playing:
+            return
+        if self.asleep:
+            self.wake()         # which comes back at the mosque, by its own design
+        else:
+            self.go_home()
+        box = Notice(self, self.px, self.t("call.title"))
+        box.finish(self.t(f"prayer.{prayer}"), self.t("call.stop"))
+        box.finished.connect(self.end_the_call)
+        self.call_box = box
+        # No azaan for Fajr: the words differ there, and calling Fajr with the wrong ones is
+        # worse than not calling it. The notice still appears, so the mat still says it is time.
+        if prayer != "fajr":
+            self.call.volume = self.settings.volume
+            if self.call.play(self.azaan_file):
+                self.call_watch.start()
+
+    def watch_the_call(self) -> None:
+        """Close the notice when the call ends of its own accord, so nobody has to dismiss it."""
+        if self.call_box is not None and not self.call.playing:
+            self.call_box.accept()
+
+    def end_the_call(self, *_) -> None:
+        """Stop, whether the call finished or somebody pressed the button."""
+        self.call.stop()
+        self.call_watch.stop()
+        self.call_box = None
+        self.stir()
+
+    def stir(self) -> None:
+        """Something happened. Start the going-to-sleep clock again from the top."""
+        minutes = getattr(self.settings, "sleep_after", 0)
+        if minutes and hasattr(self, "idle"):
+            self.idle.start(int(minutes * 60_000))
+        elif hasattr(self, "idle"):
+            self.idle.stop()
+
+    def maybe_sleep(self) -> None:
+        """Nothing has been pressed for a while. Sleep -- unless that would be rude."""
+        if self.asleep:
+            return
+        # Mid-prayer the screen is being read, not pressed; the call is being listened to; and a
+        # message on screen is waiting to be answered. None of those is idleness.
+        if self.playing or self.call_box is not None or self.notice is not None:
+            return self.stir()
+        self.sleep()
+
     # The clock and the prayer times
 
     @property
@@ -989,6 +1102,12 @@ class MainWindow(QtWidgets.QWidget):
         never in the middle of a prayer: it waits until the prayer is over. Returns True if the
         screen changed."""
         if not chosen and self.playing:
+            return False
+        # Light or dark is set for the whole application, so a window nobody is looking at must
+        # not set it. Ordinarily there is only one window and this never bites; under test
+        # several exist at once, and a hidden one whose ten-second clock was still running would
+        # quietly put the palette back to light underneath the window being examined.
+        if not chosen and not self.isVisible():
             return False
         if not theme.set_dark(self.wants_dark()):
             return False
@@ -1690,6 +1809,7 @@ class MainWindow(QtWidgets.QWidget):
         self.move(action)
 
     def on_button(self, action: str) -> None:
+        self.stir()
         if self.qibla_open:
             self.compass_screen.skip()             # a press always goes straight on
             return
@@ -1720,6 +1840,11 @@ class MainWindow(QtWidgets.QWidget):
         self.dot.setToolTip(self.t("button.connected") if connected else self.t("button.disconnected"))
 
     def eventFilter(self, obj, ev):
+        # Anything a person does puts off going to sleep. Touches and presses both, because a
+        # mat may have a touchscreen, a keyboard, a Bluetooth button, or all three.
+        if ev.type() in (QtCore.QEvent.Type.MouseButtonPress, QtCore.QEvent.Type.KeyPress,
+                         QtCore.QEvent.Type.TouchBegin):
+            self.stir()
         # A tap or a press during the walk into an arch cuts it short, so what was touched is
         # seen at once. The event is not swallowed: the walk is only a picture over the top, and
         # the units underneath have been live since the moment the arch was tapped.
@@ -1879,6 +2004,11 @@ class MainWindow(QtWidgets.QWidget):
         # A dropdown, like the two above it: the three choices are wordy enough that as a row of
         # circles they took a quarter of the column, and the wording made it hard to see at a
         # glance that light and dark were choices at all rather than a note about the automatic one.
+        section(left, "settings.azaan")
+        left.addLayout(self.circles([("1", self.t("settings.on")), ("0", self.t("settings.off"))],
+                                    "1" if self.settings.azaan else "0",
+                                    self.set_azaan, across=True))
+
         section(left, "settings.theme")
         self.theme_picker = self.dropdown(
             [(mode, self.t(f"settings.theme_{mode}")) for mode in theme.MODES],
@@ -2144,6 +2274,12 @@ class MainWindow(QtWidgets.QWidget):
         row.addWidget(reading)
         return row
 
+    def set_azaan(self, v: str) -> None:
+        self.settings.azaan = v == "1"
+        self.persist()
+        if not self.settings.azaan and self.call_box is not None:
+            self.call_box.accept()       # turned off while it was calling: stop calling
+
     def set_brightness(self, value: int) -> None:
         self.settings.brightness = int(value)
         self.persist()
@@ -2162,8 +2298,13 @@ class MainWindow(QtWidgets.QWidget):
         bus with its EDID and refuses every brightness command, even slowed right down. Judging
         this once for the whole mat was wrong -- it left the little screen glaring at full
         power beside a monitor that had properly dimmed.
+
+        The veil is deliberately gentler than the number suggests. Matching it one for one is
+        right on paper and wrong in the room: a monitor set to 40 is still fairly bright,
+        because makers rarely map that scale to the light it actually emits, while a film 60%
+        black is exactly 60% darker. Easing off brings the two screens back together.
         """
-        return min(80, 100 - self.settings.brightness)
+        return min(VEIL_MOST, int((100 - self.settings.brightness) * VEIL_STRENGTH))
 
     def apply_brightness(self) -> None:
         if self.backlight.available:

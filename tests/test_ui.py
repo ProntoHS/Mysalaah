@@ -3278,12 +3278,12 @@ class BrightnessTest(unittest.TestCase):
         the little screen glaring at full power beside a monitor that had properly dimmed."""
         w = self.window(answers=True, brightness=40)
         self.assertEqual(0, w.veil_percent(), "the monitor dims for real")
-        self.assertEqual(60, w.side_veil_percent(), "the posture screen has only the veil")
+        self.assertEqual(36, w.side_veil_percent(), "eased off so it matches the monitor")
 
     def test_both_screens_are_veiled_when_neither_can_dim_itself(self):
         w = self.window(answers=False, brightness=40)
-        self.assertEqual(60, w.veil_percent())
-        self.assertEqual(60, w.side_veil_percent())
+        self.assertEqual(36, w.veil_percent())
+        self.assertEqual(36, w.side_veil_percent())
 
     def test_the_posture_screen_never_goes_fully_black(self):
         w = self.window(answers=True, brightness=10)
@@ -3292,7 +3292,7 @@ class BrightnessTest(unittest.TestCase):
 
     def test_a_monitor_that_will_not_listen_falls_back_to_the_veil(self):
         w = self.window(answers=False, brightness=40)
-        self.assertEqual(60, w.veil_percent(), "60% dark for 40% brightness")
+        self.assertEqual(36, w.veil_percent(), "eased off from the bare 60%")
         self.assertEqual([], w.backlight.applied, "nothing should be sent to a deaf monitor")
 
     def test_the_veil_never_goes_fully_black(self):
@@ -3307,3 +3307,154 @@ class BrightnessTest(unittest.TestCase):
                      if x.objectName() == "settingHint"]
             said = any("monitor" in h.lower() for h in hints)
             self.assertEqual(wanted, said, f"backlight available={answers}: hints were {hints}")
+
+
+class CallToPrayerTest(unittest.TestCase):
+    """The azaan when a prayer falls due, and the mat putting itself to sleep."""
+
+    class Speaker:
+        """Stands in for the audio player: records what it was asked to play."""
+
+        def __init__(self):
+            self.played, self.stopped, self.playing, self.volume = [], 0, False, 80
+
+        def play(self, audio):
+            self.played.append(Path(audio).name)
+            self.playing = True
+            return True
+
+        def stop(self):
+            self.stopped += 1
+            self.playing = False
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.call = self.Speaker()
+        w.outputs = type(w.outputs)()
+        w.resize(1920, 1200)
+        w.show()
+        APP.processEvents()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    @staticmethod
+    def at(w, prayer, seconds_late=5):
+        """Pretend it is [seconds_late] past the time for [prayer], and let the mat notice."""
+        from datetime import datetime, timedelta
+        due = w.prayer_times()[prayer]
+        when = datetime.combine(datetime.now().date(), due) + timedelta(seconds=seconds_late)
+        with mock.patch("salaah.ui.datetime") as clock:
+            clock.now.return_value = when
+            clock.combine = datetime.combine
+            w.check_the_hour()
+        APP.processEvents()
+
+    def words(self, w):
+        return [x.text() for x in w.call_box.findChildren(QtWidgets.QLabel)]
+
+    def test_a_prayer_falling_due_says_so_and_calls(self):
+        w = self.window()
+        self.at(w, "dhuhr")
+        self.assertIsNotNone(w.call_box, "a box should be on screen")
+        self.assertIn("TIME TO PRAY", self.words(w))
+        self.assertEqual(["azaan.mp3"], w.call.played)
+
+    def test_fajr_is_announced_but_not_called(self):
+        """The Fajr azaan has a line the others do not. Calling it with the wrong words would
+        be worse than not calling it, so for now the mat says it is time and stays quiet."""
+        w = self.window()
+        self.at(w, "fajr")
+        self.assertIsNotNone(w.call_box, "Fajr should still be announced")
+        self.assertEqual([], w.call.played, "and should not play the ordinary azaan")
+
+    def test_stopping_it_silences_the_call(self):
+        w = self.window()
+        self.at(w, "asr")
+        self.assertTrue(w.call.playing)
+        w.call_box.accept()                      # the Stop button
+        APP.processEvents()
+        self.assertFalse(w.call.playing, "the azaan should stop")
+        self.assertIsNone(w.call_box, "and the box should go")
+
+    def test_a_sleeping_mat_wakes_itself_to_call(self):
+        w = self.window()
+        w.sleep()
+        self.assertTrue(w.asleep)
+        self.at(w, "maghrib")
+        self.assertFalse(w.asleep, "it should wake to call")
+        self.assertIs(w.home, w.stack.currentWidget(), "and come back at the mosque")
+        self.assertEqual(["azaan.mp3"], w.call.played)
+
+    def test_it_does_not_call_over_somebody_already_praying(self):
+        w = self.window()
+        w.open_prayer("isha")
+        w.start("isha", w.school.prayers["isha"][0])
+        APP.processEvents()
+        self.at(w, "isha")
+        self.assertIsNone(w.call_box, "a call during the prayer it calls for would be absurd")
+        self.assertEqual([], w.call.played)
+
+    def test_each_prayer_is_called_once_a_day(self):
+        w = self.window()
+        for _ in range(4):
+            self.at(w, "dhuhr")
+        self.assertEqual(1, len(w.call.played), "it should not call again every fifteen seconds")
+
+    def test_a_prayer_long_past_is_not_called(self):
+        """A call well after the time is worse than none -- it sends somebody to pray late."""
+        w = self.window()
+        self.at(w, "dhuhr", seconds_late=int(w.GRACE) + 60)
+        self.assertIsNone(w.call_box)
+        self.assertEqual([], w.call.played)
+
+    def test_turning_it_off_means_no_call(self):
+        w = self.window(azaan=False)
+        self.at(w, "dhuhr")
+        self.assertIsNone(w.call_box)
+        self.assertEqual([], w.call.played)
+
+    # Going to sleep on its own
+
+    def test_nothing_pressed_for_a_while_and_it_sleeps(self):
+        w = self.window()
+        w.maybe_sleep()
+        self.assertTrue(w.asleep)
+
+    def test_it_does_not_sleep_in_the_middle_of_a_prayer(self):
+        """The screen is being read, not pressed. Idleness and stillness are not the same."""
+        w = self.window()
+        w.open_prayer("dhuhr")
+        w.start("dhuhr", w.school.prayers["dhuhr"][0])
+        APP.processEvents()
+        w.maybe_sleep()
+        self.assertFalse(w.asleep)
+
+    def test_it_does_not_sleep_while_the_azaan_is_sounding(self):
+        w = self.window()
+        self.at(w, "dhuhr")
+        w.maybe_sleep()
+        self.assertFalse(w.asleep, "it should not go dark part way through calling")
+
+    def test_it_does_not_sleep_with_a_message_waiting_to_be_answered(self):
+        import salaah.update as updater
+        from salaah.update import Release
+        w = self.window()
+        with mock.patch.object(updater, "check",
+                               lambda url="", opener=None, key="": Release(
+                                   version="0.1", url="http://x/x.zip", sha256="0" * 64)):
+            w.check_for_update()
+        w.maybe_sleep()
+        self.assertFalse(w.asleep)
+
+    def test_a_press_puts_sleep_off(self):
+        w = self.window()
+        w.stir()
+        self.assertTrue(w.idle.isActive(), "the clock should be running")
+        self.assertGreater(w.idle.remainingTime(), 60_000, "3 minutes, not seconds")
+
+    def test_sleep_can_be_turned_off_altogether(self):
+        w = self.window(sleep_after=0)
+        w.stir()
+        self.assertFalse(w.idle.isActive(), "0 means never")

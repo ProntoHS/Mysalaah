@@ -201,3 +201,57 @@ class Recitation:
         if not self._start(self._span):
             return None
         return self._span.start
+
+
+# Longer than any call to prayer. Every player stops at the end of the file regardless, so this
+# only has to be an upper bound -- it saves asking the file how long it is, which would mean
+# depending on a tool that may not be installed.
+WHOLE = 3600.0
+
+
+class Call:
+    """Plays a file from beginning to end, once. The call to prayer.
+
+    Separate from Recitation on purpose. That one plays a span of a file and can repeat it,
+    which is what following words on a screen needs; this plays the lot and stops. Keeping them
+    apart means the call cannot be cut short by the prayer machinery, or cut it short.
+    """
+
+    def __init__(self, player: str | None = None, volume: int = 80):
+        self.player = player or find_player()
+        self.volume = clamp_volume(volume)
+        self._process: subprocess.Popen | None = None
+
+    @property
+    def available(self) -> bool:
+        return self.player is not None
+
+    @property
+    def playing(self) -> bool:
+        return self._process is not None and self._process.poll() is None
+
+    def play(self, audio: Path) -> bool:
+        """True if sound is on its way. False for every reason it might not be -- no player, no
+        file, turned right down -- because none of those is worth an error on a prayer mat."""
+        self.stop()
+        if not self.available or not Path(audio).is_file():
+            return False
+        if self.volume <= MIN_VOLUME:
+            return False
+        command = PLAYERS[self.player](Path(audio), 0.0, WHOLE, self.volume)
+        try:
+            self._process = subprocess.Popen(command, stdout=subprocess.DEVNULL,
+                                             stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+        except OSError:
+            self._process = None
+            return False
+        return True
+
+    def stop(self) -> None:
+        if self._process is not None and self._process.poll() is None:
+            self._process.terminate()
+            try:
+                self._process.wait(timeout=0.5)
+            except subprocess.TimeoutExpired:
+                self._process.kill()
+        self._process = None

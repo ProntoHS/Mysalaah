@@ -25,6 +25,10 @@ class Settings:
     side_output: str = ""  # the 7" posture screen last time; both are worked out if they are wrong
     recitation: bool = True  # play the recorded recitation and follow the words in red
     volume: int = 80  # 0-100: how loud the recitation is, set by the bar on the prayer screen
+    azaan: bool = True        # call to prayer when a prayer falls due
+    sleep_after: int = 3      # minutes with nothing pressed before the screens go off; 0 never.
+                              # Not on the Settings screen: two more rows there would push a
+                              # 1920x1080 monitor into scrolling. Edit it here to change it.
     latitude: float = 53.5933     # for prayer times; Bury, Greater Manchester
     longitude: float = -2.2966
     place: str = "Bury"
