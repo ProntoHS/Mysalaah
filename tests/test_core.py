@@ -1825,3 +1825,209 @@ HDMI-A-1 "big monitor (HDMI-A-1)"
     def test_the_block_says_which_screen(self):
         tool = self.tool()
         self.assertIn("HDMI-A-9", tool.touch_block("HDMI-A-9"))
+
+
+class DuaContentTest(unittest.TestCase):
+    """That every word of every du'a really is the Qur'an's.
+
+    The du'as are slices of verses. This re-derives each one from assets/content/quran without
+    going anywhere near the builder that wrote them, so a mistake in the builder cannot hide
+    behind the builder's own arithmetic. It is the same discipline as check_quran.py: the thing
+    that verifies must not be the thing that produced the value."""
+
+    @staticmethod
+    def assets():
+        from pathlib import Path
+        return Path(__file__).resolve().parent.parent / "assets"
+
+    def duas(self):
+        import json
+        return json.loads((self.assets() / "content" / "duas" / "duas.json")
+                          .read_text(encoding="utf-8"))
+
+    def verse(self, lang, surah, number):
+        import json
+        rows = json.loads((self.assets() / "content" / "quran" / lang / f"{surah}.json")
+                          .read_text(encoding="utf-8"))
+        for row in rows:
+            if int(row["n"]) == number:
+                return row
+        self.fail(f"{lang} has no {surah}:{number}")
+
+    def test_there_are_ten_of_them_each_with_everything_it_needs(self):
+        duas = self.duas()
+        self.assertEqual(10, len(duas))
+        for d in duas:
+            for field in ("key", "title", "ref", "verses", "arabic", "said", "text"):
+                self.assertTrue(d.get(field), f"{d.get('ref')} has no {field}")
+            self.assertEqual(len(set(x["key"] for x in duas)), len(duas), "keys must be unique")
+
+    def test_every_arabic_word_comes_from_the_verses_it_names(self):
+        """Word for word, in order, against the corpus. Catches a slice from the wrong verse,
+        a slice that drifted, and any word that was typed rather than copied."""
+        for d in self.duas():
+            want = d["arabic"].split()
+            got = []
+            for surah, number in d["verses"]:
+                got.extend(self.verse("ar", surah, number)["text"].split())
+            # The du'a is the tail of the first verse plus the whole of any that follow, so its
+            # words must appear in the corpus words as a contiguous run ending at the end.
+            self.assertTrue(len(want) <= len(got), f"{d['ref']} is longer than its verses")
+            self.assertEqual(got[len(got) - len(want):], want,
+                             f"{d['ref']} does not match the Qur'an on disk")
+
+    def test_the_transliteration_matches_the_same_words(self):
+        for d in self.duas():
+            want = d["said"].split()
+            got = []
+            for surah, number in d["verses"]:
+                got.extend(self.verse("ar", surah, number)["said"].split())
+            self.assertEqual(got[len(got) - len(want):], want, f"{d['ref']} transliteration")
+
+    def test_arabic_and_transliteration_are_the_same_length(self):
+        """One word of Arabic, one of transliteration. A mismatch means one was sliced in a
+        different place from the other, which is how a du'a ends up saying two different things
+        to the two people reading it."""
+        for d in self.duas():
+            self.assertEqual(len(d["arabic"].split()), len(d["said"].split()), d["ref"])
+
+    def test_no_slice_cuts_into_a_word(self):
+        for d in self.duas():
+            whole = " ".join(self.verse("ar", s, n)["text"] for s, n in d["verses"])
+            self.assertIn(d["arabic"], whole, f"{d['ref']} is not a clean slice")
+
+    def test_every_translation_is_there_and_is_not_empty(self):
+        for d in self.duas():
+            for lang in ("en", "fr", "ur", "es", "zh"):
+                self.assertTrue(d["text"].get(lang, "").strip(),
+                                f"{d['ref']} has no {lang}")
+
+    def test_the_untrimmed_translations_are_the_whole_verse(self):
+        """Only English is trimmed. The other four keep the verse exactly as the corpus has it,
+        because judging where a sentence turns in Urdu or Chinese is not something to guess at."""
+        for d in self.duas():
+            self.assertEqual(["en"], list(d["trimmed"]), d["ref"])
+            for lang in ("fr", "ur", "es", "zh"):
+                whole = " ".join(self.verse(lang, s, n).get("text", "") for s, n in d["verses"])
+                self.assertEqual(" ".join(whole.split()), d["text"][lang], f"{d['ref']} {lang}")
+
+    def test_the_english_is_a_slice_of_the_english_verse(self):
+        """Trimmed, and quote marks dropped -- but every word still the translation's own."""
+        for d in self.duas():
+            whole = " ".join(self.verse("en", s, n).get("text", "") for s, n in d["verses"])
+            for mark in '"“”«»':
+                whole = whole.replace(mark, "")
+            whole = " ".join(whole.split())
+            self.assertIn(d["text"]["en"], whole, f"{d['ref']} English is not a slice")
+
+
+class KalimaContentTest(unittest.TestCase):
+    """The kalima were written from knowledge, not copied from a checked source. These tests
+    cannot say the words are right -- only a reader of Arabic can. What they can do is make sure
+    the file keeps saying so until somebody has looked."""
+
+    def kalima(self):
+        import json
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent / "assets"
+        return json.loads((root / "content" / "duas" / "kalima.json").read_text(encoding="utf-8"))
+
+    def test_all_six_are_there_with_arabic_transliteration_and_meaning(self):
+        items = self.kalima()["items"]
+        self.assertEqual(6, len(items))
+        for it in items:
+            self.assertTrue(it["arabic"].strip(), it["key"])
+            self.assertTrue(it["said"].strip(), it["key"])
+            self.assertTrue(it["text"]["en"].strip(), it["key"])
+            self.assertTrue(it["title"].strip(), it["key"])
+
+    def test_it_still_says_it_has_not_been_checked(self):
+        """This is the test that should fail the day somebody has actually checked it -- at
+        which point the right fix is to set reviewed true, not to delete the test."""
+        self.assertFalse(self.kalima()["reviewed"],
+                         "if the Arabic has now been reviewed, say so here too")
+
+    def test_the_arabic_is_arabic(self):
+        """Catches a Latin letter or stray punctuation that wandered into the script -- the
+        kind of thing that is invisible in a proportional font and wrong on the mat."""
+        import unicodedata
+        for it in self.kalima()["items"]:
+            for ch in it["arabic"]:
+                if ch == " ":
+                    continue
+                name = unicodedata.name(ch, "")
+                self.assertIn("ARABIC", name, f"{it['key']} contains {ch!r} ({name})")
+
+
+class PassagesTest(unittest.TestCase):
+    """Reading either section off the disk, including off a disk that is missing things."""
+
+    def loader(self, section, root=None):
+        from pathlib import Path
+        from salaah.passages import Passages
+        return Passages(root or (Path(__file__).resolve().parent.parent / "assets"), section)
+
+    def test_it_reads_both_sections(self):
+        self.assertEqual(10, len(self.loader("duas").items))
+        self.assertEqual(6, len(self.loader("kalima").items))
+
+    def test_the_duas_are_checked_and_the_kalima_are_not(self):
+        self.assertTrue(self.loader("duas").reviewed)
+        self.assertFalse(self.loader("kalima").reviewed)
+
+    def test_a_section_only_offers_languages_it_actually_has(self):
+        """The kalima are English only. Offering French and then showing English would be
+        worse than not offering it."""
+        self.assertEqual(("en", "fr", "ur", "es", "zh"), self.loader("duas").languages())
+        self.assertEqual(("en",), self.loader("kalima").languages())
+
+    def test_a_missing_meaning_falls_back_to_english_rather_than_to_nothing(self):
+        item = self.loader("kalima").at(0)
+        self.assertEqual(item.text["en"], item.meaning("fr"))
+        self.assertEqual(item.text["en"], item.meaning("zh"))
+
+    def test_a_chosen_language_that_exists_is_used(self):
+        item = self.loader("duas").at(0)
+        self.assertNotEqual(item.meaning("en"), item.meaning("zh"))
+        self.assertTrue(item.meaning("zh"))
+
+    def test_a_missing_file_is_empty_rather_than_a_crash(self):
+        """A half-copied mat shows what it has. It does not refuse to start."""
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as room:
+            nothing = self.loader("duas", Path(room))
+            self.assertFalse(nothing.there)
+            self.assertEqual([], nothing.items)
+            self.assertEqual((), nothing.languages())
+            self.assertIsNone(nothing.at(0))
+
+    def test_rubbish_in_the_file_is_skipped_not_shown(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as room:
+            folder = Path(room) / "content" / "duas"
+            folder.mkdir(parents=True)
+            (folder / "duas.json").write_text(json.dumps([
+                {"key": "fine", "arabic": "الحمد", "said": "alhamd",
+                 "text": {"en": "praise"}},
+                {"key": "no arabic at all"},
+                "not even a row",
+            ]), encoding="utf-8")
+            got = self.loader("duas", Path(room)).items
+            self.assertEqual(1, len(got))
+            self.assertEqual("fine", got[0].key)
+
+    def test_a_broken_file_is_empty_rather_than_a_crash(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as room:
+            folder = Path(room) / "content" / "duas"
+            folder.mkdir(parents=True)
+            (folder / "duas.json").write_text("{ this is not json", encoding="utf-8")
+            self.assertEqual([], self.loader("duas", Path(room)).items)
+
+    def test_the_list_row_shows_the_opening_words(self):
+        item = self.loader("duas").at(0)
+        self.assertEqual(item.arabic.split()[:4], item.opening().split())

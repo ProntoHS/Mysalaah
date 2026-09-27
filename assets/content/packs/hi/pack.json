@@ -190,6 +190,11 @@
     "quran.page": "पृष्ठ {at} / {of}",
     "update.close": "बंद करें",
     "update.now": "अभी अपडेट करें",
-    "update.later": "अभी नहीं"
+    "update.later": "अभी नहीं",
+    "corner.duas": "दुआएँ",
+    "corner.kalima": "छह कलिमे",
+    "corner.unchecked": "अरबी पढ़ने वाले द्वारा जाँच बाकी है।",
+    "corner.back_list": "सूची पर वापस",
+    "corner.item": "{of} में से {at}"
   }
 }

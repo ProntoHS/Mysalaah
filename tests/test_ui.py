@@ -3558,14 +3558,24 @@ class KnowledgeCornerTest(unittest.TestCase):
         w.open_corner("quran")
         self.assertFalse(w.reading, "the prayer should not be shoved aside")
 
-    def test_the_two_unfinished_sections_say_so_rather_than_showing_nothing(self):
+    def test_all_three_tiles_now_open_something(self):
+        """Both of these used to say "not filled in yet". They are filled in."""
         w = self.window()
-        for which in ("duas", "kalima"):
-            w.open_corner(which)
+        for i, which in enumerate(("quran", "duas", "kalima")):
+            w.side.corner.tiles[i].click()
             APP.processEvents()
-            self.assertIs(w.corner_soon, w.corner_screen.currentWidget(), which)
-            said = [x.text() for x in w.corner_soon.findChildren(QtWidgets.QLabel)]
-            self.assertTrue(any("not" in s.lower() for s in said), said)
+            self.assertTrue(w.reading, which)
+            self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget(),
+                             f"{which} should no longer land on the empty page")
+
+    def test_a_section_whose_file_is_missing_still_says_so(self):
+        """The fallback has not been thrown away: a mat whose assets were half copied lands on
+        the plain word rather than an empty screen that looks broken."""
+        w = self.window()
+        w.section_lists["duas"].passages._items = []
+        w.open_corner("duas")
+        APP.processEvents()
+        self.assertIs(w.corner_soon, w.corner_screen.currentWidget())
 
 
 class QuranTest(unittest.TestCase):
@@ -3771,3 +3781,146 @@ class QuranTest(unittest.TestCase):
         w.reader.back_button.click()
         settle()
         self.assertIs(w.surah_list, w.corner_screen.currentWidget())
+
+
+class PassageScreenTest(unittest.TestCase):
+    """The du'a and kalima screens: the list, one open, and the note about the kalima."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_the_duas_tile_opens_ten_of_them(self):
+        w = self.window()
+        w.open_corner("duas")
+        settle()
+        listing = w.corner_screen.currentWidget()
+        self.assertIs(w.section_lists["duas"], listing)
+        rows = listing.findChildren(QtWidgets.QPushButton)
+        self.assertEqual(10, len([b for b in rows if b.objectName() == "surahRow"]))
+
+    def test_choosing_one_opens_it_and_back_returns_to_the_list(self):
+        w = self.window()
+        w.open_corner("duas")
+        settle()
+        rows = [b for b in w.section_lists["duas"].findChildren(QtWidgets.QPushButton)
+                if b.objectName() == "surahRow"]
+        rows[2].click()
+        settle()
+        reader = w.corner_screen.currentWidget()
+        self.assertIs(w.section_readers["duas"], reader)
+        self.assertIn("3:8", reader.title.text())
+        reader.back_button.click()
+        settle()
+        self.assertIs(w.section_lists["duas"], w.corner_screen.currentWidget())
+
+    def test_the_kalima_say_they_are_waiting_to_be_checked_and_the_duas_do_not(self):
+        """The du'as came out of a corpus checked verse by verse; the kalima were written from
+        knowledge. The screen has to tell those two apart, on the list and while reading."""
+        w = self.window()
+        w.open_corner("kalima")
+        settle()
+        self.assertTrue(w.section_lists["kalima"].waiting.isVisible())
+        w.open_passage("kalima", 0)
+        settle()
+        self.assertTrue(w.section_readers["kalima"].waiting.isVisible(),
+                        "the note belongs on the reading screen above all")
+
+        w.open_corner("duas")
+        settle()
+        self.assertFalse(w.section_lists["duas"].waiting.isVisible())
+        w.open_passage("duas", 0)
+        settle()
+        self.assertFalse(w.section_readers["duas"].waiting.isVisible())
+
+    def test_the_kalima_offer_english_only_and_the_duas_offer_five(self):
+        w = self.window()
+        w.open_passage("duas", 0)
+        settle()
+        self.assertEqual(["en", "fr", "ur", "es", "zh"],
+                         list(w.section_readers["duas"].buttons))
+        w.open_passage("kalima", 0)
+        settle()
+        self.assertEqual(["en"], list(w.section_readers["kalima"].buttons))
+
+    def test_choosing_a_language_changes_the_meaning_shown(self):
+        w = self.window()
+        w.open_passage("duas", 0)
+        settle()
+        reader = w.section_readers["duas"]
+        english = reader.meaning.text()
+        reader.buttons["zh"].click()
+        settle()
+        self.assertNotEqual(english, reader.meaning.text())
+        self.assertEqual("zh", w.settings.quran_lang)
+
+    def test_a_kalima_keeps_english_when_the_reading_language_is_chinese(self):
+        """Choosing Chinese for the Qur'an must not leave the kalima screen blank."""
+        w = self.window(quran_lang="zh")
+        w.open_passage("kalima", 0)
+        settle()
+        reader = w.section_readers["kalima"]
+        self.assertTrue(reader.meaning.text().strip())
+        self.assertEqual("en", reader.language())
+
+    def test_the_arrows_move_between_passages(self):
+        w = self.window()
+        w.open_passage("duas", 0)
+        settle()
+        reader = w.section_readers["duas"]
+        self.assertFalse(reader.earlier.isEnabled(), "nothing before the first")
+        first = reader.arabic.lines[0]
+        reader.later.click()
+        settle()
+        self.assertNotEqual(first, reader.arabic.lines[0])
+        self.assertTrue(reader.earlier.isEnabled())
+        w.open_passage("duas", 9)
+        settle()
+        self.assertFalse(reader.later.isEnabled(), "nothing after the last")
+
+    def test_nothing_is_clipped_on_any_passage_in_either_section(self):
+        """Measured off the drawn text, not off the layout's opinion of it. A wrapped label
+        reporting a size hint twice its height is exactly what a clipped one looks like, and
+        the only way to know is to ask the font how tall the words really are."""
+        w = self.window()
+        bad = []
+        for which, count in (("duas", 10), ("kalima", 6)):
+            for i in range(count):
+                w.open_passage(which, i)
+                settle()
+                reader = w.section_readers[which]
+                for name, label in (("said", reader.said), ("meaning", reader.meaning)):
+                    metrics = QtGui.QFontMetrics(label.font())
+                    tall = metrics.boundingRect(QtCore.QRect(0, 0, label.width(), 0),
+                                                Qt.TextFlag.TextWordWrap, label.text()).height()
+                    if tall > label.height():
+                        bad.append(f"{which}[{i}] {name}: needs {tall}px, has {label.height()}px")
+        self.assertEqual([], bad)
+
+    def test_the_arabic_is_never_drawn_too_small_to_read(self):
+        from salaah.passages import ARABIC_FLOOR
+        w = self.window()
+        for which, count in (("duas", 10), ("kalima", 6)):
+            for i in range(count):
+                w.open_passage(which, i)
+                settle()
+                box = w.section_readers[which].arabic
+                self.assertTrue(box.lines and box.lines[0].strip(), f"{which}[{i}] has no Arabic")
+                self.assertGreaterEqual(box.height(), ARABIC_FLOOR,
+                                        f"{which}[{i}] has no room for the script")
+
+    def test_both_sections_survive_the_dark_screen(self):
+        w = self.window(theme="dark")
+        for which in ("duas", "kalima"):
+            w.open_passage(which, 0)
+            settle()
+            w.grab().save(str(SHOTS / f"{which}-dark.png"))
+            self.assertTrue(w.section_readers[which].arabic.lines)

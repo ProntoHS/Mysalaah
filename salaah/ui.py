@@ -25,6 +25,7 @@ from .timing import TimingScreen
 from .compass import CompassScreen
 from .side import SideWindow
 from .quran import Quran
+from .passages import PassageList, PassageReader, Passages
 from .reading import Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
 from .power import Outputs
@@ -512,6 +513,8 @@ class MainWindow(QtWidgets.QWidget):
         self.notice = None          # the update dialog, while one is on screen
         self.backlight = Backlight()
         self.quran = Quran(self.assets)
+        self.duas = Passages(self.assets, "duas")
+        self.kalima = Passages(self.assets, "kalima")
         self.call = Call(volume=settings.volume)   # the call to prayer
         self.call_box = None                       # the TIME TO PRAY notice, while it is up
         self.called: dict[str, object] = {}        # prayer -> the day it was last called
@@ -829,6 +832,13 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#cornerTitle {{ font-size:{px(40)}px; font-weight:bold; color:{c.strong}; }}
             QAbstractButton#tile {{ background:transparent; border:none; }}
             QWidget#corner, QWidget#surahList, QWidget#reader {{ background:{c.paper}; }}
+            QWidget#passageList, QWidget#passageReader {{ background:{c.paper}; }}
+            QLabel#passageSaid {{ font-size:{px(26)}px; color:{c.stone};
+                                  font-style:italic; }}
+            QLabel#passageMeaning {{ font-size:{px(30)}px; color:{c.strong}; }}
+            /* Said once at the top of the kalima, and it should read as a plain note rather
+               than an alarm -- so the stone grey the rest of the second lines use, not red. */
+            QLabel#unchecked {{ font-size:{px(20)}px; color:{c.stone}; }}
             QScrollArea {{ background:{c.paper}; }}
             QPushButton#surahRow {{ background:{c.paper}; border:{px(2)}px solid {c.line};
                                     border-radius:{px(12)}px; text-align:left; }}
@@ -1015,6 +1025,22 @@ class MainWindow(QtWidgets.QWidget):
         self.reader.back.connect(self.open_corner_list)
         stack.addWidget(self.reader)
 
+        # The two shorter sections. Same widgets for both, told apart by which file they read
+        # and what the list is headed.
+        self.section_lists: dict[str, PassageList] = {}
+        self.section_readers: dict[str, PassageReader] = {}
+        for name, source in (("duas", self.duas), ("kalima", self.kalima)):
+            listing = PassageList(self, source, self.t(f"corner.{name}"))
+            listing.leave.connect(self.go_home)
+            listing.chose.connect(lambda i, n=name: self.open_passage(n, i))
+            stack.addWidget(listing)
+            self.section_lists[name] = listing
+
+            reader = PassageReader(self, source)
+            reader.back.connect(lambda n=name: self.open_section(n))
+            stack.addWidget(reader)
+            self.section_readers[name] = reader
+
         self.corner_soon = self.page_soon()
         stack.addWidget(self.corner_soon)
         return stack
@@ -1046,12 +1072,32 @@ class MainWindow(QtWidgets.QWidget):
         if which == "quran" and self.quran.there:
             self.open_corner_list()
             return
+        if which in self.section_lists and self.section_lists[which].passages.items:
+            self.open_section(which)
+            return
         self.corner_screen.setCurrentWidget(self.corner_soon)
         self.stack.setCurrentWidget(self.corner_screen)
 
     def open_corner_list(self) -> None:
         self.surah_list.to_the_top()
         self.corner_screen.setCurrentWidget(self.surah_list)
+        self.stack.setCurrentWidget(self.corner_screen)
+
+    def open_section(self, which: str) -> None:
+        """The list of du'as, or of kalima."""
+        listing = self.section_lists.get(which)
+        if listing is None:
+            return
+        listing.to_the_top()
+        self.corner_screen.setCurrentWidget(listing)
+        self.stack.setCurrentWidget(self.corner_screen)
+
+    def open_passage(self, which: str, index: int) -> None:
+        reader = self.section_readers.get(which)
+        if reader is None:
+            return
+        reader.open(index)
+        self.corner_screen.setCurrentWidget(reader)
         self.stack.setCurrentWidget(self.corner_screen)
 
     def open_surah(self, number: int) -> None:

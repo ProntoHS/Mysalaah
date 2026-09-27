@@ -1,0 +1,66 @@
+{
+ "about": "The six kalima. UNLIKE the Qur'an and the du'as in this folder, this Arabic was NOT copied from a checked source -- it was written out from knowledge and has to be read by somebody who reads Arabic before it is trusted. While 'reviewed' is false the screen says so under the heading. Set it to true once it has been checked, and the note goes away. Correcting anything here needs no change to the app: it is read off the disk each time.",
+ "reviewed": false,
+ "items": [
+  {
+   "key": "tayyibah",
+   "title": "First Kalima · Tayyibah",
+   "ref": "The Word of Purity",
+   "arabic": "لَا إِلَٰهَ إِلَّا اللهُ مُحَمَّدٌ رَسُولُ اللهِ",
+   "said": "La ilaha illallahu, Muhammadur Rasulullah",
+   "text": {
+    "en": "There is no god but Allah; Muhammad is the Messenger of Allah."
+   }
+  },
+  {
+   "key": "shahadah",
+   "title": "Second Kalima · Shahadah",
+   "ref": "The Word of Testimony",
+   "arabic": "أَشْهَدُ أَنْ لَا إِلَٰهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ وَأَشْهَدُ أَنَّ مُحَمَّدًا عَبْدُهُ وَرَسُولُهُ",
+   "said": "Ash-hadu an la ilaha illallahu wahdahu la sharika lahu, wa ash-hadu anna Muhammadan abduhu wa rasuluh",
+   "text": {
+    "en": "I bear witness that there is no god but Allah, alone, with no partner; and I bear witness that Muhammad is His servant and His Messenger."
+   }
+  },
+  {
+   "key": "tamjeed",
+   "title": "Third Kalima · Tamjeed",
+   "ref": "The Word of Glorification",
+   "arabic": "سُبْحَانَ اللهِ وَالْحَمْدُ لِلَّهِ وَلَا إِلَٰهَ إِلَّا اللهُ وَاللهُ أَكْبَرُ وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ الْعَلِيِّ الْعَظِيمِ",
+   "said": "Subhanallahi walhamdu lillahi, wa la ilaha illallahu wallahu akbar, wa la hawla wa la quwwata illa billahil-aliyyil-azim",
+   "text": {
+    "en": "Glory be to Allah, and praise be to Allah, and there is no god but Allah, and Allah is the Greatest; and there is no power nor strength except with Allah, the Most High, the Most Great."
+   }
+  },
+  {
+   "key": "tawheed",
+   "title": "Fourth Kalima · Tawheed",
+   "ref": "The Word of Oneness",
+   "arabic": "لَا إِلَٰهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ يُحْيِي وَيُمِيتُ وَهُوَ حَيٌّ لَا يَمُوتُ أَبَدًا أَبَدًا ذُو الْجَلَالِ وَالْإِكْرَامِ بِيَدِهِ الْخَيْرُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ",
+   "said": "La ilaha illallahu wahdahu la sharika lahu, lahul-mulku wa lahul-hamdu, yuhyi wa yumitu wa huwa hayyun la yamutu abadan abada, dhul-jalali wal-ikram, biyadihil-khayr, wa huwa ala kulli shay'in qadir",
+   "text": {
+    "en": "There is no god but Allah, alone, with no partner. His is the dominion and His is the praise. He gives life and causes death, and He is living and will never die. Owner of majesty and honour; in His hand is all good, and He has power over all things."
+   }
+  },
+  {
+   "key": "istighfar",
+   "title": "Fifth Kalima · Istighfar",
+   "ref": "The Word of Seeking Forgiveness",
+   "arabic": "أَسْتَغْفِرُ اللهَ رَبِّي مِنْ كُلِّ ذَنْبٍ أَذْنَبْتُهُ عَمْدًا أَوْ خَطَأً سِرًّا أَوْ عَلَانِيَةً وَأَتُوبُ إِلَيْهِ مِنَ الذَّنْبِ الَّذِي أَعْلَمُ وَمِنَ الذَّنْبِ الَّذِي لَا أَعْلَمُ إِنَّكَ أَنْتَ عَلَّامُ الْغُيُوبِ وَسَتَّارُ الْعُيُوبِ وَغَفَّارُ الذُّنُوبِ وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ الْعَلِيِّ الْعَظِيمِ",
+   "said": "Astaghfirullaha rabbi min kulli dhambin adhnabtuhu amdan aw khata'an sirran aw alaniyatan, wa atubu ilayhi minadh-dhambil-ladhi a'lamu wa minadh-dhambil-ladhi la a'lamu, innaka anta allamul-ghuyubi wa sattarul-uyubi wa ghaffarudh-dhunubi, wa la hawla wa la quwwata illa billahil-aliyyil-azim",
+   "text": {
+    "en": "I seek forgiveness from Allah, my Lord, for every sin I have committed, deliberately or by mistake, secretly or openly. And I turn to Him from the sin I know of and the sin I do not know of. Indeed You are the Knower of all that is hidden, the Concealer of faults and the Forgiver of sins; and there is no power nor strength except with Allah, the Most High, the Most Great."
+   }
+  },
+  {
+   "key": "radd_e_kufr",
+   "title": "Sixth Kalima · Radd-e-Kufr",
+   "ref": "The Word of Rejecting Disbelief",
+   "arabic": "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ أَنْ أُشْرِكَ بِكَ شَيْئًا وَأَنَا أَعْلَمُ بِهِ وَأَسْتَغْفِرُكَ لِمَا لَا أَعْلَمُ بِهِ تُبْتُ عَنْهُ وَتَبَرَّأْتُ مِنَ الْكُفْرِ وَالشِّرْكِ وَالْكِذْبِ وَالْغِيبَةِ وَالْبِدْعَةِ وَالنَّمِيمَةِ وَالْفَوَاحِشِ وَالْبُهْتَانِ وَالْمَعَاصِي كُلِّهَا وَأَسْلَمْتُ وَأَقُولُ لَا إِلَٰهَ إِلَّا اللهُ مُحَمَّدٌ رَسُولُ اللهِ",
+   "said": "Allahumma inni a'udhu bika min an ushrika bika shay'an wa ana a'lamu bihi, wa astaghfiruka lima la a'lamu bihi, tubtu anhu wa tabarra'tu minal-kufri wash-shirki wal-kidhbi wal-ghibati wal-bid'ati wan-namimati wal-fawahishi wal-buhtani wal-ma'asi kulliha, wa aslamtu wa aqulu: la ilaha illallahu Muhammadur Rasulullah",
+   "text": {
+    "en": "O Allah, I seek refuge in You from knowingly associating anything with You, and I seek Your forgiveness for what I do not know of. I repent of it, and I renounce disbelief, idolatry, lying, backbiting, innovation, slander, indecency, false accusation and all acts of disobedience. I submit, and I say: there is no god but Allah, Muhammad is the Messenger of Allah."
+   }
+  }
+ ]
+}

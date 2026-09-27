@@ -190,6 +190,11 @@
     "quran.page": "Página {at} de {of}",
     "update.close": "Cerrar",
     "update.now": "Actualizar ahora",
-    "update.later": "Ahora no"
+    "update.later": "Ahora no",
+    "corner.duas": "Súplicas",
+    "corner.kalima": "Los seis kalima",
+    "corner.unchecked": "Pendiente de revisión por alguien que lea árabe.",
+    "corner.back_list": "Volver a la lista",
+    "corner.item": "{at} de {of}"
   }
 }

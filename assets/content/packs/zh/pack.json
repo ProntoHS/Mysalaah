@@ -190,6 +190,11 @@
     "quran.page": "第 {at} 页，共 {of} 页",
     "update.close": "关闭",
     "update.now": "立即更新",
-    "update.later": "暂不更新"
+    "update.later": "暂不更新",
+    "corner.duas": "祈祷文",
+    "corner.kalima": "六大证言",
+    "corner.unchecked": "等待懂阿拉伯语的人校对。",
+    "corner.back_list": "返回列表",
+    "corner.item": "第 {at} / {of}"
   }
 }

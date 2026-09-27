@@ -188,7 +188,12 @@
     "quran.page": "Page {at} sur {of}",
     "update.close": "Fermer",
     "update.now": "Mettre à jour",
-    "update.later": "Plus tard"
+    "update.later": "Plus tard",
+    "corner.duas": "Du'as",
+    "corner.kalima": "Les six kalima",
+    "corner.unchecked": "En attente de vérification par un lecteur d'arabe.",
+    "corner.back_list": "Retour à la liste",
+    "corner.item": "{at} sur {of}"
   },
   "transliteration": {},
   "translation": {}
