@@ -195,6 +195,9 @@
     "corner.kalima": "六大证言",
     "corner.unchecked": "等待懂阿拉伯语的人校对。",
     "corner.back_list": "返回列表",
-    "corner.item": "第 {at} / {of}"
+    "corner.item": "第 {at} / {of}",
+    "quran.recite": "诵读",
+    "quran.stop_reciting": "停止",
+    "quran.cannot_recite": "无法诵读"
   }
 }

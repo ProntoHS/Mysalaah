@@ -193,7 +193,10 @@
     "corner.kalima": "چھ کلمے",
     "corner.unchecked": "عربی پڑھنے والے کی جانچ کا انتظار ہے۔",
     "corner.back_list": "فہرست پر واپس",
-    "corner.item": "{of} میں سے {at}"
+    "corner.item": "{of} میں سے {at}",
+    "quran.recite": "تلاوت",
+    "quran.stop_reciting": "روکیں",
+    "quran.cannot_recite": "تلاوت دستیاب نہیں"
   },
   "transliteration": {},
   "translation": {}

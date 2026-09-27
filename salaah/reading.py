@@ -16,6 +16,7 @@ Al-Ikhlas because its verses are longer, which is exactly what a printed mushaf 
 """
 from __future__ import annotations
 
+from .audio import WHOLE, Span
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .quran import RTL, Quran, Surah, Verse
 from .render import Fonts, ParallelText, TextBox
@@ -31,6 +32,15 @@ MOST_VERSES = 40          # a page never holds more than this, however short the
 # that matters more than the habit does.
 FORWARD_IS_LEFT = True
 SWIPE = 60                # pixels, at 1080p, before a drag counts as a page turn
+
+# How long to wait for a verse to arrive before giving up on it. A verse is 143 KB, so this is
+# generous; the point is that a connection which hangs leaves a message rather than a dead
+# screen with the play button stuck on stop.
+PATIENCE = 30.0
+
+# The recite button. Glyphs, not words: see the note where the button is built.
+PLAY = "\u25b6"
+STOP = "\u25a0"
 
 
 class SurahList(QtWidgets.QWidget):
@@ -157,8 +167,12 @@ class Spread(QtWidgets.QWidget):
         # level with each other. Without: two Arabic boxes, read right first.
         self.parallel = ParallelText(Fonts.arabic(self.win.settings.arabic_font),
                                      Fonts.english_family)
-        self.left = TextBox(Fonts.arabic(self.win.settings.arabic_font), FLOOR_PX, 200, rtl=True)
-        self.right = TextBox(Fonts.arabic(self.win.settings.arabic_font), FLOOR_PX, 200, rtl=True)
+        # by_word so a single word can be lit while it is recited. It costs a word-by-word
+        # layout pass instead of a line-by-line one; the page still breaks in the same places.
+        self.left = TextBox(Fonts.arabic(self.win.settings.arabic_font), FLOOR_PX, 200,
+                            rtl=True, by_word=True)
+        self.right = TextBox(Fonts.arabic(self.win.settings.arabic_font), FLOOR_PX, 200,
+                             rtl=True, by_word=True)
         for w in (self.parallel, self.left, self.right):
             w.scale = self.win.s
         lay.addWidget(self.parallel, 1)
@@ -247,7 +261,9 @@ class Spread(QtWidgets.QWidget):
         half = (len(some) + 1) // 2
         for box, lines in ((self.right, some[:half]), (self.left, some[half:])):
             box.lines = [self.numbered(v) for v in lines]
-            if box.lines and box.measure(box.lines, floor) > int(box.height() * 0.92):
+            # measure_as_lines, not measure: see the note on it. Page breaks must not move
+            # just because the words can now be lit one at a time.
+            if box.lines and box.measure_as_lines(box.lines, floor) > int(box.height() * 0.92):
                 return False
         return True
 
@@ -271,6 +287,47 @@ class Spread(QtWidgets.QWidget):
             self.right.set_lines([self.numbered(v) for v in some[:half]])
             self.left.set_lines([self.numbered(v) for v in some[half:]])
         self.update()
+
+    # Lighting a word
+
+    def page_of(self, index: int) -> int | None:
+        """Which page a verse falls on, so reciting can turn to it."""
+        for i, (start, end) in enumerate(self.pages):
+            if start <= index < end:
+                return i
+        return None
+
+    def clear_highlight(self) -> None:
+        self.parallel.set_highlight(None)
+        self.left.set_highlight(None)
+        self.right.set_highlight(None)
+
+    def highlight_at(self, index: int, word: int | None) -> None:
+        """Light word [word] of the verse at [index], wherever on the spread it has landed.
+
+        With a translation there is one row per verse, so the row is the verse. Without, the
+        page is split down the middle -- the right page first, then the left -- so which box
+        holds the verse has to be worked out, and it is easy to get off by a half.
+        """
+        if word is None or not self.pages:
+            return self.clear_highlight()
+        start, end = self.pages[max(0, min(self.at, len(self.pages) - 1))]
+        if not start <= index < end:
+            return self.clear_highlight()
+        row = index - start
+        if self.translated:
+            self.left.set_highlight(None)
+            self.right.set_highlight(None)
+            self.parallel.set_highlight((row, word))
+            return
+        self.parallel.set_highlight(None)
+        half = (end - start + 1) // 2
+        if row < half:
+            self.right.set_highlight((row, word))
+            self.left.set_highlight(None)
+        else:
+            self.left.set_highlight((row - half, word))
+            self.right.set_highlight(None)
 
     def turn(self, forward: bool) -> bool:
         wanted = self.at + (1 if forward else -1)
@@ -335,6 +392,16 @@ class Reader(QtWidgets.QWidget):
         self.back_button.clicked.connect(self.back.emit)
         bar.addWidget(self.back_button)
 
+        # A glyph rather than the word "Recite": spelled out in six languages it crowded the
+        # language buttons off the bar and clipped "Arabic only" to "abic on". The word is on
+        # the tooltip for anyone who wonders.
+        self.recite_button = QtWidgets.QPushButton(PLAY)
+        self.recite_button.setObjectName("reciteButton")
+        self.recite_button.setToolTip(self.win.t("quran.recite"))
+        self.recite_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.recite_button.clicked.connect(self.toggle_reciting)
+        bar.addWidget(self.recite_button)
+
         self.title = QtWidgets.QLabel()
         self.title.setObjectName("readerTitle")
         bar.addWidget(self.title)
@@ -370,11 +437,28 @@ class Reader(QtWidgets.QWidget):
         bar.addWidget(self.later)
         outer.addLayout(bar)
 
+        # Which verse is sounding. The only sign of it on the twelve verses whose words cannot
+        # be lit, and a useful one on the rest.
+        self.saying = QtWidgets.QLabel()
+        self.saying.setObjectName("sayingVerse")
+        bar.addWidget(self.saying)
+
         self.spread = Spread(self.win)
         self.spread.turned.connect(self.say_where)
         outer.addWidget(self.spread, 1)
 
+        # Reciting state. at_verse is an index into the surah, not a verse number.
+        self.reciting = False
+        self.at_verse = 0
+        self.waiting = False            # the recording has been asked for and is not here yet
+        self.waited = 0.0               # seconds spent waiting for it
+        self.follow = QtCore.QTimer(self)
+        self.follow.setInterval(50)     # often enough that a word lights when it is said
+        self.follow.timeout.connect(self.tick)
+
     def open(self, number: int) -> None:
+        if self.reciting:
+            self.stop_reciting()
         self.number = number
         surah = self.quran.surah(number)
         if surah is not None:
@@ -404,6 +488,102 @@ class Reader(QtWidgets.QWidget):
     def turn(self, forward: bool) -> bool:
         """The ring button and the arrow keys turn pages too, not only a finger."""
         return self.spread.turn(forward)
+
+    # Reciting
+
+    def can_recite(self) -> bool:
+        return (self.win.recitation.available
+                and self.win.word_times.known(self.number))
+
+    def toggle_reciting(self) -> None:
+        self.stop_reciting() if self.reciting else self.start_reciting()
+
+    def start_reciting(self) -> None:
+        """Begin at the top of the page being looked at, not at the top of the surah: somebody
+        on page nine of Al-Baqarah wants to hear page nine."""
+        if not self.spread.verses:
+            return
+        if not self.can_recite():
+            self.saying.setText(self.win.t("quran.cannot_recite"))
+            return
+        start, _end = self.spread.pages[max(0, min(self.spread.at, len(self.spread.pages) - 1))]
+        self.reciting = True
+        self.at_verse = start
+        self.recite_button.setText(STOP)
+        self.recite_button.setToolTip(self.win.t("quran.stop_reciting"))
+        self.begin_verse()
+        self.follow.start()
+
+    def stop_reciting(self, said: str = "") -> None:
+        """Stop, and leave [said] in the bar. Stopping used to clear the bar unconditionally,
+        which wiped the very message explaining why it had stopped -- so it reads what it is
+        told to read, and the default is nothing."""
+        self.follow.stop()
+        self.reciting = False
+        self.waiting = False
+        self.win.recitation.stop()
+        self.spread.clear_highlight()
+        self.saying.setText(said)
+        self.recite_button.setText(PLAY)
+        self.recite_button.setToolTip(self.win.t("quran.recite"))
+
+    def begin_verse(self) -> None:
+        """Ask for this verse's recording and the few after it, and play as soon as it lands."""
+        verses = self.spread.verses
+        if not 0 <= self.at_verse < len(verses):
+            return self.stop_reciting()
+        page = self.spread.page_of(self.at_verse)
+        if page is not None and page != self.spread.at:
+            self.spread.go_to(page)          # turn to the verse being recited
+        number = verses[self.at_verse].number
+        self.saying.setText(f"{self.number}:{number}")
+        soon = [(self.number, verses[i].number)
+                for i in range(self.at_verse, min(len(verses), self.at_verse + 4))]
+        self.win.verses.want(soon)
+        self.waiting = True
+        self.waited = 0.0
+        self.play_now()
+
+    def play_now(self) -> bool:
+        """Play the verse if its recording is here. Quietly does nothing if it is not yet."""
+        verses = self.spread.verses
+        number = verses[self.at_verse].number
+        if not self.win.verses.have(self.number, number):
+            if self.win.verses.gave_up_on(self.number, number) or self.waited >= PATIENCE:
+                self.stop_reciting(self.win.t("quran.cannot_recite"))
+            return False
+        self.waiting = False
+        path = self.win.verses.path_for(self.number, number)
+        if not self.win.recitation.play(path, Span(0.0, WHOLE)):
+            self.stop_reciting(self.win.t("quran.cannot_recite"))
+            return False
+        return True
+
+    def tick(self) -> None:
+        """Fifty times a second: light the word being said, and move on at the end of a verse."""
+        if not self.reciting:
+            return
+        if self.waiting:
+            self.waited += self.follow.interval() / 1000.0
+            self.play_now()
+            return
+        position = self.win.recitation.position()
+        if position is None and not self.win.recitation.busy:
+            self.at_verse += 1              # that verse is done; on to the next
+            self.spread.clear_highlight()
+            if self.at_verse >= len(self.spread.verses):
+                return self.stop_reciting()
+            return self.begin_verse()
+        if position is None:
+            return
+        number = self.spread.verses[self.at_verse].number
+        if self.win.word_times.whole_only(self.number, number):
+            # One of the twelve where the two texts disagree about where a word ends. Lighting
+            # a word here would light the wrong one, so none is lit and the bar says the verse.
+            self.spread.clear_highlight()
+            return
+        word = self.win.word_times.word_at(self.number, number, position)
+        self.spread.highlight_at(self.at_verse, word)
 
     def follow_theme(self) -> None:
         self.spread.follow_theme()

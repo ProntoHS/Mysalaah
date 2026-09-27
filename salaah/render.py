@@ -326,6 +326,17 @@ class TextBox(QtWidgets.QWidget):
                                  self.gap)[1]
         return _height(lines, self.width(), self.family, px, self.gap, self.weight)
 
+    def measure_as_lines(self, lines: list[str], px: int) -> int:
+        """The height by the line-at-a-time reckoning, whatever this box draws with.
+
+        Laying out word by word packs text about a sixth tighter than laying out whole lines,
+        so turning on by_word would silently fit more verses on a page -- Al-Baqarah went from
+        23 pages to 19 the moment the Qur'an reader could light a word. Where a page breaks
+        should not depend on whether a word can be lit, so the page-breaking asks for this
+        measure and gets the same answer it always did. Drawing then takes a little less room
+        than was set aside for it, which is the safe way round."""
+        return _height(lines, self.width(), self.family, px, self.gap, self.weight)
+
     def fits(self, lines: list[str]) -> bool:
         """Would these lines fit in the box at the smallest size we allow, with room to spare?"""
         lines = [x for x in lines if x]

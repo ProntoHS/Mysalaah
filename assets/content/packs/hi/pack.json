@@ -195,6 +195,9 @@
     "corner.kalima": "छह कलिमे",
     "corner.unchecked": "अरबी पढ़ने वाले द्वारा जाँच बाकी है।",
     "corner.back_list": "सूची पर वापस",
-    "corner.item": "{of} में से {at}"
+    "corner.item": "{of} में से {at}",
+    "quran.recite": "तिलावत",
+    "quran.stop_reciting": "रोकें",
+    "quran.cannot_recite": "तिलावत उपलब्ध नहीं"
   }
 }

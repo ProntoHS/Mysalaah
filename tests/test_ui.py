@@ -2,6 +2,7 @@
 import json
 import os
 import time
+import urllib.request
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -13,6 +14,16 @@ from salaah.qt import API, QtCore, QtGui, QtWidgets, Qt  # noqa: E402
 from salaah.render import MIN_ARABIC_PX  # noqa: E402
 from salaah.settings import Settings  # noqa: E402
 from salaah.ui import MainWindow  # noqa: E402
+
+# No test goes on the internet. The verse recitation fetches from everyayah.com, and a test
+# that quietly dials out is slow, flaky, rude to somebody else's CDN, and -- when it prefetches
+# past the files a test laid down -- waits twenty seconds per verse for a connection that is
+# never coming. Anything that tries gets an instant refusal instead.
+def _offline(*_a, **_k):
+    raise OSError("the tests do not go on the internet")
+
+
+urllib.request.urlopen = _offline
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 SHOTS = Path("/tmp/salaah-shots") / API
@@ -32,6 +43,11 @@ def settle(rounds=5):
     for _ in range(rounds):
         APP.processEvents()
         APP.sendPostedEvents()
+    # And actually deliver the deletes. deleteLater() only posts a DeferredDelete event, which
+    # plain processEvents() does not deliver, so every window a test closed stayed in memory --
+    # about 25 MB each. Harmless while the suite was small; it grew until the run was killed for
+    # running out of memory, which looks like a hang and is not one.
+    APP.sendPostedEvents(None, QtCore.QEvent.Type.DeferredDelete)
 
 
 def pace(win):
@@ -3924,3 +3940,364 @@ class PassageScreenTest(unittest.TestCase):
             settle()
             w.grab().save(str(SHOTS / f"{which}-dark.png"))
             self.assertTrue(w.section_readers[which].arabic.lines)
+
+
+class FakePlayer:
+    """Stands in for the real player so a test can say exactly where in the audio it is."""
+
+    available = True
+
+    def __init__(self):
+        self.at = 0.0
+        self.on = False
+        self.played = []
+        self.stops = 0
+
+    @property
+    def busy(self):
+        return self.on
+
+    def play(self, path, span, times=1):
+        self.played.append(Path(path).name)
+        self.on = True
+        self.at = 0.0
+        return True
+
+    def stop(self):
+        self.on = False
+        self.stops += 1
+
+    def position(self):
+        return self.at if self.on else None
+
+    def set_volume(self, volume):
+        pass
+
+    def finish(self):
+        """The recording has run out."""
+        self.on = False
+
+
+class ReciteTest(unittest.TestCase):
+    """Reciting a surah on the big screen, with the word going red as it is said."""
+
+    def window(self, surah=1, verses=8, **settings):
+        import tempfile
+        from salaah.recite import Store
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        room = Path(tempfile.mkdtemp())
+        w.verses = Store(room=room, opener=_offline)
+        for v in range(1, verses + 1):          # pretend they are already downloaded
+            path = w.verses.path_for(surah, v)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"ID3" + b"\0" * 4000)
+        w.recitation = FakePlayer()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents(),
+                                 __import__("shutil").rmtree(room, ignore_errors=True)))
+        return w
+
+    def test_pressing_recite_starts_the_first_verse_of_the_page(self):
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        self.assertFalse(r.reciting)
+        r.recite_button.click()
+        settle()
+        self.assertTrue(r.reciting)
+        self.assertEqual(["001001.mp3"], w.recitation.played)
+        self.assertEqual("1:1", r.saying.text())
+
+    def test_the_word_being_said_is_the_word_that_is_lit(self):
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        r.recite_button.click()
+        settle()
+        for start_word, _end, start_ms, end_ms in w.word_times.words(1, 1):
+            w.recitation.at = (start_ms + end_ms) / 2000.0
+            r.tick()
+            settle()
+            self.assertEqual((0, start_word), r.spread.right.highlight,
+                             f"at {w.recitation.at:.2f}s the wrong word was lit")
+
+    def test_the_lit_word_is_really_drawn_red(self):
+        """Setting a highlight and drawing one are different claims. This one counts pixels."""
+        from salaah import theme
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        r.recite_button.click()
+        settle()
+        want = QtGui.QColor(theme.palette().highlight)
+
+        def redness():
+            image = r.spread.right.grab().toImage()
+            count = 0
+            for y in range(image.height()):
+                for x in range(image.width()):
+                    c = QtGui.QColor(image.pixel(x, y))
+                    if (abs(c.red() - want.red()) < 50 and abs(c.green() - want.green()) < 50
+                            and abs(c.blue() - want.blue()) < 50):
+                        count += 1
+            return count
+        r.spread.clear_highlight()
+        settle()
+        dark = redness()
+        w.recitation.at = 1.0
+        r.tick()
+        settle()
+        self.assertIsNotNone(r.spread.right.highlight)
+        self.assertGreater(redness(), dark + 30, "the highlight was set but nothing went red")
+
+    def test_it_moves_on_to_the_next_verse_when_one_finishes(self):
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        r.recite_button.click()
+        settle()
+        w.recitation.finish()
+        r.tick()
+        settle()
+        self.assertEqual(["001001.mp3", "001002.mp3"], w.recitation.played)
+        self.assertEqual("1:2", r.saying.text())
+
+    def test_it_stops_itself_at_the_end_of_the_surah(self):
+        w = self.window(surah=1, verses=7)
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        r.recite_button.click()
+        settle()
+        for _ in range(8):
+            w.recitation.finish()
+            r.tick()
+            settle()
+        self.assertFalse(r.reciting, "it should have stopped at the end rather than run on")
+        self.assertEqual("", r.saying.text())
+
+    def test_the_page_turns_to_follow_the_recitation(self):
+        w = self.window(surah=2, verses=60)
+        w.open_surah(2)
+        settle()
+        r = w.reader
+        self.assertGreater(r.spread.pages_count, 1, "Al-Baqarah should be many pages")
+        r.recite_button.click()
+        settle()
+        first_page = r.spread.at
+        seen = {first_page}
+        for _ in range(60):
+            w.recitation.finish()
+            r.tick()
+            settle()
+            seen.add(r.spread.at)
+            if len(seen) > 1:
+                break
+        self.assertGreater(len(seen), 1, "the page never turned to keep up with the reciting")
+
+    def test_no_word_is_lit_on_the_twelve_verses_we_cannot_be_sure_of(self):
+        """2:72 is one of the twelve where our text and the timings disagree about where a word
+        ends. Lighting a word there would light the wrong one."""
+        w = self.window(surah=2, verses=80)
+        w.open_surah(2)
+        settle()
+        r = w.reader
+        self.assertTrue(w.word_times.whole_only(2, 72))
+        verses = r.spread.verses
+        r.at_verse = next(i for i, v in enumerate(verses) if v.number == 72)
+        r.reciting = True
+        r.waiting = False
+        w.recitation.play(w.verses.path_for(2, 72), None)
+        w.recitation.at = 1.0
+        r.tick()
+        settle()
+        self.assertIsNone(r.spread.right.highlight)
+        self.assertIsNone(r.spread.left.highlight)
+        self.assertIsNone(r.spread.parallel.highlight)
+
+    def test_a_verse_on_the_left_page_lights_on_the_left_page(self):
+        """Without a translation the page is split down the middle, right page read first, so
+        a verse in the second half sits in a different box at a different row. Dropping that
+        offset lights a word on the wrong half of the spread, and every test that only ever
+        recited the first verse of a page would sail straight past it."""
+        w = self.window(surah=1, verses=8)
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        start, end = r.spread.pages[r.spread.at]
+        half = (end - start + 1) // 2
+        self.assertLess(half, end - start, "this surah needs verses on both pages")
+        index = start + half                      # the first verse of the left page
+        r.at_verse = index
+        r.reciting = True
+        r.waiting = False
+        number = r.spread.verses[index].number
+        w.recitation.play(w.verses.path_for(1, number), None)
+        words = w.word_times.words(1, number)
+        w.recitation.at = (words[0][2] + words[0][3]) / 2000.0
+        r.tick()
+        settle()
+        self.assertEqual((0, words[0][0]), r.spread.left.highlight,
+                         "the left page should light its own first row")
+        self.assertIsNone(r.spread.right.highlight, "and the right page should go dark")
+
+    def test_the_twelve_are_refused_even_if_timings_turned_up_for_them(self):
+        """The built data carries no word timings for those twelve, so nothing lights whatever
+        the code does. That is belt and braces, not a reason to leave the braces untested: if
+        a future build ever did emit timings for one of them, the code must still refuse."""
+        w = self.window(surah=2, verses=80)
+        w.open_surah(2)
+        settle()
+        r = w.reader
+        real = w.word_times.words
+
+        def pretend(surah, verse):
+            if (surah, verse) == (2, 72):
+                return [[0, 1, 0, 5000]]          # timings that should not be trusted
+            return real(surah, verse)
+        w.word_times.words = pretend
+        self.addCleanup(lambda: setattr(w.word_times, "words", real))
+        self.assertIsNotNone(w.word_times.word_at(2, 72, 1.0), "the pretence must be in place")
+
+        verses = r.spread.verses
+        r.at_verse = next(i for i, v in enumerate(verses) if v.number == 72)
+        r.spread.go_to(r.spread.page_of(r.at_verse))
+        r.reciting = True
+        r.waiting = False
+        w.recitation.play(w.verses.path_for(2, 72), None)
+        w.recitation.at = 1.0
+        r.tick()
+        settle()
+        self.assertIsNone(r.spread.right.highlight)
+        self.assertIsNone(r.spread.left.highlight)
+        self.assertIsNone(r.spread.parallel.highlight)
+
+    def test_a_word_is_lit_on_the_verse_right_after_one_of_the_twelve(self):
+        """So the fallback is confined to the verse it belongs to, and does not leak onward."""
+        w = self.window(surah=2, verses=80)
+        w.open_surah(2)
+        settle()
+        r = w.reader
+        verses = r.spread.verses
+        r.at_verse = next(i for i, v in enumerate(verses) if v.number == 73)
+        r.reciting = True
+        r.waiting = False
+        page = r.spread.page_of(r.at_verse)
+        r.spread.go_to(page)
+        w.recitation.play(w.verses.path_for(2, 73), None)
+        words = w.word_times.words(2, 73)
+        w.recitation.at = (words[0][2] + words[0][3]) / 2000.0
+        r.tick()
+        settle()
+        lit = (r.spread.right.highlight, r.spread.left.highlight)
+        self.assertTrue(any(x is not None for x in lit), "2:73 should still light its words")
+
+    def test_leaving_the_book_stops_the_recitation(self):
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        r.recite_button.click()
+        settle()
+        self.assertTrue(r.reciting)
+        w.go_home()
+        settle()
+        self.assertFalse(r.reciting)
+        self.assertGreater(w.recitation.stops, 0, "the player should have been told to stop")
+
+    def test_the_call_to_prayer_silences_it(self):
+        """The azaan comes home first, and coming home stops the reciting -- so the two are
+        never heard over each other."""
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        r.recite_button.click()
+        settle()
+        w.call_to_prayer("dhuhr")
+        settle()
+        self.assertFalse(r.reciting)
+        if w.call_box is not None:
+            w.end_the_call()
+            settle()
+
+    def test_it_does_not_fall_asleep_over_the_recitation(self):
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        r.recite_button.click()
+        settle()
+        w.maybe_sleep()
+        settle()
+        self.assertFalse(w.asleep, "going to sleep mid-recitation would be the rudest moment")
+        self.assertTrue(r.reciting)
+
+    def test_opening_another_surah_stops_it(self):
+        w = self.window(surah=1, verses=8)
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        r.recite_button.click()
+        settle()
+        w.open_surah(36)
+        settle()
+        self.assertFalse(r.reciting)
+        self.assertEqual("", r.saying.text())
+
+    def test_with_no_recording_to_be_had_it_says_so_rather_than_hanging(self):
+        import urllib.error
+        from salaah.recite import Store
+        w = self.window()
+
+        def gone(request, timeout=None):
+            raise urllib.error.HTTPError(request.full_url, 404, "nope", {}, None)
+        w.verses = Store(room=Path(w.verses.room), opener=gone)
+        for leftover in Path(w.verses.room).rglob("*.mp3"):
+            leftover.unlink()
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        r.recite_button.click()
+        settle()
+        r.tick()
+        settle()
+        for _ in range(3):
+            r.tick()
+            settle()
+        self.assertFalse(r.reciting, "it should give up rather than wait for ever")
+        self.assertTrue(r.saying.text(), "and say something rather than nothing")
+
+    def test_with_no_player_on_the_machine_the_button_says_so(self):
+        w = self.window()
+        w.recitation.available = False
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        r.recite_button.click()
+        settle()
+        self.assertFalse(r.reciting)
+        self.assertTrue(r.saying.text())
+
+    def test_reciting_works_with_a_translation_on_the_page_too(self):
+        w = self.window(quran_lang="en")
+        w.open_surah(1)
+        settle()
+        r = w.reader
+        self.assertTrue(r.spread.translated)
+        r.recite_button.click()
+        settle()
+        w.recitation.at = 1.0
+        r.tick()
+        settle()
+        self.assertIsNotNone(r.spread.parallel.highlight,
+                             "with a translation the highlight belongs to the parallel view")
+        self.assertIsNone(r.spread.right.highlight)

@@ -195,6 +195,9 @@
     "corner.kalima": "Los seis kalima",
     "corner.unchecked": "Pendiente de revisión por alguien que lea árabe.",
     "corner.back_list": "Volver a la lista",
-    "corner.item": "{at} de {of}"
+    "corner.item": "{at} de {of}",
+    "quran.recite": "Recitar",
+    "quran.stop_reciting": "Detener",
+    "quran.cannot_recite": "Recitación no disponible"
   }
 }

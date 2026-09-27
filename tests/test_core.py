@@ -1,4 +1,5 @@
 """Core checks. Run on the Pi or any computer: python3 -m unittest discover -s tests"""
+import os
 import unittest
 from unittest import mock
 from dataclasses import replace
@@ -8,11 +9,19 @@ from types import SimpleNamespace
 from salaah.buttons import BACK, NEXT, PressFilter
 from salaah.content import PRAYERS, available_packs, load, UnitEntry
 from salaah.pages import build_pages, posture_image
+from salaah.qt import QtWidgets
 from salaah.session import Debouncer, PrayerSession, assign_rakats
 from salaah.validator import check
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 CONTENT = load(ASSETS)
+
+# Several of these load fonts or build a widget, which needs an application to exist first --
+# loading a font without one segfaults. It used to work by luck: some other test class happened
+# to make one earlier, and unittest runs classes in alphabetical order, so adding a class whose
+# name sorted earlier moved the luck and the suite started crashing. Made here, once, on purpose.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+APP = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
 
 class ContentTest(unittest.TestCase):
@@ -2031,3 +2040,244 @@ class PassagesTest(unittest.TestCase):
     def test_the_list_row_shows_the_opening_words(self):
         item = self.loader("duas").at(0)
         self.assertEqual(item.arabic.split()[:4], item.opening().split())
+
+
+class VerseStoreTest(unittest.TestCase):
+    """Fetching verse recordings, and every way that can go wrong.
+
+    None of these touch the network. The opener is handed in, so a test can be a CDN that is
+    slow, truncating, lying about the size, or simply not there."""
+
+    def answer(self, data, length=True, size=None):
+        import io
+
+        class Answer(io.BytesIO):
+            def __init__(self, blob):
+                super().__init__(blob)
+                self.headers = {} if not length else {
+                    "Content-Length": str(size if size is not None else len(blob))}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+        return Answer(data)
+
+    def store(self, opener=None, **kw):
+        import tempfile
+        from pathlib import Path
+        from salaah.recite import Store
+        room = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(room, ignore_errors=True))
+        return Store(room=room, opener=opener, **kw)
+
+    def good(self, size=5000):
+        def opener(request, timeout=None):
+            return self.answer(b"ID3" + b"\0" * size)
+        return opener
+
+    def test_the_address_is_the_one_everyayah_uses(self):
+        from salaah.recite import url_for
+        self.assertEqual("https://everyayah.com/data/Alafasy_128kbps/001001.mp3", url_for(1, 1))
+        self.assertEqual("https://everyayah.com/data/Alafasy_128kbps/002286.mp3", url_for(2, 286))
+        self.assertEqual("https://everyayah.com/data/Alafasy_128kbps/114006.mp3", url_for(114, 6))
+
+    def test_a_verse_is_fetched_once_and_then_read_off_the_disk(self):
+        s = self.store(self.good())
+        first = s.fetch(1, 1)
+        self.assertIsNotNone(first)
+        self.assertTrue(s.have(1, 1))
+        self.assertEqual(1, s.tried)
+        self.assertEqual(first, s.fetch(1, 1))
+        self.assertEqual(1, s.tried, "the second ask must not go back to the network")
+
+    def test_a_half_finished_download_is_never_left_where_it_could_be_played(self):
+        """The file is written beside its real name and moved into place only when whole. A
+        recitation cut off in the middle would be worse than none."""
+        from pathlib import Path
+
+        def breaks(request, timeout=None):
+            raise OSError("the wifi went")
+        s = self.store(breaks)
+        self.assertIsNone(s.fetch(1, 1))
+        self.assertFalse(s.have(1, 1))
+        self.assertEqual([], list(Path(s.room).rglob("*.part")), "a .part file was left behind")
+        self.assertEqual([], list(Path(s.room).rglob("*.mp3")))
+
+    def test_a_download_that_is_far_too_small_is_thrown_away(self):
+        """An error page served with a 200 is a few hundred bytes of HTML, not a recitation."""
+        s = self.store(lambda request, timeout=None: self.answer(b"<html>nope</html>"))
+        self.assertIsNone(s.fetch(1, 1))
+        self.assertFalse(s.have(1, 1))
+
+    def test_something_far_too_big_is_refused_before_it_is_downloaded(self):
+        from salaah.recite import MOST
+        pulled = []
+
+        def huge(request, timeout=None):
+            pulled.append(request.full_url)
+            return self.answer(b"x" * 10, size=MOST * 4)
+        s = self.store(huge)
+        self.assertIsNone(s.fetch(1, 1))
+        self.assertEqual(1, len(pulled), "it should look, once, and decline")
+
+    def test_a_verse_that_cannot_be_had_is_not_asked_for_forever(self):
+        """Otherwise the reader sits there hammering a CDN that has already said no."""
+        import urllib.error
+
+        def gone(request, timeout=None):
+            raise urllib.error.HTTPError(request.full_url, 404, "nope", {}, None)
+        s = self.store(gone)
+        self.assertIsNone(s.fetch(1, 1))
+        self.assertTrue(s.gave_up_on(1, 1))
+        self.assertFalse(s.gave_up_on(1, 2))
+
+    def test_it_says_who_it_is(self):
+        """A mat fetching from somebody else's CDN should be identifiable."""
+        seen = {}
+
+        def opener(request, timeout=None):
+            seen.update(request.headers)
+            return self.answer(b"ID3" + b"\0" * 5000)
+        self.store(opener).fetch(1, 1)
+        agent = next(v for k, v in seen.items() if k.lower() == "user-agent")
+        self.assertIn("Salaah/", agent)
+        self.assertIn("github.com/ProntoHS", agent)
+
+    def test_the_cache_is_not_inside_the_app_folder(self):
+        """An update replaces the app folder wholesale. Keeping a gigabyte of recitation in
+        there would throw it away every time the version changed."""
+        from pathlib import Path
+        from salaah.recite import Store
+        from salaah.update import REPLACES
+        where = Store().path_for(1, 1)
+        self.assertNotIn("assets", where.parts)
+        for folder in REPLACES:
+            self.assertNotIn(folder, where.parts, f"the cache sits inside {folder}")
+        self.assertIn(".salaah", where.parts)
+        self.assertTrue(str(where).endswith("001001.mp3"))
+
+    def test_asking_in_the_background_fetches_what_is_missing_and_skips_what_is_not(self):
+        got = []
+
+        def opener(request, timeout=None):
+            got.append(request.full_url)
+            return self.answer(b"ID3" + b"\0" * 5000)
+        s = self.store(opener)
+        s.fetch(1, 1)
+        s.want([(1, 1), (1, 2), (1, 3)])
+        s.settle()
+        names = sorted(u.rsplit("/", 1)[-1] for u in got)
+        self.assertEqual(["001001.mp3", "001002.mp3", "001003.mp3"], names)
+        self.assertEqual(1, names.count("001001.mp3"), "the one already here was fetched twice")
+
+    def test_a_broken_cdn_does_not_take_the_background_thread_down(self):
+        def explode(request, timeout=None):
+            raise ValueError("something nobody expected")
+        s = self.store(explode)
+        s.want([(1, 1), (1, 2)])
+        s.settle()                       # no exception reaches here, and it finished
+
+
+class WordTimesTest(unittest.TestCase):
+    """Which word is sounding, and the twelve verses where we must not guess."""
+
+    # Worked out in this conversation by comparing quran-align's word counts with our own
+    # Arabic, verse by verse. If this list changes, the text or the timings changed under us.
+    WHOLE = [(2, 72), (2, 181), (8, 6), (10, 1), (13, 1), (13, 37),
+             (15, 7), (27, 20), (36, 22), (37, 164), (41, 47), (50, 34)]
+
+    def times(self):
+        from pathlib import Path
+        from salaah.recite import WordTimes
+        return WordTimes(Path(__file__).resolve().parent.parent / "assets")
+
+    def test_the_timings_are_on_the_mat(self):
+        self.assertTrue(self.times().there)
+
+    def test_every_surah_has_timings(self):
+        t = self.times()
+        for surah in range(1, 115):
+            self.assertTrue(t.known(surah), f"surah {surah} has no timings")
+
+    def test_the_right_word_is_lit_at_the_right_moment(self):
+        t = self.times()
+        words = t.words(1, 1)
+        self.assertTrue(words, "al-Fatihah's first verse should have word timings")
+        for start_word, _end, start_ms, end_ms in words:
+            middle = (start_ms + end_ms) / 2000.0
+            self.assertEqual(start_word, t.word_at(1, 1, middle),
+                             f"the word starting at {start_ms}ms was not lit in its own middle")
+
+    def test_nothing_is_lit_before_the_first_word_or_after_the_last(self):
+        t = self.times()
+        words = t.words(1, 1)
+        self.assertIsNone(t.word_at(1, 1, (words[0][2] - 20) / 1000.0))
+        self.assertIsNone(t.word_at(1, 1, words[-1][3] / 1000.0 + 5))
+
+    def test_the_twelve_verses_we_cannot_be_sure_of_are_marked(self):
+        """quran-align counts words by splitting Tanzil's text; our Arabic is quranenc's. In
+        twelve verses the two split a word differently, and lighting a word there would light
+        the wrong one -- so no word is lit in those twelve."""
+        t = self.times()
+        for surah, verse in self.WHOLE:
+            self.assertTrue(t.whole_only(surah, verse), f"{surah}:{verse} should be marked")
+            self.assertEqual([], t.words(surah, verse),
+                             f"{surah}:{verse} must carry no word timings at all")
+
+    def test_nothing_else_is_marked(self):
+        import json
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent / "assets" / "content" / "quran" / "timings"
+        marked = []
+        for surah in range(1, 115):
+            spot = json.loads((root / f"{surah}.json").read_text(encoding="utf-8"))
+            marked.extend((surah, v) for v in spot.get("whole", []))
+        self.assertEqual(sorted(self.WHOLE), sorted(marked))
+
+    def test_every_verse_with_timings_has_one_per_word_of_our_own_arabic(self):
+        """The check that makes the highlight safe, run against what actually ships: for every
+        verse we will light word by word, the timings must account for exactly as many words as
+        we are going to draw. This is the same comparison the builder makes, done again on the
+        built files, so a builder bug cannot hide behind itself."""
+        import json
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent / "assets" / "content" / "quran"
+        wrong, checked = [], 0
+        for surah in range(1, 115):
+            arabic = {int(v["n"]): len(v["text"].split())
+                      for v in json.loads((root / "ar" / f"{surah}.json")
+                                          .read_text(encoding="utf-8"))}
+            spot = json.loads((root / "timings" / f"{surah}.json").read_text(encoding="utf-8"))
+            for verse, words in spot.get("words", {}).items():
+                checked += 1
+                if max(w[1] for w in words) != arabic[int(verse)]:
+                    wrong.append(f"{surah}:{verse}")
+        self.assertEqual([], wrong)
+        self.assertEqual(6224, checked, "6224 verses should be safe for word-by-word")
+
+    def test_timings_never_run_backwards(self):
+        import json
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent / "assets" / "content" / "quran" / "timings"
+        for surah in range(1, 115):
+            spot = json.loads((root / f"{surah}.json").read_text(encoding="utf-8"))
+            for verse, words in spot.get("words", {}).items():
+                last = -1
+                for _ws, _we, start, end in words:
+                    self.assertLess(start, end, f"{surah}:{verse} has a word of no length")
+                    self.assertGreaterEqual(start, last, f"{surah}:{verse} goes backwards")
+                    last = start
+
+    def test_a_mat_with_no_timings_asks_for_nothing_and_crashes_nowhere(self):
+        import tempfile
+        from pathlib import Path
+        from salaah.recite import WordTimes
+        with tempfile.TemporaryDirectory() as room:
+            t = WordTimes(Path(room))
+            self.assertFalse(t.there)
+            self.assertFalse(t.known(1))
+            self.assertEqual([], t.words(1, 1))
+            self.assertIsNone(t.word_at(1, 1, 0.5))
+            self.assertFalse(t.whole_only(1, 1))

@@ -26,6 +26,7 @@ from .compass import CompassScreen
 from .side import SideWindow
 from .quran import Quran
 from .passages import PassageList, PassageReader, Passages
+from .recite import Store, WordTimes
 from .reading import Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
 from .power import Outputs
@@ -513,6 +514,10 @@ class MainWindow(QtWidgets.QWidget):
         self.notice = None          # the update dialog, while one is on screen
         self.backlight = Backlight()
         self.quran = Quran(self.assets)
+        # The recitation: verse recordings fetched as they are needed, and the word timings
+        # that say which word is sounding. Both are quiet about being absent.
+        self.verses = Store()
+        self.word_times = WordTimes(self.assets)
         self.duas = Passages(self.assets, "duas")
         self.kalima = Passages(self.assets, "kalima")
         self.call = Call(volume=settings.volume)   # the call to prayer
@@ -662,6 +667,11 @@ class MainWindow(QtWidgets.QWidget):
         for timer in ("muezzin", "call_watch", "idle"):
             if hasattr(self, timer):
                 getattr(self, timer).stop()
+        # And the recitation's own clock. It ticks twenty times a second and repaints the page
+        # each time, so a window that has been closed but not yet collected would go on drawing
+        # a surah nobody is looking at.
+        if hasattr(self, "reader") and self.reader.reciting:
+            self.reader.stop_reciting()
         self.call.stop()
         self.stop_audio()
         # The ten-second clock has to be stopped, not just left to be collected. It calls
@@ -736,10 +746,14 @@ class MainWindow(QtWidgets.QWidget):
             return SimpleNamespace(paper="black", ink="#F2F2F2", strong="white", line="#3A3D40",
                                    lapis="#8FB1F0", stone="#A7AEB4", pale="#1F2A40",
                                    chip="#262626", hint="#BBBBBB", source="#AAAAAA",
-                                   divider="#444444", pressed="#333333")
+                                   divider="#444444", pressed="#333333",
+                                   # the word being recited, taken from the theme rather than
+                                   # written again here, so the two can never disagree
+                                   highlight=theme.palette().highlight)
         return SimpleNamespace(paper="white", ink=INK, strong="black", line=LINE, lapis=LAPIS,
                                stone=STONE, pale="#E8ECF5", chip="black", hint="#444",
-                               source="#555", divider="#CCCCCC", pressed="#DDDDDD")
+                               source="#555", divider="#CCCCCC", pressed="#DDDDDD",
+                               highlight=theme.palette().highlight)
 
     def pack_face(self) -> str:
         """The face the menus are written in.
@@ -850,6 +864,12 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#surahArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                   font-size:{px(34)}px; color:{c.strong}; }}
             QLabel#readerTitle {{ font-size:{px(30)}px; font-weight:bold; color:{c.strong}; }}
+            QPushButton#reciteButton {{ background:{c.lapis}; color:{c.paper}; border:none;
+                                        border-radius:{px(10)}px; font-size:{px(26)}px;
+                                        min-width:{px(62)}px; padding:{px(6)}px {px(10)}px; }}
+            QPushButton#reciteButton:pressed {{ background:{c.chip}; }}
+            QLabel#sayingVerse {{ font-size:{px(22)}px; color:{c.highlight};
+                                  padding-left:{px(8)}px; }}
             QLabel#readerWhere {{ font-size:{px(24)}px; color:{c.stone};
                                   min-width:{px(200)}px; qproperty-alignment:AlignCenter; }}
             QPushButton#turnPage {{ background:{c.chip}; color:{c.paper}; border:none;
@@ -1194,6 +1214,10 @@ class MainWindow(QtWidgets.QWidget):
         # message on screen is waiting to be answered. None of those is idleness.
         if self.playing or self.call_box is not None or self.notice is not None:
             return self.stir()
+        # Somebody listening to a surah is not idle. Going to sleep over the recitation would
+        # be the rudest possible moment to do it.
+        if hasattr(self, "reader") and self.reader.reciting:
+            return self.stir()
         self.sleep()
 
     # The clock and the prayer times
@@ -1360,6 +1384,10 @@ class MainWindow(QtWidgets.QWidget):
         self.stack.setCurrentWidget(w)
 
     def go_home(self) -> None:
+        # Leaving the book stops the recitation. This is also what silences it when a prayer
+        # falls due, because the call comes home first before it speaks.
+        if hasattr(self, "reader") and self.reader.reciting:
+            self.reader.stop_reciting()
         self.session = None
         if self.veil.running:
             self.veil.stop()        # don't walk into an arch we have just walked back out of

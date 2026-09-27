@@ -1,0 +1,18 @@
+The word timings in this folder come from quran-align
+(https://github.com/cpfair/quran-align), release release-2016-11-24, file
+Alafasy_128kbps.json, which carries the Creative Commons Attribution 4.0
+International licence. That licence requires attribution, which is why this file exists
+and why the app names the source on screen.
+
+They were generated against the verse-by-verse recordings at
+https://everyayah.com/data/Alafasy_128kbps/ , which is what the mat plays. The timings and
+the audio must stay a matched pair: timings made for one recording do not fit another.
+
+quran-align counts words by splitting Tanzil's Uthmani text on spaces. Our Arabic comes from
+quranenc.com by way of quran-json. The two agree on 6224 of the 6236 verses. The 12
+where they do not are listed in each surah's "whole" field and are highlighted a whole verse
+at a time, so that a word is never lit in the wrong place.
+
+Built by tools/build_timings.py. Verified on build: every verse present, timestamps rising,
+21 zero-length segments dropped, and every word count checked against the Arabic on
+disk.

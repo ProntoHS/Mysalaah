@@ -193,7 +193,10 @@
     "corner.kalima": "The six kalima",
     "corner.unchecked": "Waiting to be checked by a reader of Arabic.",
     "corner.back_list": "Back to the list",
-    "corner.item": "{at} of {of}"
+    "corner.item": "{at} of {of}",
+    "quran.recite": "Recite",
+    "quran.stop_reciting": "Stop",
+    "quran.cannot_recite": "No recitation available"
   },
   "transliteration": {},
   "translation": {
