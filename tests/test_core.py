@@ -1232,6 +1232,30 @@ class UpdateTest(unittest.TestCase):
                 fetch("http://example/x.zip", opener=dead)
         self.assertIn("Connection reset", str(caught.exception))
 
+    def test_the_two_kinds_of_missing_are_told_apart(self):
+        """A manifest that is not there means nothing has been published. A zip that is not
+        there means a release exists and its file is not where it says. Those have different
+        fixes, and calling them the same thing sent us looking in the wrong place."""
+        import urllib.error
+        from salaah.update import Refused, check, install, Release
+
+        def missing(url, timeout=None):
+            raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+
+        with self.assertRaises(Refused) as no_manifest:
+            check("http://example/latest.json", opener=missing)
+        self.assertIn("nothing has been published", str(no_manifest.exception))
+
+        import tempfile
+        from pathlib import Path as P
+        with mock.patch("salaah.update.PAUSE", 0):
+            with self.assertRaises(Refused) as no_zip:
+                install(Release(version="9.9", url="http://example/x.zip", sha256="0" * 64),
+                        P(tempfile.mkdtemp()), opener=missing)
+        self.assertIn("its file is not there", str(no_zip.exception))
+        self.assertNotEqual(str(no_manifest.exception), str(no_zip.exception),
+                            "the two must not read the same")
+
     def test_a_missing_file_is_not_retried(self):
         """Asking three times for something that is not there wastes a minute of someone's
         evening to arrive at the same answer."""

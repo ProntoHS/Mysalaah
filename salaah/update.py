@@ -152,7 +152,7 @@ def open_url(url: str, timeout: float | None = None):
 
 
 def fetch(url: str, into: Path | None = None, most: int = MOST, opener=None,
-          tries: int = TRIES) -> bytes | Path:
+          tries: int = TRIES, missing: str = "") -> bytes | Path:
     """Fetches a URL, giving up rather than filling the disk. Returns the bytes, or the path if
     [into] was given.
 
@@ -169,11 +169,12 @@ def fetch(url: str, into: Path | None = None, most: int = MOST, opener=None,
         except Refused:
             raise                       # our own refusals are decisions, not accidents
         except urllib.error.HTTPError as problem:
-            # 404 is its own case because it is the ordinary one: it means no release has been
-            # published at this address yet. Saying "HTTP Error 404: Not Found" on a prayer mat
-            # tells the person nothing, and the honest words are shorter anyway.
+            # 404 is its own case because it is the ordinary one. Which 404 it is matters:
+            # a missing manifest means nothing has been published, a missing zip means a
+            # release exists but its file is not where it says. Those are different mistakes
+            # with different fixes, and calling them the same thing cost an evening.
             if problem.code == 404:
-                raise Refused("nothing has been published to update to yet")
+                raise Refused(missing or "nothing has been published to update to yet")
             if problem.code < 500:
                 raise Refused(f"could not reach the update: {problem}")
             last = problem              # the far end is having a bad day; it may pass
@@ -212,7 +213,8 @@ def fetch_once(url: str, into: Path | None, most: int, opener) -> bytes | Path:
 
 def check(url: str = "", opener=None, key: str = "") -> Release:
     """What is being offered. Raises Refused if it cannot be fetched or does not verify."""
-    raw = fetch(url or DEFAULT_URL, opener=opener)
+    raw = fetch(url or DEFAULT_URL, opener=opener,
+                missing="nothing has been published to update to yet")
     return read_manifest(raw, key)
 
 
@@ -351,7 +353,8 @@ def install(release: Release, root: Path, opener=None) -> None:
     from . import __version__
     hold = Path(tempfile.mkdtemp(prefix="salaah-dl-"))
     try:
-        zip_path = fetch(release.url, into=hold / "release.zip", opener=opener)
+        zip_path = fetch(release.url, into=hold / "release.zip", opener=opener,
+                         missing="this version was announced but its file is not there")
         installer = Installer(root)
         staged = installer.unpack(Path(zip_path), release)
         installer.swap(staged, release, __version__)
