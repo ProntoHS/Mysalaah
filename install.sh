@@ -8,6 +8,10 @@ echo "== Installing packages"
 sudo apt-get update
 sudo apt-get install -y python3-evdev python3-venv libxcb-cursor0 mpg123
 
+# ddcutil turns the brightness slider into the monitor's real backlight rather than a grey veil.
+# wlr-randr is how we find out which screen is which. Both are optional; the app copes without.
+sudo apt-get install -y ddcutil wlr-randr || echo "!! No ddcutil/wlr-randr: brightness and touch mapping will be skipped"
+
 # For the Qibla compass chip (BNO055) on the I2C pins. Harmless if no chip is fitted.
 sudo apt-get install -y python3-smbus i2c-tools || echo "!! Could not install the I2C tools; the compass will be skipped"
 sudo raspi-config nonint do_i2c 0 || echo "!! Turn on I2C in raspi-config (Interface Options) for the compass"
@@ -29,6 +33,11 @@ fi
 
 # The screen must not blank in the middle of a prayer.
 sudo raspi-config nonint do_blanking 1 || echo "!! Turn off Screen Blanking in the Control Centre (Display)"
+
+# A USB touchscreen reports positions across the whole desktop, so with two displays the taps
+# land on the wrong screen and the panel looks broken while being perfectly healthy.
+echo "== Pointing the touchscreen at the small display"
+python3 tools/map_touch.py || echo "!! Touch mapping skipped; run tools/map_touch.py by hand"
 
 # Start automatically when the Pi logs in, and add a menu entry.
 chmod +x run.sh

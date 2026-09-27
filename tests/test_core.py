@@ -1715,3 +1715,113 @@ class ReleaseAddressTest(unittest.TestCase):
         tool = self.tool()
         said = tool.url_complaint("https://example.com/x/vN/salaah-1.20.zip", "1.20")
         self.assertIn("placeholder", said.lower())
+
+
+class MapTouchTest(unittest.TestCase):
+    """Pointing the touchscreen at the panel it is printed on.
+
+    The fixture below is the real wlr-randr output from the mat, trimmed: a 1024x600 panel
+    rotated 270 next to a 1920x1080 monitor. Touching the small screen acted on the big one
+    until this mapping existed."""
+
+    REAL = '''HDMI-A-2 "Mediatrix Peripherals Inc MPI7002 MPI7002 (HDMI-A-2)"
+  Make: Mediatrix Peripherals Inc
+  Model: MPI7002
+  Physical size: 410x260 mm
+  Enabled: yes
+  Modes:
+    1024x600 px, 60.043999 Hz (preferred, current)
+    1920x1080 px, 60.000000 Hz
+    1280x720 px, 50.000000 Hz
+  Position: 1920,0
+  Transform: 270
+  Scale: 1.000000
+HDMI-A-1 "Invalid Vendor Codename - RTK RTK FHD HDR demoset-1 (HDMI-A-1)"
+  Make: Invalid Vendor Codename - RTK
+  Model: RTK FHD HDR
+  Enabled: yes
+  Modes:
+    1920x1080 px, 60.000000 Hz (preferred, current)
+    1280x720 px, 60.000000 Hz
+    800x600 px, 60.317001 Hz
+  Position: 0,0
+  Transform: normal
+  Scale: 1.000000
+'''
+
+    STUB = '<?xml version="1.0"?>\n<openbox_config xmlns="http://openbox.org/3.4/rc"/>\n'
+
+    def tool(self):
+        import importlib.util
+        from pathlib import Path
+        here = Path(__file__).resolve().parent.parent / "tools" / "map_touch.py"
+        spec = importlib.util.spec_from_file_location("map_touch_under_test", here)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_it_picks_the_small_panel_out_of_the_real_output(self):
+        tool = self.tool()
+        found = tool.screens(self.REAL)
+        self.assertEqual({"HDMI-A-2": 1024 * 600, "HDMI-A-1": 1920 * 1080}, found)
+        self.assertEqual("HDMI-A-2", tool.smallest(found))
+
+    def test_it_reads_the_mode_in_use_not_the_first_one_listed(self):
+        """In the real output above, the current mode happens to be the first one listed, so it
+        cannot tell these two apart. Here the small panel is running at 1024x600 while listing
+        1920x1080 FIRST -- which is what a monitor set to a non-preferred mode looks like.
+        Reading the wrong line makes the 7in panel look like the big screen and sends touch to
+        the monitor: the original bug, restored."""
+        tool = self.tool()
+        awkward = """HDMI-A-2 "little panel (HDMI-A-2)"
+  Modes:
+    1920x1080 px, 60.000000 Hz (preferred)
+    1280x720 px, 60.000000 Hz
+    1024x600 px, 60.043999 Hz (current)
+HDMI-A-1 "big monitor (HDMI-A-1)"
+  Modes:
+    3840x2160 px, 30.000000 Hz (preferred)
+    1920x1080 px, 60.000000 Hz (current)
+"""
+        found = tool.screens(awkward)
+        self.assertEqual({"HDMI-A-2": 1024 * 600, "HDMI-A-1": 1920 * 1080}, found)
+        self.assertEqual("HDMI-A-2", tool.smallest(found))
+
+    def test_it_refuses_to_guess_with_one_screen_or_two_the_same(self):
+        tool = self.tool()
+        self.assertEqual("", tool.smallest({"HDMI-A-1": 1920 * 1080}))
+        self.assertEqual("", tool.smallest({}))
+        self.assertEqual("", tool.smallest({"HDMI-A-1": 2073600, "HDMI-A-2": 2073600}))
+
+    def test_the_stub_pi_os_ships_is_replaced_with_a_real_file(self):
+        """Raspberry Pi OS ships a self-closing empty root: there is nothing to insert into."""
+        tool = self.tool()
+        out = tool.with_touch(self.STUB, "HDMI-A-2")
+        self.assertIn("<mapToOutput>HDMI-A-2</mapToOutput>", out)
+        self.assertIn("</openbox_config>", out)
+        self.assertNotIn("/>", out.split("<touch>")[0].split("openbox_config")[-1],
+                         "the self-closing root must be gone")
+        import xml.etree.ElementTree as ET
+        ET.fromstring(out)                                  # must be well-formed XML
+
+    def test_an_existing_config_keeps_everything_it_had(self):
+        tool = self.tool()
+        mine = ('<?xml version="1.0"?>\n<openbox_config xmlns="http://openbox.org/3.4/rc">\n'
+                '  <theme><name>Clearlooks</name></theme>\n</openbox_config>\n')
+        out = tool.with_touch(mine, "HDMI-A-2")
+        self.assertIn("Clearlooks", out, "the rest of the config must survive")
+        self.assertIn("<mapToOutput>HDMI-A-2</mapToOutput>", out)
+        import xml.etree.ElementTree as ET
+        ET.fromstring(out)
+
+    def test_a_config_it_does_not_understand_is_left_alone(self):
+        """Better to print the block and let him paste it than to mangle a file."""
+        tool = self.tool()
+        for odd in ("<something_else>\n</something_else>\n",
+                    "</openbox_config></openbox_config>"):
+            with self.assertRaises(ValueError, msg=f"{odd!r} should not be edited"):
+                tool.with_touch(odd, "HDMI-A-2")
+
+    def test_the_block_says_which_screen(self):
+        tool = self.tool()
+        self.assertIn("HDMI-A-9", tool.touch_block("HDMI-A-9"))
