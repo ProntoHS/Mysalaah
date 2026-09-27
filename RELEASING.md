@@ -50,7 +50,7 @@ Select-String "__version__" salaah\__init__.py
 git status
 ```
 
-- The version must be the new **N**. If it still says the old one, the files did not arrive.
+- The version must be the new one — the same as `$v` above. If it still says the old one, the files did not arrive.
 - `git status` must list the changed files. "working tree clean" means nothing was replaced —
   stop and find out why rather than carrying on.
 
@@ -88,8 +88,14 @@ every mat would need a new app installed by hand.
 
 **Releases** → **Draft a new release**.
 
-- Tag: type **`v`** followed by the version — **lowercase v**, e.g. `v1.18`. Choose "Create new
-  tag on publish".
+- Tag: print it and copy what it prints, rather than typing it:
+
+  ```
+  "v$v"
+  ```
+
+  Choose "Create new tag on publish". **Lowercase v**, and a real version — `vN` is the
+  placeholder from this page, not a tag.
 - Drag the zip from `..\salaah-release` into the **"Attach binaries by dropping them here"**
   area. **Not** the description box.
 - Wait for the upload bar to finish.
@@ -109,7 +115,12 @@ zip from the address in the manifest, checks its hash and size, looks inside it,
 a licensed file got in.
 
 It must end with **"A mat offered this would install version …"** naming the version you
-expect. If the address it prints contains anything that is not a real version number, stop.
+expect.
+
+Read the `url` line it prints. The version appears in it **twice** — once as the tag, once as
+the file name — and both have to be right. `check_release.py` now says so before it downloads
+anything, and `sign_release.py` refuses to sign an address that disagrees with the build, but
+read it anyway.
 
 If it fails, fix that first. Every failure here is one that would otherwise be found by a mat,
 in somebody's home, with nothing on screen but a short apology.
@@ -136,7 +147,7 @@ python tools\check_release.py --live
 Settings → **Check for updates** → **Update now**.
 
 The screen sits still for a few seconds while it downloads, then restarts itself and comes back
-on N. Leave it a minute before touching anything: `run.sh` watches the first minute, and if the
+on the new version. Leave it a minute before touching anything: `run.sh` watches the first minute, and if the
 new version will not start it puts the old one back without being asked.
 
 ---
@@ -145,7 +156,8 @@ new version will not start it puts the old one back without being asked.
 
 | Symptom | Cause |
 |---|---|
-| "nothing has been published to update to yet" | the zip is not downloadable: attached to the description instead of the assets, a capital `V` in the tag, a draft release, or an upload that never finished |
+| "the address does not match the version" | the tag or the file name in the `--url` is wrong — most often `vN` pasted from this page. Nothing was published; fix the address and sign again |
+| "the zip is not at that address" | the zip is not downloadable: attached to the description instead of the assets, a capital `V` in the tag, a draft release, or an upload that never finished |
 | "the download does not match what was promised" | a different build was uploaded than the one signed |
 | Mat says "up to date" when it should not | `latest.json` was never pushed (step 6) |
 | Version on the mat does not match its contents | `salaah/__init__.py` was not bumped before signing |

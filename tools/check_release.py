@@ -26,7 +26,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from release_names import url_complaint                                # noqa: E402
 from salaah.update import (                                            # noqa: E402
     DEFAULT_URL, PUBLIC_KEY, Refused, digest, fetch, read_manifest, safe_members,
 )
@@ -39,6 +41,8 @@ NEVER = ("*.personal.json",)
 WHY_404 = """
   The manifest is fine; the file it names is not there. Usually one of:
 
+    - the tag in the address is not the tag on the release -- look at the address printed
+      above, the part after /download/, and check a release with exactly that tag exists
     - the zip was put in the release's description box instead of the attachment area
       (the release page then shows Assets 2, not 3)
     - the tag is a different case from the one in the manifest -- v1.15 and V1.15 are
@@ -82,9 +86,16 @@ def check(manifest_at: str, key: str) -> int:
     print(f"version    {release.version}")
     print(f"url        {release.url}")
 
+    # Before spending a download on it: does the address agree with the version it claims to be?
+    # A wrong tag and a missing upload both come back as a bare 404, and they need different fixes.
+    complaint = url_complaint(release.url, release.version)
+    if complaint:
+        raise Refused(f"the address does not match the version.\n    {complaint}")
+
     hold = Path(tempfile.mkdtemp(prefix="salaah-check-"))
     try:
-        zip_path = Path(fetch(release.url, into=hold / "release.zip"))
+        zip_path = Path(fetch(release.url, into=hold / "release.zip",
+                              missing="the zip is not at that address"))
         got = zip_path.stat().st_size
         print(f"downloaded {got:,} bytes")
 
@@ -132,7 +143,7 @@ def main() -> int:
         return check(where, args.key)
     except Refused as why:
         print(f"\nREFUSED: {why}", file=sys.stderr)
-        if "nothing has been published" in str(why):
+        if "not at that address" in str(why):
             print(WHY_404, file=sys.stderr)
         print("\nDo not publish latest.json until this passes.", file=sys.stderr)
         return 1

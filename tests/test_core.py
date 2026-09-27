@@ -1653,3 +1653,65 @@ Invalid display
         light.run = broken
         light.set(50)
         light.settle()                          # no exception reaches here
+
+
+class ReleaseAddressTest(unittest.TestCase):
+    """The signing tool refuses to sign a manifest that points at a file which will not be there.
+
+    This class exists because of one real failure: a release was signed with the address
+    .../releases/download/vN/salaah-1.20.zip -- the runbook's placeholder pasted literally into
+    the tag, with the file name correct. The old guard compared only the file name, so it passed.
+    The manifest verified, the mat trusted it, and then the download 404'd."""
+
+    def tool(self):
+        import importlib.util
+        from pathlib import Path
+        here = Path(__file__).resolve().parent.parent / "tools" / "release_names.py"
+        spec = importlib.util.spec_from_file_location("release_names_under_test", here)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_both_tools_use_the_same_judgement(self):
+        """Two copies of this rule would drift, and the drift would be silent."""
+        from pathlib import Path
+        tools = Path(__file__).resolve().parent.parent / "tools"
+        for name in ("sign_release.py", "check_release.py"):
+            self.assertIn("release_names", (tools / name).read_text(),
+                          f"{name} should not have its own copy of the rule")
+
+    def test_the_real_address_that_got_through(self):
+        tool = self.tool()
+        bad = "https://github.com/ProntoHS/Mysalaah/releases/download/vN/salaah-1.20.zip"
+        self.assertTrue(tool.url_complaint(bad, "1.20"),
+                        "this is the exact address that shipped a broken release")
+
+    def test_a_wrong_tag_is_caught_even_when_the_file_name_is_right(self):
+        tool = self.tool()
+        for tag in ("vN", "v1.19", "1.20", "V1.20", "latest"):
+            bad = f"https://github.com/a/b/releases/download/{tag}/salaah-1.20.zip"
+            self.assertTrue(tool.url_complaint(bad, "1.20"), f"tag {tag} was allowed")
+
+    def test_a_wrong_file_name_is_still_caught(self):
+        tool = self.tool()
+        for name in ("salaah-N.zip", "salaah-1.19.zip", "salaah.zip"):
+            bad = f"https://github.com/a/b/releases/download/v1.20/{name}"
+            self.assertTrue(tool.url_complaint(bad, "1.20"), f"file {name} was allowed")
+
+    def test_the_right_address_goes_through(self):
+        tool = self.tool()
+        good = "https://github.com/ProntoHS/Mysalaah/releases/download/v1.20/salaah-1.20.zip"
+        self.assertEqual("", tool.url_complaint(good, "1.20"))
+        self.assertEqual("", tool.url_complaint(good + "/", "1.20"), "a trailing slash is fine")
+
+    def test_somewhere_that_is_not_github_is_judged_on_the_file_name_alone(self):
+        """The tool should stay usable if the zip is ever hosted elsewhere."""
+        tool = self.tool()
+        self.assertEqual("", tool.url_complaint("https://example.com/files/salaah-1.20.zip", "1.20"))
+        self.assertTrue(tool.url_complaint("https://example.com/files/salaah-1.19.zip", "1.20"))
+
+    def test_the_placeholder_is_named_as_a_placeholder(self):
+        """Saying "N is the placeholder from the runbook" is the sentence that ends the confusion."""
+        tool = self.tool()
+        said = tool.url_complaint("https://example.com/x/vN/salaah-1.20.zip", "1.20")
+        self.assertIn("placeholder", said.lower())

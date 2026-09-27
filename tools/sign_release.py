@@ -29,6 +29,9 @@ import traceback
 import zipfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from release_names import tag_name, url_complaint, zip_name   # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 PACKS = ("salaah", "assets")
 DEFAULT_KEY = Path.home() / ".salaah" / "signing-key"
@@ -52,10 +55,6 @@ def why_not(path: Path) -> str:
     if any(path.match(pattern) for pattern in NEVER):
         return "licensed"
     return ""
-
-
-def zip_name(number: str) -> str:
-    return f"salaah-{number}.zip"
 
 
 def build(out: Path, number: str) -> tuple[Path, int, str]:
@@ -117,14 +116,14 @@ def main() -> int:
     # is a horrible thing to debug from the other end -- the mat says the download failed and
     # gives no hint that the address was never right in the first place.
     if args.url:
-        asked = args.url.rstrip("/").rsplit("/", 1)[-1]
-        if asked != zip_name(number):
-            print(f"\nThat address ends in {asked}, but this build is {zip_name(number)}.",
+        complaint = url_complaint(args.url, number)
+        if complaint:
+            print(f"\n{complaint}", file=sys.stderr)
+            print(f"\nsalaah/__init__.py says the version is {number}, so the address wants to be",
                   file=sys.stderr)
-            print(f"\nsalaah/__init__.py says the version is {number}. Either that line needs",
+            print(f"    .../releases/download/{tag_name(number)}/{zip_name(number)}",
                   file=sys.stderr)
-            print("changing, or the --url does. Nothing has been built and nothing signed.",
-                  file=sys.stderr)
+            print("\nNothing has been built and nothing signed.", file=sys.stderr)
             return 1
 
     zip_path, size, sha = build(args.out, number)
