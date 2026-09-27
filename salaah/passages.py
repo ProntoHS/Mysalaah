@@ -5,10 +5,13 @@ and needs a page. So one passage fills the screen: the Arabic set as large as it
 transliteration under it for somebody still learning the letters, and the meaning under that.
 
 The two sections are the same shape on disk and the same shape on screen, which is why one module
-serves both. What differs is where the words came from, and the screen says so: the du'as are
-slices of the Qur'an already checked verse by verse, while the kalima were written out from
-knowledge and carry a line saying they are waiting to be read by somebody who reads Arabic. That
-line goes when the file says reviewed.
+serves both. What differs is where the words came from: the du'as are slices of the Qur'an,
+checked verse by verse against it, while the kalima were written out from knowledge and then
+read over by Harry, which is what the file's "reviewed" flag records.
+
+The kalima also have a recording each, and per-word times so the word being said goes red. Those
+times are estimated rather than measured -- see tools/build_kalima_times.py for exactly which
+parts of them are trustworthy.
 
 Correcting either file needs no change to the app. They are read off the disk each time a
 passage is opened.
@@ -19,7 +22,9 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .qt import QtWidgets, Qt, Signal
+from .audio import WHOLE, Span
+from .mosque import MosqueScreen
+from .qt import QtCore, QtWidgets, Qt, Signal
 from .render import Fonts, TextBox
 
 # The Arabic is never drawn smaller than this (at 1080p), nor larger.
@@ -28,6 +33,10 @@ ARABIC_CAP = 150
 
 SECTIONS = ("duas", "kalima")
 RTL = ("ur",)
+
+# The play button, as a glyph rather than a word: the reader's bar is crowded enough.
+PLAY = "\u25b6"
+STOP = "\u25a0"
 
 
 @dataclass(frozen=True)
@@ -39,6 +48,17 @@ class Passage:
     said: str              # the transliteration
     text: dict = field(default_factory=dict)      # language -> meaning
     trimmed: tuple = ()    # languages showing only the supplication, not the whole verse
+    audio: str = ""        # a file under assets/audio, if there is a recording
+    times: tuple = ()      # (start_ms, end_ms) per word of the Arabic
+    estimated: bool = True  # whether those times were measured or worked out
+
+    def word_at(self, seconds: float) -> int | None:
+        """Which word is sounding, or None between words and after the last."""
+        when = seconds * 1000.0
+        for i, span in enumerate(self.times):
+            if span[0] <= when < span[1]:
+                return i
+        return None
 
     def meaning(self, lang: str) -> str:
         """The meaning in that language, or in English if that is all there is.
@@ -96,6 +116,13 @@ class Passages:
                 said=str(row.get("said", "")),
                 text={k: str(v) for k, v in (row.get("text") or {}).items()},
                 trimmed=tuple(row.get("trimmed") or ()),
+                audio=str(row.get("audio", "")),
+                # Only as many word times as there are words: a recording timed against an
+                # older wording must not light a word that is no longer there.
+                times=tuple(tuple(int(x) for x in pair)
+                            for pair in (row.get("times") or [])
+                            )[:len(str(row["arabic"]).split())],
+                estimated=bool(row.get("estimated", True)),
             ))
         return self._items
 
@@ -138,14 +165,6 @@ class PassageList(QtWidgets.QWidget):
         bar.addWidget(home)
         outer.addLayout(bar)
 
-        # Said once, at the top of the list, rather than on every passage: a note repeated six
-        # times reads as an apology, and once reads as a fact.
-        self.waiting = QtWidgets.QLabel(self.win.t("corner.unchecked"))
-        self.waiting.setObjectName("unchecked")
-        self.waiting.setWordWrap(True)
-        self.waiting.setContentsMargins(self.win.px(20), self.win.px(4), self.win.px(20), 0)
-        outer.addWidget(self.waiting)
-
         self.scroll = QtWidgets.QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
@@ -167,7 +186,6 @@ class PassageList(QtWidgets.QWidget):
         if self.filled:
             return
         self.filled = True
-        self.waiting.setVisible(not self.passages.reviewed)
         for i, item in enumerate(self.passages.items):
             self.rows.addWidget(self.row(i, item))
         self.rows.addStretch(1)
@@ -202,12 +220,10 @@ class PassageList(QtWidgets.QWidget):
 
     def to_the_top(self) -> None:
         self.fill()
-        self.waiting.setVisible(not self.passages.reviewed)
         self.scroll.verticalScrollBar().setValue(0)
 
     def retitle(self) -> None:
         self.title.setText(self.heading_text)
-        self.waiting.setText(self.win.t("corner.unchecked"))
 
 
 class PassageReader(QtWidgets.QWidget):
@@ -233,6 +249,13 @@ class PassageReader(QtWidgets.QWidget):
         self.back_button.clicked.connect(self.back.emit)
         bar.addWidget(self.back_button)
 
+        self.say_button = QtWidgets.QPushButton(PLAY)
+        self.say_button.setObjectName("reciteButton")
+        self.say_button.setToolTip(self.win.t("quran.recite"))
+        self.say_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.say_button.clicked.connect(self.toggle_saying)
+        bar.addWidget(self.say_button)
+
         self.title = QtWidgets.QLabel()
         self.title.setObjectName("readerTitle")
         bar.addWidget(self.title)
@@ -257,7 +280,7 @@ class PassageReader(QtWidgets.QWidget):
         outer.addLayout(bar)
 
         self.arabic = TextBox(Fonts.arabic(self.win.settings.arabic_font),
-                              ARABIC_FLOOR, ARABIC_CAP, rtl=True)
+                              ARABIC_FLOOR, ARABIC_CAP, rtl=True, by_word=True)
         self.arabic.scale = self.win.s
         outer.addWidget(self.arabic, 3)
 
@@ -273,15 +296,56 @@ class PassageReader(QtWidgets.QWidget):
         self.meaning.setAlignment(Qt.AlignmentFlag.AlignCenter)
         outer.addWidget(self.meaning, 0)
 
-        # Also said here, not only on the list. The list is where you choose; this is where you
-        # read and believe it, and that is the screen the caveat belongs on.
-        self.waiting = QtWidgets.QLabel(self.win.t("corner.unchecked"))
-        self.waiting.setObjectName("unchecked")
-        self.waiting.setWordWrap(True)
-        self.waiting.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.waiting.setVisible(False)
-        outer.addWidget(self.waiting, 0)
+        self.saying = False
+        self.follow = QtCore.QTimer(self)
+        self.follow.setInterval(50)
+        self.follow.timeout.connect(self.tick)
+
         outer.addSpacing(self.win.px(4))
+
+    # Saying it aloud
+
+    def can_say(self) -> bool:
+        item = self.passages.at(self.at)
+        return bool(item and item.audio and item.times
+                    and self.win.recitation.available
+                    and (self.win.assets / "audio" / item.audio).is_file())
+
+    def toggle_saying(self) -> None:
+        self.stop_saying() if self.saying else self.start_saying()
+
+    def start_saying(self) -> None:
+        item = self.passages.at(self.at)
+        if item is None or not self.can_say():
+            return
+        if not self.win.recitation.play(self.win.assets / "audio" / item.audio,
+                                        Span(0.0, WHOLE)):
+            return
+        self.saying = True
+        self.say_button.setText(STOP)
+        self.say_button.setToolTip(self.win.t("quran.stop_reciting"))
+        self.follow.start()
+
+    def stop_saying(self) -> None:
+        self.follow.stop()
+        self.saying = False
+        self.win.recitation.stop()
+        self.arabic.set_highlight(None)
+        self.say_button.setText(PLAY)
+        self.say_button.setToolTip(self.win.t("quran.recite"))
+
+    def tick(self) -> None:
+        """Light the word being said. One line of Arabic, so the line is always nought."""
+        if not self.saying:
+            return
+        position = self.win.recitation.position()
+        if position is None and not self.win.recitation.busy:
+            return self.stop_saying()
+        if position is None:
+            return
+        item = self.passages.at(self.at)
+        word = item.word_at(position) if item else None
+        self.arabic.set_highlight(None if word is None else (0, word))
 
     def build_tongues(self) -> None:
         """The language buttons, made once the section's languages are known."""
@@ -297,6 +361,8 @@ class PassageReader(QtWidgets.QWidget):
             self.tongues.addWidget(b)
 
     def open(self, index: int) -> None:
+        if getattr(self, "saying", False):
+            self.stop_saying()
         self.build_tongues()
         self.at = max(0, min(index, len(self.passages.items) - 1))
         self.reload()
@@ -313,11 +379,9 @@ class PassageReader(QtWidgets.QWidget):
             self.arabic.set_lines([])
             self.said.setText("")
             self.meaning.setText("")
-            self.waiting.setVisible(False)
             self.say_where()
             return
         lang = self.language()
-        self.waiting.setVisible(not self.passages.reviewed)
         for key, b in self.buttons.items():
             b.setChecked(key == lang)
         self.title.setText(f"{item.title} · {item.ref}" if item.ref else item.title)
@@ -352,3 +416,64 @@ class PassageReader(QtWidgets.QWidget):
 
     def follow_theme(self) -> None:
         self.arabic.update()
+
+
+class ArchMenu(QtWidgets.QWidget):
+    """A mosque whose arches are a menu, with the clock on its dome.
+
+    The same drawing, the same clock, the same sun and moon and birds and stars as the front
+    door -- because it is the same widget, pointed at a different folder. The six kalima are
+    chosen by touching an arch, which is a better thing to reach for on a mat than a row of
+    words, and it tells a child which of the six he is about to hear before he can read either
+    language.
+
+    The minaret glow is off here. On the main screen it means "no prayer is due just now";
+    on a menu of things to read it would be saying something that is not about anything.
+    """
+
+    chose = Signal(int)        # which arch, counting from one
+    leave = Signal()
+
+    def __init__(self, window, folder: str, clock_font: str = ""):
+        super().__init__()
+        self.win = window
+        self.setObjectName("archMenu")
+        self.mosque = MosqueScreen(self.win.assets, clock_font, folder=folder, idle_glow=False)
+        self.mosque.chosen.connect(self.picked)
+
+        outer = QtWidgets.QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        bar = QtWidgets.QHBoxLayout()
+        bar.setContentsMargins(self.win.px(20), self.win.px(10), self.win.px(20), 0)
+        bar.addStretch(1)
+        self.home = QtWidgets.QPushButton(self.win.t("settings.main_screen"))
+        self.home.setObjectName("mainScreen")
+        self.home.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.home.clicked.connect(self.leave.emit)
+        bar.addWidget(self.home)
+        outer.addLayout(bar)
+        outer.addWidget(self.mosque, 1)
+
+    @property
+    def ready(self) -> bool:
+        return self.mosque.ready
+
+    def picked(self, name: str) -> None:
+        """The arches are named for their numbers, so the name is the number."""
+        try:
+            self.chose.emit(int(name))
+        except ValueError:
+            pass                    # a drawing whose arches are named something else
+
+    def follow_clock(self, text: str, sun_up: bool, through: float) -> None:
+        """Driven from the window's ten-second clock, the same one the front door uses."""
+        self.mosque.set_time(text)
+        self.mosque.set_sky(sun_up, through)
+
+    # Nothing here starts or stops the birds: MosqueScreen already does that in its own
+    # showEvent and hideEvent. Doing it again here looked like care and was dead code -- the
+    # test passed just as happily with it deleted, which is how it was found.
+
+    def retitle(self) -> None:
+        self.home.setText(self.win.t("settings.main_screen"))

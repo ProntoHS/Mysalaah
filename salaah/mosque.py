@@ -365,8 +365,17 @@ class MosqueScreen(QtWidgets.QWidget):
     """Draws the mosque to fit, and turns taps on an arch into a prayer."""
     chosen = Signal(str)
 
-    def __init__(self, assets: Path, clock_font: str = ""):
+    def __init__(self, assets: Path, clock_font: str = "", folder: str = "mosque",
+                 idle_glow: bool = True):
         super().__init__()
+        # Which drawing this is. Nothing about the screen is specific to the five prayers: it is
+        # a picture, a box for the clock, and a box per arch, so the six kalima get the same
+        # front door by pointing this at their own folder.
+        self.folder = folder
+        # The main screen glows its minarets when no prayer is due, meaning "nothing to pray
+        # just now". On a menu of things to read that would be saying something untrue, so it
+        # can be turned off.
+        self.idle_glow = idle_glow
         self.arches: list[Arch] = []
         self.picture = QtGui.QPixmap()
         self.clock_box = QtCore.QRect()
@@ -390,7 +399,7 @@ class MosqueScreen(QtWidgets.QWidget):
     # Loading
 
     def load(self, assets: Path) -> None:
-        folder = assets / "mosque"
+        folder = assets / self.folder
         try:
             described = json.loads((folder / "mosque.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -637,7 +646,7 @@ class MosqueScreen(QtWidgets.QWidget):
         else:
             self.draw_stars(painter, scaled, origin)
         self.draw_sky(painter, scaled, origin)
-        if self.lit is None:
+        if self.lit is None and self.idle_glow:
             self.draw_minaret_glow(painter, origin, scale)
         painter.drawPixmap(origin, scaled)
 

@@ -3838,24 +3838,18 @@ class PassageScreenTest(unittest.TestCase):
         settle()
         self.assertIs(w.section_lists["duas"], w.corner_screen.currentWidget())
 
-    def test_the_kalima_say_they_are_waiting_to_be_checked_and_the_duas_do_not(self):
-        """The du'as came out of a corpus checked verse by verse; the kalima were written from
-        knowledge. The screen has to tell those two apart, on the list and while reading."""
+    def test_nothing_on_either_screen_says_it_is_waiting_to_be_checked(self):
+        """The kalima screens used to carry a line saying the Arabic was pending review. Harry
+        has read it, so the line is gone -- and gone rather than merely hidden, which is what
+        this checks by looking at every word on both screens."""
         w = self.window()
-        w.open_corner("kalima")
-        settle()
-        self.assertTrue(w.section_lists["kalima"].waiting.isVisible())
-        w.open_passage("kalima", 0)
-        settle()
-        self.assertTrue(w.section_readers["kalima"].waiting.isVisible(),
-                        "the note belongs on the reading screen above all")
-
-        w.open_corner("duas")
-        settle()
-        self.assertFalse(w.section_lists["duas"].waiting.isVisible())
-        w.open_passage("duas", 0)
-        settle()
-        self.assertFalse(w.section_readers["duas"].waiting.isVisible())
+        for which in ("duas", "kalima"):
+            for screen in (w.section_lists[which], w.section_readers[which]):
+                w.open_passage(which, 0)
+                settle()
+                said = " ".join(x.text() for x in screen.findChildren(QtWidgets.QLabel)).lower()
+                for word in ("waiting", "checked", "pending", "unchecked"):
+                    self.assertNotIn(word, said, f"{which} still mentions being {word}")
 
     def test_the_kalima_offer_english_only_and_the_duas_offer_five(self):
         w = self.window()
@@ -4301,3 +4295,337 @@ class ReciteTest(unittest.TestCase):
         self.assertIsNotNone(r.spread.parallel.highlight,
                              "with a translation the highlight belongs to the parallel view")
         self.assertIsNone(r.spread.right.highlight)
+
+
+class ArchMenuTest(unittest.TestCase):
+    """The kalima sub menu: the same mosque as the front door, with six arches for a menu."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_the_kalima_open_a_mosque_of_six_arches_not_a_list(self):
+        w = self.window()
+        w.open_corner("kalima")
+        settle()
+        self.assertIn("kalima", w.arch_menus)
+        self.assertIs(w.arch_menus["kalima"], w.corner_screen.currentWidget())
+        self.assertEqual(["1", "2", "3", "4", "5", "6"],
+                         [a.prayer for a in w.arch_menus["kalima"].mosque.arches])
+
+    def test_the_duas_still_open_a_list(self):
+        """Only the kalima have a drawing, so the du'as must be left alone."""
+        w = self.window()
+        w.open_corner("duas")
+        settle()
+        self.assertIs(w.section_lists["duas"], w.corner_screen.currentWidget())
+
+    def test_touching_an_arch_opens_that_kalima(self):
+        w = self.window()
+        w.open_corner("kalima")
+        settle()
+        for number, expect in ((1, "First"), (3, "Third"), (6, "Sixth")):
+            w.open_corner("kalima")
+            settle()
+            w.arch_menus["kalima"].mosque.chosen.emit(str(number))
+            settle()
+            reader = w.corner_screen.currentWidget()
+            self.assertIs(w.section_readers["kalima"], reader)
+            self.assertIn(expect, reader.title.text(), f"arch {number}")
+
+    def test_an_arch_is_touched_where_it_is_drawn(self):
+        """Hit-testing, not just the signal: a press in the middle of arch four must choose
+        four, so the boxes worked out from the drawing line up with what is on screen."""
+        w = self.window()
+        w.open_corner("kalima")
+        settle()
+        mosque = w.arch_menus["kalima"].mosque
+        for number in ("1", "4", "6"):
+            middle = mosque.arch_centre(number)
+            self.assertIsNotNone(middle, number)
+            self.assertEqual(number, mosque.arch_at(middle),
+                             f"the middle of arch {number} did not land on it")
+
+    def test_the_gaps_between_arches_choose_nothing(self):
+        w = self.window()
+        w.open_corner("kalima")
+        settle()
+        mosque = w.arch_menus["kalima"].mosque
+        one, two = mosque.arch_centre("1"), mosque.arch_centre("2")
+        between = QtCore.QPoint((one.x() + two.x()) // 2, one.y())
+        self.assertIsNone(mosque.arch_at(between), "the pillar between two arches is not a choice")
+
+    def test_the_clock_is_on_the_dome_and_follows_the_window(self):
+        w = self.window()
+        w.open_corner("kalima")
+        settle()
+        w.tick()
+        settle()
+        mosque = w.arch_menus["kalima"].mosque
+        self.assertRegex(mosque.time_text, r"^\d\d:\d\d$")
+        self.assertEqual(w.mosque.time_text, mosque.time_text,
+                         "both domes should say the same time")
+        self.assertTrue(mosque.clock_box.width() > 0 and mosque.clock_box.height() > 0)
+
+    def test_the_sky_follows_the_time_of_day(self):
+        w = self.window()
+        w.open_corner("kalima")
+        settle()
+        menu = w.arch_menus["kalima"]
+        menu.follow_clock("06:00", True, 0.3)
+        settle()
+        self.assertTrue(menu.mosque.sun_up)
+        menu.follow_clock("23:00", False, 0.8)
+        settle()
+        self.assertFalse(menu.mosque.sun_up, "after dark it should be the moon and stars")
+        self.assertAlmostEqual(0.8, menu.mosque.through, places=3)
+
+    def test_the_artwork_does_not_paint_over_the_sky(self):
+        """The drawing arrived with an opaque background. The sun, moon, stars and birds are
+        drawn BEHIND the mosque, so it covered them and the sky sat empty -- the code was
+        perfect and showed nothing. The fix knocks the background out to see-through while
+        leaving the building and the insides of the arches solid, which is what this checks,
+        on the asset, where the property actually lives."""
+        image = QtGui.QImage(str(ASSETS / "kalima" / "mosque.png"))
+        self.assertFalse(image.isNull())
+        self.assertTrue(image.hasAlphaChannel(), "no transparency at all: the sky is boxed in")
+        self.assertEqual(0, QtGui.QColor(image.pixelColor(20, 20)).alpha(),
+                         "the sky should be see-through")
+        import json
+        described = json.loads((ASSETS / "kalima" / "mosque.json").read_text(encoding="utf-8"))
+        x0, y0, x1, y1 = described["arches"]["3"]["box"]
+        inside = image.pixelColor((x0 + x1) // 2, y0 + (y1 - y0) // 3)
+        self.assertEqual(255, QtGui.QColor(inside).alpha(),
+                         "the inside of an arch should stay solid, as the front door's does")
+
+    def test_the_stars_reach_the_screen(self):
+        """Measured as a difference rather than against a fixed count. Counting marks in a band
+        and hoping a star had drifted into it passed while the sky was not drawn at all -- the
+        mosque's own minarets filled the band -- and then failed at random once the band was
+        narrowed, because the birds move and the sun climbs. Emptying the sky and rendering
+        again isolates its contribution exactly, and the stars sit at seeded positions, so this
+        answers the same way every run."""
+        w = self.window()
+        w.open_corner("kalima")
+        settle()
+        menu = w.arch_menus["kalima"]
+        menu.follow_clock("23:00", False, 0.5)
+        settle()
+
+        def marks():
+            image = w.grab().toImage()
+            count = 0
+            for y0, y1, x0, x1 in ((140, 330, 430, 860), (150, 380, 1080, 1480)):
+                for y in range(y0, y1):
+                    for x in range(x0, x1):
+                        colour = QtGui.QColor(image.pixel(x, y))
+                        if colour.red() + colour.green() + colour.blue() < 3 * 235:
+                            count += 1
+            return count
+        with_sky = marks()
+        menu.mosque.sky.stars = []
+        menu.mosque.sky.birds = []
+        menu.mosque.update()
+        settle()
+        without = marks()
+        self.assertGreater(with_sky, without + 20,
+                           f"the stars put nothing on the screen ({with_sky} vs {without})")
+
+    def test_the_minarets_do_not_glow_on_a_menu(self):
+        """On the front door a glow means no prayer is due. Here it would mean nothing."""
+        w = self.window()
+        self.assertFalse(w.arch_menus["kalima"].mosque.idle_glow)
+        self.assertTrue(w.mosque.idle_glow, "the front door still glows")
+
+    def test_the_birds_only_flutter_while_it_is_on_show(self):
+        w = self.window()
+        menu = w.arch_menus["kalima"]
+        w.open_corner("kalima")
+        settle()
+        self.assertTrue(menu.mosque.flutter.isActive())
+        w.go_home()
+        settle()
+        self.assertFalse(menu.mosque.flutter.isActive(), "still animating a screen nobody sees")
+
+    def test_there_is_a_way_back_to_the_main_screen(self):
+        w = self.window()
+        w.open_corner("kalima")
+        settle()
+        w.arch_menus["kalima"].home.click()
+        settle()
+        self.assertFalse(w.reading)
+
+    def test_back_from_a_kalima_returns_to_the_arches(self):
+        w = self.window()
+        w.open_passage("kalima", 2)
+        settle()
+        w.section_readers["kalima"].back_button.click()
+        settle()
+        self.assertIs(w.arch_menus["kalima"], w.corner_screen.currentWidget())
+
+
+class KalimaVoiceTest(unittest.TestCase):
+    """Saying a kalima aloud, with the word going red as it is said."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        w.recitation = FakePlayer()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_there_is_a_recording_for_each_and_it_can_be_played(self):
+        w = self.window()
+        for i in range(6):
+            w.open_passage("kalima", i)
+            settle()
+            self.assertTrue(w.section_readers["kalima"].can_say(), f"kalima {i + 1}")
+
+    def test_pressing_play_starts_it_and_pressing_stop_ends_it(self):
+        w = self.window()
+        w.open_passage("kalima", 0)
+        settle()
+        r = w.section_readers["kalima"]
+        r.say_button.click()
+        settle()
+        self.assertTrue(r.saying)
+        self.assertEqual(["1.mp3"], w.recitation.played)
+        r.say_button.click()
+        settle()
+        self.assertFalse(r.saying)
+        self.assertIsNone(r.arabic.highlight)
+
+    def test_the_word_being_said_is_the_word_that_is_lit(self):
+        w = self.window()
+        w.open_passage("kalima", 0)
+        settle()
+        r = w.section_readers["kalima"]
+        item = r.passages.at(0)
+        r.say_button.click()
+        settle()
+        for i, (start, end) in enumerate(item.times):
+            w.recitation.at = (start + end) / 2000.0
+            r.tick()
+            settle()
+            self.assertEqual((0, i), r.arabic.highlight,
+                             f"at {w.recitation.at:.2f}s the wrong word was lit")
+
+    def test_the_lit_word_is_really_drawn_red(self):
+        from salaah import theme
+        w = self.window()
+        w.open_passage("kalima", 0)
+        settle()
+        r = w.section_readers["kalima"]
+        want = QtGui.QColor(theme.palette().highlight)
+
+        def redness():
+            image = r.arabic.grab().toImage()
+            count = 0
+            for y in range(image.height()):
+                for x in range(image.width()):
+                    c = QtGui.QColor(image.pixel(x, y))
+                    if (abs(c.red() - want.red()) < 50 and abs(c.green() - want.green()) < 50
+                            and abs(c.blue() - want.blue()) < 50):
+                        count += 1
+            return count
+        r.say_button.click()
+        settle()
+        r.arabic.set_highlight(None)
+        settle()
+        dark = redness()
+        w.recitation.at = (item := r.passages.at(0)).times[1][0] / 1000.0 + 0.01
+        r.tick()
+        settle()
+        self.assertIsNotNone(r.arabic.highlight)
+        self.assertGreater(redness(), dark + 30, "the highlight was set but nothing went red")
+
+    def test_it_stops_when_the_recording_runs_out(self):
+        w = self.window()
+        w.open_passage("kalima", 0)
+        settle()
+        r = w.section_readers["kalima"]
+        r.say_button.click()
+        settle()
+        w.recitation.finish()
+        r.tick()
+        settle()
+        self.assertFalse(r.saying)
+        self.assertIsNone(r.arabic.highlight)
+
+    def test_opening_another_kalima_stops_the_one_playing(self):
+        w = self.window()
+        w.open_passage("kalima", 0)
+        settle()
+        r = w.section_readers["kalima"]
+        r.say_button.click()
+        settle()
+        w.open_passage("kalima", 4)
+        settle()
+        self.assertFalse(r.saying)
+        self.assertGreater(w.recitation.stops, 0)
+
+    def test_leaving_the_screen_stops_it(self):
+        w = self.window()
+        w.open_passage("kalima", 1)
+        settle()
+        r = w.section_readers["kalima"]
+        r.say_button.click()
+        settle()
+        w.go_home()
+        settle()
+        self.assertFalse(r.saying)
+
+    def test_the_call_to_prayer_silences_it(self):
+        w = self.window()
+        w.open_passage("kalima", 1)
+        settle()
+        r = w.section_readers["kalima"]
+        r.say_button.click()
+        settle()
+        w.call_to_prayer("asr")
+        settle()
+        self.assertFalse(r.saying)
+        if w.call_box is not None:
+            w.end_the_call()
+            settle()
+
+    def test_it_does_not_fall_asleep_over_a_kalima(self):
+        w = self.window()
+        w.open_passage("kalima", 5)
+        settle()
+        r = w.section_readers["kalima"]
+        r.say_button.click()
+        settle()
+        w.maybe_sleep()
+        settle()
+        self.assertFalse(w.asleep)
+        self.assertTrue(r.saying)
+
+    def test_a_duaa_has_no_play_button_to_press(self):
+        """The du'as are Qur'an, and are recited by the surah reader with real timings."""
+        w = self.window()
+        w.open_passage("duas", 0)
+        settle()
+        self.assertFalse(w.section_readers["duas"].can_say())
+
+    def test_with_no_player_on_the_machine_nothing_happens(self):
+        w = self.window()
+        w.recitation.available = False
+        w.open_passage("kalima", 0)
+        settle()
+        r = w.section_readers["kalima"]
+        r.say_button.click()
+        settle()
+        self.assertFalse(r.saying)

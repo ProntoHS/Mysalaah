@@ -25,7 +25,7 @@ from .timing import TimingScreen
 from .compass import CompassScreen
 from .side import SideWindow
 from .quran import Quran
-from .passages import PassageList, PassageReader, Passages
+from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .recite import Store, WordTimes
 from .reading import Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
@@ -672,6 +672,7 @@ class MainWindow(QtWidgets.QWidget):
         # a surah nobody is looking at.
         if hasattr(self, "reader") and self.reader.reciting:
             self.reader.stop_reciting()
+        self.hush_passages()
         self.call.stop()
         self.stop_audio()
         # The ten-second clock has to be stopped, not just left to be collected. It calls
@@ -850,9 +851,6 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#passageSaid {{ font-size:{px(26)}px; color:{c.stone};
                                   font-style:italic; }}
             QLabel#passageMeaning {{ font-size:{px(30)}px; color:{c.strong}; }}
-            /* Said once at the top of the kalima, and it should read as a plain note rather
-               than an alarm -- so the stone grey the rest of the second lines use, not red. */
-            QLabel#unchecked {{ font-size:{px(20)}px; color:{c.stone}; }}
             QScrollArea {{ background:{c.paper}; }}
             QPushButton#surahRow {{ background:{c.paper}; border:{px(2)}px solid {c.line};
                                     border-radius:{px(12)}px; text-align:left; }}
@@ -1061,6 +1059,19 @@ class MainWindow(QtWidgets.QWidget):
             stack.addWidget(reader)
             self.section_readers[name] = reader
 
+        # The kalima are chosen off a mosque with six arches rather than a list, so the sub
+        # menu looks like the front door. The list is still there behind it, and is what shows
+        # if the drawing is missing.
+        self.arch_menus: dict[str, ArchMenu] = {}
+        menu = ArchMenu(self, "kalima", Fonts.english_family)
+        if menu.ready:
+            menu.leave.connect(self.go_home)
+            menu.chose.connect(lambda n: self.open_passage("kalima", n - 1))
+            stack.addWidget(menu)
+            self.arch_menus["kalima"] = menu
+        else:
+            menu.deleteLater()
+
         self.corner_soon = self.page_soon()
         stack.addWidget(self.corner_soon)
         return stack
@@ -1103,8 +1114,23 @@ class MainWindow(QtWidgets.QWidget):
         self.corner_screen.setCurrentWidget(self.surah_list)
         self.stack.setCurrentWidget(self.corner_screen)
 
+    def hush_passages(self) -> None:
+        """Stop a kalima part way through. Leaving the screen, the call to prayer and shutting
+        down all go through here, so a voice is never left talking to an empty room."""
+        for reader in getattr(self, "section_readers", {}).values():
+            if reader.saying:
+                reader.stop_saying()
+
+    def saying_a_passage(self) -> bool:
+        return any(r.saying for r in getattr(self, "section_readers", {}).values())
+
     def open_section(self, which: str) -> None:
-        """The list of du'as, or of kalima."""
+        """The list of du'as, or -- for the kalima -- the six arches."""
+        menu = self.arch_menus.get(which)
+        if menu is not None:
+            self.corner_screen.setCurrentWidget(menu)
+            self.stack.setCurrentWidget(self.corner_screen)
+            return
         listing = self.section_lists.get(which)
         if listing is None:
             return
@@ -1216,7 +1242,7 @@ class MainWindow(QtWidgets.QWidget):
             return self.stir()
         # Somebody listening to a surah is not idle. Going to sleep over the recitation would
         # be the rudest possible moment to do it.
-        if hasattr(self, "reader") and self.reader.reciting:
+        if (hasattr(self, "reader") and self.reader.reciting) or self.saying_a_passage():
             return self.stir()
         self.sleep()
 
@@ -1244,6 +1270,8 @@ class MainWindow(QtWidgets.QWidget):
         self.mosque.set_time(now.strftime("%H:%M"))
         self.mosque.set_lit(current_prayer(now, times))
         self.mosque.set_sky(*day_fraction(now, times))
+        for menu in getattr(self, "arch_menus", {}).values():
+            menu.follow_clock(now.strftime("%H:%M"), *day_fraction(now, times))
         # The prayer whose time it is stands out in green; the rest are in the banner's own
         # colour. Written as rich text, since a QLabel takes its colours that way.
         now_praying = current_prayer(now, times)
@@ -1388,6 +1416,7 @@ class MainWindow(QtWidgets.QWidget):
         # falls due, because the call comes home first before it speaks.
         if hasattr(self, "reader") and self.reader.reciting:
             self.reader.stop_reciting()
+        self.hush_passages()
         self.session = None
         if self.veil.running:
             self.veil.stop()        # don't walk into an arch we have just walked back out of

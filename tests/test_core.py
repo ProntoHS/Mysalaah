@@ -1950,11 +1950,40 @@ class KalimaContentTest(unittest.TestCase):
             self.assertTrue(it["text"]["en"].strip(), it["key"])
             self.assertTrue(it["title"].strip(), it["key"])
 
-    def test_it_still_says_it_has_not_been_checked(self):
-        """This is the test that should fail the day somebody has actually checked it -- at
-        which point the right fix is to set reviewed true, not to delete the test."""
-        self.assertFalse(self.kalima()["reviewed"],
-                         "if the Arabic has now been reviewed, say so here too")
+    def test_the_file_records_that_the_arabic_has_been_read_over(self):
+        """It used to say the opposite, and the test used to insist on that. Harry has since
+        read the Arabic and asked for the pending note to come off the screen, so the file says
+        reviewed and this says the same. The flag is the record of who checked it, which is why
+        it is set rather than the screen just being quiet about it."""
+        self.assertTrue(self.kalima()["reviewed"])
+
+    def test_every_kalima_has_a_recording_and_times_for_all_of_its_words(self):
+        """A recording timed against a different wording would light the wrong words, so the
+        count has to match the Arabic exactly -- not be at least as long."""
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent / "assets"
+        for number, item in enumerate(self.kalima()["items"], 1):
+            self.assertEqual(f"kalima/{number}.mp3", item["audio"], item["key"])
+            self.assertTrue((root / "audio" / item["audio"]).is_file(), item["audio"])
+            self.assertEqual(len(item["arabic"].split()), len(item["times"]), item["key"])
+
+    def test_the_times_run_forwards_and_stay_inside_the_recording(self):
+        for item in self.kalima()["items"]:
+            last = 0
+            for start, end in item["times"]:
+                self.assertLess(start, end, f"{item['key']} has a word of no length")
+                self.assertGreaterEqual(start, last, f"{item['key']} goes backwards")
+                last = start
+            finish = item["times"][-1][1] / 1000.0
+            self.assertLessEqual(finish, item["seconds"] + 0.01,
+                                 f"{item['key']} runs past the end of its recording")
+
+    def test_the_times_are_marked_as_estimated_because_they_are(self):
+        """There is no aligner for these recordings and no published timings for them. The
+        first and last moments are measured; the joins between words are worked out from how
+        many letters each word has. Anything that reads these must be able to tell."""
+        for item in self.kalima()["items"]:
+            self.assertTrue(item["estimated"], item["key"])
 
     def test_the_arabic_is_arabic(self):
         """Catches a Latin letter or stray punctuation that wandered into the script -- the
@@ -1980,9 +2009,39 @@ class PassagesTest(unittest.TestCase):
         self.assertEqual(10, len(self.loader("duas").items))
         self.assertEqual(6, len(self.loader("kalima").items))
 
-    def test_the_duas_are_checked_and_the_kalima_are_not(self):
+    def test_both_sections_are_checked_now(self):
         self.assertTrue(self.loader("duas").reviewed)
-        self.assertFalse(self.loader("kalima").reviewed)
+        self.assertTrue(self.loader("kalima").reviewed)
+
+    def test_a_kalima_knows_which_word_is_sounding(self):
+        item = self.loader("kalima").at(0)
+        self.assertTrue(item.times, "the first kalima should carry word times")
+        for i, (start, end) in enumerate(item.times):
+            middle = (start + end) / 2000.0
+            self.assertEqual(i, item.word_at(middle), f"word {i} was not lit in its own middle")
+        self.assertIsNone(item.word_at(item.times[-1][1] / 1000.0 + 5))
+
+    def test_a_duaa_has_no_recording_of_its_own(self):
+        """The du'as are Qur'an, so they are recited by the surah reader, not from here."""
+        self.assertEqual("", self.loader("duas").at(0).audio)
+
+    def test_times_are_never_read_past_the_words_they_belong_to(self):
+        """A recording timed against a longer wording would otherwise light a word that is not
+        on the screen, and the highlight would point at nothing."""
+        import json
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as room:
+            folder = Path(room) / "content" / "duas"
+            folder.mkdir(parents=True)
+            (folder / "kalima.json").write_text(json.dumps({"items": [
+                {"key": "short", "arabic": "\u0627 \u0628", "said": "a b",
+                 "text": {"en": "x"},
+                 "times": [[0, 100], [100, 200], [200, 300], [300, 400]]},
+            ]}), encoding="utf-8")
+            item = self.loader("kalima", Path(room)).at(0)
+            self.assertEqual(2, len(item.arabic.split()))
+            self.assertEqual(2, len(item.times), "four times for two words should be cut down")
 
     def test_a_section_only_offers_languages_it_actually_has(self):
         """The kalima are English only. Offering French and then showing English would be

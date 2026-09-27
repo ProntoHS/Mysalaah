@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""Turns a drawn mosque into a menu the app can use.
+
+    python3 tools/build_arch_menu.py kalima-mosque.png assets/kalima --arches 6
+
+The main screen's mosque is described by assets/mosque/mosque.json: the picture, a box for the
+clock on the dome, and a box plus a mask for every arch. Nothing about that is specific to the
+five prayers, so any drawing in the same style can become a menu -- which is how the six kalima
+got a screen that looks like the front door.
+
+What this works out for itself, by looking at the picture rather than being told:
+
+  * the arches, as the light shapes cut into the dark building, sorted left to right
+  * a mask for each, being that arch's own inside
+  * a box for the clock, on the dome, checked to be dark all over so white numerals will read
+
+It refuses rather than guesses: if it cannot find exactly the number of arches asked for, or the
+clock would land somewhere light, it says so and writes nothing.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+LIGHT = 128            # brighter than this counts as the light inside of an arch
+SMALLEST = 500         # pixels; below this it is a speck, not an arch
+
+# An arch is an upright opening you could walk through. The other light shapes cut into a mosque
+# -- the slots in a minaret, the line under the plinth -- are flat slivers, wider than they are
+# tall and a fraction of the area. Judged by shape rather than by a threshold tuned until the
+# right number came out, because the next drawing will not have the same numbers.
+UPRIGHT = 0.7          # at least this tall for its width
+ROOMY = 4000           # and at least this many pixels of opening
+
+# The clock box, as fractions of the picture. Taken from the main mosque, where the box is
+# about a fifth of the picture each way and sits a little above the middle, on the dome.
+CLOCK_WIDE = 0.26
+CLOCK_TALL = 0.19
+CLOCK_MIDDLE = 0.55   # of the height: the dome's body, above where the roof comes in
+DARK_ENOUGH = 0.97    # of the clock box must be dark, or the time will not read on it
+
+
+def arches_in(grey, least: int) -> list[tuple[int, int, int, int]]:
+    """Every light shape big enough to be an arch, as boxes, ordered left to right."""
+    import numpy as np
+    from scipy import ndimage
+    light = np.array(grey) > LIGHT
+    labelled, count = ndimage.label(light)
+    found = []
+    for mark in range(1, count + 1):
+        ys, xs = np.where(labelled == mark)
+        if len(ys) < least:
+            continue
+        box = (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
+        # The sky is light too, and so is the ground: an arch is a shape well inside the
+        # picture, not one that reaches its edges.
+        if box[0] == 0 or box[1] == 0 or box[2] >= light.shape[1] or box[3] >= light.shape[0]:
+            continue
+        wide, tall = box[2] - box[0], box[3] - box[1]
+        if tall < wide * UPRIGHT or len(ys) < ROOMY:
+            continue
+        found.append(box)
+    found.sort(key=lambda b: b[0])
+    return found
+
+
+def knock_out_sky(picture, grey):
+    """Make the background see-through, leaving the building and the arch insides solid.
+
+    The sun, moon, stars and birds are drawn BEHIND the mosque, so a drawing with an opaque
+    background paints over them and the sky sits empty -- which is exactly what happened the
+    first time this ran. The main mosque's own artwork has its sky knocked out and its arch
+    insides left solid white, so this does the same: everything light that can be reached from
+    the edge of the picture becomes transparent, and anything light but walled in by the
+    building -- an arch's inside, a slot in a minaret -- stays as it was drawn.
+    """
+    import numpy as np
+    from scipy import ndimage
+    light = np.array(grey) > LIGHT
+    labelled, count = ndimage.label(light)
+    outside = set(labelled[0, :]) | set(labelled[-1, :]) | set(labelled[:, 0]) | set(labelled[:, -1])
+    outside.discard(0)
+    if not outside:
+        return picture, 0.0
+    sky = np.isin(labelled, list(outside))
+    cells = np.array(picture)
+    cells[..., 3] = np.where(sky, 0, cells[..., 3])
+    from PIL import Image
+    return Image.fromarray(cells, "RGBA"), float(sky.mean())
+
+
+def clock_box(grey, wanted: int) -> tuple[int, int, int, int] | None:
+    """A box on the dome, dark all over. None if nowhere suitable was found."""
+    import numpy as np
+    dark = np.array(grey) < LIGHT
+    height, width = dark.shape
+    wide, tall = int(width * CLOCK_WIDE), int(height * CLOCK_TALL)
+    # Centred on the arches rather than on the picture: a drawing need not be symmetrical.
+    middle = wanted
+    for centre_y in range(int(height * CLOCK_MIDDLE), int(height * 0.25), -4):
+        x0, y0 = middle - wide // 2, centre_y - tall // 2
+        patch = dark[y0:y0 + tall, x0:x0 + wide]
+        if patch.size and patch.mean() >= DARK_ENOUGH:
+            return (x0, y0, x0 + wide, y0 + tall)
+    return None
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="build_arch_menu")
+    ap.add_argument("picture", type=Path)
+    ap.add_argument("out", type=Path, help="the folder to write, e.g. assets/kalima")
+    ap.add_argument("--arches", type=int, default=6)
+    ap.add_argument("--names", default="", help="comma separated; defaults to 1,2,3...")
+    args = ap.parse_args()
+
+    try:
+        from PIL import Image
+    except ImportError:
+        print("This needs Pillow: pip install pillow", file=sys.stderr)
+        return 1
+    if not args.picture.is_file():
+        print(f"No picture at {args.picture}.", file=sys.stderr)
+        return 1
+
+    picture = Image.open(args.picture).convert("RGBA")
+    grey = picture.convert("L")
+    boxes = arches_in(grey, SMALLEST)
+    if len(boxes) != args.arches:
+        print(f"Found {len(boxes)} arch-sized shapes, not {args.arches}.", file=sys.stderr)
+        for box in boxes:
+            print(f"    {box}", file=sys.stderr)
+        print("Nothing written.", file=sys.stderr)
+        return 1
+
+    names = ([n.strip() for n in args.names.split(",")] if args.names
+             else [str(i + 1) for i in range(len(boxes))])
+    if len(names) != len(boxes):
+        print(f"{len(names)} names for {len(boxes)} arches.", file=sys.stderr)
+        return 1
+
+    middle = (boxes[0][0] + boxes[-1][2]) // 2
+    clock = clock_box(grey, middle)
+    if clock is None:
+        print("Could not find a dark enough box on the dome for the clock. Nothing written.",
+              file=sys.stderr)
+        return 1
+
+    args.out.mkdir(parents=True, exist_ok=True)
+    picture, see_through = knock_out_sky(picture, grey)
+    picture.save(args.out / "mosque.png")
+    for name, box in zip(names, boxes):
+        # The mask is this arch's own light inside, at the box's size, which is what the glow
+        # is drawn through.
+        inside = grey.crop(box).point(lambda v: 255 if v > LIGHT else 0).convert("L")
+        inside.save(args.out / f"arch-{name}.png")
+
+    described = {
+        "schema": 1,
+        "image": "mosque.png",
+        "size": [picture.width, picture.height],
+        "arches": {name: {"box": list(box)} for name, box in zip(names, boxes)},
+        "clock": {"box": list(clock)},
+        "minarets": {},
+    }
+    (args.out / "mosque.json").write_text(json.dumps(described, indent=2) + "\n",
+                                          encoding="utf-8")
+    print(f"{len(boxes)} arches -> {args.out}")
+    print(f"  sky knocked out: {see_through * 100:.1f}% of the picture is now see-through, "
+          f"so the stars and birds behind it show")
+    for name, box in zip(names, boxes):
+        print(f"    {name}: {box}")
+    print(f"  clock: {clock}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
