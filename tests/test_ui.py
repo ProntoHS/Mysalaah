@@ -762,7 +762,7 @@ class UiTest(unittest.TestCase):
         self.assertLessEqual(QtGui.QFontMetrics(plain).horizontalAdvance("21:45"),
                              box.width() * 0.95)
 
-    def test_settings_is_two_columns_of_circles(self):
+    def test_settings_is_two_columns_of_settings(self):
         from salaah.mosque import GearButton
         w = self.win
         w.open_settings()
@@ -770,17 +770,22 @@ class UiTest(unittest.TestCase):
         screen = w.settings_screen
         self.assertIs(screen, w.stack.currentWidget())
 
+        # The headings are what tells you there are two columns; the controls under them are a
+        # mixture of circles, switches, sliders and pickers, and which is which is a separate
+        # question from whether the page has two columns at all.
+        heads = [x for x in screen.findChildren(QtWidgets.QLabel)
+                 if x.objectName() == "settingHead" and x.isVisible()]
+        self.assertGreater(len(heads), 8, "every setting has a heading")
+        middle = screen.width() / 2
+        lefts = [x for x in heads if x.mapTo(screen, x.rect().center()).x() < middle]
+        rights = [x for x in heads if x.mapTo(screen, x.rect().center()).x() >= middle]
+        self.assertTrue(lefts and rights, "settings sit in both columns")
+
         choices = [b for b in screen.findChildren(QtWidgets.QRadioButton)
                    if b.objectName() == "choice"]
-        self.assertGreater(len(choices), 8, "every option is a circle")
         self.assertTrue(any(b.isChecked() for b in choices), "the ones in use are filled in")
-        self.assertEqual(1, len(screen.findChildren(GearButton)), "a cog, not the word Settings")
-
-        # two columns: the options are split either side of the middle
-        middle = screen.width() / 2
-        lefts = [b for b in choices if b.mapTo(screen, b.rect().center()).x() < middle]
-        rights = [b for b in choices if b.mapTo(screen, b.rect().center()).x() >= middle]
-        self.assertTrue(lefts and rights, "options sit in both columns")
+        self.assertEqual(1, len(screen.findChildren(GearButton)),
+                         "a cog for the heading, and none on the banner: it would lead here")
 
         home = next(b for b in screen.findChildren(QtWidgets.QPushButton)
                     if b.objectName() == "mainScreen")
@@ -823,15 +828,22 @@ class UiTest(unittest.TestCase):
             self.assertLess(abs(centre - w.width() // 2), 4, prayer)
 
     def test_cursor_setting(self):
+        """Shown means a pointing finger, not an arrow: everything on the mat is touched, so a
+        mouse standing in for a finger should look like one."""
         w = self.win
         app = QtWidgets.QApplication.instance()
         w.set_cursor("1")
         self.assertTrue(w.settings.cursor)
-        self.assertIsNone(app.overrideCursor())      # pointer visible
+        self.assertIsNotNone(app.overrideCursor(), "the pointer is set, not left to the desktop")
+        self.assertEqual(Qt.CursorShape.PointingHandCursor, app.overrideCursor().shape())
         w.set_cursor("0")
-        self.assertIsNotNone(app.overrideCursor())   # pointer hidden again
+        self.assertEqual(Qt.CursorShape.BlankCursor, app.overrideCursor().shape(),
+                         "pointer hidden again")
         w.set_cursor("1")                            # leave it visible for the next test
-        app.restoreOverrideCursor()
+        self.assertEqual(Qt.CursorShape.PointingHandCursor, app.overrideCursor().shape(),
+                         "turning it back on restores the finger, not the arrow")
+        while app.overrideCursor() is not None:
+            app.restoreOverrideCursor()
 
     def test_mouse_click_advances_the_prayer(self):
         w = self.win
@@ -1490,8 +1502,9 @@ class TranslationScreenTest(unittest.TestCase):
     def test_settings_offers_the_translations_in_a_dropdown(self):
         w = self.window()
         boxes = w.settings_screen.findChildren(QtWidgets.QComboBox)
-        self.assertEqual(3, len(boxes),
-                         "pickers, not rows of circles: the language, this one and the colours")
+        self.assertEqual(5, len(boxes),
+                         "pickers, not rows of circles: the language, this one, the screen "
+                         "mode, the Arabic lettering and how much edge")
         picker = w.translation_picker
         labels = [picker.itemText(i) for i in range(picker.count())]
         for want in ("Arabic only", "English", "Français", "اردو"):
@@ -1593,7 +1606,7 @@ class SettingsFootTest(unittest.TestCase):
 
     def test_it_says_which_version_this_is(self):
         from salaah import __version__
-        self.assertIn(f"Salaah version {__version__}", self.words(self.window()))
+        self.assertIn(f"Version {__version__}", self.words(self.window()))
 
     def test_the_version_can_be_compared_with_another_one(self):
         """It used to be the string "1", which cannot answer "is the one being offered newer".
@@ -4719,16 +4732,21 @@ class SwitchTest(unittest.TestCase):
         said = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)]
         self.assertIn(w.t("settings.off"), said)
 
-    def test_the_choices_with_more_than_two_answers_keep_their_circles(self):
-        """A switch is for yes or no. Who is shown, which lettering and how much edge all have
-        more than two answers and must stay as circles -- a switch cannot say "40 px"."""
+    def test_the_choices_with_more_than_two_answers_are_not_switches(self):
+        """A switch is for yes or no. Who is shown, the school, which lettering and how much
+        edge all have more than two answers, so none of them may become a switch -- a switch
+        cannot say "40 px". Circles for the short lists, a picker for the wordy ones."""
         w = self.window()
         circles = [b for b in w.settings_screen.findChildren(QtWidgets.QRadioButton)
                    if b.objectName() == "choice"]
-        said = " ".join(b.text() for b in circles)
-        self.assertGreater(len(circles), 4, "the multi-choice settings lost their circles")
+        self.assertIn("Girl", [b.text() for b in circles], "who is shown stayed as circles")
+        pickers = [b for b in w.settings_screen.findChildren(QtWidgets.QComboBox)
+                   if b.objectName() == "picker"]
+        said = {b.itemText(i) for b in pickers for i in range(b.count())}
         for px in ("0 px", "20 px", "40 px", "60 px"):
             self.assertIn(px, said, "how much edge is not a yes-or-no question")
+        for face in ("Traditional", "Clear naskh", "Noto naskh"):
+            self.assertIn(face, said, "the lettering is not a yes-or-no question")
 
     def test_a_switch_is_one_target_rather_than_two_small_ones(self):
         """The point of the change: a finger has one thing to hit, and it is big enough to hit."""
@@ -4756,7 +4774,8 @@ class BannerTest(unittest.TestCase):
 
     def test_the_knowledge_corner_has_a_banner_too(self):
         w = self.window()
-        self.assertEqual(2, len(w.banner_labels), "one on the front door, one in the corner")
+        self.assertEqual(3, len(w.banner_labels),
+                         "one on the front door, one in the corner, one over Settings")
 
     def test_both_banners_say_the_same_thing(self):
         w = self.window()
@@ -4817,7 +4836,7 @@ class VolumeEverywhereTest(unittest.TestCase):
         """There were briefly two within a centimetre of each other in the Qur'an: one in the
         banner and one in the row under it. The banner's is the one that stayed."""
         w = self.window()
-        self.assertEqual(2, len(w.volume_bars))
+        self.assertEqual(3, len(w.volume_bars), "the front door, the corner and Settings")
         w.open_surah(2)
         settle()
         from salaah.qt import QtWidgets as Q
@@ -5134,3 +5153,167 @@ class TwoMosquesTest(unittest.TestCase):
         menu = w.arch_menus["kalima"]
         self.assertEqual(menu.mosque.height(), menu.height(),
                          "something above the mosque is taking height from it")
+
+
+class SettingsScreenTest(unittest.TestCase):
+    """The Settings screen after the tidy: the same strip over it as the rest of the mat, the
+    wordy choices as pickers, the ring's circle, and the foot pushed apart."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, "place": "Bury",
+                                   **settings}),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        w.open_settings()
+        w.tick()                 # the clock is what writes the strip's words
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def banner(self, w):
+        strips = [x for x in w.settings_screen.findChildren(QtWidgets.QWidget)
+                  if x.objectName() == "banner"]
+        self.assertEqual(1, len(strips), "one strip over Settings, no more and no fewer")
+        return strips[0]
+
+    def test_settings_wears_the_same_strip_as_the_rest_of_the_mat(self):
+        """It was the one screen with a bare white top. It now says where you are, when the
+        prayers are and how loud it is, exactly as the Knowledge Corner does."""
+        w = self.window()
+        strip = self.banner(w)
+        self.assertEqual(0, strip.mapTo(w.settings_screen, QtCore.QPoint(0, 0)).y(),
+                         "the strip is the top of the screen, not a row part way down")
+        said = [x for x in strip.findChildren(QtWidgets.QLabel)
+                if x.objectName() == "bannerText"]
+        self.assertEqual(1, len(said))
+        self.assertIn("Bury", said[0].text())
+        for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
+            self.assertIn(w.t(f"prayer.{prayer}"), said[0].text(), prayer)
+        self.assertEqual(1, len(strip.findChildren(QtWidgets.QSlider)), "and how loud it is")
+
+    def test_the_strip_carries_the_way_home_and_no_cog(self):
+        """A cog on the Settings banner would be a button back to the screen you are on."""
+        from salaah.mosque import GearButton
+        w = self.window()
+        strip = self.banner(w)
+        self.assertEqual([], strip.findChildren(GearButton), "no cog on Settings' own strip")
+        home = [b for b in strip.findChildren(QtWidgets.QPushButton)
+                if b.objectName() == "mainScreen"]
+        self.assertEqual(1, len(home), "the way home is on the strip now")
+        home[0].click()
+        settle()
+        self.assertIs(w.home, w.stack.currentWidget())
+
+    def test_it_is_painted_black_over_white_and_not_white_over_white(self):
+        """Rendered rather than read off the layout: a strip that lays out correctly and paints
+        the same colour as the page underneath it is not a strip."""
+        w = self.window()
+        strip = self.banner(w)
+        where = strip.mapTo(w, QtCore.QPoint(0, 0))
+        image = w.grab().toImage()
+        dark = total = 0
+        for y in range(where.y() + 2, where.y() + strip.height() - 2):
+            for x in range(where.x() + 2, where.x() + strip.width() - 2):
+                colour = QtGui.QColor(image.pixel(x, y))
+                total += 1
+                if colour.red() < 90 and colour.green() < 90 and colour.blue() < 90:
+                    dark += 1
+        self.assertGreater(dark / total, 0.7, f"only {dark}/{total} of the strip is dark")
+
+    def test_the_lettering_is_a_picker_and_picking_changes_it(self):
+        w = self.window()
+        box = w.font_picker
+        self.assertIsInstance(box, QtWidgets.QComboBox)
+        faces = [box.itemData(i) for i in range(box.count())]
+        self.assertGreater(len(faces), 1)
+        other = next(f for f in faces if f != w.settings.arabic_font)
+        box.setCurrentIndex(faces.index(other))
+        box.activated.emit(faces.index(other))       # what a finger on the list does
+        settle()
+        self.assertEqual(other, w.settings.arabic_font, "picking a face did not change it")
+
+    def test_the_edge_is_a_picker_and_picking_changes_it(self):
+        w = self.window(inset=0)
+        box = w.inset_picker
+        self.assertIsInstance(box, QtWidgets.QComboBox)
+        values = [box.itemData(i) for i in range(box.count())]
+        self.assertEqual(["0", "20", "40", "60"], values)
+        self.assertEqual("0", box.itemData(box.currentIndex()), "it starts on the setting")
+        box.activated.emit(values.index("40"))
+        settle()
+        self.assertEqual(40, w.settings.inset, "picking an edge did not change it")
+
+    def test_the_ring_has_a_filled_circle_that_follows_the_connection(self):
+        from salaah.ui import BRICK, MINT
+        w = self.window()
+        heads = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
+                 if x.objectName() == "settingHead"]
+        self.assertIn("MySalaah Ring", heads)
+        self.assertNotIn("Bluetooth buttons", heads)
+
+        self.assertEqual(BRICK, w.ring_dot.color.name().upper(), "red with nothing paired")
+        w.on_devices(["MySalaah Ring"])
+        settle()
+        self.assertEqual(MINT, w.ring_dot.color.name().upper(), "green once it is connected")
+        self.assertIn("MySalaah Ring", w.devices_label.text())
+        w.on_devices([])
+        settle()
+        self.assertEqual(BRICK, w.ring_dot.color.name().upper(), "red again when it goes")
+
+    def test_the_circle_is_beside_the_words_and_actually_filled_in(self):
+        """Drawn, not just built: the circle is painted by hand rather than styled, so the test
+        looks at the pixels in the middle of it."""
+        from salaah.ui import MINT
+        w = self.window()
+        w.on_devices(["MySalaah Ring"])
+        settle()
+        dot, words = w.ring_dot, w.devices_label
+        self.assertTrue(dot.isVisible() and words.isVisible())
+        gap = words.mapTo(w, words.rect().center()).x() - dot.mapTo(w, dot.rect().center()).x()
+        self.assertGreater(gap, 0, "the circle goes before the words")
+        self.assertLess(gap, w.px(400), "and beside them, not across the page")
+        middle = dot.grab().toImage().pixel(dot.width() // 2, dot.height() // 2)
+        self.assertEqual(MINT, QtGui.QColor(middle).name().upper(),
+                         "the circle is solid, not an outline")
+
+    def test_the_update_button_sits_in_the_bottom_right_corner(self):
+        w = self.window()
+        button = w.update_button
+        version = next(x for x in w.settings_screen.findChildren(QtWidgets.QLabel)
+                       if x.text().startswith("Version "))
+        screen = w.settings_screen
+        self.assertGreater(button.mapTo(screen, button.rect().center()).x(), screen.width() * 0.75,
+                           "hard against the right-hand edge")
+        self.assertLess(version.mapTo(screen, version.rect().center()).x(), screen.width() * 0.25,
+                        "and the version left where it was")
+        self.assertGreater(button.mapTo(screen, button.rect().center()).y(),
+                           screen.height() * 0.85, "in the foot, not part way up")
+
+    def test_the_version_no_longer_says_the_app_name_twice(self):
+        from salaah import __version__
+        w = self.window()
+        said = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)]
+        self.assertIn(f"Version {__version__}", said)
+        self.assertNotIn(f"Salaah version {__version__}", said)
+
+    def test_the_screen_mode_setting_is_called_the_mode_not_the_colours(self):
+        w = self.window()
+        heads = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
+                 if x.objectName() == "settingHead"]
+        self.assertIn("Screen mode", heads)
+        self.assertNotIn("Screen colours", heads)
+
+    def test_every_pack_renamed_the_same_three_things(self):
+        """Six packs, one screen: if one of them still says the old words the screen changes
+        meaning when the language does."""
+        import json
+        for lang in sorted(available_packs(ASSETS)):
+            ui = json.loads((ASSETS / "content" / "packs" / lang / "pack.json")
+                            .read_text(encoding="utf-8"))["ui"]
+            self.assertEqual("MySalaah Ring", ui["settings.buttons"], lang)
+            self.assertNotIn("Bluetooth", ui["settings.buttons"], lang)
+            self.assertIn("{number}", ui["settings.version"], lang)
+            self.assertNotIn("Salaah", ui["settings.version"], lang)

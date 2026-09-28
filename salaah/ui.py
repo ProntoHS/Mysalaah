@@ -2125,8 +2125,13 @@ class MainWindow(QtWidgets.QWidget):
 
     def update_status(self) -> None:
         connected = bool(self.device_names)
-        self.dot.set_color(MINT if connected else BRICK)
-        self.dot.setToolTip(self.t("button.connected") if connected else self.t("button.disconnected"))
+        said = self.t("button.connected") if connected else self.t("button.disconnected")
+        # Both circles: the one in the main screen's bar and the one beside the ring in
+        # settings. Written in one place so they cannot disagree about what is connected.
+        for dot in (getattr(self, "dot", None), getattr(self, "ring_dot", None)):
+            if dot is not None:
+                dot.set_color(MINT if connected else BRICK)
+                dot.setToolTip(said)
 
     def eventFilter(self, obj, ev):
         # Anything a person does puts off going to sleep. Touches and presses both, because a
@@ -2182,6 +2187,7 @@ class MainWindow(QtWidgets.QWidget):
 
     def open_settings(self) -> None:
         self.devices_label.setText(self.devices_text())
+        self.update_status()
         self.stack.setCurrentWidget(self.settings_screen)
 
     def devices_text(self) -> str:
@@ -2205,22 +2211,32 @@ class MainWindow(QtWidgets.QWidget):
         return row
 
     def build_settings(self) -> QtWidgets.QWidget:
-        """White, two columns, a cog for a heading and a way straight back to the mosque."""
+        """The same black strip as the Knowledge Corner, over white, two columns.
+
+        The strip is built here for the same reason it is built there: where you are, what is
+        next, how loud it is and the way home should be in the same place on every screen. No
+        cog on it -- it would be a button back to the screen you are already on.
+        """
+        page = QtWidgets.QWidget()
+        page_lay = QtWidgets.QVBoxLayout(page)
+        page_lay.setContentsMargins(0, 0, 0, 0)
+        page_lay.setSpacing(0)
+        page_lay.addWidget(self.make_banner(gear=False, home=True))
+
         w = QtWidgets.QWidget()
         w.setObjectName("settingsRoot")
+        page_lay.addWidget(w, 1)
         outer = QtWidgets.QVBoxLayout(w)
-        outer.setContentsMargins(self.px(48), self.px(24), self.px(48), self.px(24))
-        outer.setSpacing(self.px(10))
+        # Tighter at the top than it was: the banner above now carries the height the old head
+        # row had, and on a 1920x1080 monitor the last section was six pixels below the fold.
+        outer.setContentsMargins(self.px(48), self.px(12), self.px(48), self.px(20))
+        outer.setSpacing(self.px(6))
 
         head = QtWidgets.QHBoxLayout()
-        cog = GearButton(self.px(52), QtGui.QColor(BRICK))   # matching the one on the banner
+        cog = GearButton(self.px(44), QtGui.QColor(BRICK))   # the one that was pressed to get here
         cog.setToolTip(self.t("settings.title"))
         head.addWidget(cog)
         head.addStretch(1)
-        home = no_focus(QtWidgets.QPushButton(self.t("settings.main_screen")))
-        home.setObjectName("mainScreen")
-        home.clicked.connect(self.go_home)
-        head.addWidget(home)
         outer.addLayout(head)
 
         # The two columns go in a scroller. On a 1920x1200 screen everything fits and no
@@ -2286,9 +2302,10 @@ class MainWindow(QtWidgets.QWidget):
                 self.settings.figure, self.set_figure, across=True))
 
         section(left, "settings.font", self.t("settings.font_hint"))
-        left.addLayout(self.circles(
+        self.font_picker = self.dropdown(
             [(key, self.t(f"font.{key}")) for key in FONTS if key in Fonts.families],
-            self.settings.arabic_font, self.set_font, across=True, per_row=2))
+            self.settings.arabic_font, self.set_font)
+        left.addWidget(self.font_picker)
 
         # A dropdown, like the two above it: the three choices are wordy enough that as a row of
         # circles they took a quarter of the column, and the wording made it hard to see at a
@@ -2323,8 +2340,9 @@ class MainWindow(QtWidgets.QWidget):
         right.addLayout(self.brightness_slider())
 
         section(right, "settings.inset")
-        right.addLayout(self.circles([(str(v), f"{v} px") for v in (0, 20, 40, 60)],
-                                     str(self.settings.inset), self.set_inset, across=True))
+        self.inset_picker = self.dropdown([(str(v), f"{v} px") for v in (0, 20, 40, 60)],
+                                          str(self.settings.inset), self.set_inset)
+        right.addWidget(self.inset_picker)
 
         section(right, "settings.cursor")
         right.addLayout(self.switch_row(self.settings.cursor,
@@ -2334,10 +2352,18 @@ class MainWindow(QtWidgets.QWidget):
         if QIBLA:
             self.qibla_settings(right, section)
 
+        # The ring, with the same green-or-red circle the main screen carries in its bar, so
+        # whether it is connected is read at a glance rather than from the words beside it.
         section(right, "settings.buttons")
+        ring = QtWidgets.QHBoxLayout()
+        ring.setSpacing(self.px(14))
+        self.ring_dot = Dot(self.px(28))
+        ring.addWidget(self.ring_dot, 0, Qt.AlignmentFlag.AlignVCenter)
         self.devices_label = QtWidgets.QLabel(self.devices_text())
         self.devices_label.setObjectName("settingValue")
-        right.addWidget(self.devices_label)
+        ring.addWidget(self.devices_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        ring.addStretch(1)
+        right.addLayout(ring)
         right.addStretch(1)
 
         # No way out to the desktop: the mat is the product, and there is nothing behind it to
@@ -2347,14 +2373,16 @@ class MainWindow(QtWidgets.QWidget):
         version = QtWidgets.QLabel(self.t("settings.version", number=__version__))
         version.setObjectName("settingValue")
         foot.addWidget(version)
-        foot.addSpacing(self.px(24))
+        # The version on the left, the button hard against the right-hand edge: the two things
+        # in the foot are no longer a pair in the corner with the rest of the row empty.
+        foot.addStretch(1)
         self.update_button = no_focus(QtWidgets.QPushButton(self.t("update.check")))
         self.update_button.setObjectName("updateButton")
         self.update_button.clicked.connect(self.check_for_update)
         foot.addWidget(self.update_button)
-        foot.addStretch(1)
         outer.addLayout(foot)
-        return w
+        self.update_status()      # so the circle is the right colour the first time it is seen
+        return page
 
     # Updating
 
@@ -2670,8 +2698,10 @@ class MainWindow(QtWidgets.QWidget):
             return
         while app.overrideCursor() is not None:
             app.restoreOverrideCursor()
-        if not self.settings.cursor:
-            app.setOverrideCursor(Qt.CursorShape.BlankCursor)
+        # A pointing finger when it is shown, not an arrow: everything on the mat is touched
+        # rather than clicked, so a mouse stands in for a finger and should look like one.
+        app.setOverrideCursor(Qt.CursorShape.PointingHandCursor if self.settings.cursor
+                              else Qt.CursorShape.BlankCursor)
 
     def note_label(self, text: str) -> QtWidgets.QLabel:
         label = QtWidgets.QLabel(text)
