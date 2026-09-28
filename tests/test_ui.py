@@ -1779,10 +1779,14 @@ class MainScreenMarkTest(unittest.TestCase):
                    for y in range(0, image.height(), 3) for x in range(0, image.width(), 3)]
         painted = [c for c in sampled if c.alpha() > 200]
         self.assertTrue(painted, "some of the lettering is painted")
+        # Which green follows the panel the name sits on, not the screen. This artwork is drawn
+        # for the dark screen, so on the white one it is turned over and the panel comes out
+        # black -- where the lighter green is the one that reads.
+        green = mosque.GREEN_DARK if screen.flipped else mosque.GREEN
         for colour in painted:      # scaling shifts a channel by a point or two
-            for got, want in ((colour.red(), mosque.GREEN.red()),
-                              (colour.green(), mosque.GREEN.green()),
-                              (colour.blue(), mosque.GREEN.blue())):
+            for got, want in ((colour.red(), green.red()),
+                              (colour.green(), green.green()),
+                              (colour.blue(), green.blue())):
                 self.assertAlmostEqual(want, got, delta=4, msg=f"green, got {colour.name()}")
         share = len(painted) / len(sampled)
         self.assertLess(share, 0.5, "the lettering and outline, not the whole arch")
@@ -5098,6 +5102,11 @@ class TwoMosquesTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         settle()
+        # The birds drift and the stars twinkle, and both are drawn in the same white as the
+        # building. Left in, the topmost ink in a band is whichever bird happens to be passing.
+        for screen in (w.mosque, *(menu.mosque for menu in w.arch_menus.values())):
+            screen.sky.birds = []
+            screen.sky.stars = []
         w.tick()
         settle()
         self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
@@ -5105,23 +5114,38 @@ class TwoMosquesTest(unittest.TestCase):
 
     @staticmethod
     def landmarks(w):
-        """Where the minaret tips and the top of the dome are on screen, in window pixels."""
+        """Where the minaret tips and the top of the dome are on screen, in window pixels.
+
+        The ink is whatever stands out from the page: dark lines on the white screen, bright
+        ones on the black. This used to look for dark pixels only. On the night screen that is
+        every pixel, so it found row 110 -- the first row it looked at -- and averaged 480
+        pixels of empty sky. Both screens gave the same meaningless number and the test passed
+        without ever having measured a minaret.
+
+        The sun is skipped by colour: it is the one thing up there that is not a shade of grey.
+        The birds and stars are cleared by the window above, because they move.
+        """
         image = w.grab().toImage()
         wide, tall = image.width(), image.height()
-        dark = [[False] * wide for _ in range(tall)]
+        from salaah import theme
+        night = theme.palette().dark
+        ink = [[False] * wide for _ in range(tall)]
         for y in range(110, tall):              # below the banner, which is black all through
-            row = dark[y]
+            row = ink[y]
             for x in range(wide):
                 colour = QtGui.QColor(image.pixel(x, y))
-                row[x] = (colour.red() + colour.green() + colour.blue()) < 330
+                total = colour.red() + colour.green() + colour.blue()
+                spread = (max(colour.red(), colour.green(), colour.blue())
+                          - min(colour.red(), colour.green(), colour.blue()))
+                row[x] = (total > 450 if night else total < 330) and spread < 40
         found = {}
         for name, low, high in (("left", 0, wide // 4), ("dome", wide // 4, 3 * wide // 4),
                                 ("right", 3 * wide // 4, wide)):
             top = next((y for y in range(110, tall)
-                        if any(dark[y][low:high])), None)
+                        if any(ink[y][low:high])), None)
             if top is None:
                 return None
-            xs = [x for x in range(low, high) if dark[top][x]]
+            xs = [x for x in range(low, high) if ink[top][x]]
             found[name] = (sum(xs) // len(xs), top)
         return found
 
@@ -5823,3 +5847,309 @@ class MuezzinPictureTest(unittest.TestCase):
         image = QtGui.QImage(str(ASSETS / "azaan" / "muezzin.png"))
         self.assertGreater(image.height(), image.width(), "an upright arch, not a wide one")
         self.assertGreaterEqual(image.height(), 800, "too small to draw at the size of the box")
+
+
+class DrawnForTheDarkTest(unittest.TestCase):
+    """The artwork says which screen it was drawn for, and the screen does the rest.
+
+    The first mosque was dark ink on a light ground and is turned inside out after dark. The
+    ones drawn since are white lines on black. Without the drawing saying so, the night screen
+    turned the new artwork inside out and showed the negative of what was drawn."""
+
+    def window(self, mode="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_both_drawings_say_they_were_made_for_the_dark_screen(self):
+        import json
+        for folder in ("mosque", "kalima"):
+            described = json.loads((ASSETS / folder / "mosque.json").read_text(encoding="utf-8"))
+            self.assertEqual("dark", described.get("drawn"), folder)
+
+    def test_it_is_shown_as_drawn_after_dark_and_turned_over_by_day(self):
+        self.assertFalse(self.window("dark").mosque.flipped, "the night screen is the one it suits")
+        self.assertTrue(self.window("light").mosque.flipped, "and the white one is not")
+
+    def test_the_dome_stays_dark_after_dark_so_the_clock_reads_white_on_it(self):
+        """The clock used to be painted black whenever the screen was dark, because the old
+        artwork came out light when it was turned over. This one is not turned over, so its
+        dome is still dark and black numerals would vanish into it."""
+        w = self.window("dark")
+        m = w.mosque
+        m.sky.birds = []
+        m.sky.stars = []
+        scaled, origin, scale = m.placement()
+        box = m.clock_box
+        m.set_time("")
+        settle()
+        bare = w.grab().toImage()
+        middle = QtGui.QColor(bare.pixel(origin.x() + int((box.x() + box.width() * 0.05) * scale),
+                                         origin.y() + int((box.y() + box.height() * 0.5) * scale)))
+        self.assertLess(middle.lightness(), 110, "the dome is not dark; the clock will not read")
+
+        # The numerals are found by turning them on and off, not by counting bright pixels in
+        # the box: the dome's own outline runs through that box, so counting alone reported
+        # plenty of light even with the time painted black and invisible.
+        m.set_time("14:28")
+        settle()
+        shown = w.grab().toImage()
+        lighter = darker = 0
+        for y in range(origin.y() + int(box.y() * scale),
+                       origin.y() + int((box.y() + box.height()) * scale), 2):
+            for x in range(origin.x() + int(box.x() * scale),
+                           origin.x() + int((box.x() + box.width()) * scale), 2):
+                was = QtGui.QColor(bare.pixel(x, y)).lightness()
+                now = QtGui.QColor(shown.pixel(x, y)).lightness()
+                if now - was > 60:
+                    lighter += 1
+                elif was - now > 60:
+                    darker += 1
+        self.assertGreater(lighter, 200, "the time is not painted in light ink on the dark dome")
+        self.assertGreater(lighter, darker * 4, "the time is being painted dark on a dark dome")
+
+    def test_an_old_style_drawing_would_still_be_turned_over_after_dark(self):
+        """The flag defaults to the way the first mosque was made, so artwork without it keeps
+        the behaviour it has always had."""
+        from salaah.mosque import MosqueScreen
+        screen = MosqueScreen(ASSETS)
+        self.assertTrue(screen.drawn_dark, "this one is dark-drawn")
+        screen.drawn_dark = False                     # as an old drawing would load
+        from salaah import theme
+        self.assertEqual(theme.palette().dark, screen.flipped,
+                         "without the flag, dark mode is what turns it over")
+        screen.deleteLater()
+
+
+class NewMosqueArtTest(unittest.TestCase):
+    """The two new drawings: five named arches and six numbered ones, with the sky knocked out."""
+
+    def window(self, mode="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_the_front_door_still_has_its_five_prayers_in_order(self):
+        w = self.window()
+        self.assertEqual(["fajr", "dhuhr", "asr", "maghrib", "isha"],
+                         [a.prayer for a in w.mosque.arches])
+        lefts = [a.box.x() for a in w.mosque.arches]
+        self.assertEqual(lefts, sorted(lefts), "the arches are not left to right")
+
+    def test_the_kalima_menu_has_its_six(self):
+        w = self.window()
+        w.open_section("kalima")
+        settle()
+        self.assertEqual(["1", "2", "3", "4", "5", "6"],
+                         [a.prayer for a in w.arch_menus["kalima"].mosque.arches])
+
+    def test_the_sky_is_see_through_so_what_is_behind_it_shows(self):
+        """What Harry asked about: the sun, moon, stars and birds are drawn behind the mosque,
+        so an opaque drawing hides them. Checked by painting the sky full of stars and counting
+        how many survive."""
+        w = self.window()
+        m = w.mosque
+        m.sky.birds = []
+        m.set_sky(False, 0.5)
+        self.assertGreater(len(m.sky.stars), 20, "there should be stars to see")
+
+        # Counted by taking the stars away, not by counting bright pixels: the building's own
+        # white outlines run through the same rows, and with the sky painted solid they alone
+        # were enough to pass. What matters is whether anything BEHIND the drawing gets through.
+        stars = list(m.sky.stars)
+        m.sky.stars = []
+        m.update()
+        settle()
+        bare = w.grab().toImage()
+        m.sky.stars = stars
+        m.update()
+        settle()
+        starry = w.grab().toImage()
+        showing = 0
+        for y in range(120, m.height()):
+            for x in range(0, w.width()):
+                if (QtGui.QColor(starry.pixel(x, y)).lightness()
+                        - QtGui.QColor(bare.pixel(x, y)).lightness()) > 30:
+                    showing += 1
+        self.assertGreater(showing, 150,
+                           f"only {showing} pixels of sky get through; the drawing covers it")
+
+    def test_the_minaret_boxes_were_written_and_land_on_the_minarets(self):
+        """They used to be left empty by the builder, which is not an error anywhere -- the
+        glow would simply never appear and nothing would say why."""
+        w = self.window()
+        m = w.mosque
+        self.assertEqual({"left", "right"}, set(m.minarets))
+        for side, box in m.minarets.items():
+            self.assertGreater(box.width(), 0, side)
+            self.assertGreater(box.height(), 0, side)
+            self.assertLess(box.y(), m.picture.height() * 0.45, f"{side} is not near the top")
+        left, right = m.minarets["left"], m.minarets["right"]
+        self.assertLess(left.center().x(), m.picture.width() * 0.3)
+        self.assertGreater(right.center().x(), m.picture.width() * 0.7)
+
+    def test_the_prayer_whose_time_it_is_is_picked_out_in_green(self):
+        """The names are part of the drawing, so they are lifted off it with the arch's mask.
+        New artwork, same trick -- and if the mask and the drawing disagree, nothing is lit."""
+        w = self.window()
+        m = w.mosque
+        m.set_lit("dhuhr")
+        settle()
+        from salaah.mosque import GREEN, GREEN_DARK
+        arch = next(a for a in m.arches if a.prayer == "dhuhr")
+        stencil = m.name_in_green(arch, 1.0).toImage()
+        painted, shades = 0, set()
+        for y in range(0, stencil.height(), 2):
+            for x in range(0, stencil.width(), 2):
+                c = QtGui.QColor(stencil.pixelColor(x, y))
+                if c.alpha() > 40:
+                    painted += 1
+                    shades.add((c.red(), c.green(), c.blue()))
+        self.assertGreater(painted, 200, "the name did not come off the drawing")
+        # Which green matters, not just that something was painted. The panel under it is
+        # white on this artwork whatever the screen is, so it wants the darker green; the
+        # lighter one is for a name sitting on a dark panel and is washed out on a white one.
+        want = GREEN_DARK if m.flipped else GREEN
+        # A few shades wide: the stencil is scaled smoothly, so the edges of the letters blend
+        # a point or two either side of the colour they were filled with.
+        off = [c for c in shades if max(abs(c[0] - want.red()), abs(c[1] - want.green()),
+                                        abs(c[2] - want.blue())) > 6]
+        self.assertEqual([], off,
+                         f"the name is not painted in {want.name()}; found {sorted(shades)[:4]}")
+        panel = QtGui.QColor("white") if not m.flipped else QtGui.QColor("black")
+        gap = abs(want.lightness() - panel.lightness())
+        self.assertGreater(gap, 60, "the green does not stand out from the panel it sits on")
+
+
+class MovingMuezzinTest(unittest.TestCase):
+    """The call screen plays a little film of the muezzin instead of a still."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", azaan=True),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def box(self, w):
+        from salaah.call import CallBox
+        b = CallBox(w, "fajr", "azaan-fajr.mp3", w.adhan)
+        b.show()
+        settle()
+        self.addCleanup(lambda: (b.close(), b.deleteLater(), APP.processEvents()))
+        return b
+
+    def test_there_is_a_film_and_it_is_running_while_the_call_is_up(self):
+        w = self.window()
+        self.assertTrue(w.adhan.film().is_file())
+        box = self.box(w)
+        self.assertIsNotNone(box.drawing.film, "the still is being shown instead of the film")
+        self.assertGreater(box.drawing.film.frameCount(), 1)
+        self.assertTrue(box.drawing.moving, "the film is loaded but not playing")
+
+    def test_the_frames_are_different_pictures_and_each_one_gets_painted(self):
+        """A film that loads, reports six frames and paints the same one six times is a still
+        with extra steps. Compared over the whole widget: the frames sit in the middle of a
+        tall box, so the first few thousand bytes are the black margin above them and match
+        whatever is playing."""
+        w = self.window()
+        box = self.box(w)
+        drawn = []
+        for i in range(box.drawing.film.frameCount()):
+            box.drawing.film.jumpToFrame(i)
+            settle()
+            image = box.drawing.grab().toImage()
+            # Sampled pixel by pixel rather than hashing the raw buffer: the two Qt kits hand
+            # back different things from bits(), and PyQt6's has no tobytes().
+            drawn.append(tuple(image.pixel(x, y)
+                               for y in range(0, image.height(), 7)
+                               for x in range(0, image.width(), 7)))
+        self.assertEqual(len(drawn), len(set(drawn)),
+                         f"only {len(set(drawn))} of {len(drawn)} frames are different pictures")
+
+    def test_it_stops_when_the_call_is_over(self):
+        """Nothing is on screen to repaint, and a film left running on a Pi is a timer waking
+        the processor five times a second for nobody."""
+        w = self.window()
+        box = self.box(w)
+        self.assertTrue(box.drawing.moving)
+        box.accept()
+        settle()
+        self.assertFalse(box.drawing.moving, "the film is still running with the box closed")
+
+    def test_with_no_film_it_falls_back_to_the_still_and_tints_it(self):
+        from salaah.call import Drawing
+        w = self.window()
+        plain = Drawing(w.adhan.picture(), "#FFFFFF", film=ASSETS / "azaan" / "no-such-film.gif")
+        self.assertIsNone(plain.film)
+        self.assertTrue(plain.there, "with no film it should still show the still")
+        plain.resize(300, 380)
+        image = plain.grab().toImage()
+        white = sum(1 for y in range(0, image.height(), 3) for x in range(0, image.width(), 3)
+                    if QtGui.QColor(image.pixel(x, y)).lightness() > 230)
+        self.assertGreater(white, 50, "the still was not drawn")
+        plain.deleteLater()
+
+    def test_the_film_is_not_flattened_by_the_tinting_the_still_needs(self):
+        """The still is a stencil filled with one colour. Doing that to a film would make every
+        frame the same silhouette, which is the opposite of the point."""
+        w = self.window()
+        box = self.box(w)
+        image = box.drawing.grab().toImage()
+        shades = set()
+        for y in range(0, image.height(), 4):
+            for x in range(0, image.width(), 4):
+                c = QtGui.QColor(image.pixel(x, y))
+                if c.lightness() > 40:
+                    shades.add(c.lightness() // 32)
+        self.assertGreater(len(shades), 2,
+                           "the film came out in one flat shade; it is being used as a stencil")
+
+    def test_hiding_it_any_other_way_also_stops_the_film(self):
+        """Pressing Stop is not the only way the box leaves the screen -- the window can go, or
+        another screen can come up over it. The film has to notice all of them, which is why it
+        stops on being hidden rather than only on the box being dismissed."""
+        w = self.window()
+        box = self.box(w)
+        self.assertTrue(box.drawing.moving)
+        box.hide()                       # not accept(): no dismissing, just off the screen
+        settle()
+        self.assertFalse(box.drawing.moving, "the film ran on with nothing to paint on")
+
+    def test_a_second_call_lets_go_of_the_first_box(self):
+        """Five calls a day for months. The boxes used to be forgotten rather than dropped,
+        which was harmless when a box was a few labels and is not now one carries a film."""
+        from salaah.call import CallBox
+        w = self.window()
+        for prayer in ("dhuhr", "asr", "maghrib"):
+            w.call_to_prayer(prayer)
+            settle()
+            w.end_the_call()
+            settle()
+        alive = [b for b in w.findChildren(CallBox)]
+        self.assertEqual([], alive, f"{len(alive)} call boxes are still about")
+        self.assertIsNone(w.call_box)
+
+    def test_the_box_up_now_is_the_only_one(self):
+        from salaah.call import CallBox
+        w = self.window()
+        w.call_to_prayer("dhuhr")
+        settle()
+        w.call_to_prayer("asr")          # a second call while the first box is still up
+        settle()
+        self.assertEqual(1, len(w.findChildren(CallBox)), "the first box was left behind")

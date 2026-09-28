@@ -65,6 +65,10 @@ class Adhan:
     def picture(self) -> Path:
         return self.folder.parent.parent / "azaan" / "muezzin.png"
 
+    def film(self) -> Path:
+        """The moving muezzin, if there is one. The still is what shows when there is not."""
+        return self.folder.parent.parent / "azaan" / "muezzin.gif"
+
     def line(self, key: str) -> dict:
         for row in self.words.get("lines", []):
             if row.get("key") == key:
@@ -123,18 +127,71 @@ class Drawing(QtWidgets.QWidget):
     and it stays the shape it was drawn, whatever shape the box it is given turns out to be.
     """
 
-    def __init__(self, path: Path, colour: str = "#FFFFFF"):
+    def __init__(self, path: Path, colour: str = "#FFFFFF", film: Path | None = None):
         super().__init__()
         self.picture = QtGui.QPixmap(str(path)) if Path(path).is_file() else QtGui.QPixmap()
         self.colour = colour
+        # A moving muezzin if there is one. It is drawn on its own black ground rather than
+        # used as a stencil: it is a film, not a shape, and filling it with one colour would
+        # flatten every frame to the same silhouette.
+        self.film: QtGui.QMovie | None = None
+        if film is not None and Path(film).is_file():
+            movie = QtGui.QMovie(str(film))
+            if movie.isValid() and movie.frameCount() > 1:
+                movie.setParent(self)
+                # A bound method, not a lambda. A lambda holding this widget is just a Python
+                # object as far as Qt is concerned, so the connection outlives the widget: a
+                # frame arriving while the call box is being taken down repainted something
+                # whose C++ half had already gone, and one of the two Qt kits died on it. A
+                # bound method of a QObject is tied to that object, and Qt drops the
+                # connection when it goes.
+                movie.frameChanged.connect(self.next_frame)
+                self.film = movie
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                            QtWidgets.QSizePolicy.Policy.Expanding)
 
     @property
     def there(self) -> bool:
-        return not self.picture.isNull()
+        return self.film is not None or not self.picture.isNull()
+
+    @property
+    def moving(self) -> bool:
+        return self.film is not None and self.film.state() == QtGui.QMovie.MovieState.Running
+
+    def next_frame(self, _frame: int) -> None:
+        self.update()
+
+    def start(self) -> None:
+        if self.film is not None:
+            self.film.start()
+
+    def stop(self) -> None:
+        if self.film is not None:
+            self.film.stop()
+
+    def showEvent(self, ev):
+        self.start()
+        super().showEvent(ev)
+
+    def hideEvent(self, ev):
+        # Whenever it goes off screen, not only when the call box is dismissed. A film left
+        # running is a timer asking a hidden widget to repaint five times a second -- on the Pi
+        # that is the processor woken for nobody, and when the widget is on its way out it is a
+        # crash. Which is what happened: the box in one test was closed by the window going
+        # away rather than by its own button, and the next test died with it.
+        self.stop()
+        super().hideEvent(ev)
 
     def paintEvent(self, _):
+        if self.film is not None:
+            frame = self.film.currentPixmap()
+            if not frame.isNull():
+                fitted = frame.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                      Qt.TransformationMode.SmoothTransformation)
+                p = QtGui.QPainter(self)
+                p.drawPixmap((self.width() - fitted.width()) // 2,
+                             (self.height() - fitted.height()) // 2, fitted)
+                return
         if self.picture.isNull():
             return
         fitted = self.picture.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
@@ -193,7 +250,7 @@ class CallBox(QtWidgets.QDialog):
 
         body = QtWidgets.QHBoxLayout()
         body.setSpacing(px(32))
-        self.drawing = Drawing(adhan.picture())
+        self.drawing = Drawing(adhan.picture(), film=adhan.film())
         if self.drawing.there:
             self.drawing.setMinimumWidth(px(220))
             body.addWidget(self.drawing, 2)
@@ -275,8 +332,10 @@ class CallBox(QtWidgets.QDialog):
 
     def showEvent(self, ev):
         self.fit()
+        self.drawing.start()
         super().showEvent(ev)
 
     def done(self, result):
         self.follow.stop()
+        self.drawing.stop()          # nothing to repaint for once the call is over
         super().done(result)

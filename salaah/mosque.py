@@ -377,6 +377,11 @@ class MosqueScreen(QtWidgets.QWidget):
         # can be turned off.
         self.idle_glow = idle_glow
         self.arches: list[Arch] = []
+        # Which screen the artwork was drawn for. The first mosque was dark ink on a light
+        # ground and is turned inside out after dark; the ones drawn since are white lines on
+        # black and are shown as they are, and turned inside out by day instead. The drawing
+        # says which it is, so the two kinds can sit side by side.
+        self.drawn_dark = False
         self.picture = QtGui.QPixmap()
         self.clock_box = QtCore.QRect()
         self.lit: str | None = None
@@ -405,6 +410,7 @@ class MosqueScreen(QtWidgets.QWidget):
         except (OSError, ValueError):
             return
         self.picture = QtGui.QPixmap(str(folder / described["image"]))
+        self.drawn_dark = described.get("drawn", "light") == "dark"
         box = described["clock"]["box"]
         self.clock_box = QtCore.QRect(box[0], box[1], box[2] - box[0], box[3] - box[1])
         for side, box in described.get("minarets", {}).items():
@@ -438,17 +444,25 @@ class MosqueScreen(QtWidgets.QWidget):
 
     # Drawing
 
+    @property
+    def flipped(self) -> bool:
+        """Whether the drawing is being shown inside out -- because the screen is not the one
+        it was drawn for. Everything laid OVER the artwork keys off this rather than off the
+        theme: what matters to the clock and the green name is whether the dome and the arch
+        panel under them came out light or dark, not what colour the page is."""
+        return palette().dark != self.drawn_dark
+
     def placement(self) -> tuple[QtGui.QPixmap, QtCore.QPoint, float]:
         """The picture scaled to fit, where it sits, and by how much it was scaled."""
-        dark = palette().dark
-        if self._scaled is None or self._scaled_dark != dark or (
+        flip = self.flipped
+        if self._scaled is None or self._scaled_dark != flip or (
                 self._scaled.width() != self.width() and self._scaled.height() != self.height()):
             self._scaled = self.picture.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
                                                Qt.TransformationMode.SmoothTransformation)
-            if dark:
+            if flip:
                 from .render import invert
                 self._scaled = invert(self._scaled)
-            self._scaled_dark = dark
+            self._scaled_dark = flip
             self._glows.clear()
             self._names.clear()
         scale = self._scaled.width() / self.picture.width()
@@ -489,7 +503,7 @@ class MosqueScreen(QtWidgets.QWidget):
         Worked out once per prayer at the artwork's own size and then scaled, so the screen's
         size costs nothing and it is never worked out twice.
         """
-        green = GREEN_DARK if palette().dark else GREEN
+        green = GREEN_DARK if self.flipped else GREEN
         key = (arch.prayer, green.name())
         if key not in self._names:
             self._names[key] = self._stencil(arch, green)
@@ -665,7 +679,7 @@ class MosqueScreen(QtWidgets.QWidget):
                                int(self.clock_box.width() * scale),
                                int(self.clock_box.height() * scale))
             painter.setFont(self.clock_type(box, self.time_text, painter.font()))
-            painter.setPen(QtGui.QColor("black") if palette().dark else CLOCK_INK)
+            painter.setPen(QtGui.QColor("black") if self.flipped else CLOCK_INK)
             painter.drawText(self.clock_rect(box),
                              int(Qt.AlignmentFlag.AlignCenter) | int(Qt.TextFlag.TextDontClip),
                              self.time_text)

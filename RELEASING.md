@@ -47,7 +47,7 @@ Check the name it printed is the one you meant. Windows saves repeat downloads a
 
 ```
 Select-String "__version__" salaah\__init__.py
-git status	
+git status
 ```
 
 - The version must be the new one — the same as `$v` above. If it still says the old one, the files did not arrive.

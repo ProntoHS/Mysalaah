@@ -1307,6 +1307,7 @@ class MainWindow(QtWidgets.QWidget):
         # The call itself on the screen -- the muezzin, the words, and what they mean -- when
         # the words are there to show. Otherwise the plain notice it always was, which says it
         # is time and nothing it cannot back up.
+        self.let_go_of_the_box()
         if self.adhan.there:
             box = CallBox(self, prayer, sound.name if sound else "", self.adhan)
         else:
@@ -1325,11 +1326,25 @@ class MainWindow(QtWidgets.QWidget):
         if self.call_box is not None and not self.call.playing:
             self.call_box.accept()
 
+    def let_go_of_the_box(self) -> None:
+        """Close and drop whatever box is up.
+
+        It used to be enough to forget it: the old notice was a few labels and Qt collected it
+        with the window. The box that replaced it carries a film, and five of those left over
+        from five calls are five timers repainting widgets nobody can see -- and, on one of the
+        two Qt kits, a crash on the way out. A mat runs for months and calls five times a day,
+        so they have to be let go of as they finish, not at the end.
+        """
+        box, self.call_box = self.call_box, None
+        if box is not None:
+            box.close()
+            box.deleteLater()
+
     def end_the_call(self, *_) -> None:
         """Stop, whether the call finished or somebody pressed the button."""
         self.call.stop()
         self.call_watch.stop()
-        self.call_box = None
+        self.let_go_of_the_box()
         self.stir()
 
     def stir(self) -> None:

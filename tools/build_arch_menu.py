@@ -66,7 +66,7 @@ def arches_in(grey, least: int) -> list[tuple[int, int, int, int]]:
     return found
 
 
-def landmarks(picture):
+def landmarks(picture, drawn_dark: bool = False):
     """Where the two minaret tips and the top of the dome are, in this drawing.
 
     These are what the eye notices when one screen replaces another: if the minarets and the
@@ -77,7 +77,8 @@ def landmarks(picture):
     import numpy as np
     cells = np.array(picture)
     solid = cells[..., 3] > 128
-    ink = (np.array(picture.convert("L")) < LIGHT) & solid
+    shades = np.array(picture.convert("L"))
+    ink = ((shades > LIGHT) if drawn_dark else (shades < LIGHT)) & solid
     height, width = ink.shape
     found = {}
     for side, low, high in (("left", 0, width // 4), ("right", 3 * width // 4, width)):
@@ -94,7 +95,7 @@ def landmarks(picture):
     return found
 
 
-def match_to(picture, reference: Path):
+def match_to(picture, reference: Path, drawn_dark: bool = False):
     """Redraw this mosque on the reference's canvas, with its minarets over the reference's.
 
     One number does it: how far apart the two minarets are. Scale by the ratio of the two
@@ -104,7 +105,7 @@ def match_to(picture, reference: Path):
     """
     from PIL import Image
     other = Image.open(reference).convert("RGBA")
-    mine, theirs = landmarks(picture), landmarks(other)
+    mine, theirs = landmarks(picture, drawn_dark), landmarks(other, drawn_dark)
     if not mine or not theirs:
         return picture, "could not find the minarets in one of the drawings"
     span_mine = mine["right"][0] - mine["left"][0]
@@ -119,7 +120,7 @@ def match_to(picture, reference: Path):
     canvas = Image.new("RGBA", other.size, (255, 255, 255, 0))
     canvas.alpha_composite(bigger, dest=(max(0, shift_x), max(0, shift_y)),
                            source=(max(0, -shift_x), max(0, -shift_y)))
-    check = landmarks(canvas)
+    check = landmarks(canvas, drawn_dark)
     if not check:
         return canvas, "redrawn, but the minarets could not be found again to check"
     drift = max(abs(check[k][i] - theirs[k][i]) for k in theirs for i in (0, 1))
@@ -127,20 +128,23 @@ def match_to(picture, reference: Path):
                     f"minarets and dome now within {drift:.0f}px of the reference")
 
 
-def knock_out_sky(picture, grey):
+def knock_out_sky(picture, grey, drawn_dark: bool = False):
     """Make the background see-through, leaving the building and the arch insides solid.
 
     The sun, moon, stars and birds are drawn BEHIND the mosque, so a drawing with an opaque
     background paints over them and the sky sits empty -- which is exactly what happened the
-    first time this ran. The main mosque's own artwork has its sky knocked out and its arch
-    insides left solid white, so this does the same: everything light that can be reached from
-    the edge of the picture becomes transparent, and anything light but walled in by the
-    building -- an arch's inside, a slot in a minaret -- stays as it was drawn.
+    first time this ran. Everything the same shade as the background that can be reached from
+    the edge of the picture becomes transparent, and anything walled in by the building -- an
+    arch's inside, the dome the clock sits on, a slot in a minaret -- stays as it was drawn.
+
+    Which shade the background is depends on which way round the drawing was made. The first
+    mosque was dark ink on a light ground; the ones that came after are white lines on black,
+    where knocking out the light would have taken the arch panels and left the sky.
     """
     import numpy as np
     from scipy import ndimage
-    light = np.array(grey) > LIGHT
-    labelled, count = ndimage.label(light)
+    ground = np.array(grey) < LIGHT if drawn_dark else np.array(grey) > LIGHT
+    labelled, count = ndimage.label(ground)
     outside = set(labelled[0, :]) | set(labelled[-1, :]) | set(labelled[:, 0]) | set(labelled[:, -1])
     outside.discard(0)
     if not outside:
@@ -150,6 +154,27 @@ def knock_out_sky(picture, grey):
     cells[..., 3] = np.where(sky, 0, cells[..., 3])
     from PIL import Image
     return Image.fromarray(cells, "RGBA"), float(sky.mean())
+
+
+# The minaret tips glow on the main screen when no prayer is due. Written from the drawing
+# rather than left empty: an empty list is not an error anywhere, so the glow would simply stop
+# happening and nothing would say why.
+MINARET_WIDE = 0.055     # of the picture, either side of the tip
+MINARET_TALL = 0.135     # and down from it
+
+
+def minaret_boxes(picture, drawn_dark: bool) -> dict:
+    found = landmarks(picture, drawn_dark)
+    if not found:
+        return {}
+    wide = int(picture.width * MINARET_WIDE)
+    tall = int(picture.height * MINARET_TALL)
+    boxes = {}
+    for side in ("left", "right"):
+        x, y = found[side]
+        boxes[side] = [max(0, int(x - wide / 2)), max(0, int(y)),
+                       min(picture.width, int(x + wide / 2)), min(picture.height, int(y + tall))]
+    return boxes
 
 
 def clock_box(grey, wanted: int) -> tuple[int, int, int, int] | None:
@@ -174,6 +199,9 @@ def main() -> int:
     ap.add_argument("out", type=Path, help="the folder to write, e.g. assets/kalima")
     ap.add_argument("--arches", type=int, default=6)
     ap.add_argument("--names", default="", help="comma separated; defaults to 1,2,3...")
+    ap.add_argument("--drawn", choices=("light", "dark"), default="light",
+                    help="which screen the drawing was made for: 'dark' for white lines on "
+                         "black, which the app then shows as drawn rather than inverting")
     ap.add_argument("--match", type=Path, default=None,
                     help="another mosque.png to line this one up with, so the two screens "
                          "show the same building in the same place")
@@ -193,7 +221,7 @@ def main() -> int:
         if not args.match.is_file():
             print(f"No reference drawing at {args.match}.", file=sys.stderr)
             return 1
-        picture, said = match_to(picture, args.match)
+        picture, said = match_to(picture, args.match, args.drawn == "dark")
         print(f"lined up with {args.match}: {said}")
     grey = picture.convert("L")
     boxes = arches_in(grey, SMALLEST)
@@ -218,7 +246,7 @@ def main() -> int:
         return 1
 
     args.out.mkdir(parents=True, exist_ok=True)
-    picture, see_through = knock_out_sky(picture, grey)
+    picture, see_through = knock_out_sky(picture, grey, args.drawn == "dark")
     picture.save(args.out / "mosque.png")
     for name, box in zip(names, boxes):
         # The mask is this arch's own light inside, at the box's size, which is what the glow
@@ -229,10 +257,11 @@ def main() -> int:
     described = {
         "schema": 1,
         "image": "mosque.png",
+        "drawn": args.drawn,
         "size": [picture.width, picture.height],
         "arches": {name: {"box": list(box)} for name, box in zip(names, boxes)},
         "clock": {"box": list(clock)},
-        "minarets": {},
+        "minarets": minaret_boxes(picture, args.drawn == "dark"),
     }
     (args.out / "mosque.json").write_text(json.dumps(described, indent=2) + "\n",
                                           encoding="utf-8")
