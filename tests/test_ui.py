@@ -3385,13 +3385,16 @@ class CallToPrayerTest(unittest.TestCase):
         self.assertIn("TIME TO PRAY", self.words(w))
         self.assertEqual(["azaan.mp3"], w.call.played)
 
-    def test_fajr_is_announced_but_not_called(self):
-        """The Fajr azaan has a line the others do not. Calling it with the wrong words would
-        be worse than not calling it, so for now the mat says it is time and stays quiet."""
+    def test_fajr_is_called_with_its_own_azaan(self):
+        """The call at dawn has a line the other four do not. The mat used to announce Fajr and
+        stay quiet, because saying the wrong words would have been worse than silence. There is
+        a Fajr recording now, so it speaks -- and the guarantee the old behaviour existed to
+        keep still holds: whatever happens, Fajr is never given the ordinary call."""
         w = self.window()
         self.at(w, "fajr")
         self.assertIsNotNone(w.call_box, "Fajr should still be announced")
-        self.assertEqual([], w.call.played, "and should not play the ordinary azaan")
+        self.assertEqual(["azaan-fajr.mp3"], w.call.played)
+        self.assertNotIn("azaan.mp3", w.call.played, "never the ordinary call for Fajr")
 
     def test_stopping_it_silences_the_call(self):
         w = self.window()
@@ -3666,13 +3669,37 @@ class QuranTest(unittest.TestCase):
         settle()
         self.assertEqual(1, w.reader.spread.pages_count, "Al-Ikhlas is four verses")
 
-    def test_the_page_count_on_screen_is_the_real_one(self):
-        """It used to be written before the widget had a size, so it said 50 when it was 8."""
+    def test_the_arrows_say_where_you_are_now_that_the_words_do_not(self):
+        """"Page 1 of 39" has gone from the bar -- it was the widest thing in a crowded row --
+        so the arrows carry it: greyed out at the ends, live in between.
+
+        This replaces a test that read the page count off that label. The bug it guarded is
+        still worth guarding: the count used to be worked out before the widget had a size, so
+        it said 50 when it was 8. Turning to what the reader thinks is the last page and
+        finding the forward arrow dead proves the same thing without the label."""
         w = self.window()
         w.settings.quran_lang = "en"
         w.open_surah(23)
         settle()
-        self.assertIn(f"of {w.reader.spread.pages_count}", w.reader.where.text())
+        r = w.reader
+        pages = r.spread.pages_count
+        self.assertGreater(pages, 1, "surah 23 with a translation should be several pages")
+        self.assertFalse(r.earlier.isEnabled(), "nothing before the first page")
+        self.assertTrue(r.later.isEnabled())
+        for _ in range(pages - 1):
+            r.turn(True)
+        settle()
+        self.assertTrue(r.earlier.isEnabled())
+        self.assertFalse(r.later.isEnabled(),
+                         "the count is wrong: there was still a page after the last one")
+
+    def test_the_bar_no_longer_spells_out_the_page(self):
+        w = self.window()
+        w.open_surah(2)
+        settle()
+        said = " ".join(x.text() for x in w.reader.findChildren(QtWidgets.QLabel))
+        self.assertNotIn("Page", said)
+        self.assertNotIn(" of ", said)
 
     def test_turning_past_either_end_does_nothing(self):
         w = self.window()
@@ -4629,3 +4656,347 @@ class KalimaVoiceTest(unittest.TestCase):
         r.say_button.click()
         settle()
         self.assertFalse(r.saying)
+
+
+class SwitchTest(unittest.TestCase):
+    """The three yes-or-no settings are switches now, not pairs of circles."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def switches(self, w):
+        from salaah.render import Switch
+        return {s.objectName(): s for s in w.settings_screen.findChildren(Switch)}
+
+    def test_the_three_that_are_yes_or_no_have_a_switch(self):
+        w = self.window()
+        self.assertEqual({"azaanSwitch", "cursorSwitch", "recitationSwitch"},
+                         set(self.switches(w)))
+
+    def test_each_switch_shows_where_the_setting_actually_is(self):
+        w = self.window(azaan=True, cursor=False, recitation=True)
+        knobs = self.switches(w)
+        self.assertTrue(knobs["azaanSwitch"].isChecked())
+        self.assertFalse(knobs["cursorSwitch"].isChecked())
+        self.assertTrue(knobs["recitationSwitch"].isChecked())
+
+    def test_flipping_one_changes_the_setting_and_saves_it(self):
+        w = self.window(azaan=True, cursor=False)
+        knobs = self.switches(w)
+        knobs["azaanSwitch"].click()
+        settle()
+        self.assertFalse(w.settings.azaan)
+        knobs["cursorSwitch"].click()
+        settle()
+        self.assertTrue(w.settings.cursor)
+
+    def test_the_word_beside_it_follows_the_switch(self):
+        w = self.window(azaan=True)
+        said = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)]
+        self.assertIn(w.t("settings.on"), said)
+        self.switches(w)["azaanSwitch"].click()
+        settle()
+        said = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)]
+        self.assertIn(w.t("settings.off"), said)
+
+    def test_the_choices_with_more_than_two_answers_keep_their_circles(self):
+        """A switch is for yes or no. Who is shown, which lettering and how much edge all have
+        more than two answers and must stay as circles -- a switch cannot say "40 px"."""
+        w = self.window()
+        circles = [b for b in w.settings_screen.findChildren(QtWidgets.QRadioButton)
+                   if b.objectName() == "choice"]
+        said = " ".join(b.text() for b in circles)
+        self.assertGreater(len(circles), 4, "the multi-choice settings lost their circles")
+        for px in ("0 px", "20 px", "40 px", "60 px"):
+            self.assertIn(px, said, "how much edge is not a yes-or-no question")
+
+    def test_a_switch_is_one_target_rather_than_two_small_ones(self):
+        """The point of the change: a finger has one thing to hit, and it is big enough to hit."""
+        w = self.window()
+        for name, knob in self.switches(w).items():
+            self.assertGreaterEqual(knob.width(), w.px(80), name)
+            self.assertGreaterEqual(knob.height(), w.px(40), name)
+
+
+class BannerTest(unittest.TestCase):
+    """The black strip across the top: the same one on the front door and in the Qur'an."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": True, "volume": 70,
+                                   "place": "Bury", **settings}),
+                       scale=1.0, save_settings=False)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_the_knowledge_corner_has_a_banner_too(self):
+        w = self.window()
+        self.assertEqual(2, len(w.banner_labels), "one on the front door, one in the corner")
+
+    def test_both_banners_say_the_same_thing(self):
+        w = self.window()
+        said = {label.text() for label in w.banner_labels}
+        self.assertEqual(1, len(said), "the two banners disagree about the time or the place")
+
+    def test_the_banner_says_where_you_are_and_when_the_prayers_are(self):
+        w = self.window()
+        for label in w.banner_labels:
+            self.assertIn("Bury", label.text())
+            for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
+                self.assertIn(w.t(f"prayer.{prayer}"), label.text(), prayer)
+            self.assertIn("next", label.text().lower())
+
+    def test_the_corner_banner_is_on_screen_while_reading(self):
+        w = self.window()
+        w.open_surah(2)
+        settle()
+        showing = [label for label in w.banner_labels if label.isVisible()]
+        self.assertTrue(showing, "the corner's banner should be up while a surah is open")
+        self.assertIn("Bury", showing[0].text())
+
+    def test_the_banner_slider_is_drawn_as_a_slider_and_not_a_white_box(self):
+        """It was a white rectangle with a bar across it: the blanket QWidget rule painted the
+        slider's own background paper-white, which is invisible in the layout and plain the
+        moment it is rendered. A slider on a black banner is mostly black."""
+        w = self.window(volume=40)
+        bar = w.volume_bars[0][0]
+        where = bar.mapTo(w, bar.rect().topLeft())
+        image = w.grab().toImage()
+        pale = total = 0
+        for y in range(where.y(), where.y() + bar.height()):
+            for x in range(where.x(), where.x() + bar.width()):
+                colour = QtGui.QColor(image.pixel(x, y))
+                total += 1
+                if colour.red() > 240 and colour.green() > 240 and colour.blue() > 240:
+                    pale += 1
+        self.assertLess(pale / total, 0.5,
+                        f"{pale}/{total} of the slider is paper-white; it is a box, not a slider")
+
+
+class VolumeEverywhereTest(unittest.TestCase):
+    """One notion of volume, however many controls are showing it."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": True, "volume": 60,
+                                   **settings}),
+                       scale=1.0, save_settings=False)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_there_is_a_slider_in_each_banner_and_one_in_the_reader(self):
+        w = self.window()
+        self.assertEqual(3, len(w.volume_bars))
+
+    def test_they_all_start_where_the_setting_is(self):
+        w = self.window(volume=45)
+        for bar, read in w.volume_bars:
+            self.assertEqual(45, bar.value())
+            self.assertEqual("45%", read.text())
+
+    def test_moving_one_moves_the_others(self):
+        """Otherwise the banner sits claiming it is loud while the Qur'an has been turned down."""
+        w = self.window(volume=60)
+        w.volume_bars[0][0].setValue(25)
+        settle()
+        self.assertEqual(25, w.settings.volume)
+        for bar, read in w.volume_bars:
+            self.assertEqual(25, bar.value())
+            self.assertEqual("25%", read.text())
+
+    def test_all_the_way_down_is_silence(self):
+        """The same thing the prayer screen's bar has always meant, so the two agree."""
+        w = self.window(volume=60)
+        w.volume_bars[0][0].setValue(0)
+        settle()
+        self.assertFalse(w.settings.recitation, "silence should switch the recitation off")
+        self.assertEqual(60, w.settings.volume, "and remember the level to come back to")
+
+    def test_turning_it_off_in_settings_shows_as_silence_on_every_slider(self):
+        w = self.window(volume=60)
+        w.set_recitation("0")
+        w.show_volume()
+        settle()
+        for bar, read in w.volume_bars:
+            self.assertEqual(0, bar.value())
+            self.assertEqual("0%", read.text())
+
+
+class ReaderBarTest(unittest.TestCase):
+    """What is left in the Qur'an reader's top row, and what has gone from it."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": True, **settings}),
+                       scale=1.0, save_settings=False)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_the_way_out_is_called_back(self):
+        w = self.window()
+        w.open_surah(2)
+        settle()
+        self.assertEqual("Back", w.reader.back_button.text())
+
+    def test_it_still_goes_back_to_the_list(self):
+        w = self.window()
+        w.open_surah(2)
+        settle()
+        w.reader.back_button.click()
+        settle()
+        self.assertIs(w.surah_list, w.corner_screen.currentWidget())
+
+    def test_the_page_is_not_spelled_out_any_more(self):
+        w = self.window()
+        w.open_surah(2)
+        settle()
+        said = " ".join(x.text() for x in w.reader.findChildren(QtWidgets.QLabel))
+        self.assertNotIn("Page", said)
+
+    def test_nothing_in_the_row_is_squashed(self):
+        """The row had run out of room, which is why the page readout went. Every language is
+        checked, because the words are longer in some of them."""
+        for lang in ("", "en", "fr", "ur"):
+            w = self.window(quran_lang=lang)
+            w.open_surah(2)
+            settle()
+            r = w.reader
+            tight = [name for name, widget in
+                     [("back", r.back_button), ("recite", r.recite_button),
+                      ("earlier", r.earlier), ("later", r.later)]
+                     + [(f"tongue {k or 'ar'}", b) for k, b in r.buttons.items()]
+                     if widget.width() < widget.sizeHint().width()]
+            self.assertEqual([], tight, f"squashed with quran_lang={lang!r}")
+            w.close()
+            settle()
+
+    def test_the_arrows_still_turn_the_pages(self):
+        w = self.window()
+        w.open_surah(2)
+        settle()
+        r = w.reader
+        self.assertEqual(0, r.spread.at)
+        r.later.click()
+        settle()
+        self.assertEqual(1, r.spread.at)
+        r.earlier.click()
+        settle()
+        self.assertEqual(0, r.spread.at)
+
+
+class FajrCallTest(unittest.TestCase):
+    """Fajr has its own call, because the words at dawn are not the same."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, "azaan": True,
+                                   **settings}),
+                       scale=1.0, save_settings=False)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_fajr_has_a_recording_of_its_own(self):
+        w = self.window()
+        self.assertEqual("azaan-fajr.mp3", w.azaan_for("fajr").name)
+
+    def test_the_other_four_share_the_ordinary_one(self):
+        w = self.window()
+        for prayer in ("dhuhr", "asr", "maghrib", "isha"):
+            self.assertEqual("azaan.mp3", w.azaan_for(prayer).name, prayer)
+
+    def test_calling_fajr_plays_the_fajr_recording(self):
+        w = self.window()
+        played = []
+
+        class Player:
+            volume = 80
+            playing = True
+
+            def play(self, path):
+                played.append(Path(path).name)
+                return True
+
+            def stop(self):
+                pass
+        w.call = Player()
+        w.call_to_prayer("fajr")
+        settle()
+        self.assertEqual(["azaan-fajr.mp3"], played)
+        self.assertIsNotNone(w.call_box, "and the notice still says it is time")
+        w.end_the_call()
+        settle()
+
+    def test_with_no_fajr_recording_it_stays_silent_rather_than_saying_the_wrong_words(self):
+        """The fallback that was the whole behaviour before the recording arrived, and is still
+        right: the notice appears, nothing is said, because the ordinary call says words that do
+        not belong to Fajr.
+
+        This used to replace azaan_for with a stub that returned None, which tested the stub and
+        not the app -- deleting the real fallback broke nothing. So it gives the window a folder
+        holding only the ordinary recording and asks the real method.
+        """
+        import shutil
+        import tempfile
+        w = self.window()
+        room = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(room, ignore_errors=True))
+        (room / "audio").mkdir()
+        shutil.copy(ASSETS / "audio" / "azaan.mp3", room / "audio" / "azaan.mp3")
+        w.assets = room
+        self.assertIsNone(w.azaan_for("fajr"), "Fajr must not be given the ordinary call")
+        self.assertEqual("azaan.mp3", w.azaan_for("isha").name, "the others still have theirs")
+
+        played = []
+
+        class Player:
+            volume = 80
+            playing = False
+
+            def play(self, path):
+                played.append(Path(path).name)
+                return True
+
+            def stop(self):
+                pass
+        w.call = Player()
+        w.call_to_prayer("fajr")
+        settle()
+        self.assertEqual([], played)
+        self.assertIsNotNone(w.call_box, "but the mat still says it is time")
+        w.end_the_call()
+        settle()
+
+    def test_a_prayer_with_no_recording_at_all_is_still_announced(self):
+        """A half-copied mat has no audio. It should still put the notice up."""
+        import tempfile
+        w = self.window()
+        w.assets = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(w.assets, ignore_errors=True))
+        for prayer in ("fajr", "dhuhr"):
+            self.assertIsNone(w.azaan_for(prayer), prayer)
+        w.call_to_prayer("dhuhr")
+        settle()
+        self.assertIsNotNone(w.call_box)
+        w.end_the_call()
+        settle()

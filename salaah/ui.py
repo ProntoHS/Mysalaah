@@ -18,7 +18,7 @@ from .prayer_times import Place, current_prayer, day_fraction, next_prayer, time
 from .pages import TextPage, build_pages
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import (FONTS, MAX_ARABIC_PX, MIN_ARABIC_PX, Fonts, PixmapCache, PostureView,
-                     ParallelText, TextBox, VolumeBar, load_posture_modes, load_timings)
+                     ParallelText, Switch, TextBox, VolumeBar, load_posture_modes, load_timings)
 from .session import Debouncer, Page as SessionPage, PrayerSession
 from .tasbih import TasbihScreen
 from .timing import TimingScreen
@@ -513,6 +513,10 @@ class MainWindow(QtWidgets.QWidget):
         self.outputs = Outputs()
         self.notice = None          # the update dialog, while one is on screen
         self.backlight = Backlight()
+        # Every volume slider and every banner on screen, kept so they can be moved and
+        # relabelled together: one notion of volume, one notion of what the banner says.
+        self.volume_bars: list = []
+        self.banner_labels: list = []
         self.quran = Quran(self.assets)
         # The recitation: verse recordings fetched as they are needed, and the word timings
         # that say which word is sounding. Both are quiet about being absent.
@@ -725,8 +729,17 @@ class MainWindow(QtWidgets.QWidget):
         self.settings_screen = self.build_settings()
         self.timing_screen = self.build_timing()
         self.corner_screen = self.build_corner()
+        # The same banner as the front door, above the whole Knowledge Corner -- the surah
+        # list, a surah open, the du'as and the kalima -- so wherever you are on the mat you
+        # can see where you are, what is next, and how loud it is.
+        self.corner_page = QtWidgets.QWidget()
+        corner_lay = QtWidgets.QVBoxLayout(self.corner_page)
+        corner_lay.setContentsMargins(0, 0, 0, 0)
+        corner_lay.setSpacing(0)
+        corner_lay.addWidget(self.make_banner(gear=True))
+        corner_lay.addWidget(self.corner_screen, 1)
         screens = [self.home, self.pick, self.player, self.settings_screen, self.timing_screen,
-                   self.corner_screen]
+                   self.corner_page]
         if QIBLA:
             self.compass_screen = CompassScreen(self, self.facing)
             self.compass_screen.done.connect(self.qibla_done)
@@ -888,6 +901,31 @@ class MainWindow(QtWidgets.QWidget):
                                                      width:{px(44)}px; height:{px(44)}px;
                                                      margin:{-px(16)}px 0;
                                                      border-radius:{px(22)}px; }}
+            /* The slider's own background, which the blanket QWidget rule paints paper-white.
+               On the black banner that showed as a white rectangle with a bar across it rather
+               than a slider -- invisible in the layout, obvious the moment it was rendered. */
+            QSlider#volume, QSlider#volumeOnDark {{ background:transparent; }}
+            QSlider#volume::groove:horizontal {{ height:{px(10)}px; background:{c.line};
+                                                 border-radius:{px(5)}px; }}
+            QSlider#volume::sub-page:horizontal {{ background:{c.lapis};
+                                                   border-radius:{px(5)}px; }}
+            QSlider#volume::handle:horizontal {{ background:{c.strong};
+                                                 border:{px(2)}px solid {c.paper};
+                                                 width:{px(30)}px; height:{px(30)}px;
+                                                 margin:{-px(11)}px 0;
+                                                 border-radius:{px(15)}px; }}
+            /* On the banner, which is a black chip whatever the theme, so the slider has to be
+               light on dark rather than following the paper. */
+            QSlider#volumeOnDark::groove:horizontal {{ height:{px(10)}px; background:#555555;
+                                                       border-radius:{px(5)}px; }}
+            QSlider#volumeOnDark::sub-page:horizontal {{ background:white;
+                                                         border-radius:{px(5)}px; }}
+            QSlider#volumeOnDark::handle:horizontal {{ background:white; border:none;
+                                                       width:{px(30)}px; height:{px(30)}px;
+                                                       margin:{-px(11)}px 0;
+                                                       border-radius:{px(15)}px; }}
+            QLabel#volumeRead {{ font-size:{px(22)}px; color:{c.stone}; }}
+            QLabel#volumeReadOnDark {{ background:{c.chip}; color:white; font-size:{px(22)}px; }}
             QLabel#compassBearing {{ font-size:{px(150)}px; font-weight:bold; color:{c.strong}; }}
             QLabel#compassStatus {{ font-size:{px(40)}px; font-weight:bold; }}
             QLabel#compassDetail {{ font-size:{px(24)}px; color:{c.hint}; }}
@@ -974,19 +1012,10 @@ class MainWindow(QtWidgets.QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
 
-        banner = QtWidgets.QWidget()
-        banner.setObjectName("banner")
-        row = QtWidgets.QHBoxLayout(banner)
-        row.setContentsMargins(self.px(28), self.px(10), self.px(28), self.px(10))
-        self.times_label = QtWidgets.QLabel()
-        self.times_label.setObjectName("bannerText")
-        row.addWidget(self.times_label)
-        row.addStretch(1)
-        # Red, the colour everything you press is in: Menu, Main screen, the leave buttons.
-        gear = GearButton(self.px(52), QtGui.QColor(BRICK))
-        gear.setToolTip(self.t("home.settings"))
-        gear.pressed_signal.connect(self.open_settings)
-        row.addWidget(gear)
+        banner = self.make_banner(gear=True)
+        # The front door's own label, kept under its old name: it is the one the clock tests
+        # and the theme tests reach for, and it is a fair name for the banner you see first.
+        self.times_label = self.banner_labels[-1]
         lay.addWidget(banner)
         lay.addWidget(self.mosque, 1)
 
@@ -1024,6 +1053,33 @@ class MainWindow(QtWidgets.QWidget):
         bottom.addWidget(settings)
         lay.addLayout(bottom)
         return w
+
+    def make_banner(self, gear: bool = True) -> QtWidgets.QWidget:
+        """The black strip across the top: where you are, the five prayer times with the
+        current one in green, what is next -- and how loud the recitation is.
+
+        Built here rather than written out on each screen, so the Qur'an gets exactly the same
+        strip as the front door and the two cannot drift apart. Every label it makes is kept in
+        banner_labels and written to by the ten-second clock.
+        """
+        banner = QtWidgets.QWidget()
+        banner.setObjectName("banner")
+        row = QtWidgets.QHBoxLayout(banner)
+        row.setContentsMargins(self.px(28), self.px(10), self.px(28), self.px(10))
+        label = QtWidgets.QLabel()
+        label.setObjectName("bannerText")
+        label.setTextFormat(Qt.TextFormat.RichText)
+        self.banner_labels.append(label)
+        row.addWidget(label)
+        row.addStretch(1)
+        row.addLayout(self.volume_slider(dark=True))
+        if gear:
+            # Red, the colour everything you press is in: Menu, Main screen, the leave buttons.
+            cog = GearButton(self.px(52), QtGui.QColor(BRICK))
+            cog.setToolTip(self.t("home.settings"))
+            cog.pressed_signal.connect(self.open_settings)
+            row.addWidget(cog)
+        return banner
 
     # The Knowledge Corner
 
@@ -1107,12 +1163,12 @@ class MainWindow(QtWidgets.QWidget):
             self.open_section(which)
             return
         self.corner_screen.setCurrentWidget(self.corner_soon)
-        self.stack.setCurrentWidget(self.corner_screen)
+        self.stack.setCurrentWidget(self.corner_page)
 
     def open_corner_list(self) -> None:
         self.surah_list.to_the_top()
         self.corner_screen.setCurrentWidget(self.surah_list)
-        self.stack.setCurrentWidget(self.corner_screen)
+        self.stack.setCurrentWidget(self.corner_page)
 
     def hush_passages(self) -> None:
         """Stop a kalima part way through. Leaving the screen, the call to prayer and shutting
@@ -1129,14 +1185,14 @@ class MainWindow(QtWidgets.QWidget):
         menu = self.arch_menus.get(which)
         if menu is not None:
             self.corner_screen.setCurrentWidget(menu)
-            self.stack.setCurrentWidget(self.corner_screen)
+            self.stack.setCurrentWidget(self.corner_page)
             return
         listing = self.section_lists.get(which)
         if listing is None:
             return
         listing.to_the_top()
         self.corner_screen.setCurrentWidget(listing)
-        self.stack.setCurrentWidget(self.corner_screen)
+        self.stack.setCurrentWidget(self.corner_page)
 
     def open_passage(self, which: str, index: int) -> None:
         reader = self.section_readers.get(which)
@@ -1144,16 +1200,16 @@ class MainWindow(QtWidgets.QWidget):
             return
         reader.open(index)
         self.corner_screen.setCurrentWidget(reader)
-        self.stack.setCurrentWidget(self.corner_screen)
+        self.stack.setCurrentWidget(self.corner_page)
 
     def open_surah(self, number: int) -> None:
         self.reader.open(number)
         self.corner_screen.setCurrentWidget(self.reader)
-        self.stack.setCurrentWidget(self.corner_screen)
+        self.stack.setCurrentWidget(self.corner_page)
 
     @property
     def reading(self) -> bool:
-        return self.stack.currentWidget() is self.corner_screen
+        return self.stack.currentWidget() is self.corner_page
 
     def pack_name(self, lang: str) -> str:
         pack = self.packs.get(lang)
@@ -1163,8 +1219,25 @@ class MainWindow(QtWidgets.QWidget):
 
     GRACE = 120.0        # seconds after a prayer falls due that the call is still worth making
 
+    def azaan_for(self, prayer: str) -> Path | None:
+        """The call to play for this prayer, or None if there is no right one for it.
+
+        Fajr has its own: the call at dawn carries a line the other four do not, so calling
+        Fajr with the ordinary recording would be saying the wrong words. Until there was a
+        Fajr recording the mat showed the notice and stayed silent, which was the honest way
+        round; now there is one, so it speaks.
+        """
+        own = self.assets / "audio" / f"azaan-{prayer}.mp3"
+        if own.is_file():
+            return own
+        if prayer == "fajr":
+            return None                  # rather than the wrong words
+        ordinary = self.assets / "audio" / "azaan.mp3"
+        return ordinary if ordinary.is_file() else None
+
     @property
     def azaan_file(self) -> Path:
+        """Kept for the four prayers that share the one recording."""
         return self.assets / "audio" / "azaan.mp3"
 
     def check_the_hour(self) -> None:
@@ -1205,11 +1278,13 @@ class MainWindow(QtWidgets.QWidget):
         box.finish(self.t(f"prayer.{prayer}"), self.t("call.stop"))
         box.finished.connect(self.end_the_call)
         self.call_box = box
-        # No azaan for Fajr: the words differ there, and calling Fajr with the wrong ones is
-        # worse than not calling it. The notice still appears, so the mat still says it is time.
-        if prayer != "fajr":
+        # Fajr has its own recording, because the call at dawn says something the others do
+        # not. If a prayer has no recording the notice still appears on its own, so the mat
+        # still says it is time rather than passing the moment in silence.
+        sound = self.azaan_for(prayer)
+        if sound is not None:
             self.call.volume = self.settings.volume
-            if self.call.play(self.azaan_file):
+            if self.call.play(sound):
                 self.call_watch.start()
 
     def watch_the_call(self) -> None:
@@ -1286,8 +1361,8 @@ class MainWindow(QtWidgets.QWidget):
         following = next_prayer(now, times)
         after = (gap + self.t("home.next", prayer=self.t(f"prayer.{following}"))
                  if following else "")
-        self.times_label.setText(f"{where}{gap}{shown}{after}")
-        self.times_label.setTextFormat(Qt.TextFormat.RichText)
+        for label in self.banner_labels:
+            label.setText(f"{where}{gap}{shown}{after}")
 
     # Light and dark
 
@@ -2209,9 +2284,9 @@ class MainWindow(QtWidgets.QWidget):
         # circles they took a quarter of the column, and the wording made it hard to see at a
         # glance that light and dark were choices at all rather than a note about the automatic one.
         section(left, "settings.azaan")
-        left.addLayout(self.circles([("1", self.t("settings.on")), ("0", self.t("settings.off"))],
-                                    "1" if self.settings.azaan else "0",
-                                    self.set_azaan, across=True))
+        left.addLayout(self.switch_row(self.settings.azaan,
+                                       lambda yes: self.set_azaan("1" if yes else "0"),
+                                       "azaanSwitch"))
 
         section(left, "settings.theme")
         self.theme_picker = self.dropdown(
@@ -2223,9 +2298,9 @@ class MainWindow(QtWidgets.QWidget):
         # Right column
         if self.timings:
             section(right, "settings.recitation", self.t("settings.recitation_hint"))
-            right.addLayout(self.circles([("1", self.t("settings.on")), ("0", self.t("settings.off"))],
-                                         "1" if self.settings.recitation else "0",
-                                         self.set_recitation, across=True))
+            right.addLayout(self.switch_row(
+                self.settings.recitation,
+                lambda yes: self.set_recitation("1" if yes else "0"), "recitationSwitch"))
             if not self.recitation.available:
                 right.addWidget(self.value_label(self.t("settings.no_player")))
             # No button for tapping the timings in: that is a job for whoever is building the
@@ -2242,9 +2317,9 @@ class MainWindow(QtWidgets.QWidget):
                                      str(self.settings.inset), self.set_inset, across=True))
 
         section(right, "settings.cursor")
-        right.addLayout(self.circles(
-            [("1", self.t("settings.cursor_shown")), ("0", self.t("settings.cursor_hidden"))],
-            "1" if self.settings.cursor else "0", self.set_cursor))
+        right.addLayout(self.switch_row(self.settings.cursor,
+                                        lambda yes: self.set_cursor("1" if yes else "0"),
+                                        "cursorSwitch"))
 
         if QIBLA:
             self.qibla_settings(right, section)
@@ -2423,6 +2498,63 @@ class MainWindow(QtWidgets.QWidget):
         box.setMinimumWidth(self.px(420))
         return box
 
+    def volume_slider(self, dark: bool = False) -> QtWidgets.QHBoxLayout:
+        """How loud the recitation is, wherever it is being listened to.
+
+        All the way down is silence, which is the same thing the prayer screen's bar means, so
+        the two agree: the app has one notion of volume and every control on screen shows it.
+        Every slider built here is kept in a list and moved together, so turning it down in the
+        Qur'an does not leave the banner claiming it is still loud.
+        """
+        row = QtWidgets.QHBoxLayout()
+        row.setSpacing(self.px(8))
+        bar = no_focus(QtWidgets.QSlider(Qt.Orientation.Horizontal))
+        bar.setObjectName("volumeOnDark" if dark else "volume")
+        bar.setRange(0, 100)
+        bar.setSingleStep(5)
+        bar.setPageStep(10)
+        bar.setValue(self.settings.volume if self.settings.recitation else 0)
+        bar.setFixedWidth(self.px(220))
+        bar.setMinimumHeight(self.px(44))       # a finger, not a mouse
+        read = QtWidgets.QLabel(f"{bar.value()}%")
+        read.setObjectName("volumeReadOnDark" if dark else "volumeRead")
+        read.setMinimumWidth(self.px(70))       # so the row does not twitch as it is dragged
+        bar.valueChanged.connect(lambda v: self.volume_moved(v))
+        self.volume_bars.append((bar, read))
+        row.addWidget(bar)
+        row.addWidget(read)
+        return row
+
+    def volume_moved(self, volume: int) -> None:
+        """One slider moved: tell the app, then bring the others with it."""
+        self.set_volume(volume)
+        self.show_volume()
+
+    def switch_row(self, on: bool, on_pick, name: str = "") -> QtWidgets.QHBoxLayout:
+        """One switch and the word for where it is, instead of two circles to choose between.
+
+        The word is kept because the mat is read from a few feet away and a knob on its own is
+        a small thing to judge at that distance; it is not a second control, and pressing it
+        does nothing.
+        """
+        row = QtWidgets.QHBoxLayout()
+        row.setSpacing(self.px(14))
+        knob = Switch(on, scale=self.s)
+        if name:
+            knob.setObjectName(name)
+        said = QtWidgets.QLabel(self.t("settings.on" if on else "settings.off"))
+        said.setObjectName("settingValue")
+        said.setMinimumWidth(self.px(90))     # so the row does not shuffle as it is switched
+
+        def flipped(yes: bool) -> None:
+            said.setText(self.t("settings.on" if yes else "settings.off"))
+            on_pick(yes)
+        knob.toggled.connect(flipped)
+        row.addWidget(knob)
+        row.addWidget(said)
+        row.addStretch(1)
+        return row
+
     def circles(self, options: list[tuple[str, str]], current: str, on_pick,
                 across: bool = False, per_row: int = 0) -> QtWidgets.QLayout:
         """One circle per choice, filled in solid when it is the one in use. Short choices
@@ -2560,7 +2692,14 @@ class MainWindow(QtWidgets.QWidget):
     def show_volume(self) -> None:
         """The bar reads silent whenever the recitation is switched off, so it never shows a
         level with nothing playing."""
-        self.volume.set_volume(self.settings.volume if self.settings.recitation else 0)
+        loud = self.settings.volume if self.settings.recitation else 0
+        self.volume.set_volume(loud)
+        for bar, read in getattr(self, "volume_bars", []):
+            if bar.value() != loud:
+                was = bar.blockSignals(True)     # moving it must not look like being dragged
+                bar.setValue(loud)
+                bar.blockSignals(was)
+            read.setText(f"{loud}%")
 
     def set_inset(self, value: str) -> None:
         self.settings.inset = int(value)

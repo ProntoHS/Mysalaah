@@ -653,6 +653,57 @@ class RepeatBadge(QtWidgets.QWidget):
         painter.drawText(circle, int(Qt.AlignmentFlag.AlignCenter), f"X{self.count}")
 
 
+class Switch(QtWidgets.QAbstractButton):
+    """An on/off switch, the kind you slide.
+
+    It replaces a pair of circles with one thing to press. Two circles for on and off ask you
+    to read both labels and work out which is filled in; a switch is the answer and the control
+    at once, and it is a single target rather than two small ones -- which matters on a mat you
+    are prodding with a finger.
+
+    Drawn rather than styled, because a checkbox styled into looking like a switch never quite
+    does, and this has to read from standing distance.
+    """
+
+    WIDE = 92          # at 1080p
+    TALL = 48
+    EDGE = 3
+
+    def __init__(self, on: bool = False, scale: float = 1.0):
+        super().__init__()
+        self.setCheckable(True)
+        self.setChecked(bool(on))
+        self.scale = scale
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedSize(self.sizeHint())
+
+    def sizeHint(self):
+        return QtCore.QSize(int(self.WIDE * self.scale), int(self.TALL * self.scale))
+
+    def set_scale(self, scale: float) -> None:
+        self.scale = scale
+        self.setFixedSize(self.sizeHint())
+        self.update()
+
+    def paintEvent(self, _):
+        colours = palette()
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        box = QtCore.QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        radius = box.height() / 2
+        painter.setPen(Qt.PenStyle.NoPen)
+        # On: filled with the blue everything active is in. Off: the same grey as a border, so
+        # it reads as a thing that is off rather than a thing that is broken.
+        painter.setBrush(QtGui.QColor(colours.lapis if self.isChecked() else colours.line))
+        painter.drawRoundedRect(box, radius, radius)
+        edge = max(1.0, self.EDGE * self.scale)
+        knob = box.height() - 2 * edge
+        left = box.right() - edge - knob if self.isChecked() else box.left() + edge
+        painter.setBrush(QtGui.QColor(colours.paper))
+        painter.drawEllipse(QtCore.QRectF(left, box.top() + edge, knob, knob))
+
+
 class VolumeBar(QtWidgets.QWidget):
     """How loud the recitation is, as a rectangle above the picture.
 

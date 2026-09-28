@@ -424,16 +424,22 @@ class Reader(QtWidgets.QWidget):
         bar.addLayout(self.tongues)
         bar.addStretch(1)
 
+        # How loud the recitation is, where it is being listened to. It sits here rather than
+        # appearing only once something is playing: setting the level before pressing play is
+        # worth more than the room saved, and a control that arrives mid-recitation shoves the
+        # rest of the row sideways while somebody is reading.
+        bar.addLayout(self.win.volume_slider())
+
+        # Which page you are on used to be spelled out beside the arrows. It has gone: the
+        # arrows say the same thing by greying out at either end, and "Page 1 of 39" was the
+        # widest thing in a row that had run out of room.
         self.earlier = QtWidgets.QPushButton("‹")
         self.later = QtWidgets.QPushButton("›")
         for b, forward in ((self.earlier, False), (self.later, True)):
             b.setObjectName("turnPage")
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             b.clicked.connect(lambda _=False, f=forward: self.spread.turn(f))
-        self.where = QtWidgets.QLabel()
-        self.where.setObjectName("readerWhere")
         bar.addWidget(self.earlier)
-        bar.addWidget(self.where)
         bar.addWidget(self.later)
         outer.addLayout(bar)
 
@@ -480,8 +486,7 @@ class Reader(QtWidgets.QWidget):
         self.reload()
 
     def say_where(self) -> None:
-        self.where.setText(self.win.t("quran.page", at=self.spread.at + 1,
-                                      of=self.spread.pages_count))
+        """Only the arrows now: live while there is a page that way, greyed out at the end."""
         self.earlier.setEnabled(self.spread.at > 0)
         self.later.setEnabled(self.spread.at < self.spread.pages_count - 1)
 
