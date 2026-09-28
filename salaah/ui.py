@@ -28,7 +28,7 @@ from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .recite import Store, WordTimes
 from .call import Adhan, CallBox
-from .reading import NUMBER_LINE, Reader, SurahList
+from .reading import LIST_BAR, NUMBER_LINE, Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
 from .power import Outputs
 from .settings import Settings
@@ -814,6 +814,20 @@ class MainWindow(QtWidgets.QWidget):
                 background:{c.line}; border-radius:{px(7)}px; min-height:{px(60)}px; }}
             QScrollArea#settingsScroll QScrollBar::add-line:vertical,
             QScrollArea#settingsScroll QScrollBar::sub-line:vertical {{ height:0; }}
+            /* The lists -- the surahs, the du'as, the kalima -- are scrolled with a finger, so
+               their slider is three times the width a desktop gives it, and the handle is in
+               the colour of the quieter text rather than the divider line, which on the dark
+               screen was barely there. The arrow buttons at the ends go: they are a mouse's
+               idea of scrolling and at this width they would be two big blank squares. */
+            QScrollArea#listScroll QScrollBar:vertical {{
+                background:{c.paper}; width:{px(LIST_BAR)}px; margin:0; border:none; }}
+            QScrollArea#listScroll QScrollBar::handle:vertical {{
+                background:{c.stone}; border-radius:{px(LIST_BAR // 2)}px;
+                min-height:{px(110)}px; }}
+            QScrollArea#listScroll QScrollBar::add-line:vertical,
+            QScrollArea#listScroll QScrollBar::sub-line:vertical {{ height:0; }}
+            QScrollArea#listScroll QScrollBar::add-page:vertical,
+            QScrollArea#listScroll QScrollBar::sub-page:vertical {{ background:transparent; }}
             QLabel#settingHead {{ font-size:{px(30)}px; font-weight:bold; color:{c.strong}; }}
             QLabel#settingHint {{ font-size:{px(20)}px; color:{c.hint}; }}
             QLabel#settingValue {{ font-size:{px(24)}px; font-weight:bold; color:{c.strong}; }}

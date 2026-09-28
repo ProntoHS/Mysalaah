@@ -47,6 +47,12 @@ STOP = "\u25a0"
 NUMBER_BOX = 64          # the square's side, before scaling
 NUMBER_LINE = 4          # and how thick its outline is drawn
 
+# The slider down the side of the lists. Three times the 14px a desktop gives it: this is a
+# touchscreen, and 14px is a target for a mouse pointer, not for the side of a thumb. The lists
+# resize to whatever the slider leaves, so the rows give up the width rather than the slider
+# sitting on top of them.
+LIST_BAR = 42
+
 
 class SurahList(QtWidgets.QWidget):
     """All 114, in Arabic and in English, as a grid of touchable rows."""
@@ -74,6 +80,7 @@ class SurahList(QtWidgets.QWidget):
         outer.addLayout(bar)
 
         self.scroll = QtWidgets.QScrollArea()
+        self.scroll.setObjectName("listScroll")
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)

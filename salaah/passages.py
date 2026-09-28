@@ -160,6 +160,7 @@ class PassageList(QtWidgets.QWidget):
         outer.addLayout(bar)
 
         self.scroll = QtWidgets.QScrollArea()
+        self.scroll.setObjectName("listScroll")      # so it gets the wide, touchable slider
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)

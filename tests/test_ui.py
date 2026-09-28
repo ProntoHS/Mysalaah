@@ -5684,3 +5684,142 @@ class SoundSettingsTogetherTest(unittest.TestCase):
         knob.click()
         settle()
         self.assertNotEqual(was, w.settings.azaan, "moving it broke it")
+
+
+class TouchableSliderTest(unittest.TestCase):
+    """The slider down the side of the lists is slid with a finger, not pointed at with a mouse."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def surahs(self, w):
+        w.open_corner_list()
+        settle()
+        return w.surah_list
+
+    def duas(self, w):
+        w.open_section("duas")
+        settle()
+        return w.section_lists["duas"]
+
+    def test_the_list_slider_is_three_times_the_one_in_settings(self):
+        """Settings is read sitting still and its slider is the ordinary 14px. The lists are
+        scrolled through with a thumb while standing over the mat."""
+        w = self.window()
+        w.open_settings()
+        settle()
+        thin = w.settings_scroll.verticalScrollBar().width()
+        self.assertEqual(14, thin, "the settings slider was the one measured against")
+        for name, listing in (("surahs", self.surahs(w)), ("du'as", self.duas(w))):
+            wide = listing.scroll.verticalScrollBar().width()
+            self.assertEqual(thin * 3, wide, f"the {name} slider is {wide}px, not three times {thin}")
+
+    def test_settings_keeps_its_thin_one(self):
+        """Only the lists changed. Widening every slider in the app would have eaten the
+        settings columns for a screen nobody scrolls with a finger."""
+        w = self.window()
+        w.open_settings()
+        settle()
+        self.assertEqual(14, w.settings_scroll.verticalScrollBar().width())
+
+    def test_the_rows_gave_up_the_width_and_kept_their_height(self):
+        """What was asked for: narrower rectangles, same height. The lists resize to whatever
+        the slider leaves, so this is what should have happened by itself."""
+        w = self.window()
+        for listing in (self.surahs(w), self.duas(w)):
+            rows = [b for b in listing.findChildren(QtWidgets.QPushButton)
+                    if b.objectName() == "surahRow"]
+            self.assertTrue(rows)
+            self.assertEqual({w.px(96)}, {b.height() for b in rows}, "the height should not move")
+            edge = max(b.mapTo(listing, b.rect().topRight()).x() for b in rows)
+            bar = listing.scroll.verticalScrollBar()
+            self.assertLessEqual(edge, bar.mapTo(listing, bar.rect().topLeft()).x(),
+                                 "a row runs under the slider instead of stopping short of it")
+
+    def test_the_handle_is_a_finger_sized_target_and_is_actually_drawn(self):
+        """Rendered: a slider styled to a width it then paints nothing into is not a target.
+        The surah list is 114 rows, so its handle is as small as the handle ever gets."""
+        w = self.window()
+        listing = self.surahs(w)
+        bar = listing.scroll.verticalScrollBar()
+        self.assertTrue(bar.isVisible(), "114 surahs should need scrolling")
+        self.assertGreaterEqual(bar.height(), w.px(300))
+        image = bar.grab().toImage()
+        rows_painted = 0
+        for y in range(image.height()):
+            across = sum(1 for x in range(image.width())
+                         if QtGui.QColor(image.pixel(x, y)).lightness() > 90)
+            if across > image.width() * 0.6:
+                rows_painted += 1
+        self.assertGreaterEqual(rows_painted, w.px(100),
+                                f"only {rows_painted}px of handle is painted; it is a groove, "
+                                f"not a handle")
+
+    def test_the_slider_actually_scrolls_the_list(self):
+        w = self.window()
+        listing = self.surahs(w)
+        bar = listing.scroll.verticalScrollBar()
+        self.assertEqual(0, bar.value())
+        self.assertGreater(bar.maximum(), 0)
+        bar.setValue(bar.maximum())
+        settle()
+        self.assertEqual(bar.maximum(), bar.value(), "the slider did not take")
+
+    def test_the_kalima_list_behind_the_arches_got_it_too(self):
+        """The kalima are chosen off the mosque, but the list is still there when the drawing
+        is missing, and it is the same widget -- so it should not be the one left behind."""
+        w = self.window()
+        # Shown directly: open_section puts the arches up instead, so going that way leaves the
+        # list never laid out and its slider at an unrealised default width.
+        listing = w.section_lists["kalima"]
+        w.stack.setCurrentWidget(w.corner_page)
+        w.corner_screen.setCurrentWidget(listing)
+        settle()
+        self.assertTrue(listing.isVisible(), "the list was never actually shown")
+        self.assertEqual("listScroll", listing.scroll.objectName(), "the rule would not reach it")
+        # Six kalima fit without scrolling, so the slider is hidden and its width means nothing
+        # until it is asked for. Turned on, it should be the same wide one as the others.
+        listing.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        settle()
+        bar = listing.scroll.verticalScrollBar()
+        self.assertTrue(bar.isVisible())
+        self.assertEqual(w.px(42), bar.width())
+
+
+class MuezzinPictureTest(unittest.TestCase):
+    """The drawing is used as a stencil, so what matters is its shape and that it can be
+    filled. A picture saved the ordinary way -- black lines on white -- would be a black
+    rectangle on a black box, which the eye would notice and no other test would."""
+
+    def test_the_picture_is_a_stencil_and_not_a_flat_drawing(self):
+        picture = ASSETS / "azaan" / "muezzin.png"
+        self.assertTrue(picture.is_file())
+        image = QtGui.QImage(str(picture))
+        self.assertFalse(image.isNull())
+        self.assertTrue(image.hasAlphaChannel(), "no alpha: there is no shape to fill")
+        clear = ink = 0
+        colours = set()
+        for y in range(0, image.height(), 5):
+            for x in range(0, image.width(), 5):
+                c = QtGui.QColor(image.pixelColor(x, y))
+                if c.alpha() < 20:
+                    clear += 1
+                elif c.alpha() > 230:
+                    ink += 1
+                    colours.add((c.red(), c.green(), c.blue()))
+        self.assertGreater(clear, ink, "most of the picture should be see-through")
+        self.assertGreater(ink, 0, "nothing is drawn")
+        self.assertEqual({(255, 255, 255)}, colours,
+                         "the ink must be white so the screen can tint it to any colour")
+
+    def test_it_is_the_tall_shape_the_box_gives_it(self):
+        image = QtGui.QImage(str(ASSETS / "azaan" / "muezzin.png"))
+        self.assertGreater(image.height(), image.width(), "an upright arch, not a wide one")
+        self.assertGreaterEqual(image.height(), 800, "too small to draw at the size of the box")
