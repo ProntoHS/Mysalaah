@@ -1257,7 +1257,15 @@ class MainWindow(QtWidgets.QWidget):
         return stack
 
     def page_soon(self) -> QtWidgets.QWidget:
-        w, lay = self.page(self.t("corner.title"), "")
+        """The screen a tile with nothing behind it yet lands on.
+
+        It carries the strip above it like every other Knowledge screen, and it is headed with
+        the name of the tile that was touched rather than one title for all of them -- so it
+        says which of the three it is, not merely that something is missing.
+        """
+        w, lay = self.page("", "")
+        self.soon_title = next(x for x in w.findChildren(QtWidgets.QLabel)
+                               if x.objectName() == "h1")
         lay.addStretch(1)
         said = QtWidgets.QLabel(self.t("corner.not_yet"))
         said.setObjectName("settingHead")
@@ -1286,6 +1294,9 @@ class MainWindow(QtWidgets.QWidget):
         if which in self.section_lists and self.section_lists[which].passages.items:
             self.open_section(which)
             return
+        # Anything with nothing behind it yet -- the three new tiles, or one of the three old
+        # ones whose content is missing -- lands here, named.
+        self.soon_title.setText(self.t(f"corner.{which}") if which else "")
         self.corner_screen.setCurrentWidget(self.corner_soon)
         self.stack.setCurrentWidget(self.corner_page)
 

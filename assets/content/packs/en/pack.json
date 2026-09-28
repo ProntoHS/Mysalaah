@@ -194,7 +194,11 @@
     "corner.item": "{at} of {of}",
     "quran.recite": "Recite",
     "quran.stop_reciting": "Stop",
-    "quran.cannot_recite": "No recitation available"
+    "quran.cannot_recite": "No recitation available",
+    "corner.quran": "Qur'an",
+    "corner.hadith": "Hadith",
+    "corner.pillars": "The five pillars",
+    "corner.world": "The Muslim world"
   },
   "transliteration": {},
   "translation": {

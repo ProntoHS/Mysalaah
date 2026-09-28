@@ -3609,10 +3609,11 @@ class KnowledgeCornerTest(unittest.TestCase):
         self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
-    def test_the_small_screen_offers_three_things_between_prayers(self):
+    def test_the_small_screen_offers_six_things_between_prayers(self):
         w = self.window()
         self.assertTrue(w.side.showing_corner, "the 7in should show the corner between prayers")
-        self.assertEqual(["quran", "duas", "kalima"], [t.name for t in w.side.corner.tiles])
+        self.assertEqual(["quran", "duas", "kalima", "hadith", "pillars", "world"],
+                         [t.name for t in w.side.corner.tiles])
 
     def test_the_posture_takes_the_small_screen_back_during_a_prayer(self):
         w = self.window()
@@ -6786,3 +6787,128 @@ class WalkIntoTheNameTest(unittest.TestCase):
         w.leave_welcome()
         settle()
         self.assertFalse(w.veil.running, "it walked in from a screen that is not the front door")
+
+
+class SixTileMenuTest(unittest.TestCase):
+    """The 7in menu: six tiles, two across and three down, filling the screen with no heading."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def test_the_tiles_sit_two_across_and_three_down(self):
+        w = self.window()
+        tiles = w.side.corner.tiles
+        self.assertEqual(6, len(tiles))
+        columns = sorted({t.x() for t in tiles})
+        rows = sorted({t.y() for t in tiles})
+        self.assertEqual(2, len(columns), f"expected two columns, got {columns}")
+        self.assertEqual(3, len(rows), f"expected three rows, got {rows}")
+        # reading order: across, then down
+        order = sorted(tiles, key=lambda t: (t.y(), t.x()))
+        self.assertEqual(["quran", "duas", "kalima", "hadith", "pillars", "world"],
+                         [t.name for t in order])
+
+    def test_the_heading_is_gone_and_the_tiles_take_the_height(self):
+        """The words are drawn into the tiles, so a title above them said a third thing on a
+        screen with room for two -- and took the height the tiles wanted."""
+        w = self.window()
+        corner = w.side.corner
+        said = [x.text() for x in corner.findChildren(QtWidgets.QLabel) if x.text()]
+        self.assertEqual([], said, f"there is still lettering above the tiles: {said}")
+        self.assertNotIn("Knowledge", " ".join(
+            x.text() for x in w.side.findChildren(QtWidgets.QLabel)))
+        top = min(t.y() for t in corner.tiles)
+        bottom = max(t.y() + t.height() for t in corner.tiles)
+        self.assertLess(top, w.side.height() * 0.05, "space wasted above the tiles")
+        self.assertGreater(bottom, w.side.height() * 0.95, "space wasted below them")
+
+    def test_every_tile_has_its_own_picture_and_they_are_all_different(self):
+        """The picture each tile is actually pointed at, not the files on disk. Six correct
+        files prove nothing if every tile is wired to the same one -- which is exactly what
+        the first version of this missed."""
+        w = self.window()
+        pointed = {t.name: t.path for t in w.side.corner.tiles}
+        self.assertEqual(6, len(set(pointed.values())), f"tiles share pictures: {pointed}")
+        seen = {}
+        for name, path in pointed.items():
+            self.assertEqual(f"{name}.png", path.name, f"{name} is pointed at {path.name}")
+            self.assertTrue(path.is_file(), name)
+            image = QtGui.QImage(str(path))  # noqa: the path the tile itself carries
+            self.assertFalse(image.isNull(), name)
+            self.assertGreater(image.width(), 200, name)
+            self.assertLess(abs(image.width() - image.height()), image.width() * 0.2,
+                            f"{name} is not the square the tiles were drawn as")
+            ink = tuple(image.pixel(x, y) for y in range(0, image.height(), 9)
+                        for x in range(0, image.width(), 9))
+            self.assertNotIn(ink, seen, f"{name} is the same picture as {seen.get(ink)}")
+            seen[ink] = name
+
+    def test_the_three_that_are_filled_in_still_open_what_they_did(self):
+        w = self.window()
+        by_name = {t.name: t for t in w.side.corner.tiles}
+        by_name["quran"].click()
+        settle()
+        self.assertIs(w.surah_list, w.corner_screen.currentWidget())
+        w.go_home()
+        by_name["duas"].click()
+        settle()
+        self.assertIs(w.section_lists["duas"], w.corner_screen.currentWidget())
+        w.go_home()
+        by_name["kalima"].click()
+        settle()
+        self.assertIn(w.corner_screen.currentWidget(),
+                      (w.arch_menus.get("kalima"), w.section_lists["kalima"]))
+
+    def test_the_three_that_are_not_land_on_a_named_empty_screen(self):
+        w = self.window()
+        by_name = {t.name: t for t in w.side.corner.tiles}
+        for name, heading in (("hadith", "Hadith"), ("pillars", "The five pillars"),
+                              ("world", "The Muslim world")):
+            w.go_home()
+            settle()
+            by_name[name].click()
+            settle()
+            self.assertIs(w.corner_soon, w.corner_screen.currentWidget(), name)
+            self.assertIs(w.corner_page, w.stack.currentWidget(), name)
+            self.assertEqual(heading, w.soon_title.text(), name)
+            said = [x.text() for x in w.corner_soon.findChildren(QtWidgets.QLabel)]
+            self.assertIn(w.t("corner.not_yet"), said, name)
+
+    def test_the_empty_screen_carries_the_strip_like_every_other(self):
+        w = self.window()
+        {t.name: t for t in w.side.corner.tiles}["world"].click()
+        settle()
+        strips = [x for x in w.corner_page.findChildren(QtWidgets.QWidget)
+                  if x.objectName() == "banner"]
+        self.assertEqual(1, len(strips))
+        said = next(x for x in strips[0].findChildren(QtWidgets.QLabel)
+                    if x.objectName() == "bannerText")
+        self.assertIn("Bury", said.text())
+        for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
+            self.assertIn(w.t(f"prayer.{prayer}"), said.text(), prayer)
+
+    def test_every_tile_is_named_in_every_language(self):
+        import json
+        from salaah.knowledge import TILES
+        for lang in sorted(available_packs(ASSETS)):
+            ui = json.loads((ASSETS / "content" / "packs" / lang / "pack.json")
+                            .read_text(encoding="utf-8"))["ui"]
+            for name in TILES:
+                self.assertTrue(ui.get(f"corner.{name}", "").strip(),
+                                f"{lang} has no name for {name}")
+
+    def test_a_tile_is_a_big_enough_target_for_a_finger(self):
+        w = self.window()
+        for tile in w.side.corner.tiles:
+            self.assertGreater(tile.width(), 200, tile.name)
+            self.assertGreater(tile.height(), 200, tile.name)

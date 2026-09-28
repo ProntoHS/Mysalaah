@@ -194,7 +194,11 @@
     "corner.item": "{of} میں سے {at}",
     "quran.recite": "تلاوت",
     "quran.stop_reciting": "روکیں",
-    "quran.cannot_recite": "تلاوت دستیاب نہیں"
+    "quran.cannot_recite": "تلاوت دستیاب نہیں",
+    "corner.quran": "قرآن",
+    "corner.hadith": "حدیث",
+    "corner.pillars": "پانچ ارکان",
+    "corner.world": "عالمِ اسلام"
   },
   "transliteration": {},
   "translation": {}

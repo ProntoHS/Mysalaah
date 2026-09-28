@@ -196,6 +196,10 @@
     "corner.item": "{of} में से {at}",
     "quran.recite": "तिलावत",
     "quran.stop_reciting": "रोकें",
-    "quran.cannot_recite": "तिलावत उपलब्ध नहीं"
+    "quran.cannot_recite": "तिलावत उपलब्ध नहीं",
+    "corner.quran": "क़ुरआन",
+    "corner.hadith": "हदीस",
+    "corner.pillars": "पाँच स्तंभ",
+    "corner.world": "मुस्लिम जगत"
   }
 }

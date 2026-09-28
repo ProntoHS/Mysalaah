@@ -196,6 +196,10 @@
     "corner.item": "第 {at} / {of}",
     "quran.recite": "诵读",
     "quran.stop_reciting": "停止",
-    "quran.cannot_recite": "无法诵读"
+    "quran.cannot_recite": "无法诵读",
+    "corner.quran": "《古兰经》",
+    "corner.hadith": "圣训",
+    "corner.pillars": "五功",
+    "corner.world": "穆斯林世界"
   }
 }
