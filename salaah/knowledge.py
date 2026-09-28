@@ -25,7 +25,7 @@ from .theme import palette
 
 # The tiles, in reading order: two across, three down, the way they were drawn. The name is
 # the picture's file name and the word the rest of the app knows the section by.
-TILES = ("quran", "duas", "kalima", "hadith", "pillars", "world")
+TILES = ("quran", "duas", "kalima", "hadith", "settings", "world")
 ACROSS = 2
 
 

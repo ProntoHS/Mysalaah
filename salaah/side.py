@@ -43,7 +43,7 @@ class SideWindow(QtWidgets.QWidget):
         # What the 7" offers between prayers now that the compass has gone: three things to
         # read, chosen here and opened on the big screen.
         self.corner = KnowledgeScreen(window)
-        self.corner.chose.connect(window.open_corner)
+        self.corner.chose.connect(window.chose_on_the_small_screen)
         self.stack.addWidget(self.corner)
 
         self.compass = compass_screen

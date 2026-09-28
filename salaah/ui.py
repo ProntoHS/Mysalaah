@@ -1165,6 +1165,16 @@ class MainWindow(QtWidgets.QWidget):
         lay.addLayout(bottom)
         return w
 
+    @property
+    def needs_a_gear(self) -> bool:
+        """Whether the strip has to carry a cog.
+
+        It does not when there is a 7in screen, because its Settings tile is the way in and a
+        red cog on every screen was one thing too many. With no second screen there is no tile,
+        so the cog stays rather than walling Settings off altogether.
+        """
+        return self.side is None
+
     def make_banner(self, gear: bool = True, home: bool = False) -> QtWidgets.QWidget:
         """The black strip across the top: where you are, the five prayer times with the
         current one in green, what is next -- and how loud the recitation is.
@@ -1200,7 +1210,7 @@ class MainWindow(QtWidgets.QWidget):
             back.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             back.clicked.connect(self.go_home)
             row.addWidget(back)
-        if gear:
+        if gear and self.needs_a_gear:
             # Red, the colour everything you press is in: Menu, Main screen, the leave buttons.
             cog = GearButton(self.px(52), QtGui.QColor(BRICK))
             cog.setToolTip(self.t("home.settings"))
@@ -1281,6 +1291,17 @@ class MainWindow(QtWidgets.QWidget):
         row.addWidget(home)
         lay.addLayout(row)
         return w
+
+    def chose_on_the_small_screen(self, which: str) -> None:
+        """A tile was touched on the 7in. Most of them open something to read; Settings is the
+        one that is not a reading, so it goes its own way rather than being bent into one."""
+        if which == "settings":
+            if self.playing or self.asleep:
+                return
+            self.stir()
+            self.open_settings()
+            return
+        self.open_corner(which)
 
     def open_corner(self, which: str) -> None:
         """Something was touched on the 7". Open it on the big screen -- unless a prayer is
@@ -2711,11 +2732,14 @@ class MainWindow(QtWidgets.QWidget):
         bar.setSingleStep(5)
         bar.setPageStep(10)
         bar.setValue(self.settings.volume if self.settings.recitation else 0)
-        bar.setFixedWidth(self.px(220))
-        bar.setMinimumHeight(self.px(44))       # a finger, not a mouse
+        bar.setFixedWidth(self.px(320))
+        bar.setMinimumHeight(self.px(52))       # a finger, not a mouse
+        # The figure beside it has gone: where the handle sits says how loud it is, and the
+        # number was the only thing on the strip nobody was reading. It is still built, hidden,
+        # because everything that keeps the sliders in step is written in terms of the pair.
         read = QtWidgets.QLabel(f"{bar.value()}%")
         read.setObjectName("volumeReadOnDark" if dark else "volumeRead")
-        read.setMinimumWidth(self.px(70))       # so the row does not twitch as it is dragged
+        read.hide()
         bar.valueChanged.connect(lambda v: self.volume_moved(v))
         self.volume_bars.append((bar, read))
         row.addWidget(bar)

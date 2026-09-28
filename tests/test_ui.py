@@ -3612,7 +3612,7 @@ class KnowledgeCornerTest(unittest.TestCase):
     def test_the_small_screen_offers_six_things_between_prayers(self):
         w = self.window()
         self.assertTrue(w.side.showing_corner, "the 7in should show the corner between prayers")
-        self.assertEqual(["quran", "duas", "kalima", "hadith", "pillars", "world"],
+        self.assertEqual(["quran", "duas", "kalima", "hadith", "settings", "world"],
                          [t.name for t in w.side.corner.tiles])
 
     def test_the_posture_takes_the_small_screen_back_during_a_prayer(self):
@@ -6315,10 +6315,15 @@ class CleanArtworkTest(unittest.TestCase):
                             f"{folder}: {share*100:.1f}% of what is drawn is a half shade -- "
                             f"that is the glow that made the first pair look muddy")
 
-    def test_all_three_are_the_same_canvas(self):
-        sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size()
-                 for f in ("mosque", "kalima", "welcome")}
-        self.assertEqual(1, len(sizes), "the three screens are drawn at different sizes")
+    def test_the_two_that_are_compared_share_a_canvas(self):
+        """The mosque and the kalima menu are meant to read as the same building seen twice, so
+        they are lined up against each other and must be the same size. The front door is not
+        compared with either -- it was cropped to fill the screen, which is a different shape."""
+        sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size() for f in ("mosque", "kalima")}
+        self.assertEqual(1, len(sizes), "the two mosques are drawn at different sizes")
+        front = QtGui.QImage(str(ASSETS / "welcome" / "mosque.png")).size()
+        self.assertGreater(front.width() / front.height(), 1.85,
+                           "the front door should be cut to the shape of the screen")
 
 
 class ArchFinderTest(unittest.TestCase):
@@ -6416,7 +6421,7 @@ class ArtworkCacheTest(unittest.TestCase):
         self.assertTrue(first.ready)
         was = first.picture.size()
 
-        shutil.copy(ASSETS / "welcome" / "mosque.png", spare / "mosque" / "mosque.png")
+        shutil.copy(ASSETS / "kalima" / "mosque.png", spare / "mosque" / "mosque.png")
         import os, time
         later = time.time() + 5
         os.utime(spare / "mosque" / "mosque.png", (later, later))
@@ -6815,7 +6820,7 @@ class SixTileMenuTest(unittest.TestCase):
         self.assertEqual(3, len(rows), f"expected three rows, got {rows}")
         # reading order: across, then down
         order = sorted(tiles, key=lambda t: (t.y(), t.x()))
-        self.assertEqual(["quran", "duas", "kalima", "hadith", "pillars", "world"],
+        self.assertEqual(["quran", "duas", "kalima", "hadith", "settings", "world"],
                          [t.name for t in order])
 
     def test_the_heading_is_gone_and_the_tiles_take_the_height(self):
@@ -6872,8 +6877,7 @@ class SixTileMenuTest(unittest.TestCase):
     def test_the_three_that_are_not_land_on_a_named_empty_screen(self):
         w = self.window()
         by_name = {t.name: t for t in w.side.corner.tiles}
-        for name, heading in (("hadith", "Hadith"), ("pillars", "The five pillars"),
-                              ("world", "The Muslim world")):
+        for name, heading in (("hadith", "Hadith"), ("world", "The Muslim world")):
             w.go_home()
             settle()
             by_name[name].click()
@@ -6897,13 +6901,17 @@ class SixTileMenuTest(unittest.TestCase):
         for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
             self.assertIn(w.t(f"prayer.{prayer}"), said.text(), prayer)
 
-    def test_every_tile_is_named_in_every_language(self):
+    def test_every_reading_tile_is_named_in_every_language(self):
+        """Every tile that lands on a Knowledge screen needs a name for its heading. Settings
+        is not one of those -- it goes to the Settings screen, which has its own title."""
         import json
         from salaah.knowledge import TILES
+        readings = [n for n in TILES if n != "settings"]
+        self.assertEqual(5, len(readings))
         for lang in sorted(available_packs(ASSETS)):
             ui = json.loads((ASSETS / "content" / "packs" / lang / "pack.json")
                             .read_text(encoding="utf-8"))["ui"]
-            for name in TILES:
+            for name in readings:
                 self.assertTrue(ui.get(f"corner.{name}", "").strip(),
                                 f"{lang} has no name for {name}")
 
@@ -6912,3 +6920,192 @@ class SixTileMenuTest(unittest.TestCase):
         for tile in w.side.corner.tiles:
             self.assertGreater(tile.width(), 200, tile.name)
             self.assertGreater(tile.height(), 200, tile.name)
+
+
+class SettingsFromTheTileTest(unittest.TestCase):
+    """Settings is reached from the 7in tile, so the red cog has left the strip."""
+
+    def window(self, side=True):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=side)
+        w.resize(1920, 1080)
+        w.show()
+        if side:
+            w.side.resize(600, 1024)
+            w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def test_the_settings_tile_opens_settings(self):
+        w = self.window()
+        {t.name: t for t in w.side.corner.tiles}["settings"].click()
+        settle()
+        self.assertIs(w.settings_screen, w.stack.currentWidget())
+
+    def test_it_does_not_land_on_the_not_filled_in_screen(self):
+        """Settings is not a reading. Sent through the same door as the others it would have
+        come out on the screen that says there is nothing here yet."""
+        w = self.window()
+        {t.name: t for t in w.side.corner.tiles}["settings"].click()
+        settle()
+        self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget())
+        self.assertIsNot(w.corner_page, w.stack.currentWidget())
+
+    def test_no_cog_on_any_strip_when_the_small_screen_is_there(self):
+        from salaah.mosque import GearButton
+        w = self.window()
+        for page in (w.welcome, w.home, w.corner_page):
+            strips = [x for x in page.findChildren(QtWidgets.QWidget)
+                      if x.objectName() == "banner"]
+            for strip in strips:
+                self.assertEqual([], strip.findChildren(GearButton),
+                                 "a cog is still on a strip")
+
+    def test_the_cog_stays_when_there_is_no_small_screen_to_replace_it(self):
+        """Without the 7in there is no Settings tile, and taking the cog away as well would
+        wall Settings off with no way in at all."""
+        from salaah.mosque import GearButton
+        w = self.window(side=False)
+        self.assertTrue(w.needs_a_gear)
+        cogs = [x for x in w.home.findChildren(GearButton)]
+        self.assertTrue(cogs, "no way into Settings on a mat with one screen")
+        cogs[0].pressed_signal.emit()
+        settle()
+        self.assertIs(w.settings_screen, w.stack.currentWidget())
+
+    def test_the_settings_tile_is_not_shown_as_a_reading(self):
+        w = self.window()
+        w.chose_on_the_small_screen("settings")
+        settle()
+        self.assertIs(w.settings_screen, w.stack.currentWidget())
+        w.go_home()
+        settle()
+        w.chose_on_the_small_screen("world")
+        settle()
+        self.assertIs(w.corner_soon, w.corner_screen.currentWidget(),
+                      "the readings should still go the way they did")
+
+
+class VolumeSliderLookTest(unittest.TestCase):
+    """The slider on the strip: bigger, and with no figure printed beside it."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=True, place="Bury", volume=60),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def showing(self, w):
+        bars = [b for b, _ in w.volume_bars if b.isVisible()]
+        self.assertTrue(bars, "no slider is on screen")
+        return bars[0]
+
+    def test_no_percentage_is_printed_beside_it(self):
+        w = self.window()
+        for bar, read in w.volume_bars:
+            self.assertFalse(read.isVisible(), "the figure is still on the strip")
+        # Anything else on the strip that prints one -- a hidden label still answers text(),
+        # so only what is actually on screen counts.
+        said = " ".join(x.text() for x in w.welcome.findChildren(QtWidgets.QLabel)
+                        if x.text() and x.isVisible())
+        self.assertNotIn("%", said, "a percentage is still printed on the strip")
+
+    def test_it_is_bigger_than_it_was(self):
+        w = self.window()
+        bar = self.showing(w)
+        self.assertGreaterEqual(bar.width(), w.px(300), "no wider than before")
+        self.assertGreaterEqual(bar.height(), w.px(50), "no taller than before")
+
+    def test_it_still_fits_inside_the_strip(self):
+        w = self.window()
+        bar = self.showing(w)
+        strip = next(x for x in w.welcome.findChildren(QtWidgets.QWidget)
+                     if x.objectName() == "banner")
+        self.assertLessEqual(bar.height(), strip.height(),
+                             "the slider is taller than the strip it sits in")
+
+    def test_it_still_sets_the_volume(self):
+        w = self.window()
+        self.showing(w).setValue(25)
+        settle()
+        self.assertEqual(25, w.settings.volume)
+        for bar, _ in w.volume_bars:
+            self.assertEqual(25, bar.value(), "the sliders came out of step")
+
+
+class FrontDoorFillsTheScreenTest(unittest.TestCase):
+    """The drawing carried about a fifth of its height in empty sky. Cut to the shape of the
+    screen, it fills it: palms on both edges, the base on the floor, the moon under the strip."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def test_there_are_no_black_bars_round_the_picture(self):
+        w = self.window()
+        front = w.welcome_mosque
+        scaled, origin, _ = front.placement()
+        self.assertLessEqual(origin.x(), 8, f"{origin.x()}px of black either side")
+        self.assertLessEqual(origin.y(), 8, f"{origin.y()}px of black above and below")
+        self.assertGreaterEqual(scaled.width(), front.width() - 8, "it does not reach the sides")
+        self.assertGreaterEqual(scaled.height(), front.height() - 8, "it does not fill the height")
+
+    def test_the_drawing_itself_has_no_dead_sky_left_in_it(self):
+        """Filling the widget is not enough: the drawing used to sit inside its own canvas with
+        a fifth of the height empty, which is the black somebody actually sees."""
+        image = QtGui.QImage(str(ASSETS / "welcome" / "mosque.png"))
+        top = bottom = None
+        for y in range(image.height()):
+            if any(QtGui.QColor(image.pixelColor(x, y)).alpha() > 40
+                   for x in range(0, image.width(), 5)):
+                top = y if top is None else top
+                bottom = y
+        self.assertIsNotNone(top)
+        self.assertLess(top, image.height() * 0.08, f"{top}px of empty sky above the drawing")
+        self.assertGreater(bottom, image.height() * 0.92,
+                           f"{image.height()-bottom}px of empty space below it")
+
+    def test_the_picture_is_cut_to_the_shape_of_the_screen(self):
+        w = self.window()
+        front = w.welcome_mosque
+        self.assertLess(abs(front.picture.width() / front.picture.height()
+                            - front.width() / front.height()), 0.05,
+                        "the drawing is not the shape of the screen it has to fill")
+
+    def test_the_film_was_cut_the_same_way(self):
+        w = self.window()
+        front = w.welcome_mosque
+        self.assertIsNotNone(front.film, "the film was lost in the recut")
+        front.film.jumpToFrame(0)
+        self.assertEqual(front.picture.size(), front.film.currentPixmap().size())
+
+    def test_the_name_is_still_where_it_can_be_touched(self):
+        """The boxes were measured on the old canvas. Cut the picture and forget to rebuild
+        them and the panel you touch is somewhere else entirely."""
+        w = self.window()
+        front = w.welcome_mosque
+        middle = front.arch_centre("enter")
+        self.assertIsNotNone(middle)
+        self.assertEqual("enter", front.arch_at(middle))
+        box = front.arches[0].box
+        self.assertGreater(box.y(), front.picture.height() * 0.45, "the panel is too high up")
+        self.assertLess(box.bottom(), front.picture.height(), "the panel runs off the bottom")
