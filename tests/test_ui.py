@@ -71,6 +71,7 @@ class UiTest(unittest.TestCase):
         # now, so without this the mosque behind it is never shown and never laid out -- and a
         # test measuring where the banner sits reads the same number for everything.
         self.win.leave_welcome()
+        self.win.veil.stop()           # the walk is a picture over the top; not what is tested
         APP.processEvents()
         self.win.debouncer.window = 0  # tests press faster than a person
 
@@ -1769,7 +1770,9 @@ class MainScreenMarkTest(unittest.TestCase):
         from salaah import theme
         green = theme.palette().green
         self.assertIn(f'<span style="color:{green}">Dhuhr', text, "Dhuhr's time is green")
-        self.assertEqual(1, text.count("<span"), "only the prayer due")
+        # The green ones, not every coloured word on the strip: the place beside them is
+        # written in blue now, and counting all the spans counted that too.
+        self.assertEqual(1, text.count(f'color:{green}'), "only the prayer due is green")
         self.assertNotIn(f'color:{green}">Fajr', text)
 
     def test_no_glow_is_drawn_over_an_arch(self):
@@ -1825,6 +1828,7 @@ class SkyAndPolishTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         w.leave_welcome()      # past the front door: these look at the mosque behind it
+        w.veil.stop()          # and at the screen, not at the walk laid over it
         APP.processEvents()
         self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
@@ -2109,6 +2113,7 @@ class ZoomIntoArchTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         w.leave_welcome()      # past the front door: these look at the mosque behind it
+        w.veil.stop()          # and at the screen, not at the walk laid over it
         APP.processEvents()
         w.refresh()
         APP.processEvents()
@@ -2273,6 +2278,7 @@ class WalkLengthTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         w.leave_welcome()      # past the front door: these look at the mosque behind it
+        w.veil.stop()          # and at the screen, not at the walk laid over it
         APP.processEvents()
         self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         w.enter_prayer("asr")
@@ -2963,6 +2969,7 @@ class SleepTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         w.leave_welcome()      # past the front door: these look at the mosque behind it
+        w.veil.stop()          # and at the screen, not at the walk laid over it
         APP.processEvents()
         self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
@@ -4807,6 +4814,7 @@ class BannerTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         w.leave_welcome()      # past the front door: these look at the mosque behind it
+        w.veil.stop()          # and at the screen, not at the walk laid over it
         settle()
         w.tick()
         settle()
@@ -4815,8 +4823,8 @@ class BannerTest(unittest.TestCase):
 
     def test_the_knowledge_corner_has_a_banner_too(self):
         w = self.window()
-        self.assertEqual(3, len(w.banner_labels),
-                         "one on the front door, one in the corner, one over Settings")
+        self.assertEqual(4, len(w.banner_labels),
+                         "the mosque, the front door, the corner and Settings")
 
     def test_both_banners_say_the_same_thing(self):
         w = self.window()
@@ -4877,7 +4885,8 @@ class VolumeEverywhereTest(unittest.TestCase):
         """There were briefly two within a centimetre of each other in the Qur'an: one in the
         banner and one in the row under it. The banner's is the one that stayed."""
         w = self.window()
-        self.assertEqual(3, len(w.volume_bars), "the front door, the corner and Settings")
+        self.assertEqual(4, len(w.volume_bars),
+                         "the mosque, the front door, the corner and Settings")
         w.open_surah(2)
         settle()
         from salaah.qt import QtWidgets as Q
@@ -5480,14 +5489,23 @@ class AzaanScreenTest(unittest.TestCase):
             self.assertIsNone(w.adhan.at("azaan-fajr.mp3", middle),
                               f"something is lit in the gap before {after['key']}")
 
-    def test_a_recording_with_no_measured_timings_lights_nothing(self):
-        """azaan.mp3 would not come apart into its twelve lines, so it has no timings. Showing
-        the words without the red is right; red in the wrong place is not."""
+    def test_both_recordings_are_measured_now(self):
+        """The first ordinary recording would not come apart into its twelve lines and shipped
+        without timings. The one that replaced it does, so the red follows the voice at all
+        five prayers rather than only at Fajr."""
         w = self.window()
-        self.assertFalse(w.adhan.measured("azaan.mp3"))
+        for recording, lines in (("azaan.mp3", 12), ("azaan-fajr.mp3", 14)):
+            self.assertTrue(w.adhan.measured(recording), recording)
+            self.assertEqual(lines, len(w.adhan.times[recording]["lines"]), recording)
+
+    def test_a_recording_with_no_measured_timings_lights_nothing(self):
+        """Still the rule, and still worth holding: a recording nobody has measured shows its
+        words with no red at all. Red in the wrong place is worse than none."""
+        w = self.window()
+        self.assertFalse(w.adhan.measured("somebody-elses-azaan.mp3"))
         for t in (0.0, 30.0, 90.0, 170.0):
-            self.assertIsNone(w.adhan.at("azaan.mp3", t))
-        box = self.box(w, "dhuhr", "azaan.mp3")
+            self.assertIsNone(w.adhan.at("somebody-elses-azaan.mp3", t))
+        box = self.box(w, "dhuhr", "somebody-elses-azaan.mp3")
         self.assertFalse(box.follow.isActive(), "nothing to follow, so the clock stays off")
         self.assertTrue(box.boxes, "the words are still shown")
 
@@ -5898,6 +5916,7 @@ class DrawnForTheDarkTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         w.leave_welcome()      # past the front door: these look at the mosque behind it
+        w.veil.stop()          # and at the screen, not at the walk laid over it
         w.tick()
         settle()
         self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
@@ -5973,6 +5992,7 @@ class NewMosqueArtTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         w.leave_welcome()      # past the front door: these look at the mosque behind it
+        w.veil.stop()          # and at the screen, not at the walk laid over it
         w.tick()
         settle()
         self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
@@ -6594,3 +6614,175 @@ class WakeToTheFrontDoorTest(unittest.TestCase):
         w.wake()
         settle()
         self.assertIs(was, w.stack.currentWidget(), "it walked out of a prayer")
+
+
+class FrontDoorBannerTest(unittest.TestCase):
+    """The front door wears the same strip as the mosque, and the strip now leads with a pin."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "dark", "recitation": False, "place": "Bury",
+                                   **settings}),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def strip(self, w, page):
+        strips = [x for x in page.findChildren(QtWidgets.QWidget)
+                  if x.objectName() == "banner"]
+        self.assertEqual(1, len(strips), "one strip, no more and no fewer")
+        return strips[0]
+
+    def test_the_front_door_has_the_same_strip_as_the_mosque(self):
+        w = self.window()
+        front = self.strip(w, w.welcome)
+        said = [x for x in front.findChildren(QtWidgets.QLabel)
+                if x.objectName() == "bannerText"]
+        self.assertEqual(1, len(said))
+        self.assertIn("Bury", said[0].text())
+        for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
+            self.assertIn(w.t(f"prayer.{prayer}"), said[0].text(), prayer)
+        self.assertEqual(1, len(front.findChildren(QtWidgets.QSlider)), "and how loud it is")
+        self.assertEqual(0, front.mapTo(w.welcome, QtCore.QPoint(0, 0)).y(),
+                         "the strip is the top of the screen")
+
+    def test_the_pin_comes_before_the_place(self):
+        w = self.window()
+        front = self.strip(w, w.welcome)
+        pins = [x for x in front.findChildren(QtWidgets.QLabel) if x.objectName() == "bannerPin"]
+        self.assertEqual(1, len(pins), "no pin on the strip")
+        pin, words = pins[0], next(x for x in front.findChildren(QtWidgets.QLabel)
+                                   if x.objectName() == "bannerText")
+        self.assertFalse(pin.pixmap().isNull(), "the pin is empty")
+        self.assertLess(pin.mapTo(front, pin.rect().center()).x(),
+                        words.mapTo(front, QtCore.QPoint(0, 0)).x(),
+                        "the pin should come before the words, not after them")
+
+    def test_every_strip_has_one(self):
+        w = self.window()
+        pins = [x for x in w.findChildren(QtWidgets.QLabel) if x.objectName() == "bannerPin"]
+        self.assertEqual(len(w.banner_labels), len(pins),
+                         "a strip somewhere is missing its pin")
+
+    def test_the_place_is_written_in_blue_and_the_times_are_not(self):
+        from salaah.ui import BANNER_BLUE
+        w = self.window()
+        said = next(x for x in w.welcome.findChildren(QtWidgets.QLabel)
+                    if x.objectName() == "bannerText").text()
+        self.assertIn(f'<span style="color:{BANNER_BLUE}">Bury</span>', said)
+        after = said.split("</span>", 1)[1]
+        self.assertNotIn(BANNER_BLUE, after, "the prayer times went blue as well")
+
+    def test_the_blue_is_a_blue_and_reads_on_the_black_strip(self):
+        """The test below compares against the constant, so it follows wherever the constant
+        goes -- set it to off-white and that test still passes. This is what pins it down."""
+        from salaah.ui import BANNER_BLUE
+        blue = QtGui.QColor(BANNER_BLUE)
+        self.assertGreater(blue.blue(), blue.red() + 60, "that is not a blue")
+        self.assertGreater(blue.blue(), blue.green() + 40, "that is not a blue")
+        self.assertGreater(blue.lightness(), 110, "too dark to read on a black strip")
+
+    def test_the_place_is_painted_blue_on_the_screen(self):
+        """Rendered: rich text that names a colour and then does not use it is a real enough
+        mistake, and only the pixels say."""
+        from salaah.ui import BANNER_BLUE
+        w = self.window()
+        front = self.strip(w, w.welcome)
+        words = next(x for x in front.findChildren(QtWidgets.QLabel)
+                     if x.objectName() == "bannerText")
+        image = words.grab().toImage()
+        want = QtGui.QColor(BANNER_BLUE)
+        # Near enough the exact colour, not merely blue-ish. White lettering carries coloured
+        # fringes from the antialiasing, and some of them are bluer than the blue -- a loose
+        # test counted those and passed on a strip with no blue on it at all.
+        blue = sum(1 for y in range(image.height()) for x in range(image.width())
+                   if (abs(QtGui.QColor(image.pixel(x, y)).red() - want.red()) < 10
+                       and abs(QtGui.QColor(image.pixel(x, y)).green() - want.green()) < 10
+                       and abs(QtGui.QColor(image.pixel(x, y)).blue() - want.blue()) < 10))
+        self.assertGreater(blue, 150, "nothing on the strip is painted in the blue")
+
+
+class MapPinTest(unittest.TestCase):
+    """The pin is drawn in code. The picture that was sent over is a stock-library preview with
+    a watermark down its left edge, which has no business on a mat somebody owns."""
+
+    def test_it_is_a_round_head_with_a_hole_and_a_point(self):
+        from salaah.ui import map_pin
+        image = map_pin(240, "#8FB1F0").toImage()
+        self.assertEqual(0, QtGui.QColor(image.pixelColor(120, 90)).alpha(),
+                         "the middle of the head should be a hole")
+        self.assertEqual(255, QtGui.QColor(image.pixelColor(120, 30)).alpha(), "the head")
+        self.assertEqual(255, QtGui.QColor(image.pixelColor(120, 225)).alpha(), "the point")
+        self.assertEqual(0, QtGui.QColor(image.pixelColor(12, 225)).alpha(),
+                         "it should taper: the bottom corners are empty")
+
+    def test_it_takes_the_colour_it_is_given(self):
+        from salaah.ui import map_pin
+        for colour in ("#8FB1F0", "#B4443A"):
+            image = map_pin(120, colour).toImage()
+            got = QtGui.QColor(image.pixelColor(60, 15))
+            self.assertEqual(QtGui.QColor(colour).name(), got.name(), colour)
+
+    def test_it_is_drawn_rather_than_carried_as_a_picture(self):
+        self.assertFalse((ASSETS / "pin.png").exists())
+        self.assertFalse(list(ASSETS.glob("**/*pin*")), "a pin picture crept into the assets")
+
+
+class WalkIntoTheNameTest(unittest.TestCase):
+    """Touching MySalaah walks into the name, the way touching an arch walks into the arch."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def test_touching_the_name_starts_a_walk(self):
+        w = self.window()
+        self.assertFalse(w.veil.running)
+        w.welcome_mosque.chosen.emit("enter")
+        settle()
+        self.assertTrue(w.veil.running, "nothing is walking anywhere")
+        self.assertIs(w.home, w.stack.currentWidget(),
+                      "the screen changes first; the walk is only laid over it")
+
+    def test_the_walk_heads_for_the_name_and_not_the_middle_of_the_screen(self):
+        w = self.window()
+        panel = w.welcome_mosque.arch_centre("enter")
+        w.welcome_mosque.chosen.emit("enter")
+        settle()
+        aimed = w.veil.focus * w.veil.COARSE
+        self.assertLess(abs(aimed.x() - panel.x()), 30, "not aimed at the name across the front")
+        self.assertLess(abs(aimed.y() - (panel.y() + w.welcome.height() - w.welcome_mosque.height())),
+                        60, "not aimed at the right height")
+
+    def test_it_ends_on_the_mosque_even_if_the_walk_is_cut_short(self):
+        """The animation is never what decides which screen you are on."""
+        w = self.window()
+        w.welcome_mosque.chosen.emit("enter")
+        settle()
+        w.veil.stop()
+        settle()
+        self.assertFalse(w.veil.running)
+        self.assertIs(w.home, w.stack.currentWidget())
+
+    def test_going_in_from_anywhere_else_does_not_start_a_walk(self):
+        """Only the front door walks into the name. Coming back from Settings, or a prayer
+        falling due, should not blow the mosque up in somebody's face."""
+        w = self.window()
+        w.leave_welcome()
+        w.veil.stop()
+        settle()
+        w.open_settings()
+        settle()
+        w.leave_welcome()
+        settle()
+        self.assertFalse(w.veil.running, "it walked in from a screen that is not the front door")

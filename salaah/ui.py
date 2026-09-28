@@ -38,6 +38,9 @@ from types import SimpleNamespace
 PAPER = "#F5F6F3"
 INK = "#1D2327"
 LAPIS = "#274B8F"
+# The banner is black whatever the theme, so the place is picked out in a blue that reads on
+# black rather than the ink-dark lapis used on paper.
+BANNER_BLUE = "#8FB1F0"
 STONE = "#6B737A"
 LINE = "#D9DCD6"
 MINT = "#3C8D6B"
@@ -110,6 +113,35 @@ class ImageCache:
         else:
             self._items.move_to_end(key)
         return pix
+
+
+def map_pin(size: int, colour: str) -> QtGui.QPixmap:
+    """A map pin, drawn here rather than loaded from a picture.
+
+    It is four curves and a hole -- cheaper to draw than to store, sharp at any size, and it
+    takes whatever colour it is given so it always matches the words beside it. Drawing it also
+    keeps a stock-library picture, watermark and licence and all, out of the mat.
+    """
+    pin = QtGui.QPixmap(size, size)
+    pin.fill(Qt.GlobalColor.transparent)
+    p = QtGui.QPainter(pin)
+    p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+    head = size * 0.34                      # radius of the round head
+    middle = QtCore.QPointF(size / 2, size * 0.38)
+    body = QtGui.QPainterPath()
+    body.addEllipse(middle, head, head)
+    tip = QtGui.QPainterPath()              # the point, drawn as a triangle onto the head
+    tip.moveTo(middle.x() - head * 0.86, middle.y() + head * 0.5)
+    tip.lineTo(size / 2, size * 0.97)
+    tip.lineTo(middle.x() + head * 0.86, middle.y() + head * 0.5)
+    tip.closeSubpath()
+    hole = QtGui.QPainterPath()
+    hole.addEllipse(middle, head * 0.44, head * 0.44)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QtGui.QColor(colour))
+    p.drawPath(body.united(tip).subtracted(hole))
+    p.end()
+    return pin
 
 
 class Dot(QtWidgets.QWidget):
@@ -1049,12 +1081,34 @@ class MainWindow(QtWidgets.QWidget):
             return None
         screen.chosen.connect(self.leave_welcome)
         self.welcome_mosque = screen
-        return screen
+        # The same strip as the mosque behind it, so the place and the five times are there
+        # before anything is touched.
+        page = QtWidgets.QWidget()
+        lay = QtWidgets.QVBoxLayout(page)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        lay.addWidget(self.make_banner(gear=True))
+        lay.addWidget(screen, 1)
+        return page
 
     def leave_welcome(self, _which: str = "") -> None:
-        """MySalaah was touched. In to the mosque."""
+        """MySalaah was touched. In to the mosque, walking into the name on the way.
+
+        The same walk as stepping into an arch, and built the same way round: the screen is
+        changed first and the animation played over the top, so a walk cut short -- or never
+        started -- leaves you on the mosque either way.
+        """
         self.stir()
+        walk = None
+        front = getattr(self, "welcome_mosque", None)
+        if front is not None and self.stack.currentWidget() is self.welcome:
+            focus = front.arch_centre("enter")
+            if focus is not None:
+                walk = (self.stack.grab(), self.stack.geometry(),
+                        front.mapTo(self.stack, focus))
         self.stack.setCurrentWidget(self.home)
+        if walk is not None:
+            self.veil.start(*walk)
 
     def build_home(self) -> QtWidgets.QWidget:
         """The mosque: an arch per prayer, the time on the dome, and the prayer whose time it is
@@ -1123,6 +1177,13 @@ class MainWindow(QtWidgets.QWidget):
         banner.setObjectName("banner")
         row = QtWidgets.QHBoxLayout(banner)
         row.setContentsMargins(self.px(28), self.px(10), self.px(28), self.px(10))
+        # The pin, then the place, then the times. Its own widget rather than a picture inside
+        # the rich text: no file to find, and it is drawn at whatever size the screen is.
+        pin = QtWidgets.QLabel()
+        pin.setObjectName("bannerPin")
+        pin.setPixmap(map_pin(self.px(30), BANNER_BLUE))
+        row.addWidget(pin, 0, Qt.AlignmentFlag.AlignVCenter)
+        row.addSpacing(self.px(8))
         label = QtWidgets.QLabel()
         label.setObjectName("bannerText")
         label.setTextFormat(Qt.TextFormat.RichText)
@@ -1456,7 +1517,8 @@ class MainWindow(QtWidgets.QWidget):
         # after it, and the words were the widest thing in a banner that had to hold more.
         after = ""
         for label in self.banner_labels:
-            label.setText(f"{where}{gap}{shown}{after}")
+            label.setText(f'<span style="color:{BANNER_BLUE}">{where}</span>'
+                          f"{gap}{shown}{after}")
 
     # Light and dark
 
