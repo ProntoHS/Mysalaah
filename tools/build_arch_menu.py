@@ -66,6 +66,67 @@ def arches_in(grey, least: int) -> list[tuple[int, int, int, int]]:
     return found
 
 
+def landmarks(picture):
+    """Where the two minaret tips and the top of the dome are, in this drawing.
+
+    These are what the eye notices when one screen replaces another: if the minarets and the
+    dome sit where they did, the change reads as the same building seen again rather than a
+    different picture. Measured from the ink rather than guessed, and only from parts that are
+    solid, so a see-through sky is not mistaken for the drawing.
+    """
+    import numpy as np
+    cells = np.array(picture)
+    solid = cells[..., 3] > 128
+    ink = (np.array(picture.convert("L")) < LIGHT) & solid
+    height, width = ink.shape
+    found = {}
+    for side, low, high in (("left", 0, width // 4), ("right", 3 * width // 4, width)):
+        ys, xs = np.where(ink[:, low:high])
+        if not len(ys):
+            return None
+        top = ys.min()
+        found[side] = (float(np.mean(xs[ys < top + 12])) + low, float(top))
+    ys, xs = np.where(ink[:, width // 4:3 * width // 4])
+    if not len(ys):
+        return None
+    top = ys.min()
+    found["dome"] = (float(np.mean(xs[ys < top + 12])) + width // 4, float(top))
+    return found
+
+
+def match_to(picture, reference: Path):
+    """Redraw this mosque on the reference's canvas, with its minarets over the reference's.
+
+    One number does it: how far apart the two minarets are. Scale by the ratio of the two
+    separations and slide the drawing until the left tip lands on the reference's left tip, and
+    the right tip and the dome follow of their own accord -- which is the check afterwards, not
+    an assumption.
+    """
+    from PIL import Image
+    other = Image.open(reference).convert("RGBA")
+    mine, theirs = landmarks(picture), landmarks(other)
+    if not mine or not theirs:
+        return picture, "could not find the minarets in one of the drawings"
+    span_mine = mine["right"][0] - mine["left"][0]
+    span_theirs = theirs["right"][0] - theirs["left"][0]
+    if span_mine <= 1:
+        return picture, "the minarets are on top of each other"
+    scale = span_theirs / span_mine
+    wide, tall = int(round(picture.width * scale)), int(round(picture.height * scale))
+    bigger = picture.resize((wide, tall), Image.LANCZOS)
+    shift_x = int(round(theirs["left"][0] - mine["left"][0] * scale))
+    shift_y = int(round(theirs["left"][1] - mine["left"][1] * scale))
+    canvas = Image.new("RGBA", other.size, (255, 255, 255, 0))
+    canvas.alpha_composite(bigger, dest=(max(0, shift_x), max(0, shift_y)),
+                           source=(max(0, -shift_x), max(0, -shift_y)))
+    check = landmarks(canvas)
+    if not check:
+        return canvas, "redrawn, but the minarets could not be found again to check"
+    drift = max(abs(check[k][i] - theirs[k][i]) for k in theirs for i in (0, 1))
+    return canvas, (f"scaled {scale:.3f}, moved ({shift_x}, {shift_y}); "
+                    f"minarets and dome now within {drift:.0f}px of the reference")
+
+
 def knock_out_sky(picture, grey):
     """Make the background see-through, leaving the building and the arch insides solid.
 
@@ -113,6 +174,9 @@ def main() -> int:
     ap.add_argument("out", type=Path, help="the folder to write, e.g. assets/kalima")
     ap.add_argument("--arches", type=int, default=6)
     ap.add_argument("--names", default="", help="comma separated; defaults to 1,2,3...")
+    ap.add_argument("--match", type=Path, default=None,
+                    help="another mosque.png to line this one up with, so the two screens "
+                         "show the same building in the same place")
     args = ap.parse_args()
 
     try:
@@ -125,6 +189,12 @@ def main() -> int:
         return 1
 
     picture = Image.open(args.picture).convert("RGBA")
+    if args.match:
+        if not args.match.is_file():
+            print(f"No reference drawing at {args.match}.", file=sys.stderr)
+            return 1
+        picture, said = match_to(picture, args.match)
+        print(f"lined up with {args.match}: {said}")
     grey = picture.convert("L")
     boxes = arches_in(grey, SMALLEST)
     if len(boxes) != args.arches:

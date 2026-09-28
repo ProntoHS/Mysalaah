@@ -140,7 +140,6 @@ class PassageList(QtWidgets.QWidget):
     """The pieces in a section, one touchable row each."""
 
     chose = Signal(int)
-    leave = Signal()
 
     def __init__(self, window, passages: Passages, heading: str):
         super().__init__()
@@ -158,11 +157,6 @@ class PassageList(QtWidgets.QWidget):
         self.title.setObjectName("readerTitle")
         bar.addWidget(self.title)
         bar.addStretch(1)
-        home = QtWidgets.QPushButton(self.win.t("settings.main_screen"))
-        home.setObjectName("mainScreen")
-        home.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        home.clicked.connect(self.leave.emit)
-        bar.addWidget(home)
         outer.addLayout(bar)
 
         self.scroll = QtWidgets.QScrollArea()
@@ -446,13 +440,8 @@ class ArchMenu(QtWidgets.QWidget):
         outer.setSpacing(0)
         bar = QtWidgets.QHBoxLayout()
         bar.setContentsMargins(self.win.px(20), self.win.px(10), self.win.px(20), 0)
-        bar.addStretch(1)
-        self.home = QtWidgets.QPushButton(self.win.t("settings.main_screen"))
-        self.home.setObjectName("mainScreen")
-        self.home.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.home.clicked.connect(self.leave.emit)
-        bar.addWidget(self.home)
-        outer.addLayout(bar)
+        # No bar of its own: the way home is in the banner above, so the mosque gets the
+        # whole screen and lines up with the front door's.
         outer.addWidget(self.mosque, 1)
 
     @property
@@ -476,4 +465,4 @@ class ArchMenu(QtWidgets.QWidget):
     # test passed just as happily with it deleted, which is how it was found.
 
     def retitle(self) -> None:
-        self.home.setText(self.win.t("settings.main_screen"))
+        pass

@@ -736,7 +736,7 @@ class MainWindow(QtWidgets.QWidget):
         corner_lay = QtWidgets.QVBoxLayout(self.corner_page)
         corner_lay.setContentsMargins(0, 0, 0, 0)
         corner_lay.setSpacing(0)
-        corner_lay.addWidget(self.make_banner(gear=True))
+        corner_lay.addWidget(self.make_banner(gear=True, home=True))
         corner_lay.addWidget(self.corner_screen, 1)
         screens = [self.home, self.pick, self.player, self.settings_screen, self.timing_screen,
                    self.corner_page]
@@ -875,9 +875,12 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#surahArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                   font-size:{px(34)}px; color:{c.strong}; }}
             QLabel#readerTitle {{ font-size:{px(30)}px; font-weight:bold; color:{c.strong}; }}
+            /* The same metrics as the Back button beside it, so the pair reads as a pair.
+               Its width is matched to Back's at runtime too, because "Back" is a different
+               length in every language and the glyph is always one character wide. */
             QPushButton#reciteButton {{ background:{c.lapis}; color:{c.paper}; border:none;
-                                        border-radius:{px(10)}px; font-size:{px(26)}px;
-                                        min-width:{px(62)}px; padding:{px(6)}px {px(10)}px; }}
+                                        border-radius:{px(8)}px; font-size:{px(28)}px;
+                                        font-weight:bold; padding:{px(12)}px {px(30)}px; }}
             QPushButton#reciteButton:pressed {{ background:{c.chip}; }}
             QLabel#sayingVerse {{ font-size:{px(22)}px; color:{c.highlight};
                                   padding-left:{px(8)}px; }}
@@ -1054,7 +1057,7 @@ class MainWindow(QtWidgets.QWidget):
         lay.addLayout(bottom)
         return w
 
-    def make_banner(self, gear: bool = True) -> QtWidgets.QWidget:
+    def make_banner(self, gear: bool = True, home: bool = False) -> QtWidgets.QWidget:
         """The black strip across the top: where you are, the five prayer times with the
         current one in green, what is next -- and how loud the recitation is.
 
@@ -1073,6 +1076,15 @@ class MainWindow(QtWidgets.QWidget):
         row.addWidget(label)
         row.addStretch(1)
         row.addLayout(self.volume_slider(dark=True))
+        if home:
+            # On the sub screens the way back lived on the screen itself, and once the banner
+            # went in above it there was nowhere for it to sit. It belongs up here with the
+            # other things that are true wherever you are.
+            back = QtWidgets.QPushButton(self.t("settings.main_screen"))
+            back.setObjectName("mainScreen")
+            back.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            back.clicked.connect(self.go_home)
+            row.addWidget(back)
         if gear:
             # Red, the colour everything you press is in: Menu, Main screen, the leave buttons.
             cog = GearButton(self.px(52), QtGui.QColor(BRICK))
@@ -1092,7 +1104,6 @@ class MainWindow(QtWidgets.QWidget):
 
         self.surah_list = SurahList(self, self.quran)
         self.surah_list.chose.connect(self.open_surah)
-        self.surah_list.leave.connect(self.go_home)
         stack.addWidget(self.surah_list)
 
         self.reader = Reader(self, self.quran)
@@ -1105,7 +1116,6 @@ class MainWindow(QtWidgets.QWidget):
         self.section_readers: dict[str, PassageReader] = {}
         for name, source in (("duas", self.duas), ("kalima", self.kalima)):
             listing = PassageList(self, source, self.t(f"corner.{name}"))
-            listing.leave.connect(self.go_home)
             listing.chose.connect(lambda i, n=name: self.open_passage(n, i))
             stack.addWidget(listing)
             self.section_lists[name] = listing
@@ -1121,7 +1131,6 @@ class MainWindow(QtWidgets.QWidget):
         self.arch_menus: dict[str, ArchMenu] = {}
         menu = ArchMenu(self, "kalima", Fonts.english_family)
         if menu.ready:
-            menu.leave.connect(self.go_home)
             menu.chose.connect(lambda n: self.open_passage("kalima", n - 1))
             stack.addWidget(menu)
             self.arch_menus["kalima"] = menu
@@ -1358,9 +1367,10 @@ class MainWindow(QtWidgets.QWidget):
              f'{self.t(f"prayer.{name}")} {times[name].strftime("%H:%M")}')
             for name in PRAYERS if times.get(name) is not None)
         where = self.settings.place or f"{self.settings.latitude:.2f}, {self.settings.longitude:.2f}"
-        following = next_prayer(now, times)
-        after = (gap + self.t("home.next", prayer=self.t(f"prayer.{following}"))
-                 if following else "")
+        # What is coming next used to be named at the end of the row. It has gone: the five
+        # times are already there with the current one in green, so the next one is the one
+        # after it, and the words were the widest thing in a banner that had to hold more.
+        after = ""
         for label in self.banner_labels:
             label.setText(f"{where}{gap}{shown}{after}")
 

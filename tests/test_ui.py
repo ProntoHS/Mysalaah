@@ -3806,16 +3806,17 @@ class QuranTest(unittest.TestCase):
         self.assertTrue(w.surah_list.filled)
 
     def test_there_is_a_way_back_to_the_mosque_from_the_list(self):
-        """Without it the only escape from 114 surahs is the power button."""
+        """It lived on the list itself; it lives in the banner above the list now. Either way
+        the only escape from 114 surahs must not be the power button."""
         w = self.window()
         w.open_corner_list()
         settle()
-        out = [b for b in w.surah_list.findChildren(QtWidgets.QPushButton)
-               if b.objectName() == "mainScreen"]
-        self.assertEqual(1, len(out), "the list needs one way out")
-        out[0].click()
+        back = next((b for b in w.corner_page.findChildren(QtWidgets.QPushButton)
+                     if b.objectName() == "mainScreen" and b.isVisible()), None)
+        self.assertIsNotNone(back, "no way back to the mosque from the surah list")
+        back.click()
         settle()
-        self.assertIs(w.home, w.stack.currentWidget(), "it should go back to the mosque")
+        self.assertFalse(w.reading)
 
     def test_the_reader_goes_back_to_the_list(self):
         w = self.window()
@@ -4483,12 +4484,24 @@ class ArchMenuTest(unittest.TestCase):
         self.assertFalse(menu.mosque.flutter.isActive(), "still animating a screen nobody sees")
 
     def test_there_is_a_way_back_to_the_main_screen(self):
+        """The arches used to carry their own way out. Once the banner went in above them there
+        was nowhere for it to sit, so it moved up there -- but it must still be there, and it
+        must still work, which is what this asks."""
         w = self.window()
         w.open_corner("kalima")
         settle()
-        w.arch_menus["kalima"].home.click()
+        back = self.home_button(w)
+        self.assertIsNotNone(back, "no way back to the mosque from the kalima menu")
+        back.click()
         settle()
         self.assertFalse(w.reading)
+
+    @staticmethod
+    def home_button(w):
+        for button in w.corner_page.findChildren(QtWidgets.QPushButton):
+            if button.objectName() == "mainScreen" and button.isVisible():
+                return button
+        return None
 
     def test_back_from_a_kalima_returns_to_the_arches(self):
         w = self.window()
@@ -4756,7 +4769,8 @@ class BannerTest(unittest.TestCase):
             self.assertIn("Bury", label.text())
             for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
                 self.assertIn(w.t(f"prayer.{prayer}"), label.text(), prayer)
-            self.assertIn("next", label.text().lower())
+            self.assertNotIn("next", label.text().lower(),
+                             "what is next was dropped: the five times already say it")
 
     def test_the_corner_banner_is_on_screen_while_reading(self):
         w = self.window()
@@ -4799,9 +4813,16 @@ class VolumeEverywhereTest(unittest.TestCase):
         self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
         return w
 
-    def test_there_is_a_slider_in_each_banner_and_one_in_the_reader(self):
+    def test_there_is_one_slider_in_each_banner_and_none_below(self):
+        """There were briefly two within a centimetre of each other in the Qur'an: one in the
+        banner and one in the row under it. The banner's is the one that stayed."""
         w = self.window()
-        self.assertEqual(3, len(w.volume_bars))
+        self.assertEqual(2, len(w.volume_bars))
+        w.open_surah(2)
+        settle()
+        from salaah.qt import QtWidgets as Q
+        inside = w.reader.findChildren(Q.QSlider)
+        self.assertEqual([], inside, "the reader should have no slider of its own")
 
     def test_they_all_start_where_the_setting_is(self):
         w = self.window(volume=45)
@@ -5000,3 +5021,116 @@ class FajrCallTest(unittest.TestCase):
         self.assertIsNotNone(w.call_box)
         w.end_the_call()
         settle()
+
+
+class MatchedButtonsTest(unittest.TestCase):
+    """The play button is the same size as Back beside it, in every language."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": True, **settings}),
+                       scale=1.0, save_settings=False)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def test_they_are_the_same_size_whatever_the_word_for_back_is(self):
+        """It cannot be done in the stylesheet: Back is Retour in French and Volver in Spanish,
+        so its width is only known once it has been styled and laid out, while the glyph is
+        always one character. Setting it while building the screen did nothing at all, because
+        the stylesheet had not been applied yet."""
+        for lang in ("en", "fr", "es", "ur"):
+            w = self.window(lang=lang)
+            w.open_surah(2)
+            settle()
+            r = w.reader
+            self.assertEqual(r.back_button.size(), r.recite_button.size(),
+                             f"in {lang}: Back is {r.back_button.size()}, "
+                             f"play is {r.recite_button.size()}")
+            self.assertGreater(r.recite_button.width(), 0)
+            w.close()
+            settle()
+
+    def test_they_stay_matched_when_the_window_is_resized(self):
+        w = self.window()
+        w.open_surah(2)
+        settle()
+        w.resize(1280, 800)
+        settle()
+        self.assertEqual(w.reader.back_button.size(), w.reader.recite_button.size())
+
+
+class TwoMosquesTest(unittest.TestCase):
+    """The kalima menu and the front door show the same building in the same place.
+
+    Measured off the drawn screens, not off the asset files: what matters is where the minarets
+    and the dome land once each screen has laid itself out, banner and all."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        settle()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    @staticmethod
+    def landmarks(w):
+        """Where the minaret tips and the top of the dome are on screen, in window pixels."""
+        image = w.grab().toImage()
+        wide, tall = image.width(), image.height()
+        dark = [[False] * wide for _ in range(tall)]
+        for y in range(110, tall):              # below the banner, which is black all through
+            row = dark[y]
+            for x in range(wide):
+                colour = QtGui.QColor(image.pixel(x, y))
+                row[x] = (colour.red() + colour.green() + colour.blue()) < 330
+        found = {}
+        for name, low, high in (("left", 0, wide // 4), ("dome", wide // 4, 3 * wide // 4),
+                                ("right", 3 * wide // 4, wide)):
+            top = next((y for y in range(110, tall)
+                        if any(dark[y][low:high])), None)
+            if top is None:
+                return None
+            xs = [x for x in range(low, high) if dark[top][x]]
+            found[name] = (sum(xs) // len(xs), top)
+        return found
+
+    def test_the_minarets_and_dome_land_in_the_same_place_on_both(self):
+        w = self.window()
+        w.go_home()
+        settle()
+        front = self.landmarks(w)
+        w.open_corner("kalima")
+        settle()
+        arches = self.landmarks(w)
+        self.assertIsNotNone(front)
+        self.assertIsNotNone(arches)
+        for part in ("left", "right", "dome"):
+            across = abs(arches[part][0] - front[part][0])
+            down = abs(arches[part][1] - front[part][1])
+            self.assertLess(across, 25, f"{part} is {across}px across from the front door's")
+            self.assertLess(down, 25, f"{part} is {down}px below the front door's")
+
+    def test_the_kalima_drawing_is_the_same_shape_as_the_front_door(self):
+        """The artwork arrived at a different size and aspect, so it sat smaller and higher
+        than the mosque it was meant to echo."""
+        front = QtGui.QImage(str(ASSETS / "mosque" / "mosque.png"))
+        arches = QtGui.QImage(str(ASSETS / "kalima" / "mosque.png"))
+        self.assertEqual(front.size(), arches.size())
+
+    def test_the_arch_menu_has_no_bar_of_its_own_stealing_height(self):
+        """It used to carry a Main screen button in a row above the mosque, which pushed the
+        drawing down and made it shorter than the front door's."""
+        w = self.window()
+        menu = w.arch_menus["kalima"]
+        self.assertEqual(menu.mosque.height(), menu.height(),
+                         "something above the mosque is taking height from it")

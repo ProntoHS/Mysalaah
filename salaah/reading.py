@@ -47,7 +47,6 @@ class SurahList(QtWidgets.QWidget):
     """All 114, in Arabic and in English, as a grid of touchable rows."""
 
     chose = Signal(int)
-    leave = Signal()
     COLUMNS = 3
 
     def __init__(self, window, quran: Quran):
@@ -59,19 +58,14 @@ class SurahList(QtWidgets.QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        # A way out. Without it the only escape from 114 surahs is the power button, which is
-        # no way to leave a screen somebody opened on purpose.
+        # The way out used to sit here. It is in the banner above this screen now, along with
+        # the clock and the prayer times, so it is in the same place wherever you are.
         bar = QtWidgets.QHBoxLayout()
         bar.setContentsMargins(self.win.px(20), self.win.px(10), self.win.px(20), 0)
         title = QtWidgets.QLabel(self.win.t("corner.surahs"))
         title.setObjectName("readerTitle")
         bar.addWidget(title)
         bar.addStretch(1)
-        home = QtWidgets.QPushButton(self.win.t("settings.main_screen"))
-        home.setObjectName("mainScreen")
-        home.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        home.clicked.connect(self.leave.emit)
-        bar.addWidget(home)
         outer.addLayout(bar)
 
         self.scroll = QtWidgets.QScrollArea()
@@ -398,6 +392,7 @@ class Reader(QtWidgets.QWidget):
         self.recite_button = QtWidgets.QPushButton(PLAY)
         self.recite_button.setObjectName("reciteButton")
         self.recite_button.setToolTip(self.win.t("quran.recite"))
+
         self.recite_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.recite_button.clicked.connect(self.toggle_reciting)
         bar.addWidget(self.recite_button)
@@ -424,11 +419,8 @@ class Reader(QtWidgets.QWidget):
         bar.addLayout(self.tongues)
         bar.addStretch(1)
 
-        # How loud the recitation is, where it is being listened to. It sits here rather than
-        # appearing only once something is playing: setting the level before pressing play is
-        # worth more than the room saved, and a control that arrives mid-recitation shoves the
-        # rest of the row sideways while somebody is reading.
-        bar.addLayout(self.win.volume_slider())
+        # No volume slider here: the banner directly above this row has one, and two of them
+        # a centimetre apart is one too many.
 
         # Which page you are on used to be spelled out beside the arrows. It has gone: the
         # arrows say the same thing by greying out at either end, and "Page 1 of 39" was the
@@ -484,6 +476,27 @@ class Reader(QtWidgets.QWidget):
         self.win.settings.quran_lang = lang
         self.win.persist()
         self.reload()
+
+    def match_buttons(self) -> None:
+        """Make the play button the same size as Back beside it.
+
+        Done here rather than in the stylesheet because it cannot be written there: "Back" is
+        Retour in French and Volver in Spanish, so Back's width is only known once it has been
+        styled and laid out, while the glyph is always one character wide. Setting it at build
+        time did nothing at all -- the stylesheet had not been applied yet, so it matched a
+        size that was about to change.
+        """
+        wanted = self.back_button.size()
+        if wanted.width() > 0 and self.recite_button.size() != wanted:
+            self.recite_button.setFixedSize(wanted)
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        self.match_buttons()
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self.match_buttons()
 
     def say_where(self) -> None:
         """Only the arrows now: live while there is a page that way, greyed out at the end."""
