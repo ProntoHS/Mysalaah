@@ -43,6 +43,11 @@ PLAY = "\u25b6"
 STOP = "\u25a0"
 
 
+# The numbered square beside each surah, in one place so every one of the 114 is identical.
+NUMBER_BOX = 64          # the square's side, before scaling
+NUMBER_LINE = 4          # and how thick its outline is drawn
+
+
 class SurahList(QtWidgets.QWidget):
     """All 114, in Arabic and in English, as a grid of touchable rows."""
 
@@ -110,9 +115,11 @@ class SurahList(QtWidgets.QWidget):
         lay.setContentsMargins(self.win.px(16), self.win.px(8), self.win.px(16), self.win.px(8))
         lay.setSpacing(self.win.px(12))
 
+        # A square, fixed both ways, so 1 and 114 sit in boxes of exactly the same size and
+        # the left-hand edge of every row lines up down the column.
         number = QtWidgets.QLabel(str(surah.number))
         number.setObjectName("surahNumber")
-        number.setFixedWidth(self.win.px(64))
+        number.setFixedSize(self.win.px(NUMBER_BOX), self.win.px(NUMBER_BOX))
         number.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(number)
 

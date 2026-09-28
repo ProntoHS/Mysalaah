@@ -3395,7 +3395,9 @@ class CallToPrayerTest(unittest.TestCase):
         w = self.window()
         self.at(w, "dhuhr")
         self.assertIsNotNone(w.call_box, "a box should be on screen")
-        self.assertIn("TIME TO PRAY", self.words(w))
+        self.assertTrue([t for t in self.words(w) if t.startswith("TIME TO PRAY")],
+                        f"nothing on the box says it is time: {self.words(w)}")
+        self.assertTrue([t for t in self.words(w) if "Dhuhr" in t], "and which prayer")
         self.assertEqual(["azaan.mp3"], w.call.played)
 
     def test_fajr_is_called_with_its_own_azaan(self):
@@ -5317,3 +5319,368 @@ class SettingsScreenTest(unittest.TestCase):
             self.assertNotIn("Bluetooth", ui["settings.buttons"], lang)
             self.assertIn("{number}", ui["settings.version"], lang)
             self.assertNotIn("Salaah", ui["settings.version"], lang)
+
+
+class AzaanScreenTest(unittest.TestCase):
+    """The call to prayer on the screen: the muezzin, the words, and the red following them."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "dark", "recitation": False, "place": "Bury",
+                                   "azaan": True, **settings}),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def box(self, w, prayer="fajr", recording="azaan-fajr.mp3"):
+        from salaah.call import CallBox
+        b = CallBox(w, prayer, recording, w.adhan)
+        b.show()
+        settle()
+        self.addCleanup(lambda: (b.close(), b.deleteLater(), APP.processEvents()))
+        return b
+
+    # The words
+
+    def test_the_call_has_its_words_and_every_language_the_app_speaks(self):
+        import json
+        raw = json.loads((ASSETS / "content" / "azaan" / "adhan.json").read_text(encoding="utf-8"))
+        langs = set(available_packs(ASSETS))
+        for line in raw["lines"]:
+            self.assertTrue(line["arabic"].strip(), line["key"])
+            missing = [lang for lang in langs if not line.get("text", {}).get(lang, "").strip()]
+            self.assertEqual([], missing, f"{line['key']} has no meaning in {missing}")
+
+    def test_fajr_carries_the_line_the_other_four_do_not(self):
+        w = self.window()
+        ordinary = w.adhan.shown("azaan.mp3")
+        fajr = w.adhan.shown("azaan-fajr.mp3")
+        self.assertNotIn("nawm", ordinary, "the dawn line must not be called at Dhuhr")
+        self.assertIn("nawm", fajr, "the dawn line is what makes the Fajr call different")
+        self.assertEqual([k for k in fajr if k != "nawm"], ordinary,
+                         "the two calls are otherwise the same lines in the same order")
+
+    def test_the_lines_shown_are_the_distinct_ones_not_the_repeats(self):
+        """The call says most lines twice. Printing it twice would be a wall of the same words;
+        the line is shown once and lights again when it is called again."""
+        w = self.window()
+        self.assertEqual(14, len(w.adhan.order("azaan-fajr.mp3")), "fourteen stretches are called")
+        self.assertEqual(7, len(w.adhan.shown("azaan-fajr.mp3")), "seven distinct lines")
+
+    # The timings, measured off the recording
+
+    def test_the_fajr_timings_run_in_order_and_stay_inside_the_recording(self):
+        import json
+        raw = json.loads((ASSETS / "content" / "azaan" / "times.json").read_text(encoding="utf-8"))
+        known = raw["azaan-fajr.mp3"]
+        lines = known["lines"]
+        self.assertEqual(14, len(lines))
+        last = 0
+        for row in lines:
+            self.assertGreaterEqual(row["start"], last, f"{row['key']} starts before the one before")
+            self.assertGreater(row["end"], row["start"], row["key"])
+            last = row["end"]
+        self.assertLess(lines[-1]["end"], 211_000, "past the end of a 210-second recording")
+
+    def test_every_word_of_a_line_has_a_time_inside_that_line(self):
+        w = self.window()
+        import json
+        known = json.loads((ASSETS / "content" / "azaan" / "times.json")
+                           .read_text(encoding="utf-8"))["azaan-fajr.mp3"]
+        for row in known["lines"]:
+            words = w.adhan.line(row["key"])["arabic"].split()
+            self.assertEqual(len(words), len(row["words"]),
+                             f"{row['key']}: {len(row['words'])} times for {len(words)} words")
+            for a, b in row["words"]:
+                self.assertGreaterEqual(a, row["start"], row["key"])
+                self.assertLessEqual(b, row["end"] + 1, row["key"])
+
+    def test_the_word_being_called_is_found_from_the_clock(self):
+        w = self.window()
+        import json
+        known = json.loads((ASSETS / "content" / "azaan" / "times.json")
+                           .read_text(encoding="utf-8"))["azaan-fajr.mp3"]
+        for row in known["lines"]:
+            for i, (a, b) in enumerate(row["words"]):
+                middle = (a + b) / 2000.0
+                self.assertEqual((row["key"], i), w.adhan.at("azaan-fajr.mp3", middle),
+                                 f"{row['key']} word {i} at {middle:.2f}s")
+
+    def test_between_the_lines_nothing_is_lit(self):
+        """The muezzin breathes. Lighting a word through the silence would be a lie about
+        where he is."""
+        w = self.window()
+        import json
+        lines = json.loads((ASSETS / "content" / "azaan" / "times.json")
+                           .read_text(encoding="utf-8"))["azaan-fajr.mp3"]["lines"]
+        for before, after in zip(lines, lines[1:]):
+            middle = (before["end"] + after["start"]) / 2000.0
+            self.assertIsNone(w.adhan.at("azaan-fajr.mp3", middle),
+                              f"something is lit in the gap before {after['key']}")
+
+    def test_a_recording_with_no_measured_timings_lights_nothing(self):
+        """azaan.mp3 would not come apart into its twelve lines, so it has no timings. Showing
+        the words without the red is right; red in the wrong place is not."""
+        w = self.window()
+        self.assertFalse(w.adhan.measured("azaan.mp3"))
+        for t in (0.0, 30.0, 90.0, 170.0):
+            self.assertIsNone(w.adhan.at("azaan.mp3", t))
+        box = self.box(w, "dhuhr", "azaan.mp3")
+        self.assertFalse(box.follow.isActive(), "nothing to follow, so the clock stays off")
+        self.assertTrue(box.boxes, "the words are still shown")
+
+    # The box
+
+    def test_the_box_shows_the_muezzin_the_words_and_the_meanings(self):
+        w = self.window()
+        box = self.box(w)
+        self.assertTrue(box.drawing.there, "the drawing is missing")
+        self.assertTrue(box.drawing.isVisible())
+        self.assertEqual(7, len(box.boxes), "one for each distinct line of the Fajr call")
+        said = [x.text() for x in box.findChildren(QtWidgets.QLabel)
+                if x.objectName() == "callMeaning"]
+        self.assertEqual(7, len(said), "a meaning under every line")
+        self.assertIn("Come to prayer", said)
+        self.assertIn("Prayer is better than sleep", said)
+
+    def test_the_meaning_follows_the_language_setting(self):
+        w = self.window(lang="ur")
+        box = self.box(w)
+        said = " ".join(x.text() for x in box.findChildren(QtWidgets.QLabel)
+                        if x.objectName() == "callMeaning")
+        self.assertIn("نماز", said, "the meanings should be in Urdu")
+        self.assertNotIn("Come to prayer", said)
+
+    def test_the_word_being_called_turns_red_and_only_that_one(self):
+        w = self.window()
+        box = self.box(w)
+        box.boxes["salah"].set_highlight((0, 1))
+        self.assertEqual((0, 1), box.boxes["salah"].highlight)
+        box.clear()
+        self.assertTrue(all(b.highlight is None for b in box.boxes.values()))
+
+    def test_the_red_is_actually_painted_red(self):
+        """Rendered, not read off the widget: the highlight is drawn by hand, and a box that
+        holds the right number and paints the word white is no use to anybody."""
+        w = self.window()
+        box = self.box(w)
+        # The driver is stopped first. It runs every 50ms and clears the red whenever nothing
+        # is sounding, which in here is always -- so a highlight set by hand and then left to
+        # settle is wiped before it can be looked at, and the test grades a blank line.
+        box.follow.stop()
+        line = box.boxes["shahada"]
+        plain = line.grab().toImage()
+        line.set_highlight((0, 2))
+        settle()
+        lit = line.grab().toImage()
+        # Counted against the theme's own highlight colour rather than "looks reddish". White
+        # letters on black carry orange fringes from the antialiasing -- (231, 158, 74) and the
+        # like -- and a loose test counts those, so it reports red on a line with none.
+        from salaah import theme
+        want = QtGui.QColor(theme.palette().highlight)
+        def lit_pixels(image):
+            found = 0
+            for y in range(image.height()):
+                for x in range(image.width()):
+                    c = QtGui.QColor(image.pixel(x, y))
+                    if (abs(c.red() - want.red()) < 30 and abs(c.green() - want.green()) < 30
+                            and abs(c.blue() - want.blue()) < 30):
+                        found += 1
+            return found
+        self.assertEqual(0, lit_pixels(plain), "nothing is red before a word is lit")
+        self.assertGreater(lit_pixels(lit), 20, "the lit word is not painted in the red")
+
+    def test_the_drawing_is_painted_in_the_colour_it_is_given(self):
+        """The picture is black lines on nothing, which is invisible on a black box. It is used
+        as a stencil, so it has to come out whatever colour it is filled with."""
+        from salaah.call import Drawing
+        w = self.window()
+        for colour, want in (("#FFFFFF", (255, 255, 255)), ("#A63D33", (166, 61, 51))):
+            d = Drawing(w.adhan.picture(), colour)
+            d.resize(300, 380)
+            image = d.grab().toImage()
+            hits = set()
+            for y in range(0, image.height(), 3):
+                for x in range(0, image.width(), 3):
+                    c = QtGui.QColor(image.pixel(x, y))
+                    if c.alpha() > 200:
+                        hits.add((c.red(), c.green(), c.blue()))
+            self.assertTrue(any(abs(r-want[0]) < 12 and abs(g-want[1]) < 12 and abs(b-want[2]) < 12
+                                for r, g, b in hits),
+                            f"nothing drawn in {colour}; got {sorted(hits)[:6]}")
+            d.deleteLater()
+
+    # How it is put up and taken down
+
+    def test_the_call_puts_the_box_up_and_stopping_it_stops_the_sound(self):
+        from salaah.call import CallBox
+        w = self.window()
+        w.call_to_prayer("fajr")
+        settle()
+        self.assertIsInstance(w.call_box, CallBox, "the plain notice should have been replaced")
+        self.assertTrue(w.call_box.isVisible())
+        w.call_box.accept()
+        settle()
+        self.assertIsNone(w.call_box, "the box should be let go of when it closes")
+        self.assertFalse(w.call.playing)
+
+    def test_the_box_never_covers_the_whole_screen(self):
+        """It is a box on top of the mat, not another screen: the mosque shows round the edge."""
+        w = self.window()
+        box = self.box(w)
+        self.assertLess(box.width(), w.width())
+        self.assertLess(box.height(), w.height())
+        self.assertGreater(box.width(), w.width() * 0.6, "and big enough to read across a room")
+
+    def test_the_words_are_marked_as_not_yet_read_over_by_a_reader_of_arabic(self):
+        """Drafted, not checked. The flag is what says so; when Harry has read the lines on the
+        mat he sets it true, and this test is what will notice if it was set without thought."""
+        w = self.window()
+        self.assertFalse(w.adhan.reviewed,
+                         "if the words have now been checked, say so here as well")
+
+    def test_the_red_goes_out_when_the_call_is_not_sounding(self):
+        """Found by accident while writing the test above: the driver clears the red whenever
+        the player has no position. That is right and worth holding onto -- when the call is
+        stopped part way, the last word must not be left lit."""
+        w = self.window()
+        box = self.box(w)
+        box.follow.stop()
+        box.boxes["falah"].set_highlight((0, 1))
+        self.assertIsNotNone(box.boxes["falah"].highlight)
+        self.assertIsNone(w.call.position(), "nothing is playing in the test")
+        box.tick()
+        self.assertTrue(all(b.highlight is None for b in box.boxes.values()),
+                        "the red stayed on after the voice stopped")
+
+
+class SurahNumberTest(unittest.TestCase):
+    """The number beside each surah: white in a thick white square, every one the same."""
+
+    def window(self, theme="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.open_corner_list()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def badges(self, w):
+        return [x for x in w.surah_list.findChildren(QtWidgets.QLabel)
+                if x.objectName() == "surahNumber"]
+
+    def test_every_one_of_the_114_is_the_same_square(self):
+        """It used to be a fixed width and whatever height the row came out at, so 1 and 114
+        sat in boxes of different shapes."""
+        w = self.window()
+        sizes = {(x.width(), x.height()) for x in self.badges(w)}
+        self.assertEqual(114, len(self.badges(w)))
+        self.assertEqual(1, len(sizes), f"the squares come in {len(sizes)} sizes: {sizes}")
+        wide, tall = sizes.pop()
+        self.assertEqual(wide, tall, "a square, not a rectangle")
+
+    def test_the_number_and_its_outline_are_drawn_in_the_ink_colour(self):
+        """Rendered: white on the dark screen, which is what was asked for, and black on the
+        light one, where white would be invisible. Read off the pixels, not off the stylesheet."""
+        for mode, want in (("dark", 255), ("light", 0)):
+            w = self.window(mode)
+            badge = self.badges(w)[0]
+            image = badge.grab().toImage()
+            edge = [QtGui.QColor(image.pixel(x, 1)).red() for x in range(4, badge.width() - 4)]
+            self.assertTrue(edge, mode)
+            near = sum(1 for v in edge if abs(v - want) < 60)
+            self.assertGreater(near / len(edge), 0.9,
+                               f"{mode}: the top of the outline is not the ink colour")
+
+    def test_the_outline_is_thick_enough_to_read_across_a_room(self):
+        from salaah.reading import NUMBER_LINE
+        self.assertGreaterEqual(NUMBER_LINE, 3, "a hairline box is not what was asked for")
+        w = self.window()
+        badge = self.badges(w)[0]
+        image = badge.grab().toImage()
+        middle = badge.width() // 2
+        run = 0
+        for y in range(badge.height() // 2):
+            if QtGui.QColor(image.pixel(middle, y)).red() > 195:
+                run += 1
+            elif run:
+                break
+        self.assertGreaterEqual(run, 3, f"the drawn outline is only {run}px thick")
+
+    def test_the_numbers_are_no_longer_blue(self):
+        from salaah.ui import LAPIS
+        w = self.window("light")
+        badge = self.badges(w)[0]
+        image = badge.grab().toImage()
+        blue = QtGui.QColor(LAPIS)
+        for y in range(image.height()):
+            for x in range(image.width()):
+                c = QtGui.QColor(image.pixel(x, y))
+                self.assertFalse(abs(c.red() - blue.red()) < 20 and abs(c.green() - blue.green()) < 20
+                                 and abs(c.blue() - blue.blue()) < 20,
+                                 f"still painting in the old blue at {x},{y}")
+
+
+class SoundSettingsTogetherTest(unittest.TestCase):
+    """The two settings that decide whether the mat makes a sound, in one column."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=True, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.open_settings()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        return w
+
+    def head(self, w, key):
+        wanted = w.t(key)
+        found = [x for x in w.settings_screen.findChildren(QtWidgets.QLabel)
+                 if x.objectName() == "settingHead" and x.text() == wanted]
+        self.assertEqual(1, len(found), f"{key} is not on the screen once")
+        return found[0]
+
+    def test_the_call_to_prayer_moved_to_the_right_hand_column(self):
+        w = self.window()
+        screen = w.settings_screen
+        middle = screen.width() / 2
+        call = self.head(w, "settings.azaan")
+        self.assertGreater(call.mapTo(screen, call.rect().center()).x(), middle,
+                           "the call to prayer is still on the left")
+
+    def test_it_sits_directly_below_the_recitation(self):
+        w = self.window()
+        screen = w.settings_screen
+        call = self.head(w, "settings.azaan")
+        recitation = self.head(w, "settings.recitation")
+        self.assertGreater(call.mapTo(screen, call.rect().topLeft()).y(),
+                           recitation.mapTo(screen, recitation.rect().topLeft()).y(),
+                           "the call should come after the recitation, not before it")
+        # Only the right-hand column: the left one runs down the page alongside, and its
+        # headings sit between these two in height without being between them on the screen.
+        middle = screen.width() / 2
+        between = [x for x in w.settings_screen.findChildren(QtWidgets.QLabel)
+                   if x.objectName() == "settingHead"
+                   and x.mapTo(screen, x.rect().center()).x() > middle
+                   and recitation.mapTo(screen, recitation.rect().center()).y()
+                   < x.mapTo(screen, x.rect().center()).y()
+                   < call.mapTo(screen, call.rect().center()).y()]
+        self.assertEqual([], [x.text() for x in between],
+                         "something got in between the two sound settings")
+
+    def test_the_switch_still_works_where_it_now_lives(self):
+        w = self.window()
+        knob = next(b for b in w.settings_screen.findChildren(QtWidgets.QAbstractButton)
+                    if b.objectName() == "azaanSwitch")
+        was = w.settings.azaan
+        knob.click()
+        settle()
+        self.assertNotEqual(was, w.settings.azaan, "moving it broke it")

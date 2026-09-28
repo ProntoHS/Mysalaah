@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "reviewed": false,
+  "note": "Drafted by Claude and NOT yet read over by a reader of Arabic. Harry: read the lines on the mat, and when they are right set reviewed to true. Nothing else depends on this flag; it is here so the file says honestly where it stands.",
+  "lines": [
+    {
+      "key": "takbir",
+      "arabic": "اللَّهُ أَكْبَرُ اللَّهُ أَكْبَرُ",
+      "said": "Allāhu akbar, Allāhu akbar",
+      "text": {
+        "en": "Allah is the greatest, Allah is the greatest",
+        "fr": "Allah est le plus grand, Allah est le plus grand",
+        "ur": "اللہ سب سے بڑا ہے، اللہ سب سے بڑا ہے",
+        "es": "Allah es el más grande, Allah es el más grande",
+        "zh": "真主至大，真主至大",
+        "hi": "अल्लाह सबसे बड़ा है, अल्लाह सबसे बड़ा है"
+      }
+    },
+    {
+      "key": "shahada",
+      "arabic": "أَشْهَدُ أَنْ لَا إِلَٰهَ إِلَّا اللَّهُ",
+      "said": "Ash-hadu an lā ilāha illa-llāh",
+      "text": {
+        "en": "I bear witness that there is no god but Allah",
+        "fr": "J'atteste qu'il n'y a de dieu qu'Allah",
+        "ur": "میں گواہی دیتا ہوں کہ اللہ کے سوا کوئی معبود نہیں",
+        "es": "Atestiguo que no hay dios sino Allah",
+        "zh": "我作证，除真主外别无应受崇拜者",
+        "hi": "मैं गवाही देता हूँ कि अल्लाह के सिवा कोई माबूद नहीं"
+      }
+    },
+    {
+      "key": "risala",
+      "arabic": "أَشْهَدُ أَنَّ مُحَمَّدًا رَسُولُ اللَّهِ",
+      "said": "Ash-hadu anna Muḥammadan rasūlu-llāh",
+      "text": {
+        "en": "I bear witness that Muhammad is the Messenger of Allah",
+        "fr": "J'atteste que Muhammad est le Messager d'Allah",
+        "ur": "میں گواہی دیتا ہوں کہ محمد اللہ کے رسول ہیں",
+        "es": "Atestiguo que Muhammad es el Mensajero de Allah",
+        "zh": "我作证，穆罕默德是真主的使者",
+        "hi": "मैं गवाही देता हूँ कि मुहम्मद अल्लाह के रसूल हैं"
+      }
+    },
+    {
+      "key": "salah",
+      "arabic": "حَيَّ عَلَى الصَّلَاةِ",
+      "said": "Ḥayya ʿala-ṣ-ṣalāh",
+      "text": {
+        "en": "Come to prayer",
+        "fr": "Venez à la prière",
+        "ur": "نماز کی طرف آؤ",
+        "es": "Venid a la oración",
+        "zh": "快来礼拜",
+        "hi": "नमाज़ की ओर आओ"
+      }
+    },
+    {
+      "key": "falah",
+      "arabic": "حَيَّ عَلَى الْفَلَاحِ",
+      "said": "Ḥayya ʿala-l-falāḥ",
+      "text": {
+        "en": "Come to success",
+        "fr": "Venez au succès",
+        "ur": "کامیابی کی طرف آؤ",
+        "es": "Venid al éxito",
+        "zh": "快来成功",
+        "hi": "सफलता की ओर आओ"
+      }
+    },
+    {
+      "key": "nawm",
+      "arabic": "الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ",
+      "said": "Aṣ-ṣalātu khayrun mina-n-nawm",
+      "text": {
+        "en": "Prayer is better than sleep",
+        "fr": "La prière est meilleure que le sommeil",
+        "ur": "نماز نیند سے بہتر ہے",
+        "es": "La oración es mejor que el sueño",
+        "zh": "礼拜胜于睡眠",
+        "hi": "नमाज़ नींद से बेहतर है"
+      }
+    },
+    {
+      "key": "tahlil",
+      "arabic": "لَا إِلَٰهَ إِلَّا اللَّهُ",
+      "said": "Lā ilāha illa-llāh",
+      "text": {
+        "en": "There is no god but Allah",
+        "fr": "Il n'y a de dieu qu'Allah",
+        "ur": "اللہ کے سوا کوئی معبود نہیں",
+        "es": "No hay dios sino Allah",
+        "zh": "除真主外别无应受崇拜者",
+        "hi": "अल्लाह के सिवा कोई माबूद नहीं"
+      }
+    }
+  ],
+  "calls": {
+    "ordinary": ["takbir", "takbir", "shahada", "shahada", "risala", "risala",
+                 "salah", "salah", "falah", "falah", "takbir", "tahlil"],
+    "fajr": ["takbir", "takbir", "shahada", "shahada", "risala", "risala",
+             "salah", "salah", "falah", "falah", "nawm", "nawm", "takbir", "tahlil"]
+  }
+}

@@ -27,7 +27,8 @@ from .side import SideWindow
 from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .recite import Store, WordTimes
-from .reading import Reader, SurahList
+from .call import Adhan, CallBox
+from .reading import NUMBER_LINE, Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
 from .power import Outputs
 from .settings import Settings
@@ -525,6 +526,7 @@ class MainWindow(QtWidgets.QWidget):
         self.duas = Passages(self.assets, "duas")
         self.kalima = Passages(self.assets, "kalima")
         self.call = Call(volume=settings.volume)   # the call to prayer
+        self.adhan = Adhan(self.assets)           # and the words of it, for the screen
         self.call_box = None                       # the TIME TO PRAY notice, while it is up
         self.called: dict[str, object] = {}        # prayer -> the day it was last called
 
@@ -869,7 +871,8 @@ class MainWindow(QtWidgets.QWidget):
                                     border-radius:{px(12)}px; text-align:left; }}
             QPushButton#surahRow:pressed {{ background:{c.pressed}; border-color:{c.lapis}; }}
             QPushButton#surahRow QLabel {{ background:transparent; }}
-            QLabel#surahNumber {{ font-size:{px(30)}px; font-weight:bold; color:{c.lapis}; }}
+            QLabel#surahNumber {{ font-size:{px(30)}px; font-weight:bold; color:{c.strong};
+                background:transparent; border:{px(NUMBER_LINE)}px solid {c.strong}; }}
             QLabel#surahName {{ font-size:{px(28)}px; font-weight:bold; color:{c.strong}; }}
             QLabel#surahMeaning {{ font-size:{px(20)}px; color:{c.stone}; }}
             QLabel#surahArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
@@ -1283,14 +1286,21 @@ class MainWindow(QtWidgets.QWidget):
             self.wake()         # which comes back at the mosque, by its own design
         else:
             self.go_home()
-        box = Notice(self, self.px, self.t("call.title"))
-        box.finish(self.t(f"prayer.{prayer}"), self.t("call.stop"))
-        box.finished.connect(self.end_the_call)
-        self.call_box = box
         # Fajr has its own recording, because the call at dawn says something the others do
         # not. If a prayer has no recording the notice still appears on its own, so the mat
         # still says it is time rather than passing the moment in silence.
         sound = self.azaan_for(prayer)
+        # The call itself on the screen -- the muezzin, the words, and what they mean -- when
+        # the words are there to show. Otherwise the plain notice it always was, which says it
+        # is time and nothing it cannot back up.
+        if self.adhan.there:
+            box = CallBox(self, prayer, sound.name if sound else "", self.adhan)
+        else:
+            box = Notice(self, self.px, self.t("call.title"))
+            box.finish(self.t(f"prayer.{prayer}"), self.t("call.stop"))
+        box.finished.connect(self.end_the_call)
+        self.call_box = box
+        box.show()
         if sound is not None:
             self.call.volume = self.settings.volume
             if self.call.play(sound):
@@ -2310,11 +2320,6 @@ class MainWindow(QtWidgets.QWidget):
         # A dropdown, like the two above it: the three choices are wordy enough that as a row of
         # circles they took a quarter of the column, and the wording made it hard to see at a
         # glance that light and dark were choices at all rather than a note about the automatic one.
-        section(left, "settings.azaan")
-        left.addLayout(self.switch_row(self.settings.azaan,
-                                       lambda yes: self.set_azaan("1" if yes else "0"),
-                                       "azaanSwitch"))
-
         section(left, "settings.theme")
         self.theme_picker = self.dropdown(
             [(mode, self.t(f"settings.theme_{mode}")) for mode in theme.MODES],
@@ -2332,6 +2337,13 @@ class MainWindow(QtWidgets.QWidget):
                 right.addWidget(self.value_label(self.t("settings.no_player")))
             # No button for tapping the timings in: that is a job for whoever is building the
             # mat, not for whoever is praying on it. Start with --tap-timings to get at it.
+
+        # Directly under the recitation: the two settings that decide whether the mat makes a
+        # sound now sit together, instead of one in each column with the page between them.
+        section(right, "settings.azaan")
+        right.addLayout(self.switch_row(self.settings.azaan,
+                                        lambda yes: self.set_azaan("1" if yes else "0"),
+                                        "azaanSwitch"))
 
         # No explanation when it works: a brightness slider explains itself. The words are for
         # the case where it cannot do what it appears to, which is the one that needs saying.

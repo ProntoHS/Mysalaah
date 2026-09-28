@@ -221,6 +221,7 @@ class Call:
         self.player = player or find_player()
         self.volume = clamp_volume(volume)
         self._process: subprocess.Popen | None = None
+        self._started: float | None = None
 
     @property
     def available(self) -> bool:
@@ -245,7 +246,20 @@ class Call:
         except OSError:
             self._process = None
             return False
+        self._started = time.monotonic()
         return True
+
+    def position(self) -> float | None:
+        """How far into the call we are, in seconds, or None when nothing is sounding.
+
+        A clock started when the player was launched, not a question put to the player -- the
+        players this runs on (mpg123 and its like) are told to play a file and say nothing back.
+        It is right to within however long the player takes to open the file, which is the same
+        way the recitation follows the words on the Qur'an screen.
+        """
+        if self._started is None or not self.playing:
+            return None
+        return time.monotonic() - self._started
 
     def stop(self) -> None:
         if self._process is not None and self._process.poll() is None:
@@ -255,3 +269,4 @@ class Call:
             except subprocess.TimeoutExpired:
                 self._process.kill()
         self._process = None
+        self._started = None
