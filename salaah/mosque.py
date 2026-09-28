@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -23,6 +24,7 @@ GLOW = QtGui.QColor(255, 214, 10)          # kept for the minaret glow
 GLOW_EDGE = QtGui.QColor(255, 176, 0, 90)  # a soft halo around it
 CLOCK_INK = QtGui.QColor("white")          # on the black dome; black on the white one after dark
 CLOCK_BOOST = 1.15                         # the time, this much larger than a plain fit
+CLOCK_TRIM = 0.85                          # and then this much smaller again, as asked for
 CLOCK_LIFT = 0.07                          # and this much of the box's height higher up
 CLOCK_ROOM = 0.35                          # room either side, so a boosted digit is never clipped
 SUN = QtGui.QColor(255, 193, 7)
@@ -361,6 +363,30 @@ class Arch:
     mask: QtGui.QImage
 
 
+# The artwork, kept once instead of once per screen. There are three mosques now -- the front
+# door, the five prayers and the six kalima -- and every settings change rebuilds all of them,
+# so without this a change of language throws away and re-reads about twenty megabytes of
+# picture. QPixmap and QImage are shared inside Qt, so handing the same one to several screens
+# costs nothing; everything that uses them here takes a copy before touching them.
+_ARTWORK: dict = {}
+
+
+def _load_once(path: Path, as_image: bool = False):
+    """The picture at this path, read from disk the first time and remembered after.
+
+    Keyed by the file's modification time as well as its name, so rebuilding the artwork while
+    the app is running picks up the new drawing rather than the old one.
+    """
+    try:
+        stamp = path.stat().st_mtime_ns
+    except OSError:
+        stamp = 0
+    key = (str(path), stamp, as_image)
+    if key not in _ARTWORK:
+        _ARTWORK[key] = QtGui.QImage(str(path)) if as_image else QtGui.QPixmap(str(path))
+    return _ARTWORK[key]
+
+
 class MosqueScreen(QtWidgets.QWidget):
     """Draws the mosque to fit, and turns taps on an arch into a prayer."""
     chosen = Signal(str)
@@ -383,6 +409,12 @@ class MosqueScreen(QtWidgets.QWidget):
         # says which it is, so the two kinds can sit side by side.
         self.drawn_dark = False
         self.picture = QtGui.QPixmap()
+        # A drawing that moves, if the folder has one beside the still. The still is still what
+        # the arch boxes and the clock box were measured on, so the two have to be the same
+        # canvas -- load() checks that rather than trusting it.
+        self.film: QtGui.QMovie | None = None
+        self._frame: QtGui.QPixmap | None = None
+        self._frame_key: tuple = ()
         self.clock_box = QtCore.QRect()
         self.lit: str | None = None
         self.minarets: dict[str, QtCore.QRect] = {}
@@ -409,16 +441,65 @@ class MosqueScreen(QtWidgets.QWidget):
             described = json.loads((folder / "mosque.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return
-        self.picture = QtGui.QPixmap(str(folder / described["image"]))
+        self.picture = _load_once(folder / described["image"])
         self.drawn_dark = described.get("drawn", "light") == "dark"
+        self.load_film(folder / "mosque.gif")
         box = described["clock"]["box"]
         self.clock_box = QtCore.QRect(box[0], box[1], box[2] - box[0], box[3] - box[1])
         for side, box in described.get("minarets", {}).items():
             self.minarets[side] = QtCore.QRect(box[0], box[1], box[2] - box[0], box[3] - box[1])
         for prayer, arch in described["arches"].items():
             x0, y0, x1, y1 = arch["box"]
-            mask = QtGui.QImage(str(folder / f"arch-{prayer}.png"))
+            mask = _load_once(folder / f"arch-{prayer}.png", as_image=True)
             self.arches.append(Arch(prayer, QtCore.QRect(x0, y0, x1 - x0, y1 - y0), mask))
+
+    def load_film(self, path: Path) -> None:
+        """The moving version of this drawing, if there is one and it fits the still.
+
+        Refused if the two are different sizes: every box on this screen -- the arches, the
+        clock -- was measured against the still, so a film on a different canvas would put the
+        picture and the places you can touch out of step with each other.
+        """
+        if not path.is_file():
+            return
+        movie = QtGui.QMovie(str(path))
+        if not movie.isValid() or movie.frameCount() < 2:
+            return
+        movie.jumpToFrame(0)
+        if movie.currentPixmap().size() != self.picture.size():
+            print(f"{path.name}: {movie.currentPixmap().size().width()}x"
+                  f"{movie.currentPixmap().size().height()} does not match the still "
+                  f"({self.picture.width()}x{self.picture.height()}); showing the still",
+                  file=sys.stderr)
+            return
+        movie.setParent(self)
+        movie.frameChanged.connect(self.next_frame)   # a bound method: Qt drops it with us
+        self.film = movie
+
+    def next_frame(self, _frame: int) -> None:
+        self.update()
+
+    def film_frame(self, size: QtCore.QSize, flip: bool):
+        """This frame of the film, at the size the still is drawn, or None.
+
+        Kept from one paint to the next and worked out again only when the frame, the size or
+        the theme changes. The stars twinkle far faster than the film moves, so without this
+        every one of those repaints would rescale a one-and-a-half megapixel picture.
+        """
+        if self.film is None:
+            return None
+        key = (self.film.currentFrameNumber(), size.width(), size.height(), flip)
+        if key != self._frame_key or self._frame is None:
+            frame = self.film.currentPixmap()
+            if frame.isNull():
+                return None
+            frame = frame.scaled(size, Qt.AspectRatioMode.IgnoreAspectRatio,
+                                 Qt.TransformationMode.SmoothTransformation)
+            if flip:
+                from .render import invert
+                frame = invert(frame)
+            self._frame, self._frame_key = frame, key
+        return self._frame
 
     @property
     def ready(self) -> bool:
@@ -473,7 +554,10 @@ class MosqueScreen(QtWidgets.QWidget):
     def clock_type(self, box: QtCore.QRect, text: str,
                    fallback: QtGui.QFont | None = None) -> QtGui.QFont:
         """The time, as large as the dome allows: fitted to the flat middle of the dome, then
-        CLOCK_BOOST larger again, since the dome curves out wider either side of the numbers."""
+        CLOCK_BOOST larger again, since the dome curves out wider either side of the numbers,
+        and CLOCK_TRIM smaller after that. The two are kept apart rather than multiplied into
+        one number so the reason for each is still readable: the first is about the shape of a
+        dome, the second is somebody looking at it and wanting the time a little smaller."""
         font = QtGui.QFont(self.clock_font) if self.clock_font else QtGui.QFont(fallback or QtGui.QFont())
         font.setWeight(QtGui.QFont.Weight(700))
         size = max(8, int(box.height() * 1.10))
@@ -481,7 +565,7 @@ class MosqueScreen(QtWidgets.QWidget):
         while size > 8 and QtGui.QFontMetrics(font).horizontalAdvance(text) > box.width() * 0.94:
             size -= 2
             font.setPixelSize(size)
-        font.setPixelSize(max(8, int(size * CLOCK_BOOST)))
+        font.setPixelSize(max(8, int(size * CLOCK_BOOST * CLOCK_TRIM)))
         return font
 
     def clock_rect(self, box: QtCore.QRect) -> QtCore.QRect:
@@ -569,10 +653,14 @@ class MosqueScreen(QtWidgets.QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self.flutter.start()
+        if self.film is not None:
+            self.film.start()
 
     def hideEvent(self, event):
         super().hideEvent(event)
         self.flutter.stop()
+        if self.film is not None:
+            self.film.stop()
 
     def draw_stars(self, painter: QtGui.QPainter, scaled: QtGui.QPixmap,
                    origin: QtCore.QPoint) -> None:
@@ -655,6 +743,7 @@ class MosqueScreen(QtWidgets.QWidget):
         if not self.ready:
             return
         scaled, origin, scale = self.placement()
+        flip = self.flipped
         if self.sun_up:
             self.draw_birds(painter, scaled, origin)
         else:
@@ -663,6 +752,19 @@ class MosqueScreen(QtWidgets.QWidget):
         if self.lit is None and self.idle_glow:
             self.draw_minaret_glow(painter, origin, scale)
         painter.drawPixmap(origin, scaled)
+        # The film goes over the still rather than instead of it. The still is what hides the
+        # sky behind the solid parts -- the dome the clock sits on above all -- and the film
+        # has no transparency of its own, so on its own it would either paint over the stars
+        # everywhere or let them through the dome. Laid on top and combined by taking the
+        # lighter of the two, its black adds nothing and its white lines move.
+        frame = self.film_frame(scaled.size(), flip)
+        if frame is not None:
+            mode = (QtGui.QPainter.CompositionMode.CompositionMode_Darken if flip
+                    else QtGui.QPainter.CompositionMode.CompositionMode_Lighten)
+            painter.setCompositionMode(mode)
+            painter.drawPixmap(origin, frame)
+            painter.setCompositionMode(
+                QtGui.QPainter.CompositionMode.CompositionMode_SourceOver)
 
         # Which prayer it is now: its name on the arch in green, and its time in green in the
         # banner. No box over the arch; that was more shout than help.

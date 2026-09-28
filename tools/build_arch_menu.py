@@ -42,7 +42,7 @@ CLOCK_MIDDLE = 0.55   # of the height: the dome's body, above where the roof com
 DARK_ENOUGH = 0.97    # of the clock box must be dark, or the time will not read on it
 
 
-def arches_in(grey, least: int) -> list[tuple[int, int, int, int]]:
+def arches_in(grey, least: int, upright: float = UPRIGHT) -> list[tuple[int, int, int, int]]:
     """Every light shape big enough to be an arch, as boxes, ordered left to right."""
     import numpy as np
     from scipy import ndimage
@@ -59,11 +59,18 @@ def arches_in(grey, least: int) -> list[tuple[int, int, int, int]]:
         if box[0] == 0 or box[1] == 0 or box[2] >= light.shape[1] or box[3] >= light.shape[0]:
             continue
         wide, tall = box[2] - box[0], box[3] - box[1]
-        if tall < wide * UPRIGHT or len(ys) < ROOMY:
+        if tall < wide * upright or len(ys) < ROOMY:
             continue
         found.append(box)
-    found.sort(key=lambda b: b[0])
-    return found
+    # A panel drawn with a double outline shows up twice -- the white border and the white
+    # fill inside it, with the thin dark gap between them keeping them apart. One opening, not
+    # two, so anything sitting wholly inside another shape is dropped. Arches standing side by
+    # side never contain one another, so this leaves a row of them alone.
+    whole = [box for box in found
+             if not any(other is not box and other[0] <= box[0] and other[1] <= box[1]
+                        and other[2] >= box[2] and other[3] >= box[3] for other in found)]
+    whole.sort(key=lambda b: b[0])
+    return whole
 
 
 def landmarks(picture, drawn_dark: bool = False):
@@ -199,6 +206,11 @@ def main() -> int:
     ap.add_argument("out", type=Path, help="the folder to write, e.g. assets/kalima")
     ap.add_argument("--arches", type=int, default=6)
     ap.add_argument("--names", default="", help="comma separated; defaults to 1,2,3...")
+    ap.add_argument("--upright", type=float, default=UPRIGHT,
+                    help="how tall an opening must be for its width to count as an arch. The "
+                         "default rejects the flat slivers a mosque is full of -- the slots in "
+                         "a minaret, the line under the plinth. A drawing whose opening is one "
+                         "wide panel rather than a row of arches needs this lowered.")
     ap.add_argument("--drawn", choices=("light", "dark"), default="light",
                     help="which screen the drawing was made for: 'dark' for white lines on "
                          "black, which the app then shows as drawn rather than inverting")
@@ -224,7 +236,7 @@ def main() -> int:
         picture, said = match_to(picture, args.match, args.drawn == "dark")
         print(f"lined up with {args.match}: {said}")
     grey = picture.convert("L")
-    boxes = arches_in(grey, SMALLEST)
+    boxes = arches_in(grey, SMALLEST, args.upright)
     if len(boxes) != args.arches:
         print(f"Found {len(boxes)} arch-sized shapes, not {args.arches}.", file=sys.stderr)
         for box in boxes:

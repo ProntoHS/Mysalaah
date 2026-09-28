@@ -67,6 +67,11 @@ class UiTest(unittest.TestCase):
         self.win.resize(1920, 1080)
         self.win.show()
         APP.processEvents()
+        # In through the front door, as a person does. The mat opens on the MySalaah screen
+        # now, so without this the mosque behind it is never shown and never laid out -- and a
+        # test measuring where the banner sits reads the same number for everything.
+        self.win.leave_welcome()
+        APP.processEvents()
         self.win.debouncer.window = 0  # tests press faster than a person
 
     def tearDown(self):
@@ -747,8 +752,10 @@ class UiTest(unittest.TestCase):
         if w.mosque.lit:
             self.assertIn(w.mosque.lit, {a.prayer for a in w.mosque.arches})
 
-    def test_the_time_is_larger_than_a_plain_fit_in_the_dome(self):
-        from salaah.mosque import CLOCK_BOOST
+    def test_the_time_is_sized_off_the_dome_and_then_trimmed(self):
+        """Two steps, kept apart on purpose: the dome curves out either side of the numbers so
+        the time is set larger than a flat fit, and then trimmed because it read too big."""
+        from salaah.mosque import CLOCK_BOOST, CLOCK_TRIM
         w = self.win
         w.tick()
         APP.processEvents()
@@ -756,11 +763,26 @@ class UiTest(unittest.TestCase):
         self.assertGreater(box.width(), 10, "the dome was found in the picture")
         font = w.mosque.clock_type(box, "21:45")
         plain = QtGui.QFont(font)
-        plain.setPixelSize(max(8, int(font.pixelSize() / CLOCK_BOOST)))
-        self.assertAlmostEqual(CLOCK_BOOST, font.pixelSize() / plain.pixelSize(), delta=0.03)
+        plain.setPixelSize(max(8, int(font.pixelSize() / (CLOCK_BOOST * CLOCK_TRIM))))
+        self.assertAlmostEqual(CLOCK_BOOST * CLOCK_TRIM,
+                               font.pixelSize() / plain.pixelSize(), delta=0.03)
         # the plain size is the one that fits the dome's flat middle
         self.assertLessEqual(QtGui.QFontMetrics(plain).horizontalAdvance("21:45"),
                              box.width() * 0.95)
+
+    def test_the_time_on_the_dome_is_fifteen_percent_smaller_than_it_was(self):
+        """What was asked for. Measured against the untrimmed size rather than against a
+        number written down here, so it stays true if the dome or the font ever change."""
+        from salaah import mosque
+        w = self.win
+        box = w.mosque.clock_box
+        trimmed = w.mosque.clock_type(box, "21:45").pixelSize()
+        was = mosque.CLOCK_TRIM
+        mosque.CLOCK_TRIM = 1.0
+        self.addCleanup(lambda: setattr(mosque, "CLOCK_TRIM", was))
+        before = w.mosque.clock_type(box, "21:45").pixelSize()
+        self.assertAlmostEqual(0.85, trimmed / before, delta=0.02,
+                               msg=f"{before}px became {trimmed}px")
 
     def test_settings_is_two_columns_of_settings(self):
         from salaah.mosque import GearButton
@@ -1062,7 +1084,7 @@ class QiblaScreenTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_it_comes_first_and_lines_up_with_the_stand_in(self):
@@ -1320,7 +1342,7 @@ class SideScreenTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def fardh(self, w, prayer="dhuhr"):
@@ -1412,7 +1434,7 @@ class SideScreenTest(unittest.TestCase):
     def test_without_a_side_screen_nothing_changes(self):
         w = MainWindow(load(ASSETS), available_packs(ASSETS), Settings(theme="light", recitation=False), scale=1.0,
                        save_settings=False)
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         self.assertIsNone(w.side)
         self.assertIs(w, w.slide.posture.window())
 
@@ -1428,7 +1450,7 @@ class TranslationScreenTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def fardh(self, w):
@@ -1534,7 +1556,7 @@ class QiblaAtStartTest(unittest.TestCase):
             w.side.resize(600, 1024)
             w.side.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_the_compass_goes_on_the_small_screen_and_the_menu_on_the_big_one(self):
@@ -1597,7 +1619,7 @@ class SettingsFootTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def words(self, w):
@@ -1689,7 +1711,7 @@ class UrduTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_it_is_laid_out_right_to_left_in_the_arabic_face(self):
@@ -1734,7 +1756,7 @@ class MainScreenMarkTest(unittest.TestCase):
         from unittest import mock
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="light", recitation=False), scale=1.0, save_settings=False)
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         w.resize(1920, 1080)
         w.show()
         times = w.prayer_times()
@@ -1763,7 +1785,7 @@ class MainScreenMarkTest(unittest.TestCase):
         from salaah.qt import QtGui
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="light", recitation=False), scale=1.0, save_settings=False)
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         w.resize(1920, 1080)
         w.show()
         APP.processEvents()
@@ -1802,8 +1824,9 @@ class SkyAndPolishTest(unittest.TestCase):
                        scale=1.0, save_settings=False, aspect=None)
         w.resize(1920, 1080)
         w.show()
+        w.leave_welcome()      # past the front door: these look at the mosque behind it
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_the_clock_has_room_and_sits_higher(self):
@@ -1815,10 +1838,13 @@ class SkyAndPolishTest(unittest.TestCase):
         self.assertGreater(where.width(), box.width(), "room either side, so nothing is clipped")
         self.assertLess(where.y(), box.y(), "lifted towards the middle of the dome")
         self.assertEqual(box.center().x(), where.center().x(), "still centred on the dome")
-        # the lettering really does need that room: it is boosted past the box's width
+        # The room is what stops the lettering being clipped at whatever size it ends up.
+        # It used to be wider than the box itself; since the time was trimmed it need not be,
+        # so what is checked is the thing that still has to hold -- that it fits in the room.
         font = screen.clock_type(box, "23:59")
-        self.assertGreater(QtGui.QFontMetrics(font).horizontalAdvance("23:59"), box.width())
         self.assertLessEqual(QtGui.QFontMetrics(font).horizontalAdvance("23:59"), where.width())
+        self.assertGreater(QtGui.QFontMetrics(font).horizontalAdvance("23:59"), box.width() * 0.6,
+                           "the time has shrunk to nothing on the dome")
 
     def test_the_line_between_the_columns_is_the_colour_of_the_words(self):
         """Black by day and white after dark, like everything else that is drawn."""
@@ -1920,7 +1946,7 @@ class FigureTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def add_girl(self, names=("standing_folded.png", "ruku.png", "standing_arms_down.png")):
@@ -2061,7 +2087,7 @@ class ArchArtworkTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         w.open_prayer("dhuhr")
         APP.processEvents()
         arches = w.pick.findChildren(ArchButton)
@@ -2082,10 +2108,11 @@ class ZoomIntoArchTest(unittest.TestCase):
                        scale=1.0, save_settings=False, aspect=None)
         w.resize(1920, 1200)
         w.show()
+        w.leave_welcome()      # past the front door: these look at the mosque behind it
         APP.processEvents()
         w.refresh()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_the_screen_changes_at_once_not_when_the_walk_ends(self):
@@ -2194,7 +2221,7 @@ class ArchColoursTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         w.open_prayer("fajr")
         APP.processEvents()
         return w, w.pick.findChildren(ArchButton)[0]
@@ -2245,8 +2272,9 @@ class WalkLengthTest(unittest.TestCase):
                        save_settings=False, aspect=None)
         w.resize(1920, 1200)
         w.show()
+        w.leave_welcome()      # past the front door: these look at the mosque behind it
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         w.enter_prayer("asr")
         self.assertTrue(w.veil.running)
         press = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress,
@@ -2303,7 +2331,7 @@ class LineSpacingTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         entry = [e for e in w.school.prayers["dhuhr"] if e.kind == "farz"][0]
         w.open_prayer("dhuhr")
         w.start("dhuhr", entry)
@@ -2386,7 +2414,7 @@ class FullHeightRuleTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def rule_run(self, box):
@@ -2438,7 +2466,7 @@ class WalkIntoAUnitTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def arches(self, w, prayer="dhuhr"):
@@ -2506,7 +2534,7 @@ class BannerAndDoneScreenTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def at_the_end(self, w):
@@ -2662,7 +2690,7 @@ class SettingsTidiedTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def buttons(self, w):
@@ -2766,7 +2794,7 @@ class EveryInterfaceLanguageTest(unittest.TestCase):
         APP.processEvents()
         w.refresh()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_all_six_are_offered(self):
@@ -2901,7 +2929,7 @@ class ShutdownTest(unittest.TestCase):
         was = theme.is_dark()
         self.addCleanup(lambda: theme.set_dark(was))
         w = self.make(theme="dark")
-        self.addCleanup(lambda: (w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.close(), w.deleteLater(), settle()))
         self.assertTrue(theme.is_dark(), "its own settings say dark")
         w.settings.theme = "light"          # as if another window's settings were in charge
         w.tick()
@@ -2934,8 +2962,9 @@ class SleepTest(unittest.TestCase):
         w.outputs = self.Screens()
         w.resize(1920, 1200)
         w.show()
+        w.leave_welcome()      # past the front door: these look at the mosque behind it
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def press(self, w):
@@ -2955,14 +2984,18 @@ class SleepTest(unittest.TestCase):
         """The panels are the bulk of it, but the sky animating several times a second and the
         clock redrawing the times cost something too, and nobody can see either of them."""
         w = self.window()
+        skies = [w.mosque] + ([w.welcome_mosque] if w.welcome is not None else [])
         self.assertTrue(w.clock.isActive())
-        self.assertTrue(w.mosque.flutter.isActive())
+        self.assertTrue(any(s.flutter.isActive() for s in skies))
         self.press(w)
         self.assertFalse(w.clock.isActive(), "the ten-second clock is still running")
-        self.assertFalse(w.mosque.flutter.isActive(), "the sky is still animating")
+        self.assertFalse(any(s.flutter.isActive() for s in skies), "the sky is still animating")
         self.press(w)
+        # It wakes at the front door, so that is the sky which starts moving again rather than
+        # the mosque's. What matters is that the screen somebody is looking at is alive.
         self.assertTrue(w.clock.isActive())
-        self.assertTrue(w.mosque.flutter.isActive())
+        showing = next(s for s in skies if s.isVisible())
+        self.assertTrue(showing.flutter.isActive())
 
     def test_it_sleeps_from_any_screen_including_partway_through_a_prayer(self):
         """One rule and no exceptions. This used to be refused mid-prayer; a button that does
@@ -2987,7 +3020,7 @@ class SleepTest(unittest.TestCase):
         APP.processEvents()
         self.press(w)
         self.press(w)
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
         self.assertIsNone(w.session, "the abandoned prayer is still hanging about")
         self.assertFalse(w.recitation.busy, "it is still reciting into an empty room")
 
@@ -3011,23 +3044,24 @@ class SleepTest(unittest.TestCase):
             self.press(w)
             self.assertTrue(w.asleep, f"{screen}: the button did nothing")
 
-    def test_it_wakes_at_the_main_menu_rather_than_where_it_was_left(self):
+    def test_it_wakes_at_the_front_door_rather_than_where_it_was_left(self):
         """The mat is picked up by whoever prays next. A screen left open in the middle of
-        someone else's Settings is no way to greet them."""
+        someone else's Settings is no way to greet them. The screen it greets them with is the
+        front door now; the reason for not leaving Settings up is the one it always was."""
         w = self.window()
         w.open_settings()
         APP.processEvents()
-        self.assertIsNot(w.home, w.stack.currentWidget())
+        self.assertIsNot(w.welcome, w.stack.currentWidget())
         self.press(w)
         self.press(w)
-        self.assertIs(w.home, w.stack.currentWidget(), "it woke up back in Settings")
+        self.assertIs(w.welcome, w.stack.currentWidget(), "it woke up back in Settings")
 
     def test_waking_from_the_end_of_a_prayer_forgets_the_prayer(self):
         w = self.window()
         self.to_the_end(w)
         self.press(w)
         self.press(w)
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
         self.assertIsNone(w.session, "the finished prayer is still hanging about")
         self.assertFalse(w.playing)
 
@@ -3085,7 +3119,7 @@ class UpdateNoticeTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     @staticmethod
@@ -3244,7 +3278,7 @@ class BrightnessTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_it_is_a_slider_not_five_buttons(self):
@@ -3292,7 +3326,7 @@ class BrightnessTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_the_little_screen_is_actually_veiled_and_the_big_one_is_not(self):
@@ -3377,7 +3411,7 @@ class CallToPrayerTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     @staticmethod
@@ -3522,7 +3556,7 @@ class NoQiblaTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_it_is_switched_off(self):
@@ -3565,7 +3599,7 @@ class KnowledgeCornerTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_the_small_screen_offers_three_things_between_prayers(self):
@@ -3626,7 +3660,7 @@ class QuranTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_all_one_hundred_and_fourteen_are_listed(self):
@@ -3858,7 +3892,7 @@ class PassageScreenTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_the_duas_tile_opens_ten_of_them(self):
@@ -4356,7 +4390,7 @@ class ArchMenuTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_the_kalima_open_a_mosque_of_six_arches_not_a_list(self):
@@ -4542,7 +4576,7 @@ class KalimaVoiceTest(unittest.TestCase):
         w.show()
         settle()
         w.recitation = FakePlayer()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_there_is_a_recording_for_each_and_it_can_be_played(self):
@@ -4700,7 +4734,7 @@ class SwitchTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def switches(self, w):
@@ -4772,10 +4806,11 @@ class BannerTest(unittest.TestCase):
                        scale=1.0, save_settings=False)
         w.resize(1920, 1080)
         w.show()
+        w.leave_welcome()      # past the front door: these look at the mosque behind it
         settle()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_the_knowledge_corner_has_a_banner_too(self):
@@ -4835,7 +4870,7 @@ class VolumeEverywhereTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_there_is_one_slider_in_each_banner_and_none_below(self):
@@ -4893,7 +4928,7 @@ class ReaderBarTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_the_way_out_is_called_back(self):
@@ -4959,7 +4994,7 @@ class FajrCallTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_fajr_has_a_recording_of_its_own(self):
@@ -5058,7 +5093,7 @@ class MatchedButtonsTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_they_are_the_same_size_whatever_the_word_for_back_is(self):
@@ -5109,7 +5144,7 @@ class TwoMosquesTest(unittest.TestCase):
             screen.sky.stars = []
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     @staticmethod
@@ -5196,7 +5231,7 @@ class SettingsScreenTest(unittest.TestCase):
         w.open_settings()
         w.tick()                 # the clock is what writes the strip's words
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def banner(self, w):
@@ -5356,7 +5391,7 @@ class AzaanScreenTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def box(self, w, prayer="fajr", recording="azaan-fajr.mp3"):
@@ -5364,7 +5399,7 @@ class AzaanScreenTest(unittest.TestCase):
         b = CallBox(w, prayer, recording, w.adhan)
         b.show()
         settle()
-        self.addCleanup(lambda: (b.close(), b.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (b.close(), b.deleteLater(), settle()))
         return b
 
     # The words
@@ -5592,7 +5627,7 @@ class SurahNumberTest(unittest.TestCase):
         w.show()
         w.open_corner_list()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def badges(self, w):
@@ -5662,7 +5697,7 @@ class SoundSettingsTogetherTest(unittest.TestCase):
         w.show()
         w.open_settings()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def head(self, w, key):
@@ -5720,7 +5755,7 @@ class TouchableSliderTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def surahs(self, w):
@@ -5862,9 +5897,10 @@ class DrawnForTheDarkTest(unittest.TestCase):
                        scale=1.0, save_settings=False, aspect=None)
         w.resize(1920, 1080)
         w.show()
+        w.leave_welcome()      # past the front door: these look at the mosque behind it
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_both_drawings_say_they_were_made_for_the_dark_screen(self):
@@ -5936,9 +5972,10 @@ class NewMosqueArtTest(unittest.TestCase):
                        scale=1.0, save_settings=False, aspect=None)
         w.resize(1920, 1080)
         w.show()
+        w.leave_welcome()      # past the front door: these look at the mosque behind it
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def test_the_front_door_still_has_its_five_prayers_in_order(self):
@@ -6043,7 +6080,7 @@ class MovingMuezzinTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
     def box(self, w):
@@ -6051,7 +6088,7 @@ class MovingMuezzinTest(unittest.TestCase):
         b = CallBox(w, "fajr", "azaan-fajr.mp3", w.adhan)
         b.show()
         settle()
-        self.addCleanup(lambda: (b.close(), b.deleteLater(), APP.processEvents()))
+        self.addCleanup(lambda: (b.close(), b.deleteLater(), settle()))
         return b
 
     def test_there_is_a_film_and_it_is_running_while_the_call_is_up(self):
@@ -6153,3 +6190,407 @@ class MovingMuezzinTest(unittest.TestCase):
         w.call_to_prayer("asr")          # a second call while the first box is still up
         settle()
         self.assertEqual(1, len(w.findChildren(CallBox)), "the first box was left behind")
+
+
+class WelcomeScreenTest(unittest.TestCase):
+    """The front door: the mosque with MySalaah across it, which the mat opens on."""
+
+    def window(self, mode="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def test_the_mat_opens_on_it(self):
+        w = self.window()
+        self.assertIsNotNone(w.welcome, "the welcome drawing was not found")
+        self.assertIs(w.welcome, w.stack.currentWidget())
+
+    def test_it_has_one_opening_with_the_name_across_it(self):
+        w = self.window()
+        self.assertEqual(["enter"], [a.prayer for a in w.welcome_mosque.arches])
+        box = w.welcome_mosque.arches[0].box
+        self.assertGreater(box.width(), box.height() * 2,
+                           "the opening is a wide panel, not one of the upright arches")
+        self.assertGreater(box.width(), w.welcome_mosque.picture.width() * 0.6,
+                           "and it spans most of the front")
+
+    def test_touching_it_goes_through_to_the_mosque(self):
+        w = self.window()
+        middle = w.welcome_mosque.arch_centre("enter")
+        self.assertIsNotNone(middle)
+        self.assertEqual("enter", w.welcome_mosque.arch_at(middle), "the middle is not the panel")
+        w.welcome_mosque.chosen.emit("enter")
+        settle()
+        self.assertIs(w.home, w.stack.currentWidget(), "it did not go in")
+
+    def test_the_rest_of_the_mat_still_comes_back_to_the_mosque(self):
+        """Main screen means the five arches, not back out to the front door: that is the
+        screen the mat is for, and a call to prayer lands there too."""
+        w = self.window()
+        w.welcome_mosque.chosen.emit("enter")
+        settle()
+        w.open_settings()
+        settle()
+        w.go_home()
+        settle()
+        self.assertIs(w.home, w.stack.currentWidget())
+
+    def test_it_keeps_the_clock_but_lights_no_prayer(self):
+        w = self.window()
+        front = w.welcome_mosque
+        self.assertTrue(front.time_text, "no time on the dome")
+        self.assertEqual(w.mosque.time_text, front.time_text, "the two clocks disagree")
+        self.assertIsNone(front.lit, "the front door should not be picking a prayer")
+        self.assertFalse(front.idle_glow, "and should not be glowing its minarets either")
+
+    def test_with_no_welcome_drawing_the_mat_opens_on_the_mosque_as_it_did(self):
+        """The screen is an extra, not a thing the mat depends on."""
+        import shutil, tempfile
+        spare = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(spare, ignore_errors=True))
+        shutil.copytree(ASSETS, spare / "assets", symlinks=True)
+        shutil.rmtree(spare / "assets" / "welcome")
+        w = MainWindow(load(spare / "assets"), available_packs(spare / "assets"),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.assertIsNone(w.welcome)
+        self.assertIs(w.home, w.stack.currentWidget())
+
+
+class CleanArtworkTest(unittest.TestCase):
+    """The drawings are two-tone. The first pair had a glow painted round every line, and where
+    the sky was knocked out from under it a grey fringe was left standing on the black."""
+
+    def solid_shades(self, folder):
+        image = QtGui.QImage(str(ASSETS / folder / "mosque.png"))
+        self.assertFalse(image.isNull(), folder)
+        mid = solid = 0
+        for y in range(0, image.height(), 3):
+            for x in range(0, image.width(), 3):
+                c = QtGui.QColor(image.pixelColor(x, y))
+                if c.alpha() < 200:
+                    continue
+                solid += 1
+                if 40 < c.lightness() < 215:
+                    mid += 1
+        return mid, solid
+
+    def test_the_drawings_are_black_and_white_and_not_much_in_between(self):
+        for folder in ("mosque", "kalima", "welcome"):
+            mid, solid = self.solid_shades(folder)
+            self.assertGreater(solid, 1000, folder)
+            share = mid / solid
+            self.assertLess(share, 0.12,
+                            f"{folder}: {share*100:.1f}% of what is drawn is a half shade -- "
+                            f"that is the glow that made the first pair look muddy")
+
+    def test_all_three_are_the_same_canvas(self):
+        sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size()
+                 for f in ("mosque", "kalima", "welcome")}
+        self.assertEqual(1, len(sizes), "the three screens are drawn at different sizes")
+
+
+class ArchFinderTest(unittest.TestCase):
+    """Two rules the builder needed for the new drawings, tested on shapes made here rather
+    than on the artwork, so what is being checked is the rule and not one picture."""
+
+    @staticmethod
+    def grey(shapes, size=(400, 300)):
+        """A black field with white rectangles punched in it, as an image the finder can read.
+
+        A shape given as (x0, y0, x1, y1, "ring") is drawn as an outline with a gap inside it,
+        which is how a double-outlined panel actually looks. Filling one rectangle inside
+        another just makes one bigger white blob -- which is what the first version of this
+        did, so the nesting rule it was meant to test was never exercised.
+        """
+        from PIL import Image, ImageDraw
+        image = Image.new("L", size, 0)
+        draw = ImageDraw.Draw(image)
+        for shape in shapes:
+            x0, y0, x1, y1 = shape[:4]
+            if len(shape) > 4 and shape[4] == "ring":
+                draw.rectangle([x0, y0, x1 - 1, y1 - 1], outline=255, width=6)
+            else:
+                draw.rectangle([x0, y0, x1 - 1, y1 - 1], fill=255)
+        return image
+
+    def finder(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "arch_menu", Path(__file__).resolve().parent.parent / "tools" / "build_arch_menu.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_a_wide_panel_is_found_only_when_the_rule_is_relaxed(self):
+        """The default throws away anything wider than it is tall -- the slots in a minaret,
+        the line under the plinth. The welcome screen's opening is exactly that shape."""
+        tools = self.finder()
+        panel = self.grey([(40, 180, 360, 260)])         # 320 wide, 80 tall
+        self.assertEqual([], tools.arches_in(panel, tools.SMALLEST),
+                         "a flat panel should not pass for an arch by default")
+        self.assertEqual(1, len(tools.arches_in(panel, tools.SMALLEST, 0.2)),
+                         "and should be found once the rule is relaxed")
+
+    def test_a_shape_inside_another_is_one_opening_not_two(self):
+        """A panel drawn with a double outline appears twice: the border and the fill within
+        it. The welcome drawing has one, and the builder refused it as two openings."""
+        tools = self.finder()
+        # An outline with a filled panel inside it and a black gap between: two separate white
+        # shapes, one wholly within the other.
+        nested = self.grey([(40, 100, 360, 260, "ring"), (60, 120, 340, 240)])
+        found = tools.arches_in(nested, tools.SMALLEST, 0.2)
+        self.assertEqual(1, len(found), f"got {found}")
+        self.assertEqual((40, 100, 360, 260), found[0], "the outer shape is the opening")
+
+    def test_arches_standing_side_by_side_are_left_alone(self):
+        """The rule above must not swallow a row of arches, which is what the other two
+        drawings are."""
+        tools = self.finder()
+        row = self.grey([(30 + i * 90, 80, 100 + i * 90, 260) for i in range(4)])
+        found = tools.arches_in(row, tools.SMALLEST)
+        self.assertEqual(4, len(found), f"got {found}")
+        self.assertEqual([b[0] for b in found], sorted(b[0] for b in found), "left to right")
+
+
+
+class ArtworkCacheTest(unittest.TestCase):
+    """The drawings are read once and shared. Three mosques, rebuilt on every settings change,
+    were re-reading about twenty megabytes of picture each time."""
+
+    def test_the_same_drawing_is_not_read_twice(self):
+        """The two screens should be handed the very same object. Comparing the pictures'
+        contents, or their cacheKey, proves nothing: Qt keeps a cache of its own for images
+        read from a file, so two pixmaps loaded separately can come back identical anyway.
+        Identity is the thing that can only be true if this cache handed out what it had."""
+        from salaah import mosque
+        a = mosque.MosqueScreen(ASSETS)
+        b = mosque.MosqueScreen(ASSETS)
+        self.addCleanup(lambda: (a.deleteLater(), b.deleteLater(), APP.processEvents()))
+        self.assertTrue(a.ready and b.ready)
+        self.assertIs(a.picture, b.picture, "the drawing was read again for the second screen")
+        for one, two in zip(a.arches, b.arches):
+            self.assertIs(one.mask, two.mask, f"the {one.prayer} mask was read again")
+
+    def test_rebuilding_the_artwork_is_picked_up_and_not_served_stale(self):
+        """Harry rebuilds these drawings often. A cache keyed on the file name alone would go
+        on handing out the old picture until the app was restarted."""
+        import shutil, tempfile
+        from salaah import mosque
+        spare = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(spare, ignore_errors=True))
+        shutil.copytree(ASSETS / "mosque", spare / "mosque")
+        first = mosque.MosqueScreen(spare)
+        self.addCleanup(lambda: (first.deleteLater(), APP.processEvents()))
+        self.assertTrue(first.ready)
+        was = first.picture.size()
+
+        shutil.copy(ASSETS / "welcome" / "mosque.png", spare / "mosque" / "mosque.png")
+        import os, time
+        later = time.time() + 5
+        os.utime(spare / "mosque" / "mosque.png", (later, later))
+        again = mosque.MosqueScreen(spare)
+        self.addCleanup(lambda: (again.deleteLater(), APP.processEvents()))
+        self.assertNotEqual(first.picture.cacheKey(), again.picture.cacheKey(),
+                            "the old picture was handed out again after the file changed")
+        self.assertEqual(was, again.picture.size(), "same canvas, different drawing")
+
+
+class MovingFrontDoorTest(unittest.TestCase):
+    """The front door is a little film, not a still. Everything measured on this screen -- the
+    panel you touch, the box the clock sits in -- came off the still, so the two have to stay
+    the same canvas and the film has to sit exactly on top of it."""
+
+    def window(self, mode="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def test_the_front_door_has_a_film_and_the_other_two_mosques_do_not(self):
+        w = self.window()
+        self.assertTrue((ASSETS / "welcome" / "mosque.gif").is_file())
+        self.assertIsNotNone(w.welcome_mosque.film, "the front door is showing the still")
+        self.assertGreater(w.welcome_mosque.film.frameCount(), 1)
+        self.assertIsNone(w.mosque.film, "the five prayers should not be animated")
+        w.open_section("kalima")
+        settle()
+        self.assertIsNone(w.arch_menus["kalima"].mosque.film, "nor should the kalima")
+
+    def test_it_runs_while_the_screen_is_up_and_stops_when_it_is_not(self):
+        w = self.window()
+        front = w.welcome_mosque
+        running = QtGui.QMovie.MovieState.Running
+        self.assertEqual(running, front.film.state(), "not playing on the screen it is on")
+        w.leave_welcome()
+        settle()
+        self.assertNotEqual(running, front.film.state(),
+                            "still playing with the mosque up in front of it")
+
+    def test_the_film_is_the_same_canvas_as_the_still(self):
+        """Every box on this screen was measured against the still."""
+        w = self.window()
+        front = w.welcome_mosque
+        front.film.jumpToFrame(0)
+        self.assertEqual(front.picture.size(), front.film.currentPixmap().size())
+
+    def test_a_film_on_a_different_canvas_is_refused(self):
+        """Rather than shown stretched, which would slide the drawing out of step with the
+        places you can touch."""
+        import shutil, tempfile
+        from PIL import Image
+        from salaah import mosque
+        spare = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(spare, ignore_errors=True))
+        shutil.copytree(ASSETS / "welcome", spare / "welcome")
+        # Every frame resized, not just the first: resize() hands back one frame, and a
+        # one-frame film is refused for being a still rather than for being the wrong size --
+        # so the test passed without the size check ever running.
+        from PIL import ImageSequence
+        with Image.open(ASSETS / "welcome" / "mosque.gif") as source:
+            frames = [f.convert("P").resize((400, 300))
+                      for f in ImageSequence.Iterator(source)]
+        frames[0].save(spare / "welcome" / "mosque.gif", save_all=True,
+                       append_images=frames[1:], loop=0, duration=100)
+        with Image.open(spare / "welcome" / "mosque.gif") as check:
+            self.assertGreater(getattr(check, "n_frames", 1), 1, "the stand-in is not a film")
+        screen = mosque.MosqueScreen(spare, folder="welcome")
+        self.addCleanup(lambda: (screen.deleteLater(), APP.processEvents()))
+        self.assertIsNone(screen.film, "a film of the wrong size was accepted")
+        self.assertTrue(screen.ready, "and the still should still be shown")
+
+    def test_the_frames_are_different_pictures_on_the_screen(self):
+        w = self.window()
+        front = w.welcome_mosque
+        front.sky.birds = []
+        front.sky.stars = []            # they twinkle, and would make every grab differ
+        seen = []
+        for i in range(front.film.frameCount()):
+            front.film.jumpToFrame(i)
+            settle()
+            image = front.grab().toImage()
+            seen.append(tuple(image.pixel(x, y)
+                              for y in range(0, image.height(), 11)
+                              for x in range(0, image.width(), 11)))
+        self.assertGreater(len(set(seen)), 2,
+                           f"the film has {front.film.frameCount()} frames but only "
+                           f"{len(set(seen))} of them reach the screen")
+
+    def test_the_dome_still_hides_the_sky_behind_it(self):
+        """The film has no transparency of its own. Drawn instead of the still it would either
+        paint over the stars everywhere or let them through the dome the clock sits on; laid
+        over it, the still goes on doing the masking."""
+        w = self.window()
+        front = w.welcome_mosque
+        front.sky.birds = []
+        front.set_sky(False, 0.5)
+        scaled, origin, scale = front.placement()
+        box = front.clock_box
+        front.set_time("")
+        # A thick field of stars laid right across the dome rather than the handful the sky
+        # happens to put there. With the real ones, so few land on the dome that the difference
+        # was inside the tolerance and the test passed with the masking removed.
+        stars = [(x / 60.0, y / 60.0, 1.0, 0.0) for x in range(20, 45) for y in range(20, 40)]
+        self.assertGreater(len(stars), 300)
+
+        def dome_pixels():
+            settle()
+            image = front.grab().toImage()
+            return sum(1 for y in range(origin.y() + int((box.y() + 20) * scale),
+                                        origin.y() + int((box.y() + box.height() - 20) * scale), 2)
+                       for x in range(origin.x() + int((box.x() + 20) * scale),
+                                      origin.x() + int((box.x() + box.width() - 20) * scale), 2)
+                       if QtGui.QColor(image.pixel(x, y)).lightness() > 120)
+        front.sky.stars = []
+        bare = dome_pixels()
+        front.sky.stars = stars
+        starry = dome_pixels()
+        self.assertLessEqual(starry, bare + 12,
+                             f"{starry - bare} star pixels are showing through the dome")
+        self.assertGreater(len(stars), 0, "the stars were put there to be masked")
+
+
+    def test_the_sky_still_shows_through_the_front_door(self):
+        """The film is opaque. Painted on normally it would cover the whole screen, stars, sun
+        and all -- the dome would still look right, so only this notices."""
+        w = self.window()
+        front = w.welcome_mosque
+        front.sky.birds = []
+        front.set_sky(False, 0.5)
+        stars = list(front.sky.stars)
+        self.assertGreater(len(stars), 20)
+        front.sky.stars = []
+        front.update()
+        settle()
+        bare = front.grab().toImage()
+        front.sky.stars = stars
+        front.update()
+        settle()
+        starry = front.grab().toImage()
+        showing = sum(1 for y in range(0, front.height())
+                      for x in range(0, front.width())
+                      if (QtGui.QColor(starry.pixel(x, y)).lightness()
+                          - QtGui.QColor(bare.pixel(x, y)).lightness()) > 30)
+        self.assertGreater(showing, 150,
+                           f"only {showing} pixels of sky get through the front door")
+
+
+class WakeToTheFrontDoorTest(unittest.TestCase):
+    """Asleep all night, it comes back at the front door rather than wherever it was left."""
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "dark", "recitation": False, "place": "Bury",
+                                   "sleep_after": 1, **settings}),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def test_it_wakes_at_the_front_door_not_where_it_was_left(self):
+        w = self.window()
+        w.leave_welcome()
+        w.open_settings()
+        settle()
+        self.assertIs(w.settings_screen, w.stack.currentWidget())
+        w.maybe_sleep()
+        settle()
+        self.assertTrue(w.asleep, "it should have gone to sleep")
+        w.wake()
+        settle()
+        self.assertFalse(w.asleep)
+        self.assertIs(w.welcome, w.stack.currentWidget(),
+                      "it came back on yesterday's screen")
+
+    def test_waking_mid_prayer_stays_where_it_was(self):
+        """A prayer on screen is the one thing that must not be walked away from: the call
+        wakes the mat and then takes it home itself."""
+        w = self.window()
+        w.leave_welcome()
+        entry = w.school.prayers["fajr"][0]
+        w.start("fajr", entry)
+        settle()
+        self.assertTrue(w.playing)
+        was = w.stack.currentWidget()
+        w.maybe_sleep()
+        w.asleep = True                      # a prayer keeps it awake, so put it under by hand
+        w.wake()
+        settle()
+        self.assertIs(was, w.stack.currentWidget(), "it walked out of a prayer")

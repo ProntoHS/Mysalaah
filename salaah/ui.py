@@ -650,12 +650,19 @@ class MainWindow(QtWidgets.QWidget):
             self.mosque.flutter.stop()
 
     def wake(self) -> None:
-        """Screens back on, at whatever was showing when it went to sleep."""
+        """Screens back on, at the front door.
+
+        It used to come back wherever it had been left, which after a night asleep is a screen
+        somebody opened yesterday. The front door is where the mat starts, so it is where it
+        starts again -- except when a prayer is what woke it, and the call takes it home itself.
+        """
         if not self.asleep:
             return
         self.asleep = False
         if not self.outputs.set(True):
             print(f"wake: {self.outputs.why}", file=sys.stderr)
+        if getattr(self, "welcome", None) is not None and not self.playing:
+            self.stack.setCurrentWidget(self.welcome)
         if hasattr(self, "clock"):
             self.clock.start()
         if getattr(self, "mosque", None) is not None and self.mosque.isVisible():
@@ -726,6 +733,7 @@ class MainWindow(QtWidgets.QWidget):
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft if self.pack.rtl else Qt.LayoutDirection.LeftToRight)
         self.setStyleSheet(self.stylesheet())
         self.home = self.build_home()
+        self.welcome = self.build_welcome()
         self.pick = QtWidgets.QWidget()
         self.player = self.build_player()
         self.settings_screen = self.build_settings()
@@ -742,6 +750,8 @@ class MainWindow(QtWidgets.QWidget):
         corner_lay.addWidget(self.corner_screen, 1)
         screens = [self.home, self.pick, self.player, self.settings_screen, self.timing_screen,
                    self.corner_page]
+        if self.welcome is not None:
+            screens.insert(0, self.welcome)
         if QIBLA:
             self.compass_screen = CompassScreen(self, self.facing)
             self.compass_screen.done.connect(self.qibla_done)
@@ -750,7 +760,10 @@ class MainWindow(QtWidgets.QWidget):
             del self.compass_screen
         for w in screens:
             self.stack.addWidget(w)
-        self.stack.setCurrentWidget(self.home)
+        # The front door the mat opens on, if there is one drawn. Everything else -- the way
+        # back from a sub screen, waking up, a prayer falling due -- still goes to the mosque
+        # with the five arches, because that is the screen the mat is for.
+        self.stack.setCurrentWidget(self.welcome if self.welcome is not None else self.home)
         # The monitor is a thing in the world and keeps whatever it was last told, including by
         # somebody else. Say it again at startup so the setting and the screen agree.
         self.apply_brightness()
@@ -1018,6 +1031,30 @@ class MainWindow(QtWidgets.QWidget):
         return w, lay
 
     # Home: five prayers, big enough to tap while kneeling
+
+    def build_welcome(self):
+        """The screen the mat opens on: the mosque with MySalaah across its front.
+
+        The same drawing machinery as the other two mosques -- one opening instead of five or
+        six, and touching it goes in. None if the drawing is not there, and then the mat opens
+        on the mosque as it always did, rather than on an empty screen.
+        """
+        folder = self.assets / "welcome"
+        if not (folder / "mosque.json").is_file():
+            return None
+        screen = MosqueScreen(self.assets, Fonts.english_family, folder="welcome",
+                              idle_glow=False)
+        if not screen.ready:
+            screen.deleteLater()
+            return None
+        screen.chosen.connect(self.leave_welcome)
+        self.welcome_mosque = screen
+        return screen
+
+    def leave_welcome(self, _which: str = "") -> None:
+        """MySalaah was touched. In to the mosque."""
+        self.stir()
+        self.stack.setCurrentWidget(self.home)
 
     def build_home(self) -> QtWidgets.QWidget:
         """The mosque: an arch per prayer, the time on the dome, and the prayer whose time it is
@@ -1296,10 +1333,12 @@ class MainWindow(QtWidgets.QWidget):
         """
         if self.playing:
             return
+        # Wherever it was -- asleep, in Settings, at the front door -- the call takes it to the
+        # mosque. Waking on its own now comes back at the front door, so this can no longer
+        # lean on wake() to land in the right place.
         if self.asleep:
-            self.wake()         # which comes back at the mosque, by its own design
-        else:
-            self.go_home()
+            self.wake()
+        self.go_home()
         # Fajr has its own recording, because the call at dawn says something the others do
         # not. If a prayer has no recording the notice still appears on its own, so the mat
         # still says it is time rather than passing the moment in silence.
@@ -1395,6 +1434,12 @@ class MainWindow(QtWidgets.QWidget):
         self.mosque.set_sky(*day_fraction(now, times))
         for menu in getattr(self, "arch_menus", {}).values():
             menu.follow_clock(now.strftime("%H:%M"), *day_fraction(now, times))
+        # The front door keeps the same clock and the same sky as the screens behind it. No
+        # prayer is lit on it: it is a way in, not a choice of prayer.
+        front = getattr(self, "welcome_mosque", None)
+        if front is not None:
+            front.set_time(now.strftime("%H:%M"))
+            front.set_sky(*day_fraction(now, times))
         # The prayer whose time it is stands out in green; the rest are in the banner's own
         # colour. Written as rich text, since a QLabel takes its colours that way.
         now_praying = current_prayer(now, times)
