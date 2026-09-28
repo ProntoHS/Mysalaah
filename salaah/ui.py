@@ -26,6 +26,7 @@ from .compass import CompassScreen
 from .side import SideWindow
 from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
+from .duamenu import DuaMenu
 from .recite import Store, WordTimes
 from .call import Adhan, CallBox
 from .reading import LIST_BAR, NUMBER_LINE, Reader, SurahList
@@ -1253,6 +1254,17 @@ class MainWindow(QtWidgets.QWidget):
         # The kalima are chosen off a mosque with six arches rather than a list, so the sub
         # menu looks like the front door. The list is still there behind it, and is what shows
         # if the drawing is missing.
+        # The du'as are chosen by kind before they are chosen by name: eighteen tiles, and
+        # behind each only the du'as filed under it. Without the drawing this falls back to
+        # the plain list, which is what the mat did before there was a menu.
+        self.dua_menu = DuaMenu(self)
+        if self.dua_menu.ready:
+            self.dua_menu.chose.connect(self.open_dua_category)
+            stack.addWidget(self.dua_menu)
+        else:
+            self.dua_menu.deleteLater()
+            self.dua_menu = None
+
         self.arch_menus: dict[str, ArchMenu] = {}
         menu = ArchMenu(self, "kalima", Fonts.english_family)
         if menu.ready:
@@ -1312,6 +1324,13 @@ class MainWindow(QtWidgets.QWidget):
         if which == "quran" and self.quran.there:
             self.open_corner_list()
             return
+        # The kinds are worth offering only if there is something behind them. On a mat whose
+        # assets were half copied there are no du'as at all, and eighteen tiles that every one
+        # of them lands on "nothing here yet" is a worse answer than saying so once.
+        if (which == "duas" and getattr(self, "dua_menu", None) is not None
+                and self.section_lists["duas"].passages.items):
+            self.open_the_kinds_of_dua()
+            return
         if which in self.section_lists and self.section_lists[which].passages.items:
             self.open_section(which)
             return
@@ -1337,7 +1356,7 @@ class MainWindow(QtWidgets.QWidget):
         return any(r.saying for r in getattr(self, "section_readers", {}).values())
 
     def open_section(self, which: str) -> None:
-        """The list of du'as, or -- for the kalima -- the six arches."""
+        """The kinds of du'a, or -- for the kalima -- the six arches."""
         menu = self.arch_menus.get(which)
         if menu is not None:
             self.corner_screen.setCurrentWidget(menu)
@@ -1346,6 +1365,30 @@ class MainWindow(QtWidgets.QWidget):
         listing = self.section_lists.get(which)
         if listing is None:
             return
+        listing.to_the_top()
+        self.corner_screen.setCurrentWidget(listing)
+        self.stack.setCurrentWidget(self.corner_page)
+
+    def open_the_kinds_of_dua(self) -> None:
+        """The eighteen tiles. This is where the Du'as tile lands; Back out of a du'a returns
+        to the list it came from, so getting here again is a fresh touch of the tile."""
+        self.corner_screen.setCurrentWidget(self.dua_menu)
+        self.stack.setCurrentWidget(self.corner_page)
+
+    def open_dua_category(self, cat: str) -> None:
+        """A kind of du'a was touched. Show the ones filed under it -- or, if none are, say so
+        under that kind's own name rather than opening an empty list."""
+        if self.playing or self.asleep:
+            return
+        self.stir()
+        listing = self.section_lists.get("duas")
+        named = self.t(f"dua.{cat}")
+        if listing is None or not any(item.cat == cat for item in listing.passages.items):
+            self.soon_title.setText(named)
+            self.corner_screen.setCurrentWidget(self.corner_soon)
+            self.stack.setCurrentWidget(self.corner_page)
+            return
+        listing.show_only(cat, named)
         listing.to_the_top()
         self.corner_screen.setCurrentWidget(listing)
         self.stack.setCurrentWidget(self.corner_page)

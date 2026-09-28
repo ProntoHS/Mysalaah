@@ -3903,29 +3903,48 @@ class PassageScreenTest(unittest.TestCase):
         self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
         return w
 
-    def test_the_duas_tile_opens_ten_of_them(self):
+    def test_all_ten_are_still_reachable_through_the_kinds(self):
+        """Ten du'as went in and ten must come out. Filing them under kinds is no good if one
+        of them ends up behind a tile nobody can reach."""
+        from salaah.duamenu import CATEGORIES
         w = self.window()
         w.open_corner("duas")
         settle()
-        listing = w.corner_screen.currentWidget()
-        self.assertIs(w.section_lists["duas"], listing)
-        rows = listing.findChildren(QtWidgets.QPushButton)
-        self.assertEqual(10, len([b for b in rows if b.objectName() == "surahRow"]))
+        self.assertIs(w.dua_menu, w.corner_screen.currentWidget())
+        seen, drawn = set(), 0
+        for cat in CATEGORIES:
+            w.open_dua_category(cat)
+            settle()
+            if w.corner_screen.currentWidget() is not w.section_lists["duas"]:
+                continue
+            listing = w.section_lists["duas"]
+            rows = [b for b in listing.findChildren(QtWidgets.QPushButton)
+                    if b.objectName() == "surahRow"]
+            drawn += len(rows)
+            seen.update(item.key for _, item in listing.wanted())
+        self.assertEqual({d.key for d in w.duas.items}, seen, "a du'a is behind no tile at all")
+        self.assertEqual(10, len(seen))
+        self.assertEqual(10, drawn, "the rows on screen do not add up to ten")
 
     def test_choosing_one_opens_it_and_back_returns_to_the_list(self):
         w = self.window()
         w.open_corner("duas")
         settle()
+        w.open_dua_category("guidance")          # 3:8 is filed here
+        settle()
         rows = [b for b in w.section_lists["duas"].findChildren(QtWidgets.QPushButton)
                 if b.objectName() == "surahRow"]
-        rows[2].click()
+        rows[0].click()
         settle()
         reader = w.corner_screen.currentWidget()
         self.assertIs(w.section_readers["duas"], reader)
         self.assertIn("3:8", reader.title.text())
         reader.back_button.click()
         settle()
-        self.assertIs(w.section_lists["duas"], w.corner_screen.currentWidget())
+        listing = w.section_lists["duas"]
+        self.assertIs(listing, w.corner_screen.currentWidget())
+        self.assertEqual("guidance", listing.only,
+                         "Back dropped the kind and went to the whole list")
 
     def test_nothing_on_either_screen_says_it_is_waiting_to_be_checked(self):
         """The kalima screens used to carry a line saying the Arabic was pending review. Harry
@@ -4410,10 +4429,15 @@ class ArchMenuTest(unittest.TestCase):
         self.assertEqual(["1", "2", "3", "4", "5", "6"],
                          [a.prayer for a in w.arch_menus["kalima"].mosque.arches])
 
-    def test_the_duas_still_open_a_list(self):
-        """Only the kalima have a drawing, so the du'as must be left alone."""
+    def test_the_duas_open_their_own_kinds_and_not_the_kalima_arches(self):
+        """The du'as have a menu of their own now. What matters here is that it is theirs --
+        the arch screen belongs to the kalima and must not turn up under Du'as."""
         w = self.window()
         w.open_corner("duas")
+        settle()
+        self.assertIs(w.dua_menu, w.corner_screen.currentWidget())
+        self.assertIsNot(w.arch_menus["kalima"], w.corner_screen.currentWidget())
+        w.open_dua_category("worry")
         settle()
         self.assertIs(w.section_lists["duas"], w.corner_screen.currentWidget())
 
@@ -6867,7 +6891,8 @@ class SixTileMenuTest(unittest.TestCase):
         w.go_home()
         by_name["duas"].click()
         settle()
-        self.assertIs(w.section_lists["duas"], w.corner_screen.currentWidget())
+        self.assertIs(w.dua_menu, w.corner_screen.currentWidget(),
+                      "the Du'as tile should open the kinds")
         w.go_home()
         by_name["kalima"].click()
         settle()
@@ -7109,3 +7134,137 @@ class FrontDoorFillsTheScreenTest(unittest.TestCase):
         box = front.arches[0].box
         self.assertGreater(box.y(), front.picture.height() * 0.45, "the panel is too high up")
         self.assertLess(box.bottom(), front.picture.height(), "the panel runs off the bottom")
+
+
+class DuaMenuTest(unittest.TestCase):
+    """Touching Du'as lands on the eighteen kinds, and a kind shows only its own."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def test_the_duas_tile_opens_the_kinds_and_not_the_long_list(self):
+        w = self.window()
+        w.chose_on_the_small_screen("duas")
+        settle()
+        self.assertIsNotNone(w.dua_menu, "the menu was not built")
+        self.assertIs(w.dua_menu, w.corner_screen.currentWidget())
+
+    def test_every_kind_is_touchable_and_carries_its_own_picture(self):
+        from salaah.duamenu import CATEGORIES
+        w = self.window()
+        tiles = {t.name: t for t in w.dua_menu.tiles}
+        self.assertEqual(set(CATEGORIES), set(tiles))
+        for name, tile in tiles.items():
+            self.assertEqual(f"{name}.png", tile.path.name,
+                             f"the {name} tile is drawn from {tile.path.name}")
+            self.assertTrue(tile.path.is_file())
+            self.assertTrue(tile.isEnabled())
+
+    def test_a_kind_shows_only_the_duas_filed_under_it(self):
+        w = self.window()
+        w.open_dua_category("worry")
+        settle()
+        listing = w.section_lists["duas"]
+        self.assertIs(listing, w.corner_screen.currentWidget())
+        shown = [item for _, item in listing.wanted()]
+        self.assertTrue(shown, "nothing came up under worry")
+        for item in shown:
+            self.assertEqual("worry", item.cat)
+        missed = [d for d in listing.passages.items if d.cat == "worry" and d not in shown]
+        self.assertEqual([], missed, "a du'a filed under worry was left out")
+
+    def test_the_rows_on_screen_are_the_ones_the_filter_kept(self):
+        """wanted() saying the right thing is not the same as the screen showing it."""
+        w = self.window()
+        w.open_dua_category("forgiveness")
+        settle()
+        listing = w.section_lists["duas"]
+        titles = {item.title for _, item in listing.wanted()}
+        on_screen = {x.text() for x in listing.findChildren(QtWidgets.QLabel)
+                     if x.text() and x.isVisible()}
+        self.assertTrue(titles <= on_screen, f"{titles - on_screen} is filed here but not drawn")
+        others = {d.title for d in listing.passages.items if d.cat != "forgiveness"}
+        self.assertEqual(set(), others & on_screen, "a du'a from another kind is on screen")
+
+    def test_changing_kind_replaces_the_rows_rather_than_adding_to_them(self):
+        w = self.window()
+        listing = w.section_lists["duas"]
+        w.open_dua_category("worry")
+        settle()
+        first = len(listing.wanted())
+        self.assertGreater(first, 0, "nothing was listed to begin with")
+        w.open_dua_category("forgiveness")
+        settle()
+        drawn = [x for x in listing.findChildren(QtWidgets.QPushButton)
+                 if x.objectName() == "surahRow"]
+        self.assertEqual(len(listing.wanted()), len(drawn),
+                         f"{len(drawn)} rows drawn for {len(listing.wanted())} du'as -- "
+                         f"the rows from the kind before are still standing")
+
+    def test_opening_one_from_a_narrowed_list_opens_that_very_dua(self):
+        """The row keeps its place in the whole section. Number the rows 0,1,2 inside the
+        filter instead and the third du'a under a kind opens the third du'a overall."""
+        w = self.window()
+        w.open_dua_category("worry")
+        settle()
+        listing = w.section_lists["duas"]
+        index, wanted = listing.wanted()[-1]
+        # Press the row itself. Emitting chose(index) here instead would prove nothing: the
+        # test would be supplying the very number the row is supposed to carry.
+        rows = [x for x in listing.findChildren(QtWidgets.QPushButton)
+                if x.objectName() == "surahRow"]
+        self.assertEqual(len(listing.wanted()), len(rows))
+        rows[-1].click()
+        settle()
+        reader = w.section_readers["duas"]
+        self.assertIs(reader, w.corner_screen.currentWidget())
+        self.assertEqual(index, reader.at, "a different du'a opened")
+        opened = reader.passages.items[reader.at]
+        self.assertEqual(wanted.title, opened.title)
+        self.assertEqual("worry", opened.cat)
+
+    def test_a_kind_with_nothing_in_it_says_which_kind_it_is(self):
+        w = self.window()
+        w.open_dua_category("travel")
+        settle()
+        self.assertIs(w.corner_soon, w.corner_screen.currentWidget())
+        self.assertEqual(w.t("dua.travel"), w.soon_title.text())
+        self.assertNotEqual("", w.soon_title.text().strip())
+
+    def test_the_whole_list_comes_back_when_it_is_asked_for(self):
+        w = self.window()
+        listing = w.section_lists["duas"]
+        w.open_dua_category("worry")
+        settle()
+        narrowed = len(listing.wanted())
+        listing.show_only(None)
+        settle()
+        self.assertEqual(len(listing.passages.items), len(listing.wanted()))
+        self.assertLess(narrowed, len(listing.wanted()))
+
+    def test_the_kinds_are_left_alone_while_a_prayer_is_going_on(self):
+        w = self.window()
+        w.open_dua_category("worry")
+        settle()
+        listing = w.section_lists["duas"]
+        # Both kinds land on the same widget, so what is LISTED is what has to be looked at.
+        was = [i for i, _ in listing.wanted()]
+        with mock.patch.object(type(w), "playing", property(lambda _self: True)):
+            w.open_dua_category("forgiveness")
+            settle()
+            self.assertEqual(was, [i for i, _ in listing.wanted()],
+                             "a stray knee changed the screen mid-prayer")
+        w.open_dua_category("forgiveness")
+        settle()
+        self.assertNotEqual(was, [i for i, _ in listing.wanted()],
+                            "and it still works once the prayer is over")

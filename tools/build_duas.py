@@ -27,6 +27,11 @@ ROOT = Path(__file__).resolve().parent.parent
 QURAN = ROOT / "assets" / "content" / "quran"
 OUT = ROOT / "assets" / "content" / "duas"
 
+# The kinds of du'a the menu offers. Imported rather than repeated so a category cannot be
+# filed against here that the menu has no tile for.
+sys.path.insert(0, str(ROOT))
+from salaah.duamenu import CATEGORIES        # noqa: E402
+
 # Trimmed in these; whole verse in the rest.
 CUT = ("ar", "said", "en")
 
@@ -36,29 +41,29 @@ QUOTES = '"“”«»‘’'
 # Ten du'as. 'drop' is how many words to lose from the front of that verse, per language.
 # Read off the verified text, never typed from memory -- see the note at the top.
 DUAS = [
-    dict(key="both_worlds", title="Good in this world and the next",
+    dict(key="both_worlds", cat="general", title="Good in this world and the next",
          parts=[(2, 201, {"ar": 3, "said": 3, "en": 7})]),
-    dict(key="no_burden", title="Do not burden us beyond our strength",
+    dict(key="no_burden", cat="worry", title="Do not burden us beyond our strength",
          parts=[(2, 286, {"ar": 12, "said": 12, "en": 35})]),
-    dict(key="steady_heart", title="Let not our hearts turn away",
+    dict(key="steady_heart", cat="guidance", title="Let not our hearts turn away",
          parts=[(3, 8, {"en": 2})]),
-    dict(key="wronged_ourselves", title="We have wronged ourselves",
+    dict(key="wronged_ourselves", cat="forgiveness", title="We have wronged ourselves",
          parts=[(7, 23, {"ar": 1, "said": 1, "en": 2})]),
-    dict(key="steadfast_in_prayer", title="Make me steadfast in prayer",
+    dict(key="steadfast_in_prayer", cat="prayer", title="Make me steadfast in prayer",
          parts=[(14, 40, {}), (14, 41, {})]),
-    dict(key="open_my_chest", title="Expand my breast and ease my task",
+    dict(key="open_my_chest", cat="worry", title="Expand my breast and ease my task",
          parts=[(20, 25, {"ar": 1, "said": 1, "en": 2}), (20, 26, {}),
                 (20, 27, {}), (20, 28, {})]),
     # "and say" kept on the front of these two: slicing after it leaves a shadda on رَّبِّ that
     # belongs to the word before, which reads oddly standing alone. Including it is still a
     # plain slice -- nothing edited -- and it is how the verse is usually quoted.
-    dict(key="more_knowledge", title="Increase me in knowledge",
+    dict(key="more_knowledge", cat="knowledge", title="Increase me in knowledge",
          parts=[(20, 114, {"ar": 13, "said": 13, "en": 30})]),
-    dict(key="no_deity_but_you", title="There is no deity except You",
+    dict(key="no_deity_but_you", cat="worry", title="There is no deity except You",
          parts=[(21, 87, {"ar": 14, "said": 14, "en": 30})]),
-    dict(key="forgive_and_mercy", title="Forgive, and have mercy",
+    dict(key="forgive_and_mercy", cat="forgiveness", title="Forgive, and have mercy",
          parts=[(23, 118, {"ar": 0, "said": 0, "en": 4})]),
-    dict(key="comfort_of_family", title="Comfort in our families",
+    dict(key="comfort_of_family", cat="family", title="Comfort in our families",
          parts=[(25, 74, {"ar": 2, "said": 2, "en": 4})]),
 ]
 
@@ -112,8 +117,11 @@ def build_one(spec: dict, langs: tuple[str, ...]) -> dict:
     first, last = spec["parts"][0], spec["parts"][-1]
     ref = (f"{first[0]}:{first[1]}" if first is last
            else f"{first[0]}:{first[1]}-{last[1]}")
+    if spec["cat"] not in CATEGORIES:
+        raise SystemExit(f"{spec['key']}: no such category {spec['cat']!r}")
     return {
         "key": spec["key"],
+        "cat": spec["cat"],
         "title": spec["title"],
         "ref": ref,
         "verses": [[p[0], p[1]] for p in spec["parts"]],

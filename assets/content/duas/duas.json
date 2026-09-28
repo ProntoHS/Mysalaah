@@ -1,6 +1,7 @@
 [
  {
   "key": "both_worlds",
+  "cat": "general",
   "title": "Good in this world and the next",
   "ref": "2:201",
   "verses": [
@@ -24,6 +25,7 @@
  },
  {
   "key": "no_burden",
+  "cat": "worry",
   "title": "Do not burden us beyond our strength",
   "ref": "2:286",
   "verses": [
@@ -47,6 +49,7 @@
  },
  {
   "key": "steady_heart",
+  "cat": "guidance",
   "title": "Let not our hearts turn away",
   "ref": "3:8",
   "verses": [
@@ -70,6 +73,7 @@
  },
  {
   "key": "wronged_ourselves",
+  "cat": "forgiveness",
   "title": "We have wronged ourselves",
   "ref": "7:23",
   "verses": [
@@ -93,6 +97,7 @@
  },
  {
   "key": "steadfast_in_prayer",
+  "cat": "prayer",
   "title": "Make me steadfast in prayer",
   "ref": "14:40-41",
   "verses": [
@@ -120,6 +125,7 @@
  },
  {
   "key": "open_my_chest",
+  "cat": "worry",
   "title": "Expand my breast and ease my task",
   "ref": "20:25-28",
   "verses": [
@@ -155,6 +161,7 @@
  },
  {
   "key": "more_knowledge",
+  "cat": "knowledge",
   "title": "Increase me in knowledge",
   "ref": "20:114",
   "verses": [
@@ -178,6 +185,7 @@
  },
  {
   "key": "no_deity_but_you",
+  "cat": "worry",
   "title": "There is no deity except You",
   "ref": "21:87",
   "verses": [
@@ -201,6 +209,7 @@
  },
  {
   "key": "forgive_and_mercy",
+  "cat": "forgiveness",
   "title": "Forgive, and have mercy",
   "ref": "23:118",
   "verses": [
@@ -224,6 +233,7 @@
  },
  {
   "key": "comfort_of_family",
+  "cat": "family",
   "title": "Comfort in our families",
   "ref": "25:74",
   "verses": [

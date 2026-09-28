@@ -46,6 +46,7 @@ class Passage:
     ref: str               # "2:201", or "The Word of Purity"
     arabic: str
     said: str              # the transliteration
+    cat: str = ""          # which du'a category it is filed under, if any
     text: dict = field(default_factory=dict)      # language -> meaning
     trimmed: tuple = ()    # languages showing only the supplication, not the whole verse
     audio: str = ""        # a file under assets/audio, if there is a recording
@@ -110,6 +111,7 @@ class Passages:
                 continue            # a half-copied file shows what it has, not an error screen
             self._items.append(Passage(
                 key=str(row.get("key", "")),
+                cat=str(row.get("cat", "")),
                 title=str(row.get("title", "")),
                 ref=str(row.get("ref", "")),
                 arabic=str(row["arabic"]),
@@ -171,17 +173,38 @@ class PassageList(QtWidgets.QWidget):
         self.rows.setSpacing(self.win.px(10))
         self.scroll.setWidget(inner)
         outer.addWidget(self.scroll, 1)
-        self.filled = False
+        self.only = None            # a category name, or None for the whole section
+        self.filled = None          # which filter the rows standing here were built for
 
     def showEvent(self, ev):
         self.fill()
         super().showEvent(ev)
 
+    def show_only(self, cat: str | None, heading: str = "") -> None:
+        """Narrow the list to one category, or widen it again with None.
+
+        The row still carries its place in the WHOLE section, so opening one goes through the
+        same door as before -- the filter changes what is listed, not what anything is called.
+        """
+        self.only = cat or None
+        if heading:
+            self.title.setText(heading)
+        self.fill()
+
+    def wanted(self) -> list[tuple[int, Passage]]:
+        return [(i, item) for i, item in enumerate(self.passages.items)
+                if self.only is None or item.cat == self.only]
+
     def fill(self) -> None:
-        if self.filled:
+        want = (self.only, len(self.passages.items))
+        if self.filled == want:
             return
-        self.filled = True
-        for i, item in enumerate(self.passages.items):
+        self.filled = want
+        while self.rows.count():
+            old = self.rows.takeAt(0)
+            if old.widget() is not None:
+                old.widget().deleteLater()
+        for i, item in self.wanted():
             self.rows.addWidget(self.row(i, item))
         self.rows.addStretch(1)
 

@@ -2340,3 +2340,124 @@ class WordTimesTest(unittest.TestCase):
             self.assertEqual([], t.words(1, 1))
             self.assertIsNone(t.word_at(1, 1, 0.5))
             self.assertFalse(t.whole_only(1, 1))
+
+
+class DuaCategoriesTest(unittest.TestCase):
+    """The eighteen kinds of du'a: the drawing, the filing and the words for them."""
+
+    def setUp(self):
+        from salaah.duamenu import CATEGORIES
+        self.cats = CATEGORIES
+        self.assets = Path(__file__).resolve().parent.parent / "assets"
+
+    def duas(self):
+        import json
+        return json.loads((self.assets / "content" / "duas" / "duas.json")
+                          .read_text(encoding="utf-8"))
+
+    def test_every_category_has_a_tile_drawn_for_it(self):
+        for cat in self.cats:
+            picture = self.assets / "duas-menu" / f"{cat}.png"
+            self.assertTrue(picture.is_file(), f"nothing drawn for {cat}")
+
+    def test_no_tile_is_drawn_that_the_menu_has_no_place_for(self):
+        """A picture left over from an older cut would never be shown and would quietly rot."""
+        drawn = {p.stem for p in (self.assets / "duas-menu").glob("*.png")}
+        self.assertEqual(set(self.cats), drawn)
+
+    def test_every_dua_is_filed_under_a_category_that_exists(self):
+        for d in self.duas():
+            self.assertIn("cat", d, f"{d['key']} is filed nowhere")
+            self.assertIn(d["cat"], self.cats, f"{d['key']} is filed under {d.get('cat')!r}")
+
+    def test_every_pack_can_name_every_category(self):
+        """A category with no word for it would head its screen with a blank."""
+        packs = available_packs(self.assets)
+        self.assertGreaterEqual(len(packs), 6, "the packs did not load")
+        for lang, pack in packs.items():
+            for cat in self.cats:
+                said = pack.ui.get(f"dua.{cat}", "")
+                self.assertTrue(said.strip(), f"{lang} cannot name {cat}")
+
+    def test_the_names_are_that_language_and_not_a_copy_of_the_english(self):
+        """A pack filled in by copying the English would pass the test above and tell a Urdu
+        reader nothing. The five other packs must differ from English somewhere."""
+        packs = available_packs(self.assets)
+        english = packs["en"]
+        for lang, pack in packs.items():
+            if lang == "en":
+                continue
+            same = [c for c in self.cats
+                    if pack.ui.get(f"dua.{c}") == english.ui.get(f"dua.{c}")]
+            self.assertLess(len(same), len(self.cats) // 2,
+                            f"{lang} is mostly the English words: {same}")
+
+
+class RecutArtworkTest(unittest.TestCase):
+    """The main mosque and the six-kalima mosque, cut to the shape of the screen they fill."""
+
+    def setUp(self):
+        self.assets = Path(__file__).resolve().parent.parent / "assets"
+
+    SHAPE = 1920 / 1008          # the screen under the strip, at 1080p
+
+    def described(self, folder):
+        import json
+        return json.loads((self.assets / folder / "mosque.json").read_text(encoding="utf-8"))
+
+    def test_each_drawing_is_the_shape_of_the_screen(self):
+        for folder in ("mosque", "kalima", "welcome"):
+            wide, tall = self.described(folder)["size"]
+            self.assertLess(abs(wide / tall - self.SHAPE), 0.02,
+                            f"{folder} is {wide/tall:.3f}, the screen is {self.SHAPE:.3f}")
+
+    def test_what_the_file_says_is_the_size_of_the_picture(self):
+        from salaah.qt import QtGui
+        for folder in ("mosque", "kalima", "welcome"):
+            said = self.described(folder)["size"]
+            image = QtGui.QImage(str(self.assets / folder / "mosque.png"))
+            self.assertEqual(said, [image.width(), image.height()],
+                             f"{folder}: the file and the picture disagree")
+
+    def test_no_dead_sky_is_left_above_the_drawing(self):
+        from salaah.qt import QtGui
+        for folder in ("mosque", "kalima"):
+            image = QtGui.QImage(str(self.assets / folder / "mosque.png"))
+            top = next((y for y in range(image.height())
+                        if any(image.pixelColor(x, y).alpha() > 40
+                               for x in range(0, image.width(), 5))), None)
+            self.assertIsNotNone(top, f"{folder} is empty")
+            self.assertLess(top, image.height() * 0.08,
+                            f"{folder}: {top}px of empty sky above the drawing")
+
+    def test_every_box_still_sits_inside_the_picture(self):
+        """The boxes were measured on the taller canvas. Crop and forget to move them and an
+        arch lights up somewhere the drawing no longer is."""
+        for folder in ("mosque", "kalima"):
+            said = self.described(folder)
+            wide, tall = said["size"]
+            boxes = [a["box"] for a in said["arches"].values()]
+            boxes.append(said["clock"]["box"])
+            boxes.extend(said["minarets"].values())
+            for box in boxes:
+                x0, y0, x1, y1 = box
+                self.assertTrue(0 <= y0 < y1 <= tall and 0 <= x0 < x1 <= wide,
+                                f"{folder}: {box} is off a {wide}x{tall} picture")
+
+    def test_each_arch_box_is_over_a_light_panel(self):
+        """The real check: not that the numbers are inside the picture, but that what is under
+        them is still the panel they are meant to light."""
+        from salaah.qt import QtGui
+        for folder in ("mosque", "kalima"):
+            image = QtGui.QImage(str(self.assets / folder / "mosque.png"))
+            for name, arch in self.described(folder)["arches"].items():
+                x0, y0, x1, y1 = arch["box"]
+                lit = total = 0
+                for y in range(y0, y1, 4):
+                    for x in range(x0, x1, 4):
+                        c = image.pixelColor(x, y)
+                        total += 1
+                        lit += (c.alpha() > 40
+                                and (c.red() + c.green() + c.blue()) / 3 > 200)
+                self.assertGreater(lit / total, 0.55,
+                                   f"{folder}/{name}: the box is not over a panel any more")

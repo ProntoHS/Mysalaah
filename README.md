@@ -818,3 +818,13 @@ standing up after bowing until prostration.
   the non-Qur'anic wordings were typed from memory of the standard Hanafi texts. Both need
   checking by a qualified reviewer before anyone relies on them.
 - A Bluetooth keyboard paired with the Pi would also be treated as the prayer button.
+- The du'a menu has eighteen kinds and only five of them have anything behind them. The ten
+  du'as on the mat are all Qur'anic, and the kinds that are empty -- morning, evening, sleep,
+  waking, food, home, mosque, travel, protection, gratitude, health, forgiveness in part -- are
+  the ones whose du'as come from hadith rather than the Qur'an. Nothing has been typed in from
+  memory to fill them. The route to filling them is the one the daily sayings took: the wording
+  lifted from a public-domain dataset and checked letter for letter against the MIT-licensed
+  'hadith' corpus, which has 62,178 narrations and had no part in producing the file. A probe of
+  that corpus found wordings for twelve of the thirteen empty kinds, so the work is possible --
+  it has not been done. Which kind a du'a is filed under is a judgement, and it lives in one
+  word per du'a in tools/build_duas.py so a reviewer can move one by changing that word.
