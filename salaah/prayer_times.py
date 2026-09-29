@@ -81,11 +81,30 @@ def asr_altitude(latitude: float, declination: float, shadow: int) -> float:
     return math.degrees(math.atan(1 / (shadow + math.tan(math.radians(noon_zenith)))))
 
 
-def times_for(day: date, place: Place, school: str = "hanafi",
-              utc_offset_hours: float | None = None) -> dict[str, time | None]:
-    """Each prayer's start, in local clock time. None where the sun never reaches that angle."""
-    if utc_offset_hours is None:
-        utc_offset_hours = local_utc_offset(day)
+# At Bury's latitude the sun does not get 18 degrees below the horizon between about 14 May and
+# 30 July -- it never gets properly dark -- so Fajr and Isha have no moment to be at and the sums
+# correctly return nothing. That is honest and useless: the mat would be blank for eleven weeks
+# of the year in the place it lives. Every mosque in northern England uses some convention for
+# those weeks, and they give noticeably different answers.
+#
+#   "none"          leave them empty, which is what the mat did before
+#   "nearest_day"   Aqrab al-Ayyam: use the times from the closest date on which there WAS a
+#                   Fajr and an Isha -- so late April's times are held through the summer
+#
+# Which convention to follow is a question for a teacher, not for arithmetic, so it is a setting
+# rather than something decided here. Harry's answer for this mat is Aqrab al-Ayyam.
+HIGH_LATITUDE = ("none", "nearest_day")
+# How far to look for a day that had one. Chosen by measuring, not by taste: the furthest any
+# day has to reach is 40 days at Bury, 49 at Glasgow, 62 at Lerwick in Shetland -- the furthest
+# north anyone in Britain lives -- and 74 at Reykjavik. Ninety covers all of those with room,
+# and refuses beyond them: inside the Arctic circle the nearest night can be months away, and a
+# time carried three months is not "the nearest day" in any sense worth the name. There, nothing
+# is the honest answer and another convention is needed.
+NEAREST_LIMIT = 90
+
+
+def _hours(day: date, place: Place, school: str, utc_offset_hours: float) -> dict[str, float | None]:
+    """Each prayer as hours after midnight, before any high-latitude rule is applied."""
     declination, eq_time = sun_position(julian_day(day))
     noon = 12 - place.longitude / 15 - eq_time + utc_offset_hours
 
@@ -94,8 +113,7 @@ def times_for(day: date, place: Place, school: str = "hanafi",
     isha_gap = hour_angle(place.latitude, declination, -ISHA_ANGLE)
     asr_gap = hour_angle(place.latitude, declination,
                          asr_altitude(place.latitude, declination, ASR_SHADOW.get(school, 2)))
-
-    hours = {
+    return {
         "fajr": noon - fajr_gap if fajr_gap is not None else None,
         "sunrise": noon - sunrise_gap if sunrise_gap is not None else None,
         "dhuhr": noon,
@@ -103,6 +121,42 @@ def times_for(day: date, place: Place, school: str = "hanafi",
         "maghrib": noon + sunrise_gap if sunrise_gap is not None else None,
         "isha": noon + isha_gap if isha_gap is not None else None,
     }
+
+
+def nearest_day_with(day: date, place: Place, school: str, utc_offset_hours: float,
+                     which: str) -> tuple[float, date] | None:
+    """The closest date either side of `day` on which `which` has a time, and that time.
+
+    The borrowed time is worked out with the TARGET day's offset from UTC, not the borrowed
+    day's. Otherwise a time carried across the start or end of British Summer Time would arrive
+    an hour out -- which would not show up at Bury, where the gap sits in the middle of summer,
+    but would further north where the gap is wider.
+    """
+    for step in range(1, NEAREST_LIMIT + 1):
+        for other in (day - timedelta(days=step), day + timedelta(days=step)):
+            value = _hours(other, place, school, utc_offset_hours)[which]
+            if value is not None:
+                return value, other
+    return None
+
+
+def times_for(day: date, place: Place, school: str = "hanafi",
+              utc_offset_hours: float | None = None,
+              high_latitude: str = "nearest_day") -> dict[str, time | None]:
+    """Each prayer's start, in local clock time.
+
+    Where the sun never reaches the angle, the high-latitude rule decides what to show: nothing,
+    or the nearest day that did have one.
+    """
+    if utc_offset_hours is None:
+        utc_offset_hours = local_utc_offset(day)
+    hours = _hours(day, place, school, utc_offset_hours)
+    if high_latitude == "nearest_day":
+        for which in ("fajr", "isha"):
+            if hours[which] is None:
+                found = nearest_day_with(day, place, school, utc_offset_hours, which)
+                if found is not None:
+                    hours[which] = found[0]
     return {name: _clock(value) for name, value in hours.items()}
 
 

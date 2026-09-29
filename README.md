@@ -799,6 +799,22 @@ standing up after bowing until prostration.
 
 ## Known limits (prototype)
 
+- **Fajr and Isha in high summer.** At Bury's latitude the sun only reaches about 13 degrees
+  below the horizon at midsummer, and Fajr is defined at 18. For about 78 days -- 14 May to
+  30 July -- those moments do not exist and the sums correctly return nothing. The mat now
+  follows **Aqrab al-Ayyam**: it shows the times from the closest date that did have them.
+  That is a convention, not arithmetic, and other mosques use others (nearest latitude, a
+  seventh of the night, a fixed interval after Maghrib), which give noticeably different
+  answers. It is `high_latitude` in settings, so it can be changed to "none" to go back to
+  blanks. **Worth checking the summer times against your own mosque's printed timetable**:
+  the method holds whatever the last computable day gave, and near the edge of the gap those
+  values are themselves extreme -- Isha runs away to past midnight in the days before it
+  vanishes, and that late value is what gets held for the following weeks.
+  How far it will reach for a day was measured rather than guessed: 40 days at Bury, 62 at
+  Lerwick, 74 at Reykjavik, so the limit is 90. Beyond that -- inside the Arctic circle -- it
+  shows nothing rather than carrying a time three months, and another convention is needed.
+
+
 - The dhikr words in `core/dhikr.json` are vowelled for a beginner and need the same review as
   the rest of the non-Qur'anic Arabic. The counts are 33 each, which is the common practice, but
   they are data, so a reviewer can change them.

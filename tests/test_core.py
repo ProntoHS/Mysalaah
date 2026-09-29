@@ -594,10 +594,14 @@ class PrayerTimesTest(unittest.TestCase):
         standard = times_for(day, self.bury, "standard", 1.0)["asr"]
         self.assertGreater(hanafi, standard)
 
-    def test_far_north_summer_has_no_fajr_or_isha(self):
-        """At this latitude the sun never dips 18 degrees under in June, so those times do not
-        exist. The app shows a dash rather than inventing one."""
-        t = self.times(self.bury, (2026, 6, 21), 1.0)
+    def test_far_north_summer_has_no_fajr_or_isha_of_its_own(self):
+        """At this latitude the sun never dips 18 degrees under in June, so those moments do not
+        exist. That is the astronomy, and it is why the mat needs a convention for those weeks --
+        this checks the sums still say so plainly, with no rule applied. What the mat then SHOWS
+        is Aqrab al-Ayyam, which HighLatitudeTest covers."""
+        from salaah.prayer_times import times_for
+        from datetime import date
+        t = times_for(date(2026, 6, 21), self.bury, "hanafi", 1.0, high_latitude="none")
         self.assertIsNone(t["fajr"])
         self.assertIsNone(t["isha"])
         self.assertIsNotNone(t["dhuhr"])
@@ -2493,3 +2497,115 @@ class RecutArtworkTest(unittest.TestCase):
                                 and (c.red() + c.green() + c.blue()) / 3 > 200)
                 self.assertGreater(lit / total, 0.55,
                                    f"{folder}/{name}: the box is not over a panel any more")
+
+
+class HighLatitudeTest(unittest.TestCase):
+    """Fajr and Isha in the weeks when it never gets dark enough for them to have a moment.
+
+    At Bury the sun only reaches about 13 degrees below the horizon at midsummer, and Fajr is
+    defined at 18. The sums are right to return nothing; a mat blank for eleven weeks a year is
+    still no use. Aqrab al-Ayyam holds the times from the nearest date that did have them.
+    """
+
+    BURY = None
+
+    def setUp(self):
+        from salaah.prayer_times import Place
+        self.BURY = Place(53.5933, -2.2966, "Bury")
+        self.MAKKAH = Place(21.42, 39.83, "Makkah")
+
+    def days(self, year=2026):
+        from datetime import date, timedelta
+        d, out = date(year, 1, 1), []
+        while d <= date(year, 12, 31):
+            out.append(d)
+            d += timedelta(days=1)
+        return out
+
+    def test_without_the_rule_bury_really_does_go_blank(self):
+        """The problem this exists for. If this ever stops being true the rule is moot and the
+        rest of these tests would be passing over nothing."""
+        from salaah.prayer_times import times_for
+        blank = [d for d in self.days()
+                 if times_for(d, self.BURY, high_latitude="none")["fajr"] is None]
+        self.assertGreater(len(blank), 30, "Bury should lose Fajr for weeks in summer")
+        self.assertTrue(all(d.month in (5, 6, 7) for d in blank),
+                        "the blank days should all be in the summer")
+
+    def test_with_the_rule_no_day_of_the_year_is_blank(self):
+        from salaah.prayer_times import times_for
+        for d in self.days():
+            got = times_for(d, self.BURY)
+            for which in ("fajr", "isha"):
+                self.assertIsNotNone(got[which], f"{d} has no {which}")
+
+    def test_the_borrowed_time_is_the_nearest_days_and_not_invented(self):
+        """Not just 'a time appeared'. The time shown on a blank day must be exactly the time
+        the nearest dated day really has -- checked by working that day out separately."""
+        from datetime import date
+        from salaah.prayer_times import times_for, nearest_day_with, local_utc_offset
+        for d in (date(2026, 6, 1), date(2026, 6, 21), date(2026, 7, 20)):
+            offset = local_utc_offset(d)
+            shown = times_for(d, self.BURY)
+            for which in ("fajr", "isha"):
+                found = nearest_day_with(d, self.BURY, "hanafi", offset, which)
+                self.assertIsNotNone(found, f"nothing found for {which} on {d}")
+                _value, borrowed = found
+                real = times_for(borrowed, self.BURY, utc_offset_hours=offset,
+                                 high_latitude="none")[which]
+                self.assertIsNotNone(real, f"{borrowed} was borrowed from but has no {which}")
+                self.assertEqual(real, shown[which],
+                                 f"{d} shows {shown[which]} for {which}, but {borrowed} "
+                                 f"really has {real}")
+
+    def test_it_borrows_from_the_nearest_side_not_always_backwards(self):
+        """Late July is closer to the far edge of the gap than the near one. Always searching
+        backwards would hold May's times into August, which is a different method."""
+        from datetime import date
+        from salaah.prayer_times import nearest_day_with, local_utc_offset
+        early, late = date(2026, 5, 20), date(2026, 7, 24)
+        got_early = nearest_day_with(early, self.BURY, "hanafi", local_utc_offset(early), "fajr")
+        got_late = nearest_day_with(late, self.BURY, "hanafi", local_utc_offset(late), "fajr")
+        self.assertLess(got_early[1], early, "the May day should borrow from before it")
+        self.assertGreater(got_late[1], late, "the July day should borrow from after it")
+
+    def test_the_rule_changes_nothing_where_it_is_not_needed(self):
+        """Makkah never loses a prayer, and Bury outside the summer does not either. The rule
+        must not touch a day that has its own time -- a rule that quietly rewrote every day
+        would pass every test above."""
+        from salaah.prayer_times import times_for
+        for place in (self.MAKKAH, self.BURY):
+            same = 0
+            for d in self.days():
+                plain = times_for(d, place, high_latitude="none")
+                ruled = times_for(d, place)
+                for which, value in plain.items():
+                    if value is not None:
+                        self.assertEqual(value, ruled[which],
+                                         f"{place.name} {d}: the rule moved {which}")
+                        same += 1
+            self.assertGreater(same, 2000, "hardly anything was compared")
+
+    def test_none_leaves_it_exactly_as_it_was(self):
+        from salaah.prayer_times import times_for
+        blank = [d for d in self.days()
+                 if times_for(d, self.BURY, high_latitude="none")["isha"] is None]
+        self.assertTrue(blank, "the setting is not doing anything to test")
+
+    def test_the_setting_is_what_decides_it(self):
+        """The mat must read the setting rather than the rule being welded on."""
+        from datetime import date
+        from salaah.prayer_times import times_for, HIGH_LATITUDE
+        midsummer = date(2026, 6, 21)
+        self.assertEqual(("none", "nearest_day"), HIGH_LATITUDE)
+        self.assertIsNone(times_for(midsummer, self.BURY, high_latitude="none")["fajr"])
+        self.assertIsNotNone(times_for(midsummer, self.BURY, high_latitude="nearest_day")["fajr"])
+
+    def test_it_gives_up_rather_than_searching_for_ever(self):
+        """Inside the Arctic circle there may be no such night at all. It must stop and say
+        nothing rather than spin, and nothing is the honest answer there."""
+        from datetime import date
+        from salaah.prayer_times import times_for, Place
+        pole = Place(89.0, 0.0, "the pole")
+        got = times_for(date(2026, 6, 21), pole)
+        self.assertIsNone(got["fajr"], "it invented a Fajr at the north pole")

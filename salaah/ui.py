@@ -1659,7 +1659,8 @@ class MainWindow(QtWidgets.QWidget):
         key = (when.date(), self.settings.latitude, self.settings.longitude, self.school.id)
         if getattr(self, "_times_key", None) != key:
             self._times_key = key
-            self._times = times_for(when.date(), self.place, self.school.id)
+            self._times = times_for(when.date(), self.place, self.school.id,
+                                    high_latitude=self.settings.high_latitude)
         return self._times
 
     def tick(self) -> None:

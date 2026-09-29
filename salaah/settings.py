@@ -36,6 +36,11 @@ class Settings:
     latitude: float = 53.5933     # for prayer times; Bury, Greater Manchester
     longitude: float = -2.2966
     place: str = "Bury"
+    # What to show for Fajr and Isha in the weeks when the sun never gets 18 degrees below the
+    # horizon -- about 14 May to 30 July at Bury's latitude. "nearest_day" is Aqrab al-Ayyam:
+    # the times from the closest date that did have them. "none" leaves them blank, which is
+    # what the mat did before. Which convention is right is a question for a teacher.
+    high_latitude: str = "nearest_day"
     qibla_start: bool = True        # show the Qibla compass when the app starts
     qibla_heading: float | None = None   # which way the display faced when last lined up
     compass_declination: float = 0.0     # magnetic to true north, east positive (UK: under 1)
