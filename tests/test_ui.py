@@ -32,6 +32,24 @@ CONTENT = load(ASSETS)
 CONTENT_ARABIC = CONTENT.arabic
 
 
+def shut(w):
+    """Close a window and the 7in screen that belongs to it.
+
+    The 7in is a top-level window in its own right with no Qt parent, so w.deleteLater() does
+    not reach it and it outlives the test. One per test is 23MB, and the suite creates sixty-odd
+    -- which is what was getting the run killed for running out of memory rather than failing.
+    The app itself makes one and keeps it, so this is the tests' problem and not the mat's.
+    """
+    w.shutdown()
+    side = getattr(w, "side", None)
+    if side is not None:
+        side.close()
+        side.deleteLater()
+    w.close()
+    w.deleteLater()
+    settle()
+
+
 def settle(rounds=5):
     """Let queued work finish before looking at pixels.
 
@@ -1085,7 +1103,7 @@ class QiblaScreenTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_it_comes_first_and_lines_up_with_the_stand_in(self):
@@ -1343,7 +1361,7 @@ class SideScreenTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def fardh(self, w, prayer="dhuhr"):
@@ -1435,7 +1453,7 @@ class SideScreenTest(unittest.TestCase):
     def test_without_a_side_screen_nothing_changes(self):
         w = MainWindow(load(ASSETS), available_packs(ASSETS), Settings(theme="light", recitation=False), scale=1.0,
                        save_settings=False)
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         self.assertIsNone(w.side)
         self.assertIs(w, w.slide.posture.window())
 
@@ -1451,7 +1469,7 @@ class TranslationScreenTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def fardh(self, w):
@@ -1557,7 +1575,7 @@ class QiblaAtStartTest(unittest.TestCase):
             w.side.resize(600, 1024)
             w.side.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_compass_goes_on_the_small_screen_and_the_menu_on_the_big_one(self):
@@ -1620,7 +1638,7 @@ class SettingsFootTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def words(self, w):
@@ -1712,7 +1730,7 @@ class UrduTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_it_is_laid_out_right_to_left_in_the_arabic_face(self):
@@ -1757,7 +1775,7 @@ class MainScreenMarkTest(unittest.TestCase):
         from unittest import mock
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="light", recitation=False), scale=1.0, save_settings=False)
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         w.resize(1920, 1080)
         w.show()
         times = w.prayer_times()
@@ -1788,7 +1806,7 @@ class MainScreenMarkTest(unittest.TestCase):
         from salaah.qt import QtGui
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="light", recitation=False), scale=1.0, save_settings=False)
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         w.resize(1920, 1080)
         w.show()
         APP.processEvents()
@@ -1830,7 +1848,7 @@ class SkyAndPolishTest(unittest.TestCase):
         w.leave_welcome()      # past the front door: these look at the mosque behind it
         w.veil.stop()          # and at the screen, not at the walk laid over it
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_clock_has_room_and_sits_higher(self):
@@ -1950,7 +1968,7 @@ class FigureTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def add_girl(self, names=("standing_folded.png", "ruku.png", "standing_arms_down.png")):
@@ -2091,7 +2109,7 @@ class ArchArtworkTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         w.open_prayer("dhuhr")
         APP.processEvents()
         arches = w.pick.findChildren(ArchButton)
@@ -2117,7 +2135,7 @@ class ZoomIntoArchTest(unittest.TestCase):
         APP.processEvents()
         w.refresh()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_screen_changes_at_once_not_when_the_walk_ends(self):
@@ -2226,7 +2244,7 @@ class ArchColoursTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         w.open_prayer("fajr")
         APP.processEvents()
         return w, w.pick.findChildren(ArchButton)[0]
@@ -2280,7 +2298,7 @@ class WalkLengthTest(unittest.TestCase):
         w.leave_welcome()      # past the front door: these look at the mosque behind it
         w.veil.stop()          # and at the screen, not at the walk laid over it
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         w.enter_prayer("asr")
         self.assertTrue(w.veil.running)
         press = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress,
@@ -2337,7 +2355,7 @@ class LineSpacingTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         entry = [e for e in w.school.prayers["dhuhr"] if e.kind == "farz"][0]
         w.open_prayer("dhuhr")
         w.start("dhuhr", entry)
@@ -2420,7 +2438,7 @@ class FullHeightRuleTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def rule_run(self, box):
@@ -2472,7 +2490,7 @@ class WalkIntoAUnitTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def arches(self, w, prayer="dhuhr"):
@@ -2540,7 +2558,7 @@ class BannerAndDoneScreenTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def at_the_end(self, w):
@@ -2696,7 +2714,7 @@ class SettingsTidiedTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def buttons(self, w):
@@ -2800,7 +2818,7 @@ class EveryInterfaceLanguageTest(unittest.TestCase):
         APP.processEvents()
         w.refresh()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_all_six_are_offered(self):
@@ -2971,7 +2989,7 @@ class SleepTest(unittest.TestCase):
         w.leave_welcome()      # past the front door: these look at the mosque behind it
         w.veil.stop()          # and at the screen, not at the walk laid over it
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def press(self, w):
@@ -3126,7 +3144,7 @@ class UpdateNoticeTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     @staticmethod
@@ -3285,7 +3303,7 @@ class BrightnessTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_it_is_a_slider_not_five_buttons(self):
@@ -3333,7 +3351,7 @@ class BrightnessTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_little_screen_is_actually_veiled_and_the_big_one_is_not(self):
@@ -3418,7 +3436,7 @@ class CallToPrayerTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     @staticmethod
@@ -3563,7 +3581,7 @@ class NoQiblaTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         APP.processEvents()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_it_is_switched_off(self):
@@ -3606,7 +3624,7 @@ class KnowledgeCornerTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_small_screen_offers_six_things_between_prayers(self):
@@ -3668,7 +3686,7 @@ class QuranTest(unittest.TestCase):
         w.resize(1920, 1200)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_all_one_hundred_and_fourteen_are_listed(self):
@@ -3900,7 +3918,7 @@ class PassageScreenTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_all_ten_are_still_reachable_through_the_kinds(self):
@@ -3921,25 +3939,50 @@ class PassageScreenTest(unittest.TestCase):
             drawn += len(board.cards)
             seen.update(item.key for _, item in board.wanted())
         self.assertEqual({d.key for d in w.duas.items}, seen, "a du'a is behind no tile at all")
-        self.assertGreaterEqual(len(seen), 33, "du'as have gone missing from the menu")
-        # A du'a under two kinds is drawn under each, so the rows outnumber the du'as -- but
-        # never by more than the filings add up to.
-        filings = sum(len(d.cats) for d in w.duas.items)
-        self.assertEqual(filings, drawn, "the rows do not add up to the filings")
+        self.assertGreaterEqual(len(seen), 48, "du'as have gone missing from the menu")
+        self.assertEqual(2 * len(CATEGORIES), drawn, "every kind should draw exactly two")
+
+    def test_the_shuffle_can_reach_every_dua_and_not_just_the_first_two(self):
+        """Only two of a kind are shown at a time now, so 'reachable' means the shuffle will
+        get to it. A pick that always returned the same two would pass the test above -- every
+        du'a would still be FILED behind a tile -- while half of them were never once seen.
+
+        Drawn from pick() two hundred times a kind rather than by opening screens: it is the
+        same call the screen makes, it is fast, and two hundred draws makes a false alarm about
+        one in 10^25 rather than one run in a hundred.
+        """
+        from salaah.duamenu import CATEGORIES
+        w = self.window()
+        board = w.dua_board
+        for cat in CATEGORIES:
+            board.only = cat
+            whole = {item.key for _, item in board.wanted()}
+            self.assertGreaterEqual(len(whole), 3, f"{cat} has too few to shuffle")
+            reached = set()
+            for _ in range(200):
+                got = board.pick()
+                self.assertEqual(2, len(got), f"{cat} picked {len(got)}")
+                reached.update(item.key for _, item in got)
+            self.assertEqual(whole, reached,
+                             f"{cat}: the shuffle never reaches {sorted(whole - reached)}")
 
     def test_choosing_one_opens_it_and_back_returns_to_the_list(self):
         w = self.window()
         w.open_corner("duas")
         settle()
-        w.open_dua_category("guidance")          # 3:8 is filed here
+        w.open_dua_category("guidance")
         settle()
         board = w.dua_board
-        card = next(c for c in board.cards if "3:8" == c.item.ref)
+        # Whichever card is on screen, not a du'a named here: only two of the kind are shown
+        # and which two is shuffled, so hunting for one by reference passed or failed on the
+        # luck of the draw.
+        card = board.cards[0]
         card.opened.emit(card.index)
         settle()
         reader = w.corner_screen.currentWidget()
         self.assertIs(w.section_readers["duas"], reader)
-        self.assertIn("3:8", reader.title.text())
+        self.assertIn(card.item.ref, reader.title.text(),
+                      f"opened {reader.title.text()!r}, expected {card.item.ref}")
         reader.back_button.click()
         settle()
         self.assertIs(board, w.corner_screen.currentWidget())
@@ -4420,7 +4463,7 @@ class ArchMenuTest(unittest.TestCase):
         w.side.resize(600, 1024)
         w.side.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_kalima_open_a_mosque_of_six_arches_not_a_list(self):
@@ -4611,7 +4654,7 @@ class KalimaVoiceTest(unittest.TestCase):
         w.show()
         settle()
         w.recitation = FakePlayer()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_there_is_a_recording_for_each_and_it_can_be_played(self):
@@ -4769,7 +4812,7 @@ class SwitchTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def switches(self, w):
@@ -4846,7 +4889,7 @@ class BannerTest(unittest.TestCase):
         settle()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_knowledge_corner_has_a_banner_too(self):
@@ -4906,7 +4949,7 @@ class VolumeEverywhereTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_there_is_one_slider_in_each_banner_and_none_below(self):
@@ -4965,7 +5008,7 @@ class ReaderBarTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_way_out_is_called_back(self):
@@ -5031,7 +5074,7 @@ class FajrCallTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_fajr_has_a_recording_of_its_own(self):
@@ -5121,7 +5164,11 @@ class FajrCallTest(unittest.TestCase):
 
 
 class MatchedButtonsTest(unittest.TestCase):
-    """The play button is the same size as Back beside it, in every language."""
+    """The play button is sized off Back beside it, in every language.
+
+    It used to match Back exactly. It is now square and twice Back's height, because the mark on
+    it was asked for twice as big -- but it is still MEASURED from Back rather than written down
+    as a number, which is the part that cannot be done in the stylesheet."""
 
     def window(self, **settings):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
@@ -5130,7 +5177,7 @@ class MatchedButtonsTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_they_are_the_same_size_whatever_the_word_for_back_is(self):
@@ -5143,9 +5190,11 @@ class MatchedButtonsTest(unittest.TestCase):
             w.open_surah(2)
             settle()
             r = w.reader
-            self.assertEqual(r.back_button.size(), r.recite_button.size(),
+            self.assertEqual(r.back_button.height() * 2, r.recite_button.height(),
                              f"in {lang}: Back is {r.back_button.size()}, "
                              f"play is {r.recite_button.size()}")
+            self.assertEqual(r.recite_button.height(), r.recite_button.width(),
+                             f"in {lang}: the play button is not square")
             self.assertGreater(r.recite_button.width(), 0)
             w.close()
             settle()
@@ -5156,7 +5205,9 @@ class MatchedButtonsTest(unittest.TestCase):
         settle()
         w.resize(1280, 800)
         settle()
-        self.assertEqual(w.reader.back_button.size(), w.reader.recite_button.size())
+        r = w.reader
+        self.assertEqual(r.back_button.height() * 2, r.recite_button.height())
+        self.assertEqual(r.recite_button.height(), r.recite_button.width())
 
 
 class TwoMosquesTest(unittest.TestCase):
@@ -5181,7 +5232,7 @@ class TwoMosquesTest(unittest.TestCase):
             screen.sky.stars = []
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     @staticmethod
@@ -5268,7 +5319,7 @@ class SettingsScreenTest(unittest.TestCase):
         w.open_settings()
         w.tick()                 # the clock is what writes the strip's words
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def banner(self, w):
@@ -5428,7 +5479,7 @@ class AzaanScreenTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def box(self, w, prayer="fajr", recording="azaan-fajr.mp3"):
@@ -5673,7 +5724,7 @@ class SurahNumberTest(unittest.TestCase):
         w.show()
         w.open_corner_list()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def badges(self, w):
@@ -5743,7 +5794,7 @@ class SoundSettingsTogetherTest(unittest.TestCase):
         w.show()
         w.open_settings()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def head(self, w, key):
@@ -5801,7 +5852,7 @@ class TouchableSliderTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def surahs(self, w):
@@ -5947,7 +5998,7 @@ class DrawnForTheDarkTest(unittest.TestCase):
         w.veil.stop()          # and at the screen, not at the walk laid over it
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_both_drawings_say_they_were_made_for_the_dark_screen(self):
@@ -6023,7 +6074,7 @@ class NewMosqueArtTest(unittest.TestCase):
         w.veil.stop()          # and at the screen, not at the walk laid over it
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_front_door_still_has_its_five_prayers_in_order(self):
@@ -6128,7 +6179,7 @@ class MovingMuezzinTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def box(self, w):
@@ -6251,7 +6302,7 @@ class WelcomeScreenTest(unittest.TestCase):
         w.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_mat_opens_on_it(self):
@@ -6310,7 +6361,7 @@ class WelcomeScreenTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         self.assertIsNone(w.welcome)
         self.assertIs(w.home, w.stack.currentWidget())
 
@@ -6472,7 +6523,7 @@ class MovingFrontDoorTest(unittest.TestCase):
         w.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_front_door_has_a_film_and_the_other_two_mosques_do_not(self):
@@ -6614,7 +6665,7 @@ class WakeToTheFrontDoorTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_it_wakes_at_the_front_door_not_where_it_was_left(self):
@@ -6661,7 +6712,7 @@ class FrontDoorBannerTest(unittest.TestCase):
         w.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def strip(self, w, page):
@@ -6775,7 +6826,7 @@ class WalkIntoTheNameTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_touching_the_name_starts_a_walk(self):
@@ -6834,7 +6885,7 @@ class SixTileMenuTest(unittest.TestCase):
         w.side.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_tiles_sit_two_across_and_three_down(self):
@@ -6964,7 +7015,7 @@ class SettingsFromTheTileTest(unittest.TestCase):
             w.side.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_settings_tile_opens_settings(self):
@@ -7030,7 +7081,7 @@ class VolumeSliderLookTest(unittest.TestCase):
         w.side.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def showing(self, w):
@@ -7085,7 +7136,7 @@ class FrontDoorFillsTheScreenTest(unittest.TestCase):
         w.side.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_there_are_no_black_bars_round_the_picture(self):
@@ -7152,7 +7203,7 @@ class DuaMenuTest(unittest.TestCase):
         w.side.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_the_duas_tile_opens_the_kinds_and_not_the_long_list(self):
@@ -7179,13 +7230,13 @@ class DuaMenuTest(unittest.TestCase):
         settle()
         board = w.dua_board
         self.assertIs(board, w.corner_screen.currentWidget())
-        shown = [item for _, item in board.wanted()]
+        shown = [item for _, item in board.showing]
         self.assertTrue(shown, "nothing came up under worry")
         for item in shown:
-            self.assertIn("worry", item.cats)
-        missed = [d for d in board.passages.items
-                  if "worry" in d.cats and d not in shown]
-        self.assertEqual([], missed, "a du'a filed under worry was left out")
+            self.assertIn("worry", item.cats, "a du'a of another kind is on screen")
+        # by key: a Passage carries a dict of meanings, so it cannot go in a set
+        self.assertTrue({d.key for d in shown}
+                        <= {d.key for d in board.passages.items if "worry" in d.cats})
 
     def test_the_rows_on_screen_are_the_ones_the_filter_kept(self):
         """wanted() saying the right thing is not the same as the screen showing it."""
@@ -7193,10 +7244,10 @@ class DuaMenuTest(unittest.TestCase):
         w.open_dua_category("forgiveness")
         settle()
         board = w.dua_board
-        titles = {item.title for _, item in board.wanted()}
+        titles = {item.title for _, item in board.showing}
         on_screen = {x.text() for x in board.findChildren(QtWidgets.QLabel)
                      if x.text() and x.isVisible()}
-        self.assertTrue(titles <= on_screen, f"{titles - on_screen} is filed here but not drawn")
+        self.assertTrue(titles <= on_screen, f"{titles - on_screen} was picked but not drawn")
         others = {d.title for d in board.passages.items
                   if "forgiveness" not in d.cats}
         self.assertEqual(set(), others & on_screen, "a du'a from another kind is on screen")
@@ -7206,17 +7257,15 @@ class DuaMenuTest(unittest.TestCase):
         board = w.dua_board
         w.open_dua_category("worry")
         settle()
-        first = len(board.wanted())
+        first = len(board.cards)
         self.assertGreater(first, 0, "nothing was shown to begin with")
-        w.open_dua_category("forgiveness")
+        w.open_dua_category("mosque")
         settle()
-        self.assertEqual(len(board.wanted()), len(board.cards),
-                         f"{len(board.cards)} cards for {len(board.wanted())} du'as -- "
+        self.assertEqual(len(board.showing), len(board.cards),
+                         f"{len(board.cards)} cards for {len(board.showing)} picked -- "
                          f"the cards from the kind before are still standing")
-        titles = {c.item.title for c in board.cards}
-        self.assertEqual(set(), titles & {"Do not burden us beyond our strength"} - {
-                             d.title for _, d in board.wanted()},
-                         "a card from the kind before survived")
+        for card in board.cards:
+            self.assertIn("mosque", card.item.cats, "a card from the kind before survived")
 
     def test_opening_one_from_a_narrowed_list_opens_that_very_dua(self):
         """The row keeps its place in the whole section. Number the rows 0,1,2 inside the
@@ -7226,11 +7275,11 @@ class DuaMenuTest(unittest.TestCase):
         settle()
         listing = w.section_lists["duas"]
         board = w.dua_board
-        index, wanted = board.wanted()[-1]
+        card = board.cards[-1]
+        index, wanted = card.index, card.item
         # Press the card itself. Emitting chose(index) here instead would prove nothing: the
         # test would be supplying the very number the card is supposed to carry.
-        self.assertEqual(len(board.wanted()), len(board.cards))
-        board.cards[-1].opened.emit(board.cards[-1].index)
+        card.opened.emit(card.index)
         settle()
         reader = w.section_readers["duas"]
         self.assertIs(reader, w.corner_screen.currentWidget())
@@ -7296,7 +7345,7 @@ class DuaBoardTest(unittest.TestCase):
         w.side.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def board(self, w, cat="travel"):
@@ -7307,17 +7356,19 @@ class DuaBoardTest(unittest.TestCase):
         self.assertIs(w.dua_board, w.corner_screen.currentWidget())
         return w.dua_board
 
-    def test_the_duas_are_shared_between_two_columns(self):
+    def test_two_duas_are_shown_one_each_side(self):
+        """Two, no more: the whole point of the size they are drawn at."""
+        from salaah.duamenu import CATEGORIES
         w = self.window()
-        for cat in ("mosque", "travel", "worry", "forgiveness"):
+        for cat in CATEGORIES:
             board = self.board(w, cat)
             left = [board.left.itemAt(i).widget() for i in range(board.left.count())]
             right = [board.right.itemAt(i).widget() for i in range(board.right.count())]
             left = [x for x in left if x is not None]
             right = [x for x in right if x is not None]
-            self.assertTrue(left and right, f"{cat} put everything in one column")
-            self.assertGreaterEqual(len(left), len(right), f"{cat} is bottom-heavy on the right")
-            self.assertLessEqual(len(left) - len(right), 1, f"{cat} is lopsided")
+            self.assertEqual(1, len(left), f"{cat} has {len(left)} on the left")
+            self.assertEqual(1, len(right), f"{cat} has {len(right)} on the right")
+            self.assertEqual(2, len(board.cards), f"{cat} drew {len(board.cards)} cards")
 
     def test_the_two_columns_really_are_side_by_side_on_screen(self):
         """Counting widgets in two boxes says nothing about where they were drawn."""
@@ -7368,7 +7419,7 @@ class DuaBoardTest(unittest.TestCase):
         w = self.window()
         board = self.board(w, "travel")
         for card in board.cards:
-            self.assertEqual(card.item.arabic, card.arabic.text())
+            self.assertEqual([card.item.arabic], list(card.arabic.lines))
             self.assertTrue(card.meaning.text().strip(), f"{card.item.key} has no meaning")
             self.assertTrue(card.meaning.isVisible())
             self.assertNotEqual(card.item.arabic, card.meaning.text())
@@ -7387,13 +7438,18 @@ class DuaBoardTest(unittest.TestCase):
     def test_pressing_a_card_opens_that_very_dua(self):
         w = self.window()
         board = self.board(w, "worry")
-        for card in board.cards:
-            board.cards and card.opened.emit(card.index)
+        # Taken before pressing anything: reopening the kind reshuffles, so a card held across
+        # the loop would be a card that is no longer on screen.
+        want = [(c.index, c.item.title) for c in board.cards]
+        for index, title in want:
+            card = next(c for c in board.cards if c.index == index)
+            card.opened.emit(card.index)
             settle()
             reader = w.section_readers["duas"]
             self.assertIs(reader, w.corner_screen.currentWidget())
-            self.assertEqual(card.item.title, reader.passages.items[reader.at].title)
-            w.open_dua_category("worry")
+            self.assertEqual(index, reader.at)
+            self.assertEqual(title, reader.passages.items[reader.at].title)
+            w.corner_screen.setCurrentWidget(board)      # back without reshuffling
             settle()
 
     def test_the_play_mark_opens_the_same_dua_its_card_stands_for(self):
@@ -7406,17 +7462,23 @@ class DuaBoardTest(unittest.TestCase):
         self.assertIs(reader, w.corner_screen.currentWidget())
         self.assertEqual(card.item.key, reader.passages.items[reader.at].key)
 
-    def test_back_returns_to_the_kinds(self):
+    def test_there_is_no_button_strip_along_the_bottom(self):
+        """It was taken away to give the Arabic the height. Checked by looking for any button
+        on the board rather than for the one that used to be there, so a different one put
+        back in the same place is caught too."""
         w = self.window()
         board = self.board(w, "travel")
-        board.back_button.click()
-        settle()
-        self.assertIs(w.dua_menu, w.corner_screen.currentWidget())
+        self.assertFalse(hasattr(board, "back_button"))
+        buttons = [b for b in board.findChildren(QtWidgets.QAbstractButton) if b.isVisible()]
+        for b in buttons:
+            self.assertEqual("duaPlay", b.objectName(),
+                             f"{b.objectName() or b.text()!r} is on the board")
+        floor = max(c.mapTo(board, c.rect().bottomLeft()).y() for c in board.cards)
+        self.assertGreater(floor, board.height() * 0.93,
+                           "the cards stop short of the bottom -- something is taking that strip")
 
-    def test_almost_every_kind_fits_without_scrolling(self):
-        """The point of the board. One kind holds 2:286, which is longer than the screen on its
-        own, so that one scrolls -- but if a change makes them all scroll, the board has stopped
-        doing its job and this says so."""
+    def test_no_kind_scrolls_at_all(self):
+        """Now that the Arabic sizes itself to its box, nothing should ever need scrolling."""
         from salaah.duamenu import CATEGORIES
         w = self.window()
         scrolls = []
@@ -7424,7 +7486,87 @@ class DuaBoardTest(unittest.TestCase):
             board = self.board(w, cat)
             if board.scroll.verticalScrollBar().maximum() > 0:
                 scrolls.append(cat)
-        self.assertLessEqual(len(scrolls), 2, f"these kinds do not fit: {scrolls}")
+        self.assertEqual([], scrolls, f"these kinds do not fit: {scrolls}")
+
+    def test_the_two_longest_duas_together_still_fit(self):
+        """The worst pair the shuffle can deal, forced rather than waited for."""
+        w = self.window()
+        board = self.board(w, "forgiveness")
+        board.showing = sorted(board.wanted(), key=lambda p: -len(p[1].arabic))[:2]
+        board.filled = None
+        board.fill()
+        settle()
+        self.assertEqual(0, board.scroll.verticalScrollBar().maximum(),
+                         "the longest two run off the screen")
+
+    def test_a_short_dua_is_drawn_far_larger_than_a_long_one(self):
+        """The box earns its keep only if it really does change size. Measured off the font
+        the box settled on, not off the stylesheet."""
+        w = self.window()
+        board = self.board(w, "mosque")             # two very short du'as
+        short = max(c.arabic.fitted_size() for c in board.cards)
+        board = self.board(w, "forgiveness")
+        board.showing = sorted(board.wanted(), key=lambda p: -len(p[1].arabic))[:2]
+        board.filled = None
+        board.fill()
+        settle()
+        long = max(c.arabic.fitted_size() for c in board.cards)
+        self.assertGreater(short, long * 1.5, f"short {short}px vs long {long}px")
+
+    def test_which_two_are_shown_changes_between_visits(self):
+        """Opening the same kind ten times should not give the same pair every time. Every kind
+        holds at least three, so there is always another pair to give."""
+        w = self.window()
+        seen = set()
+        for _ in range(12):
+            board = self.board(w, "gratitude")
+            seen.add(tuple(sorted(i for i, _ in board.showing)))
+        self.assertGreater(len(seen), 1, "the same two came up twelve times running")
+
+    def test_nothing_along_the_bottom_takes_height_from_the_arabic(self):
+        """Back was removed to give that strip's height to the words. If anything creeps back
+        along the bottom, the reason for two-at-a-time is gone."""
+        w = self.window()
+        board = self.board(w, "worry")
+        self.assertFalse(hasattr(board, "back_button"), "a Back button is on the board again")
+        floor = max(c.mapTo(board, c.rect().bottomLeft()).y() for c in board.cards)
+        self.assertGreater(floor, board.height() * 0.9,
+                           f"the cards stop {board.height() - floor}px short of the bottom")
+
+    def test_the_board_is_not_a_dead_end(self):
+        """Taking Back off is only safe because the strip above carries the way out. If that
+        ever goes too, somebody is stuck on a du'a screen with no way off it."""
+        w = self.window()
+        board = self.board(w, "travel")
+        outs = [b for b in w.corner_page.findChildren(QtWidgets.QPushButton)
+                if b.isVisible() and b.objectName() in ("mainScreen", "backButton")]
+        self.assertTrue(outs, "no way off the du'a board at all")
+        outs[0].click()
+        settle()
+        self.assertIs(w.home, w.stack.currentWidget(), "the way out did not lead anywhere")
+
+    def test_the_pair_does_not_change_under_you_while_the_screen_is_shown(self):
+        """Stepping into a du'a and coming back must bring back the same two. The pick belongs
+        to opening the kind, not to the screen being shown.
+
+        Driven through the screens rather than by hiding and showing the widget. hide() then
+        show() on a page inside a stack delivers no showEvent at all, so the first version of
+        this test passed a sabotage that re-picked the pair on every show -- it was watching a
+        door nobody uses. Opening a du'a and pressing Back is the path that really happens.
+        """
+        w = self.window()
+        board = self.board(w, "gratitude")
+        was = [i for i, _ in board.showing]
+        card = board.cards[0]
+        card.opened.emit(card.index)
+        settle()
+        reader = w.section_readers["duas"]
+        self.assertIs(reader, w.corner_screen.currentWidget(), "the du'a did not open")
+        reader.back_button.click()
+        settle()
+        self.assertIs(board, w.corner_screen.currentWidget(), "Back did not return to the board")
+        self.assertEqual(was, [i for i, _ in board.showing], "the du'as changed on their own")
+        self.assertEqual(was, [c.index for c in board.cards], "the cards and the pick disagree")
 
 
 class PlayMarkTest(unittest.TestCase):
@@ -7438,7 +7580,7 @@ class PlayMarkTest(unittest.TestCase):
         w.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def test_it_is_a_ring_with_a_mark_inside_and_not_a_filled_blob(self):
@@ -7494,6 +7636,22 @@ class PlayMarkTest(unittest.TestCase):
         self.assertGreater(ink / total, 0.02, "nothing is drawn on the button")
         self.assertLess(ink / total, 0.6, "the button is filled in rather than marked")
 
+    def test_the_recite_mark_is_twice_the_size_it_was(self):
+        """It was 0.62 of a button the height of Back. The button is now square and twice
+        Back's height, so the mark inside it doubles -- measured against Back, which has not
+        changed, rather than against a number written in here."""
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        button, back = w.reader.recite_button, w.reader.back_button
+        self.assertEqual(back.height() * 2, button.height(), "the button did not double")
+        self.assertEqual(button.height(), button.width(), "the button is not square")
+        was = int(back.height() * 0.62)          # what the mark used to be
+        self.assertGreaterEqual(button.iconSize().height(), was * 2 - 2,
+                                f"the mark is {button.iconSize().height()}px, was {was}px")
+        self.assertLessEqual(button.iconSize().height(), button.height(),
+                             "the mark is bigger than the button and would be cropped")
+
     def test_the_mark_turns_to_stop_and_back(self):
         """Driven through the flag rather than by starting the audio. Playing a recitation for
         real needs a player, which is not always there in a test run -- this failed once in a
@@ -7544,7 +7702,7 @@ class EmptyKindScreenTest(unittest.TestCase):
         w.side.show()
         w.tick()
         settle()
-        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        self.addCleanup(lambda: shut(w))
         return w
 
     def empty(self, w, cat="travel"):

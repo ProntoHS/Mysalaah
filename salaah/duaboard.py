@@ -1,24 +1,35 @@
-"""The du'as of one kind, laid out so they can all be read at once.
+"""Two du'as of one kind, side by side, as large as the screen will draw them.
 
-A list of rows was right when there were ten du'as in one heap and you scrolled to find one.
-Now they are sorted into kinds and a kind holds two to five, which fits on the screen -- so
-there is no reason to make somebody standing over the mat scroll at all, and every good reason
-not to: the screen is a few feet away and a thumb on a scrollbar is the fiddliest thing on it.
+The board used to show every du'a of a kind, up to five, which meant the Arabic had to be small
+enough for the worst case. That is the wrong way round: this screen is read from a few feet away
+while somebody is stood on the mat, so the words should be as big as the glass allows and the
+number on screen should give way, not the size.
 
-So: two columns with a thick rule between them, filled down one column and then the other. Each
-du'a shows its name, its Arabic, and the meaning under that, with a play mark beside it. Five is
-the most any kind holds, which is three down the first column and two down the second.
+So: exactly two, one each side of a thick rule, at more than half again the old size, with
+nothing else on the screen -- no Back button along the bottom, because that strip was costing
+height that the Arabic wanted and there are two other ways back (the strip above, and the Du'as
+tile on the 7in).
 
-If a kind ever grows past what fits, the board scrolls rather than shrinking the Arabic to
-nothing -- an unreadable du'a is worse than a scrollbar.
+Which two is picked fresh every time the kind is opened. Every kind holds at least three, so
+the pair changes, and over a few visits the whole kind is seen. Picking at the moment the kind
+is opened rather than once at start-up is deliberate: it means going back in gives you different
+du'as rather than the same ones until the mat is restarted.
 """
 from __future__ import annotations
 
+import random
+
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
-from .render import Fonts
+from .render import Fonts, TextBox
 from .theme import palette
 
-DOWN = 3               # du'as down a column before the next column is started
+ON_SCREEN = 2          # du'as shown at once: one each side of the rule
+# The Arabic is drawn as large as its half of the screen will take. A single size cannot serve
+# both a two-line du'a and 2:286 -- set big enough for the short one the long one runs off the
+# bottom, and set small enough for the long one the short one wastes the glass. So the box picks,
+# between these, and every du'a fits by construction rather than by luck.
+ARABIC_FLOOR = 30
+ARABIC_CAP = 110
 RULE = 6               # the line between the columns, in unscaled pixels: thick, as asked
 
 
@@ -36,8 +47,10 @@ class DuaCard(QtWidgets.QFrame):
         self.setObjectName("duaCard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         lay = QtWidgets.QVBoxLayout(self)
-        lay.setContentsMargins(window.px(14), window.px(10), window.px(14), window.px(12))
-        lay.setSpacing(window.px(6))
+        lay.setContentsMargins(window.px(22), window.px(16), window.px(22), window.px(18))
+        lay.setSpacing(window.px(10))
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                           QtWidgets.QSizePolicy.Policy.Expanding)
 
         top = QtWidgets.QHBoxLayout()
         top.setSpacing(window.px(10))
@@ -55,12 +68,11 @@ class DuaCard(QtWidgets.QFrame):
         top.addWidget(self.name, 1)
         lay.addLayout(top)
 
-        self.arabic = QtWidgets.QLabel(item.arabic)
-        self.arabic.setObjectName("duaCardArabic")
-        self.arabic.setWordWrap(True)
-        self.arabic.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.arabic.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        lay.addWidget(self.arabic)
+        self.arabic = TextBox(Fonts.arabic(window.settings.arabic_font),
+                              ARABIC_FLOOR, ARABIC_CAP, rtl=True)
+        self.arabic.scale = window.s
+        self.arabic.set_lines([item.arabic])
+        lay.addWidget(self.arabic, 1)
 
         # The transliteration, where there is one. The Qur'anic du'as carry it because it came
         # out of the checked Qur'an text; the ones from hadith do not yet, and an empty line is
@@ -76,7 +88,6 @@ class DuaCard(QtWidgets.QFrame):
         self.meaning.setObjectName("duaCardMeaning")
         self.meaning.setWordWrap(True)
         lay.addWidget(self.meaning)
-        lay.addStretch(1)
         self.draw_mark(False)
 
     def draw_mark(self, playing: bool) -> None:
@@ -160,17 +171,12 @@ class DuaBoard(QtWidgets.QWidget):
         self.scroll.setWidget(inner)
         outer.addWidget(self.scroll, 1)
 
-        row = QtWidgets.QHBoxLayout()
-        row.setContentsMargins(window.px(20), 0, window.px(20), window.px(14))
-        row.addStretch(1)
-        self.back_button = QtWidgets.QPushButton(window.t("corner.back"))
-        self.back_button.setObjectName("backButton")
-        self.back_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        row.addWidget(self.back_button)
-        outer.addLayout(row)
-
+        # No button strip along the bottom. It cost height the Arabic wanted, and there are two
+        # other ways out of here: Main screen on the strip above, and the Du'as tile on the 7in,
+        # which goes back to the kinds.
         self.cards: list[DuaCard] = []
         self.rule = None
+        self.showing: list = []      # the pair picked for this visit
         self.filled = None
 
     def language(self) -> str:
@@ -185,10 +191,23 @@ class DuaBoard(QtWidgets.QWidget):
         return [(i, item) for i, item in enumerate(self.passages.items)
                 if self.only is None or self.only in item.cats]
 
+    def pick(self) -> list:
+        """The two to show, chosen fresh. Every kind holds at least three, so this is a real
+        choice and not the same pair every time."""
+        mine = self.wanted()
+        if len(mine) <= ON_SCREEN:
+            return mine
+        return random.sample(mine, ON_SCREEN)
+
     def show_only(self, cat: str | None, heading: str = "") -> None:
+        """Open a kind. This is where the pair is drawn -- not in fill(), which runs again
+        whenever the screen is shown, and would otherwise swap the du'as under somebody who had
+        stepped into one and come back."""
         self.only = cat or None
         if heading:
             self.title.setText(heading)
+        self.showing = self.pick()
+        self.filled = None
         self.fill()
 
     def clear(self) -> None:
@@ -204,26 +223,19 @@ class DuaBoard(QtWidgets.QWidget):
         self.cards, self.rule = [], None
 
     def fill(self) -> None:
-        want = (self.only, len(self.passages.items), self.language())
+        want = (tuple(i for i, _ in self.showing), self.language())
         if self.filled == want:
             return
         self.filled = want
         self.clear()
-        mine = self.wanted()
         lang = self.language()
-        # Shared evenly between the two columns rather than filling the first: three du'as
-        # down the left with nothing on the right is not the two columns that were asked for.
-        # Three is as far down as a column goes, so a kind that ever grows past six scrolls.
-        down = min(DOWN, max(1, (len(mine) + 1) // 2))
-        for place, (index, item) in enumerate(mine):
+        for place, (index, item) in enumerate(self.showing):
             card = DuaCard(self.win, index, item, item.meaning(lang))
             card.opened.connect(self.chose.emit)
             card.play.connect(self.play.emit)
-            (self.left if place < down else self.right).addWidget(card)
+            (self.left if place == 0 else self.right).addWidget(card)
             self.cards.append(card)
-        self.left.addStretch(1)
-        self.right.addStretch(1)
-        if len(mine) > 1:
+        if len(self.showing) > 1:
             self.rule = Rule(self.win)
             self.across.insertWidget(1, self.rule)
 
@@ -241,6 +253,5 @@ class DuaBoard(QtWidgets.QWidget):
             self.rule.update()
 
     def retitle(self) -> None:
-        self.back_button.setText(self.win.t("corner.back"))
         self.filled = None          # the meanings are in a language that may have changed
         self.fill()

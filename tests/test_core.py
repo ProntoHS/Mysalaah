@@ -2381,12 +2381,13 @@ class DuaCategoriesTest(unittest.TestCase):
             for cat in d["cats"]:
                 self.assertIn(cat, self.cats, f"{d['key']} is filed under {cat!r}")
 
-    def test_every_kind_has_at_least_two_duas_behind_it(self):
-        """What was asked for: two under every tile, so no kind opens on a near-empty screen."""
+    def test_every_kind_has_at_least_three_duas_behind_it(self):
+        """Three, not two. Two are shown at a time, so a kind holding exactly two shows the
+        same pair on every visit and the shuffling has nothing to work with."""
         import collections
         how_many = collections.Counter(c for d in self.duas() for c in d["cats"])
-        thin = {c: how_many[c] for c in self.cats if how_many[c] < 2}
-        self.assertEqual({}, thin, f"these kinds have fewer than two: {thin}")
+        thin = {c: how_many[c] for c in self.cats if how_many[c] < 3}
+        self.assertEqual({}, thin, f"these kinds have fewer than three: {thin}")
 
     def test_the_hadith_duas_carry_their_source_and_are_marked_unchecked(self):
         """The Arabic was lifted from two corpora and nothing was typed from memory, but no

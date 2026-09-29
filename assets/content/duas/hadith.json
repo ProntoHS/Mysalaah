@@ -299,13 +299,225 @@
   {
    "key": "best_way_to_ask_pardon",
    "cats": [
-    "forgiveness"
+    "forgiveness",
+    "morning",
+    "evening"
    ],
    "title": "The best way of asking pardon",
    "ref": "Sahih al-Bukhari",
    "arabic": "اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ خَلَقْتَنِي وَأَنَا عَبْدُكَ وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ وَأَبُوءُ لَكَ بِذَنْبِي فَاغْفِرْ لِي فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ",
    "text": {
     "en": "O Allah, You are my Lord. There is no god but You. You created me and I am Your servant, and I hold to Your covenant and Your promise as much as I can. I acknowledge Your favour upon me and I acknowledge my sin; forgive me, for none forgives sins but You."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "no_harm_with_his_name",
+   "cats": [
+    "protection",
+    "morning",
+    "evening"
+   ],
+   "title": "With His name nothing can harm",
+   "ref": "Sunan Abu Dawud",
+   "arabic": "بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ",
+   "text": {
+    "en": "In the name of Allah, with whose name nothing on earth or in heaven can cause harm, and He is the All-Hearing, the All-Knowing."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "guidance_and_enough",
+   "cats": [
+    "guidance",
+    "general"
+   ],
+   "title": "Guidance, mindfulness and enough",
+   "ref": "Sahih Muslim",
+   "arabic": "اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى",
+   "text": {
+    "en": "O Allah, I ask You for guidance, mindfulness of You, restraint, and sufficiency."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "content_with_allah",
+   "cats": [
+    "morning",
+    "evening",
+    "gratitude"
+   ],
+   "title": "Content with Allah as Lord",
+   "ref": "Jami` at-Tirmidhi",
+   "arabic": "رَضِيتُ بِاللَّهِ رَبًّا وَبِالْإِسْلَامِ دِينًا وَبِمُحَمَّدٍ نَبِيًّا",
+   "text": {
+    "en": "I am content with Allah as Lord, with Islam as religion, and with Muhammad as Prophet."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "wellbeing_in_my_body",
+   "cats": [
+    "health",
+    "morning",
+    "evening"
+   ],
+   "title": "Wellbeing in body, hearing and sight",
+   "ref": "Sunan Abu Dawud",
+   "arabic": "اللَّهُمَّ عَافِنِي فِي بَدَنِي اللَّهُمَّ عَافِنِي فِي سَمْعِي اللَّهُمَّ عَافِنِي فِي بَصَرِي",
+   "text": {
+    "en": "O Allah, grant me wellbeing in my body. O Allah, grant me wellbeing in my hearing. O Allah, grant me wellbeing in my sight."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "waking_restored",
+   "cats": [
+    "waking",
+    "gratitude"
+   ],
+   "title": "He gave me back my soul",
+   "ref": "Jami` at-Tirmidhi",
+   "arabic": "الْحَمْدُ لِلَّهِ الَّذِي عَافَانِي فِي جَسَدِي وَرَدَّ عَلَيَّ رُوحِي وَأَذِنَ لِي بِذِكْرِهِ",
+   "text": {
+    "en": "Praise belongs to Allah, who restored my body to health, returned my soul to me, and permitted me to remember Him."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "opening_the_prayer",
+   "cats": [
+    "prayer"
+   ],
+   "title": "At the opening of the prayer",
+   "ref": "Sahih al-Bukhari",
+   "arabic": "اللَّهُمَّ بَاعِدْ بَيْنِي وَبَيْنَ خَطَايَايَ كَمَا بَاعَدْتَ بَيْنَ الْمَشْرِقِ وَالْمَغْرِبِ اللَّهُمَّ نَقِّنِي مِنْ الْخَطَايَا كَمَا يُنَقَّى الثَّوْبُ الْأَبْيَضُ مِنْ الدَّنَسِ اللَّهُمَّ اغْسِلْ خَطَايَايَ بِالْمَاءِ وَالثَّلْجِ وَالْبَرَدِ",
+   "text": {
+    "en": "O Allah, put distance between me and my sins as You have put distance between east and west. O Allah, cleanse me of my sins as a white garment is cleansed of dirt. O Allah, wash me of my sins with snow and water and hail."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "from_the_grave_and_the_fire",
+   "cats": [
+    "prayer",
+    "protection"
+   ],
+   "title": "Refuge from the grave and the fire",
+   "ref": "Sahih Muslim",
+   "arabic": "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ الْقَبْرِ وَعَذَابِ النَّارِ وَفِتْنَةِ الْمَحْيَا وَالْمَمَاتِ وَشَرِّ الْمَسِيحِ الدَّجَّالِ",
+   "text": {
+    "en": "O Allah, I take refuge in You from the punishment of the grave and the punishment of the Fire, from the trial of living and of dying, and from the trial of the false messiah."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "mosque_refuge",
+   "cats": [
+    "mosque",
+    "protection"
+   ],
+   "title": "Refuge on going in",
+   "ref": "Sunan Abu Dawud",
+   "arabic": "أَعُوذُ بِاللَّهِ الْعَظِيمِ وَبِوَجْهِهِ الْكَرِيمِ وَسُلْطَانِهِ الْقَدِيمِ مِنْ الشَّيْطَانِ الرَّجِيمِ",
+   "text": {
+    "en": "I take refuge in Allah the Mighty, in His noble face and His eternal authority, from the outcast devil."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "spare_me_that_day",
+   "cats": [
+    "sleep"
+   ],
+   "title": "Lying down",
+   "ref": "Sunan Abu Dawud",
+   "arabic": "اللَّهُمَّ قِنِي عَذَابَكَ يَوْمَ تَبْعَثُ عِبَادَكَ",
+   "text": {
+    "en": "O Allah, spare me Your punishment on the day You raise up Your servants."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "coming_home",
+   "cats": [
+    "travel",
+    "gratitude"
+   ],
+   "title": "Coming back",
+   "ref": "Sahih al-Bukhari",
+   "arabic": "آيِبُونَ تَائِبُونَ عَابِدُونَ سَاجِدُونَ لِرَبِّنَا حَامِدُونَ",
+   "text": {
+    "en": "Returning, repenting, worshipping, and praising our Lord."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "knowledge_that_does_not_help",
+   "cats": [
+    "knowledge"
+   ],
+   "title": "From knowledge that is no use",
+   "ref": "Sahih Muslim",
+   "arabic": "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عِلْمٍ لَا يَنْفَعُ وَمِنْ قَلْبٍ لَا يَخْشَعُ",
+   "text": {
+    "en": "O Allah, I take refuge in You from knowledge that is of no benefit and from a heart that is not humbled."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "feed_the_one_who_fed_me",
+   "cats": [
+    "food",
+    "gratitude"
+   ],
+   "title": "For whoever fed you",
+   "ref": "Sahih Muslim",
+   "arabic": "اللَّهُمَّ أَطْعِمْ مَنْ أَطْعَمَنِي وَأَسْقِ مَنْ أَسْقَانِي",
+   "text": {
+    "en": "O Allah, feed the one who fed me and give drink to the one who gave me drink."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "breaking_the_fast",
+   "cats": [
+    "food",
+    "gratitude"
+   ],
+   "title": "Breaking the fast",
+   "ref": "Sunan Abu Dawud",
+   "arabic": "ذَهَبَ الظَّمَأُ وَابْتَلَّتْ الْعُرُوقُ وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ",
+   "text": {
+    "en": "The thirst has gone, the veins are moistened, and the reward is certain, if Allah wills."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "from_the_house_falling",
+   "cats": [
+    "home",
+    "protection"
+   ],
+   "title": "From collapse, falling and fire",
+   "ref": "Sunan Abu Dawud",
+   "arabic": "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ الْهَدْمِ وَأَعُوذُ بِكَ مِنْ التَّرَدِّي وَأَعُوذُ بِكَ مِنْ الْغَرَقِ وَالْحَرَقِ وَالْهَرَمِ",
+   "text": {
+    "en": "O Allah, I take refuge in You from being crushed, from falling, and from frailty."
+   },
+   "from": "hadith"
+  },
+  {
+   "key": "much_good_praise",
+   "cats": [
+    "prayer",
+    "gratitude"
+   ],
+   "title": "Praise, much and good",
+   "ref": "Sahih Muslim",
+   "arabic": "الْحَمْدُ لِلَّهِ حَمْدًا كَثِيرًا طَيِّبًا مُبَارَكًا فِيهِ",
+   "text": {
+    "en": "Praise belongs to Allah -- much praise, good and blessed."
    },
    "from": "hadith"
   }

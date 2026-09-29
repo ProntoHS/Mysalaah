@@ -843,3 +843,12 @@ standing up after bowing until prostration.
   gap where it would be.
 - There are no recordings of the du'as yet. The play mark on each card opens the du'a for now, so
   it is not a dead button; it is where the audio goes once there is any.
+- A kind shows two du'as, not all of them, so the Arabic can be drawn at a size that reads from
+  across the room. Which two is drawn fresh each time the kind is opened, and every kind holds at
+  least three, so the pair changes and over a few visits the whole kind is seen. The pick belongs
+  to opening the kind rather than to the screen being shown: step into a du'a and press Back and
+  the same two are still there.
+- The du'a board has no Back button. That strip along the bottom was costing height the Arabic
+  wanted, and there are two other ways off the screen -- Main screen on the strip above, and the
+  Du'as tile on the 7in. A test checks the board is not a dead end, because taking the last way
+  out off it would be an easy thing to do by accident.

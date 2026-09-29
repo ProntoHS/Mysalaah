@@ -146,12 +146,84 @@ DUAS = [
          start="اللهم انفعني بما علمتني", end="وزدني علما",
          en="O Allah, benefit me by what You have taught me, teach me what benefits me, and "
             "increase me in knowledge."),
-    dict(key="best_way_to_ask_pardon", cats=("forgiveness",), title="The best way of asking pardon",
+    dict(key="best_way_to_ask_pardon", cats=("forgiveness", "morning", "evening"),
+         title="The best way of asking pardon",
          start="اللهم أنت ربي لا إله إلا أنت خلقتني", end="إلا أنت",
          en="O Allah, You are my Lord. There is no god but You. You created me and I am Your "
             "servant, and I hold to Your covenant and Your promise as much as I can. I "
             "acknowledge Your favour upon me and I acknowledge my sin; forgive me, for none "
             "forgives sins but You."),
+    # --- added so no kind has fewer than three: with two shown at a time, a kind holding only
+    # two shows the same pair every visit and the shuffling has nothing to do.
+    dict(key="no_harm_with_his_name", cats=("protection", "morning", "evening"),
+         title="With His name nothing can harm",
+         start="بسم الله الذي لا يضر مع اسمه شيء", end="السميع العليم",
+         en="In the name of Allah, with whose name nothing on earth or in heaven can cause "
+            "harm, and He is the All-Hearing, the All-Knowing."),
+    dict(key="guidance_and_enough", cats=("guidance", "general"),
+         title="Guidance, mindfulness and enough",
+         start="اللهم إني أسألك الهدى والتقى", end="والغنى",
+         en="O Allah, I ask You for guidance, mindfulness of You, restraint, and sufficiency."),
+    dict(key="content_with_allah", cats=("morning", "evening", "gratitude"),
+         title="Content with Allah as Lord",
+         start="رضيت بالله ربا", end="نبيا",
+         en="I am content with Allah as Lord, with Islam as religion, and with Muhammad as "
+            "Prophet."),
+    dict(key="wellbeing_in_my_body", cats=("health", "morning", "evening"),
+         title="Wellbeing in body, hearing and sight",
+         start="اللهم عافني في بدني", end="في بصري",
+         en="O Allah, grant me wellbeing in my body. O Allah, grant me wellbeing in my "
+            "hearing. O Allah, grant me wellbeing in my sight."),
+    dict(key="waking_restored", cats=("waking", "gratitude"),
+         title="He gave me back my soul",
+         start="الحمد لله الذي عافاني في جسدي", end="بذكره",
+         en="Praise belongs to Allah, who restored my body to health, returned my soul to me, "
+            "and permitted me to remember Him."),
+    dict(key="opening_the_prayer", cats=("prayer",), title="At the opening of the prayer",
+         start="اللهم باعد بيني وبين خطاياي", end="والبرد",
+         en="O Allah, put distance between me and my sins as You have put distance between "
+            "east and west. O Allah, cleanse me of my sins as a white garment is cleansed of "
+            "dirt. O Allah, wash me of my sins with snow and water and hail."),
+    dict(key="from_the_grave_and_the_fire", cats=("prayer", "protection"),
+         title="Refuge from the grave and the fire",
+         start="اللهم إني أعوذ بك من عذاب القبر وعذاب النار", end="المسيح الدجال",
+         en="O Allah, I take refuge in You from the punishment of the grave and the punishment "
+            "of the Fire, from the trial of living and of dying, and from the trial of the "
+            "false messiah."),
+    dict(key="mosque_refuge", cats=("mosque", "protection"),
+         title="Refuge on going in",
+         start="أعوذ بالله العظيم وبوجهه الكريم", end="الشيطان الرجيم",
+         en="I take refuge in Allah the Mighty, in His noble face and His eternal authority, "
+            "from the outcast devil."),
+    dict(key="spare_me_that_day", cats=("sleep",), title="Lying down",
+         start="اللهم قني عذابك يوم تبعث", end="عبادك",
+         en="O Allah, spare me Your punishment on the day You raise up Your servants."),
+    dict(key="coming_home", cats=("travel", "gratitude"), title="Coming back",
+         start="آيبون تائبون عابدون", end="حامدون",
+         en="Returning, repenting, worshipping, and praising our Lord."),
+    dict(key="knowledge_that_does_not_help", cats=("knowledge",),
+         title="From knowledge that is no use",
+         start="اللهم إني أعوذ بك من علم لا ينفع", end="لا يخشع",
+         en="O Allah, I take refuge in You from knowledge that is of no benefit and from a "
+            "heart that is not humbled."),
+    dict(key="feed_the_one_who_fed_me", cats=("food", "gratitude"),
+         title="For whoever fed you",
+         # end anchor is "أسقاني", not "سقاني": Muslim has وَأَسْقِ مَنْ أَسْقَانِي and the alif is
+         # not one of the letters bare() folds, so the shorter spelling finds nothing.
+         start="اللهم أطعم من أطعمني", end="أسقاني",
+         en="O Allah, feed the one who fed me and give drink to the one who gave me drink."),
+    dict(key="breaking_the_fast", cats=("food", "gratitude"), title="Breaking the fast",
+         start="ذهب الظمأ وابتلت العروق", end="إن شاء الله",
+         en="The thirst has gone, the veins are moistened, and the reward is certain, if Allah "
+            "wills."),
+    dict(key="from_the_house_falling", cats=("home", "protection"),
+         title="From collapse, falling and fire",
+         start="اللهم إني أعوذ بك من الهدم", end="والهرم",
+         en="O Allah, I take refuge in You from being crushed, from falling, and from frailty."),
+    dict(key="much_good_praise", cats=("prayer", "gratitude"),
+         title="Praise, much and good",
+         start="الحمد لله حمدا كثيرا طيبا مباركا", end="مباركا فيه",
+         en="Praise belongs to Allah -- much praise, good and blessed."),
 ]
 
 

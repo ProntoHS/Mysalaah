@@ -894,13 +894,13 @@ class MainWindow(QtWidgets.QWidget):
                               font-weight:bold; padding:{px(14)}px {px(48)}px; }}
             QFrame#duaCard {{ background:{c.paper}; border:{px(2)}px solid {c.line};
                               border-radius:{px(10)}px; }}
-            QLabel#duaCardName {{ font-size:{px(26)}px; font-weight:bold; color:{c.strong};
+            QLabel#duaCardName {{ font-size:{px(38)}px; font-weight:bold; color:{c.strong};
                                   border:none; }}
             QLabel#duaCardArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
-                                    font-size:{px(38)}px; color:{c.strong}; border:none; }}
-            QLabel#duaCardSaid {{ font-size:{px(20)}px; color:{c.stone};
+                                    font-size:{px(66)}px; color:{c.strong}; border:none; }}
+            QLabel#duaCardSaid {{ font-size:{px(28)}px; color:{c.stone};
                                   font-style:italic; border:none; }}
-            QLabel#duaCardMeaning {{ font-size:{px(22)}px; color:{c.ink}; border:none; }}
+            QLabel#duaCardMeaning {{ font-size:{px(32)}px; color:{c.ink}; border:none; }}
             QToolButton#duaPlay {{ background:transparent; border:none; }}
             QToolButton#duaPlay:pressed {{ background:{c.pressed};
                                            border-radius:{px(8)}px; }}
@@ -1336,7 +1336,6 @@ class MainWindow(QtWidgets.QWidget):
         self.dua_board = DuaBoard(self, self.duas)
         self.dua_board.chose.connect(lambda n: self.open_passage("duas", n))
         self.dua_board.play.connect(self.say_a_dua)
-        self.dua_board.back_button.clicked.connect(self.open_the_kinds_of_dua)
         stack.addWidget(self.dua_board)
 
         self.corner_soon = self.page_soon()

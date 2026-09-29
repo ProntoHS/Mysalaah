@@ -504,15 +504,22 @@ class Reader(QtWidgets.QWidget):
         size that was about to change.
         """
         wanted = self.back_button.size()
-        if wanted.width() > 0 and self.recite_button.size() != wanted:
-            self.recite_button.setFixedSize(wanted)
-            self.draw_recite_mark()
+        if wanted.width() > 0:
+            # Twice as tall as Back, and square, so the mark inside it can double. Matching
+            # Back exactly is what kept it small.
+            big = QtCore.QSize(wanted.height() * 2, wanted.height() * 2)
+            if self.recite_button.size() != big:
+                self.recite_button.setFixedSize(big)
+                self.draw_recite_mark()
 
     def draw_recite_mark(self) -> None:
         """Redraw the mark at the button's size and the theme's ink."""
         from .ui import play_icon
         from .theme import palette
-        side = max(self.win.px(30), int(self.recite_button.height() * 0.62)) or self.win.px(30)
+        # The mark keeps its share of the button; the button is what doubled, so the mark
+        # doubles with it. Scaling both would draw an icon larger than the square it sits in,
+        # and Qt would quietly crop it.
+        side = max(self.win.px(30), int(self.recite_button.height() * 0.62))
         icon = play_icon(side, palette().ink, stop=self.reciting_now)
         self.recite_button.setIcon(QtGui.QIcon(icon))
         self.recite_button.setIconSize(icon.size())
