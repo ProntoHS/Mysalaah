@@ -242,13 +242,13 @@
         "why.missing": "Los ajustes de red no están disponibles.",
         "why.no_internet": "Red conectada, pero sin internet.",
         "why.unknown": "No se pudo conectar.",
-        "place.title": "Dónde está la alfombra",
+        "place.title": "Ubicación",
         "place.row": "Ubicación",
-        "place.ask": "Escriba un código postal, por ejemplo BL9",
+        "place.ask": "Código postal — solo la primera parte, como BL9",
         "place.found": "{code} — estos serían los horarios de hoy",
         "place.unknown": "{code} no es un código postal conocido",
         "place.no_table": "Falta la tabla de códigos postales",
-        "place.save": "Usar este lugar",
-        "place.now": "Ahora: {name}"
+        "place.save": "Fijar ubicación",
+        "place.now": "La ubicación actual es {name}"
     }
 }

@@ -240,14 +240,14 @@
         "why.missing": "Network settings are not available on this mat.",
         "why.no_internet": "Joined the network, but it has no internet.",
         "why.unknown": "Could not connect.",
-        "place.title": "Where the mat is",
+        "place.title": "Location",
         "place.row": "Location",
-        "place.ask": "Type a postcode, such as BL9",
+        "place.ask": "Postcode — just the first part, like BL9",
         "place.found": "{code} — these would be today’s times",
         "place.unknown": "{code} is not a postcode this mat knows",
         "place.no_table": "The postcode table is missing from this mat",
-        "place.save": "Use this place",
-        "place.now": "Now set to {name}"
+        "place.save": "Set Location",
+        "place.now": "Current Location is {name}"
     },
     "transliteration": {},
     "translation": {

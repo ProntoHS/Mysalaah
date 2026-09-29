@@ -2982,3 +2982,126 @@ class PostcodeTest(unittest.TestCase):
         gap = max(abs((a[x].hour * 60 + a[x].minute) - (b[x].hour * 60 + b[x].minute))
                   for x in a if a[x] and b[x])
         self.assertLessEqual(gap, 1, "two Bury districts should agree to the minute")
+
+
+class PostureBadgeTest(unittest.TestCase):
+    """The drawings come with a "Made with AI" badge in the top right that has to go before the
+    picture is trimmed, or the trim keeps the whole margin to hold on to it.
+
+    Rubbing it out used to mean painting the corner white. That is fine on eight of the ten
+    drawings and quietly wrong on the other two: in both salam pictures the right-hand figure's
+    cap reaches up into that corner, so the white rectangle took the top off his head.
+    """
+
+    def tool(self):
+        import sys
+        sys.path.insert(0, str(ASSETS.parent / "tools"))
+        import build_postures
+        return build_postures
+
+    def draw(self, size=(1000, 600)):
+        """A blank picture with a helper to lay black on it."""
+        from PIL import Image, ImageDraw
+        img = Image.new("L", size, 255)
+        return img, ImageDraw.Draw(img)
+
+    def test_a_mark_floating_in_the_corner_is_rubbed_out(self):
+        img, pen = self.draw()
+        pen.rectangle((900, 20, 960, 40), fill=0)          # the badge: alone up in the corner
+        black = sum(self.tool().clear_badge(img).histogram()[:170])
+        self.assertEqual(0, black, "the badge should be gone")
+
+    def test_a_cap_reaching_into_the_corner_is_left_alone(self):
+        """The salam case. The figure starts well below the corner and rises into it; every
+        pixel of him has to survive, cap included."""
+        img, pen = self.draw()
+        pen.rectangle((880, 40, 920, 400), fill=0)         # a body, from low down up into the corner
+        before = sum(img.histogram()[:170])
+        after = sum(self.tool().clear_badge(img).histogram()[:170])
+        self.assertEqual(before, after, "the figure should be untouched")
+
+    def test_the_badge_goes_and_the_figure_stays_in_the_same_picture(self):
+        """Both at once, which is the real drawing."""
+        img, pen = self.draw()
+        pen.rectangle((880, 40, 920, 400), fill=0)         # the figure
+        pen.rectangle((940, 10, 990, 30), fill=0)          # the badge beside it
+        out = self.tool().clear_badge(img)
+        px = out.load()
+        self.assertLess(px[900, 45], 170, "the top of the figure is still there")
+        self.assertLess(px[900, 380], 170, "and so is the rest of him")
+        self.assertEqual(255, px[960, 20], "the badge is gone")
+
+    def test_the_two_salam_drawings_keep_their_caps(self):
+        """Against the pictures themselves rather than a drawing of my own: the built salam is
+        as tall at the right-hand edge as the drawing it came from.
+
+        A cap is a closed outline with white inside it. Cut the corner out and the cap is left
+        open at the side, so what was the inside of his head runs out into the air around him --
+        which is both how it looks and how this measures it: flood the outside white, and the
+        white left inside the right-hand figure's head is what the outline still holds in. A
+        whole cap holds a fifth of that part of the picture; a cut one about half as much.
+        """
+        from PIL import Image, ImageDraw
+        for name in ("salam.png", "girl/salam.png"):
+            with self.subTest(name):
+                img = Image.open(ASSETS / "postures" / name).convert("L")
+                img = img.point(lambda v: 0 if v < 170 else 255).convert("L")
+                w, h = img.size
+                ImageDraw.floodfill(img, (0, 0), 128)          # the air, from both top corners
+                ImageDraw.floodfill(img, (w - 1, 0), 128)
+                head = img.crop((int(w * 0.5), 0, w, int(h * 0.35)))
+                held = sum(head.histogram()[255:]) / (head.width * head.height)
+                self.assertGreater(held, 0.18,
+                                   f"{name}: the right-hand figure's cap is cut open")
+
+
+class PostureTrimTest(unittest.TestCase):
+    """The pictures are trimmed to the drawing, and "a few marks" has to mean a few relative to
+    the picture. The girl's sujood arrived with eight specks of dirt along its top edge; at the
+    old floor of 0.4% of 1760 that counted as drawing, and the trim kept nine hundred rows of
+    blank paper above her to hold on to them. On screen she was a quarter of everyone else."""
+
+    def tool(self):
+        import sys
+        sys.path.insert(0, str(ASSETS.parent / "tools"))
+        import build_postures
+        return build_postures
+
+    def test_dirt_along_an_edge_does_not_hold_the_margin(self):
+        from PIL import Image, ImageDraw
+        img = Image.new("L", (1760, 2336), 255)
+        pen = ImageDraw.Draw(img)
+        pen.rectangle((0, 0, 7, 0), fill=0)                  # the dirt, on the very top row
+        pen.rectangle((400, 1800, 1300, 2200), fill=0)       # the figure, right down at the bottom
+        cut = self.tool().trim(img)
+        self.assertLess(cut.height, 500, "the blank paper above her should be gone")
+
+    def test_a_real_stroke_still_holds_the_margin(self):
+        """The other side of it: the floor must not be so high that a thin part of the drawing
+        is trimmed off. A stroke is eight pixels thick before it is anything else."""
+        from PIL import Image, ImageDraw
+        img = Image.new("L", (1760, 2336), 255)
+        pen = ImageDraw.Draw(img)
+        pen.rectangle((880, 100, 900, 2200), fill=0)         # a thin upright, 21px wide
+        cut = self.tool().trim(img)
+        self.assertGreater(cut.height, 2000, "the whole upright should be kept")
+
+    def test_no_posture_picture_carries_a_band_of_blank_paper(self):
+        """Against the built pictures rather than a drawing of my own. Looking at where the ink
+        starts is no good -- it was the dirt that came first, and it is ink. What gives the fault
+        away is the gap behind it: the widest run of rows with nothing on them at all. Every
+        picture here sits between nothing and six thousandths of its height. The badly trimmed
+        sujood was 0.557, which is to say more than half of her picture was paper."""
+        from PIL import Image
+        for folder in ("", "girl"):
+            for path in sorted((ASSETS / "postures" / folder).glob("*.png")):
+                with self.subTest(f"{folder}/{path.name}"):
+                    img = Image.open(path).convert("L")
+                    w, h = img.size
+                    px = img.load()
+                    widest = run = 0
+                    for y in range(h):
+                        run = 0 if any(px[x, y] < 170 for x in range(w)) else run + 1
+                        widest = max(widest, run)
+                    self.assertLess(widest / h, 0.05,
+                                    f"{folder}/{path.name}: a band of blank paper in the picture")

@@ -29,7 +29,8 @@ can be filled in a few at a time.
 | `salam.png` | turning the head right and left for the salam (both in one picture) |
 | `qunut.png` | standing with the hands folded, for the qunut of witr |
 
-Match the boy's set: black line art on white, no grey, no colour, no lettering and no watermark;
+Match the boy's set: black line art on white, **no face** -- hijab, hands and feet, and nothing
+inside the outline of the face -- no grey, no colour, no lettering and no watermark;
 the same prayer mat; the figure standing on the bottom edge of the picture; a plain white
 background with a little clear space around the figure. Trim each picture so the figure fills
 it, as the app scales each one to the frame.

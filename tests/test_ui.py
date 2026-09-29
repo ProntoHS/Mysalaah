@@ -8150,3 +8150,110 @@ class PlaceScreenTest(unittest.TestCase):
         widths = {k.width() for k in drawn}
         self.assertLessEqual(max(widths) - min(widths), 4,
                              f"key widths range over {sorted(widths)}")
+
+
+class WifiCircleTest(unittest.TestCase):
+    """The circle beside the Wi-Fi row in Settings.
+
+    It was drawn and then never told anything, so it sat red on a mat that was online. Harry
+    spotted it on his: "the wifi circle is red even though it is connected". A circle that is
+    always red is worse than no circle, because it is an answer rather than a blank.
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def radio(self, w, card=True, joined="NOVA_26DU_A2", reaches=True):
+        """A mat whose wifi says what we tell it to, with no radio in sight."""
+        from salaah.network import Wifi
+
+        def runner(args, timeout=None):
+            if "status" in args:
+                return (0, "wifi\nethernet\n" if card else "ethernet\n", "")
+            if "--active" in args:
+                return 0, (f"{joined}:802-11-wireless:wlan0\n" if joined else ""), ""
+            return 0, "", ""
+
+        w.wifi = Wifi(runner=runner, resolver=lambda n=None: reaches)
+        return w
+
+    def settled(self, w):
+        w.open_settings()
+        settle()
+        if getattr(w, "wifi_errand", None) is not None:
+            w.wifi_errand.wait(5000)
+        settle()
+        return w.wifi_dot.color.name().upper()
+
+    def test_green_when_it_is_on_a_network_and_can_reach_the_world(self):
+        from salaah.ui import MINT
+        w = self.radio(self.window())
+        self.assertEqual(MINT, self.settled(w), "green when connected")
+        self.assertIn("NOVA_26DU_A2", w.wifi_dot.toolTip())
+
+    def test_red_when_it_is_on_no_network(self):
+        from salaah.ui import BRICK
+        w = self.radio(self.window(), joined="")
+        self.assertEqual(BRICK, self.settled(w), "red when not connected")
+
+    def test_red_when_the_mat_has_no_wifi_at_all(self):
+        from salaah.ui import BRICK
+        w = self.radio(self.window(), card=False)
+        self.assertEqual(BRICK, self.settled(w))
+
+    def test_amber_when_it_has_joined_a_network_that_reaches_nothing(self):
+        """The evening the mat spent associated to the router and unable to fetch a thing.
+        Green would have said everything was fine."""
+        from salaah.ui import AMBER
+        w = self.radio(self.window(), reaches=False)
+        self.assertEqual(AMBER, self.settled(w))
+
+    def test_a_mat_with_no_wifi_is_never_asked_what_it_is_joined_to(self):
+        """nmcli is slow enough that the order matters: each question is only asked when the
+        one before it makes it worth asking."""
+        from salaah.network import Wifi
+        asked = []
+
+        def runner(args, timeout=None):
+            asked.append(list(args))
+            return 0, "ethernet\n", ""
+
+        w = self.window()
+        w.wifi = Wifi(runner=runner, resolver=lambda n=None: self.fail("looked a name up"))
+        self.settled(w)
+        self.assertEqual(1, len(asked), f"asked more than it needed: {asked}")
+
+    def test_opening_settings_twice_quickly_starts_one_errand(self):
+        w = self.radio(self.window())
+        w.open_settings()
+        first = w.wifi_errand
+        w.open_settings()
+        self.assertIs(first, w.wifi_errand, "a second errand was started over the first")
+        if first is not None:
+            first.wait(5000)
+        settle()
+
+    def test_the_circle_is_asked_again_on_the_way_back_from_the_wifi_screen(self):
+        """Joining a network and coming back should not leave the old answer on screen."""
+        from salaah.ui import BRICK, MINT
+        w = self.radio(self.window(), joined="")
+        self.assertEqual(BRICK, self.settled(w))
+        w.open_wifi()
+        settle()
+        self.radio(w, joined="NOVA_26DU_A2")          # as if it had just been joined
+        w.wifi_screen.leave.click()
+        settle()
+        if getattr(w, "wifi_errand", None) is not None:
+            w.wifi_errand.wait(5000)
+        settle()
+        self.assertEqual(MINT, w.wifi_dot.color.name().upper(), "the circle kept a stale answer")

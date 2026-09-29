@@ -242,13 +242,13 @@
         "why.missing": "नेटवर्क सेटिंग्स उपलब्ध नहीं हैं।",
         "why.no_internet": "नेटवर्क से जुड़ गया, पर इंटरनेट नहीं है।",
         "why.unknown": "जुड़ नहीं सका।",
-        "place.title": "मुसल्ला कहाँ है",
+        "place.title": "स्थान",
         "place.row": "स्थान",
-        "place.ask": "पोस्टकोड लिखें, जैसे BL9",
+        "place.ask": "पोस्टकोड — केवल पहला भाग, जैसे BL9",
         "place.found": "{code} — आज के समय ये होंगे",
         "place.unknown": "{code} ज्ञात पोस्टकोड नहीं है",
         "place.no_table": "पोस्टकोड तालिका मौजूद नहीं है",
-        "place.save": "यही स्थान रखें",
-        "place.now": "अभी: {name}"
+        "place.save": "स्थान तय करें",
+        "place.now": "वर्तमान स्थान है {name}"
     }
 }

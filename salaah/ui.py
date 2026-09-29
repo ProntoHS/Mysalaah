@@ -47,6 +47,9 @@ STONE = "#6B737A"
 LINE = "#D9DCD6"
 MINT = "#3C8D6B"
 BRICK = "#B4443A"
+# Joined to a network that cannot reach anything. Neither green nor red would be true, and this
+# is the state the mat actually spent an evening in.
+AMBER = "#C08A2E"
 
 # The posture screen has no backlight of its own, so it is dimmed by drawing a black film over
 # it. These ease that off: matched one-for-one to the slider it runs ahead of the monitor, which
@@ -773,6 +776,11 @@ class MainWindow(QtWidgets.QWidget):
             self.clock.stop()
         if self.veil.running:
             self.veil.stop()
+        # An nmcli errand can still be out when the window goes. It holds a signal into this
+        # window, so it is waited for rather than left to land on something that has gone.
+        errand = getattr(self, "wifi_errand", None)
+        if errand is not None:
+            errand.wait(5000)
         if self.side is not None:
             self.side.close_screens()
             self.side.close()
@@ -2592,7 +2600,75 @@ class MainWindow(QtWidgets.QWidget):
     def open_settings(self) -> None:
         self.devices_label.setText(self.devices_text())
         self.update_status()
+        self.ask_the_radio()
         self.stack.setCurrentWidget(self.settings_screen)
+
+    # -- the Wi-Fi circle in Settings ------------------------------------------------------
+
+    def ask_the_radio(self) -> None:
+        """Find out where the wifi stands, for the circle beside the row.
+
+        The circle was drawn and then never told anything, so it sat red on a mat that was
+        online -- which is worse than no circle, because it is a confident wrong answer.
+
+        nmcli can take a second or two, and a Settings screen that freezes while it opens would
+        be its own bug, so the asking happens on a worker thread and the circle is painted when
+        the answer arrives. Only one errand is out at a time: opening Settings twice quickly
+        should not start two.
+        """
+        if getattr(self, "wifi_dot", None) is None or getattr(self, "wifi_errand", None):
+            return
+        from .network import Wifi
+        from .wifiscreen import Errand
+        if getattr(self, "wifi", None) is None:
+            self.wifi = Wifi()
+        wifi = self.wifi
+
+        def look():
+            # In this order, and no further than it needs to go: a mat with no wifi card is not
+            # asked what it is joined to, and one joined to nothing is not sent looking up names.
+            if not wifi.there():
+                return None, False
+            name = wifi.active()
+            return name, bool(name) and wifi.online()
+
+        errand = Errand(look)
+        errand.done.connect(self.radio_answered)
+        errand.finished.connect(self.radio_errand_finished)
+        self.wifi_errand = errand
+        errand.start()
+
+    def radio_answered(self, answer) -> None:
+        if isinstance(answer, Exception) or answer is None:
+            answer = (None, False)
+        self.show_wifi_state(*answer)
+
+    def radio_errand_finished(self) -> None:
+        # The reference goes before the thread does. Letting deleteLater run while this still
+        # pointed at it is how the wifi screen used to die on its second scan.
+        errand, self.wifi_errand = getattr(self, "wifi_errand", None), None
+        if errand is not None:
+            errand.deleteLater()
+
+    def show_wifi_state(self, name: str | None, online: bool) -> None:
+        """Green joined and reaching the world, amber joined and reaching nothing, red neither.
+
+        Amber rather than green for the middle one because that is the state the wifi screen was
+        built around: the mat sat associated to the router all evening and could not fetch a
+        thing, and a green circle would have said everything was fine.
+        """
+        if getattr(self, "wifi_dot", None) is None:
+            return
+        if name is None:
+            colour, said = BRICK, self.t("wifi.no_card")
+        elif not name:
+            colour, said = BRICK, self.t("wifi.offline")
+        elif not online:
+            colour, said = AMBER, self.t("why.no_internet")
+        else:
+            colour, said = MINT, self.t("wifi.joined", name=name)
+        self.wifi_dot.set_color(colour)
+        self.wifi_dot.setToolTip(said)
 
     def devices_text(self) -> str:
         if not self.device_names:

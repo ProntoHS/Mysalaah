@@ -240,14 +240,14 @@
         "why.missing": "Les réglages réseau ne sont pas disponibles.",
         "why.no_internet": "Réseau rejoint, mais sans accès à Internet.",
         "why.unknown": "Connexion impossible.",
-        "place.title": "Où se trouve le tapis",
+        "place.title": "Lieu",
         "place.row": "Lieu",
-        "place.ask": "Saisissez un code postal, par exemple BL9",
+        "place.ask": "Code postal — seulement la première partie, comme BL9",
         "place.found": "{code} — voici les horaires du jour",
         "place.unknown": "{code} n’est pas un code postal connu",
         "place.no_table": "La table des codes postaux est absente",
-        "place.save": "Utiliser ce lieu",
-        "place.now": "Réglé sur {name}"
+        "place.save": "Définir le lieu",
+        "place.now": "Le lieu actuel est {name}"
     },
     "transliteration": {},
     "translation": {}
