@@ -7972,3 +7972,181 @@ class WifiScreenTest(unittest.TestCase):
             w.open_wifi()
             settle()
             self.assertIs(was, w.stack.currentWidget(), "a stray knee opened Wi-Fi mid-prayer")
+
+
+class PlaceScreenTest(unittest.TestCase):
+    """Telling the mat where it is. The failure this stops is a mat confidently showing the
+    wrong town's times with nothing on screen to suggest it."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury",
+                                latitude=53.5933, longitude=-2.2966),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def typed(self, screen, text):
+        for ch in text:
+            screen.add(ch)
+        settle()
+
+    def test_the_location_row_in_settings_opens_it(self):
+        w = self.window()
+        w.open_settings()
+        settle()
+        self.assertTrue(w.place_button.isVisible(), "no way to set the location from Settings")
+        w.place_button.click()
+        settle()
+        self.assertIs(w.place_page, w.stack.currentWidget())
+
+    def test_it_wears_the_same_strip_as_every_other_screen(self):
+        w = self.window()
+        w.open_place()
+        settle()
+        strips = [x for x in w.place_page.findChildren(QtWidgets.QWidget)
+                  if x.objectName() == "banner"]
+        self.assertTrue(strips, "the place screen has no strip")
+
+    def test_typing_a_postcode_shows_what_it_would_mean_before_saving(self):
+        """Showing the times first is the point: a typo is caught by the times looking wrong,
+        not a fortnight later."""
+        w = self.window()
+        w.open_place()
+        settle()
+        screen = w.place_screen
+        self.typed(screen, "cf10")
+        self.assertEqual("CF10", screen.field.text(), "postcodes are written in capitals")
+        self.assertIsNotNone(screen.found)
+        for prayer in ("fajr", "dhuhr", "maghrib"):
+            self.assertIn(w.t(f"prayer.{prayer}"), screen.preview.text())
+        self.assertEqual("Bury", w.settings.place, "it saved before being asked to")
+
+    def test_saving_really_moves_the_prayer_times_and_the_strip(self):
+        w = self.window()
+        before = dict(w.prayer_times())
+        w.open_place()
+        settle()
+        self.typed(w.place_screen, "cf10")
+        w.place_screen.keep()
+        settle()
+        w.tick()
+        settle()
+        self.assertEqual("CF10", w.settings.place)
+        self.assertAlmostEqual(51.47, w.settings.latitude, places=1)
+        after = dict(w.prayer_times())
+        moved = max(abs((before[p].hour * 60 + before[p].minute)
+                        - (after[p].hour * 60 + after[p].minute))
+                    for p in before if before[p] and after[p])
+        self.assertGreater(moved, 4, "the times did not follow the mat to Cardiff")
+        said = " ".join(x.text() for x in w.home.findChildren(QtWidgets.QLabel) if x.text())
+        self.assertIn("CF10", said, "the strip still names the old place")
+
+    def test_the_times_cache_does_not_serve_the_old_towns_times(self):
+        """The cache is keyed on the coordinates, so it should invalidate itself -- but a cache
+        that decides for itself when it is stale is exactly what would show Bury's times in
+        Cardiff for the rest of the day."""
+        w = self.window()
+        w.prayer_times()
+        w.open_place()
+        settle()
+        self.typed(w.place_screen, "cf10")
+        w.place_screen.keep()
+        settle()
+        fresh = w.prayer_times()
+        straight = __import__("salaah.prayer_times", fromlist=["times_for"])
+        from salaah.prayer_times import Place, times_for
+        from datetime import datetime
+        want = times_for(datetime.now().date(),
+                         Place(w.settings.latitude, w.settings.longitude, "CF10"),
+                         w.school.id, high_latitude=w.settings.high_latitude)
+        self.assertEqual(want["fajr"], fresh["fajr"], "a stale time was served")
+
+    def test_a_postcode_it_does_not_know_is_refused_and_cannot_be_saved(self):
+        w = self.window()
+        w.open_place()
+        settle()
+        screen = w.place_screen
+        self.typed(screen, "zz99")
+        self.assertIsNone(screen.found)
+        self.assertFalse(screen.save.isEnabled(), "it would have saved a place it cannot find")
+        self.assertEqual("", screen.preview.text())
+        screen.keep()
+        settle()
+        self.assertEqual("Bury", w.settings.place, "it moved the mat somewhere unknown")
+
+    def test_nothing_typed_yet_offers_nothing_to_save(self):
+        w = self.window()
+        w.open_place()
+        settle()
+        self.assertFalse(w.place_screen.save.isEnabled())
+
+    def test_a_full_postcode_is_understood_not_refused(self):
+        """People type their postcode the way they write it."""
+        w = self.window()
+        w.open_place()
+        settle()
+        screen = w.place_screen
+        self.typed(screen, "bl9 0ab")
+        self.assertIsNotNone(screen.found, "a whole postcode was refused")
+        self.assertEqual("BL9", screen.found.outward)
+
+    def test_backspace_works_and_takes_the_answer_with_it(self):
+        w = self.window()
+        w.open_place()
+        settle()
+        screen = w.place_screen
+        # BL9 backspaces to "BL", which is not a postcode. CF10 would backspace to CF1, which
+        # IS one -- a real Cardiff district that is in the table -- so using that here tested
+        # nothing and failed for being right.
+        self.typed(screen, "bl9")
+        self.assertIsNotNone(screen.found)
+        screen.rub()
+        settle()
+        self.assertEqual("BL", screen.field.text())
+        self.assertIsNone(screen.found, "it still offers the answer for a postcode now changed")
+        self.assertFalse(screen.save.isEnabled())
+
+    def test_it_is_left_alone_while_a_prayer_is_going_on(self):
+        w = self.window()
+        w.go_home()
+        settle()
+        was = w.stack.currentWidget()
+        with mock.patch.object(type(w), "playing", property(lambda _s: True)):
+            w.open_place()
+            settle()
+            self.assertIs(was, w.stack.currentWidget())
+
+    def test_the_keyboard_fills_the_screen_it_is_given(self):
+        """A touchscreen keyboard huddled in the middle of a 1920 screen is a keyboard you miss.
+        Measured off the drawn keys, not off the layout's intentions."""
+        w = self.window()
+        w.open_place()
+        settle()
+        keys = w.place_screen.keys
+        drawn = [k for k in keys.keys if k.isVisible()]
+        self.assertTrue(drawn)
+        widest = max(k.width() for k in drawn)
+        self.assertGreater(widest, w.px(140), f"the keys are only {widest}px wide")
+        self.assertGreater(max(k.height() for k in drawn), w.px(120))
+        left = min(k.mapTo(keys, k.rect().topLeft()).x() for k in drawn)
+        right = max(k.mapTo(keys, k.rect().topRight()).x() for k in drawn)
+        self.assertGreater(right - left, keys.width() * 0.92,
+                           "the keyboard is not using the width it has")
+
+    def test_every_row_of_keys_is_the_same_size(self):
+        """They are laid out in units so a key is a key wherever it is. Rows that size
+        themselves independently give a keyboard that looks broken and reads worse."""
+        w = self.window()
+        w.open_place()
+        settle()
+        drawn = [k for k in w.place_screen.keys.keys if k.isVisible()]
+        widths = {k.width() for k in drawn}
+        self.assertLessEqual(max(widths) - min(widths), 4,
+                             f"key widths range over {sorted(widths)}")

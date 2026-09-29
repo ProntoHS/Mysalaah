@@ -239,7 +239,15 @@
         "why.permission": "اس مصلے کو نیٹ ورک بدلنے کی اجازت نہیں۔",
         "why.missing": "نیٹ ورک کی ترتیبات دستیاب نہیں۔",
         "why.no_internet": "نیٹ ورک سے جڑ گیا، مگر انٹرنیٹ نہیں۔",
-        "why.unknown": "جڑ نہیں سکا۔"
+        "why.unknown": "جڑ نہیں سکا۔",
+        "place.title": "مصلیٰ کہاں ہے",
+        "place.row": "مقام",
+        "place.ask": "پوسٹ کوڈ لکھیں، جیسے BL9",
+        "place.found": "{code} — آج کے اوقات یہ ہوں گے",
+        "place.unknown": "{code} معلوم پوسٹ کوڈ نہیں",
+        "place.no_table": "پوسٹ کوڈ کی فہرست موجود نہیں",
+        "place.save": "یہی مقام رکھیں",
+        "place.now": "ابھی: {name}"
     },
     "transliteration": {},
     "translation": {}

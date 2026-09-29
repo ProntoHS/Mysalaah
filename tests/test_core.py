@@ -2891,3 +2891,94 @@ class EscapeHatchTest(unittest.TestCase):
         reader. That is the FAT partition, and on Bookworm it is /boot/firmware."""
         from salaah.network import HATCH
         self.assertEqual("/boot/firmware/salaah-wifi.txt", str(HATCH))
+
+
+class PostcodeTest(unittest.TestCase):
+    """Setting where the mat is, from a postcode, with nothing to ask."""
+
+    def places(self):
+        from pathlib import Path
+        from salaah.places import Places
+        return Places(Path(__file__).resolve().parent.parent / "assets")
+
+    def test_the_table_is_there_and_covers_the_country(self):
+        p = self.places()
+        self.assertTrue(p.there, "no postcode table shipped")
+        self.assertGreater(len(p.districts), 2500, "too few districts to be the whole UK")
+        for corner in ("BL9", "M1", "EH1", "BT1", "CF10", "TR19", "KW1", "SW1A"):
+            self.assertIn(corner, p.districts, f"{corner} is missing")
+
+    def test_it_carries_the_attribution_the_licence_requires(self):
+        """Open Government Licence data has to say where it came from. If that ever falls out
+        of the file the mat is shipping data it is not entitled to ship."""
+        said = self.places().source
+        for must in ("Open Government Licence", "Royal Mail", "Crown copyright"):
+            self.assertIn(must, said, f"the attribution does not mention {must}")
+
+    def test_a_postcode_lands_where_it_should(self):
+        """Checked against coordinates that did not come from this table."""
+        import math
+        known = {"BL9": (53.593, -2.297, 3), "EH1": (55.95, -3.19, 3), "BT1": (54.60, -5.93, 3),
+                 "B1": (52.48, -1.90, 3), "CF10": (51.48, -3.18, 3)}
+        p = self.places()
+        for code, (lat, lon, tolerance) in known.items():
+            got = p.look_up(code)
+            self.assertIsNotNone(got, code)
+            dy = (got.latitude - lat) * 111.0
+            dx = (got.longitude - lon) * 111.0 * math.cos(math.radians(lat))
+            self.assertLess(math.hypot(dx, dy), tolerance, f"{code} is {math.hypot(dx,dy):.1f}km out")
+
+    def test_people_type_their_postcode_all_sorts_of_ways(self):
+        p = self.places()
+        for typed in ("BL9", "bl9", " BL9 ", "BL9 0AB", "bl90ab", "BL9-0AB", "  bl9  0ab  "):
+            got = p.look_up(typed)
+            self.assertIsNotNone(got, f"{typed!r} was refused")
+            self.assertEqual("BL9", got.outward, f"{typed!r} came out as {got.outward}")
+
+    def test_rubbish_is_refused_rather_than_guessed_at(self):
+        p = self.places()
+        for junk in ("", "   ", "hello", "9BL", "1234", "ZZ99", "BL", "!!!", "BL999999", None):
+            self.assertIsNone(p.look_up(junk), f"{junk!r} was accepted")
+
+    def test_every_district_in_the_table_is_a_real_shape_and_in_the_sea_nowhere(self):
+        from salaah.places import OUTWARD
+        p = self.places()
+        for code, (lat, lon) in p.districts.items():
+            self.assertTrue(OUTWARD.match(code), f"{code} is not an outward code")
+            self.assertTrue(49 < lat < 62, f"{code} is at latitude {lat}")
+            self.assertTrue(-11 < lon < 3, f"{code} is at longitude {lon}")
+
+    def test_a_missing_table_is_a_quiet_no_rather_than_a_crash(self):
+        from pathlib import Path
+        from salaah.places import Places
+        p = Places(Path("/nowhere/at/all"))
+        self.assertFalse(p.there)
+        self.assertIsNone(p.look_up("BL9"))
+
+    def test_moving_the_mat_really_moves_the_prayer_times(self):
+        """The whole point. If setting a postcode did not change the times, the screen would be
+        decoration."""
+        from datetime import date
+        from salaah.prayer_times import times_for, Place
+        p = self.places()
+        bury, cardiff = p.look_up("BL9"), p.look_up("CF10")
+        day = date(2026, 6, 21)
+        a = times_for(day, Place(bury.latitude, bury.longitude, "BL9"))
+        b = times_for(day, Place(cardiff.latitude, cardiff.longitude, "CF10"))
+        gap = max(abs((a[x].hour * 60 + a[x].minute) - (b[x].hour * 60 + b[x].minute))
+                  for x in a if a[x] and b[x])
+        self.assertGreater(gap, 5, "Bury and Cardiff should not share a timetable")
+
+    def test_two_postcodes_in_the_same_town_barely_differ(self):
+        """The other half of it: a district is small enough that the exact one hardly matters,
+        which is why a district is the unit rather than a full postcode."""
+        from datetime import date
+        from salaah.prayer_times import times_for, Place
+        p = self.places()
+        one, two = p.look_up("BL9"), p.look_up("BL8")
+        day = date(2026, 6, 21)
+        a = times_for(day, Place(one.latitude, one.longitude, "a"))
+        b = times_for(day, Place(two.latitude, two.longitude, "b"))
+        gap = max(abs((a[x].hour * 60 + a[x].minute) - (b[x].hour * 60 + b[x].minute))
+                  for x in a if a[x] and b[x])
+        self.assertLessEqual(gap, 1, "two Bury districts should agree to the minute")

@@ -26,6 +26,8 @@ LETTERS = ("qwertyuiop", "asdfghjkl", "zxcvbnm")
 SYMBOLS = ("1234567890", "-/:;()£&@\"", ".,?!'#%*+=")
 MORE = ("[]{}\\|~^", "<>$€¥_`", "§±¿¡")
 
+INDENT = {10: 0, 9: 1, 7: 3}
+
 SHIFT = "⇧"        # the arrow, not the word: the word is six letters wide in a key's space
 BACK = "⌫"
 DONE = "⏎"
@@ -39,14 +41,10 @@ class Key(QtWidgets.QPushButton):
         self.setObjectName("key")
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumHeight(window.px(78))
-        self.setMinimumWidth(int(window.px(74) * wide))
-        # Capped as well as floored. Left to expand, the keys stretched into tall thin slots on
-        # a 1080p screen -- still pressable, but nothing like a keyboard, and the eye hunts for
-        # letters that are not where it expects them.
-        self.setMaximumHeight(window.px(104))
+        self.setMinimumHeight(window.px(96))
+        self.setMinimumWidth(int(window.px(90) * wide))
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
-                           QtWidgets.QSizePolicy.Policy.Preferred)
+                           QtWidgets.QSizePolicy.Policy.Expanding)
 
 
 class Keyboard(QtWidgets.QWidget):
@@ -86,41 +84,47 @@ class Keyboard(QtWidgets.QWidget):
         for line in self.plan():
             row = QtWidgets.QHBoxLayout()
             row.setSpacing(self.win.px(8))
-            row.addStretch(1)
+            edge = INDENT.get(len(line), max(0, 20 - len(line) * 2) // 2)
+            if edge:
+                row.addStretch(edge)
             for letter in line:
                 shown = letter.upper() if (self.shifted and self.layer == 0) else letter
                 key = Key(shown, self.win)
                 key.clicked.connect(lambda _=False, c=shown: self.press(c))
-                row.addWidget(key)
+                row.addWidget(key, 2)          # every key two units, on every row
                 self.keys.append(key)
-            row.addStretch(1)
+            if edge:
+                row.addStretch(edge)
             self.rows.addLayout(row)
 
         last = QtWidgets.QHBoxLayout()
         last.setSpacing(self.win.px(8))
+        spare = 0
         if self.layer == 0:
-            shift = Key(SHIFT, self.win, wide=1.6)
+            shift = Key(SHIFT, self.win, wide=1.5)
             shift.setObjectName("keyShift" if self.shifted else "key")
             shift.setCheckable(True)
             shift.setChecked(self.shifted)
             shift.clicked.connect(self.flip_shift)
-            last.addWidget(shift)
+            last.addWidget(shift, 3)
             self.shift_key = shift
+        else:
+            spare = 3        # no shift on the symbol layers, so the space bar takes its room
         swap = Key("123" if self.layer == 0 else ("#+=" if self.layer == 1 else "abc"),
-                   self.win, wide=1.6)
+                   self.win, wide=1.5)
         swap.clicked.connect(self.next_layer)
-        last.addWidget(swap)
-        space = Key(" ", self.win, wide=5.0)
+        last.addWidget(swap, 3)
+        space = Key(" ", self.win, wide=4.0)
         space.setToolTip(self.win.t("keys.space"))
         space.clicked.connect(lambda: self.press(" "))
-        last.addWidget(space)
-        rub = Key(BACK, self.win, wide=1.6)
+        last.addWidget(space, 8 + spare)
+        rub = Key(BACK, self.win, wide=1.5)
         rub.clicked.connect(self.rubbed_out.emit)
-        last.addWidget(rub)
-        enter = Key(DONE, self.win, wide=1.6)
+        last.addWidget(rub, 3)
+        enter = Key(DONE, self.win, wide=1.5)
         enter.setObjectName("keyDone")
         enter.clicked.connect(self.finished.emit)
-        last.addWidget(enter)
+        last.addWidget(enter, 3)
         self.rows.addLayout(last)
 
     def press(self, character: str) -> None:

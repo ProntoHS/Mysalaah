@@ -797,6 +797,32 @@ picture, and draws its own numbers and labels, so a prayer can have any number o
 `salaah/pages.py`, including where the hands are: folded for the recitation, at the sides from
 standing up after bowing until prostration.
 
+## Where the mat is
+
+Settings has a Location row. Type a postcode, see the prayer times it would give **before**
+saving, then keep it or go back. Showing the times first is the point rather than a flourish:
+the failure this exists to stop is a mat that is confidently wrong -- Bury's times in
+Birmingham, with nothing on screen to suggest it -- and a Fajr that is plainly forty minutes out
+is how a typo gets caught before it becomes a fortnight's timetable.
+
+A postcode DISTRICT, the `BL9` before the space, is the unit. Measured with the mat's own sums
+at Bury: 5km of error moves the times under a minute, 15km by one, and it takes 60km to move
+them by five. A district is a few km across, so it is comfortably inside a minute -- and a town
+list would be worse, since "Manchester" is sixty km of sprawl. It is also small enough to carry:
+3,077 districts is 88KB, against 70MB for 1.8 million full postcodes, and it works with no
+internet at all, which is the whole point.
+
+Rebuild the table with:
+
+    git clone --depth 1 https://github.com/odileeds/Postcodes2LatLon.git
+    python3 tools/build_postcodes.py Postcodes2LatLon/postcodes
+
+**Licence.** The coordinates come from the National Statistics Postcode Lookup under the Open
+Government Licence, and that requires attribution. It is written into
+`assets/content/postcodes.json` and a test fails if it is ever dropped: contains OS data
+(c) Crown copyright and database right; contains Royal Mail data (c) Royal Mail copyright and
+database right; contains National Statistics data (c) Crown copyright and database right.
+
 ## Wi-Fi
 
 Settings has a Wi-Fi row. It is a screen you go to, not a box that appears over whatever is on

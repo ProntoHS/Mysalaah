@@ -2526,6 +2526,45 @@ class MainWindow(QtWidgets.QWidget):
 
     # Settings
 
+    def open_place(self) -> None:
+        """Go to the postcode screen. Not while praying."""
+        if self.playing or self.asleep:
+            return
+        self.stir()
+        if getattr(self, "place_screen", None) is None:
+            from .placescreen import PlaceScreen
+            screen = PlaceScreen(self)
+            screen.leave.clicked.connect(self.open_settings)
+            screen.saved.connect(self.moved_to)
+            self.place_screen = screen
+            page = QtWidgets.QWidget()
+            lay = QtWidgets.QVBoxLayout(page)
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.setSpacing(0)
+            lay.addWidget(self.make_banner(gear=False, home=True))
+            lay.addWidget(screen, 1)
+            self.place_page = page
+            self.stack.addWidget(page)
+        self.place_screen.redraw()
+        self.stack.setCurrentWidget(self.place_page)
+
+    def moved_to(self, outward: str, latitude: float, longitude: float) -> None:
+        """A postcode was kept. Everything that knows where the mat is has to be told: the
+        times are worked out fresh, the strip is redrawn, and it is written down so the mat
+        still knows where it is after a restart."""
+        self.settings.place = outward
+        self.settings.latitude = latitude
+        self.settings.longitude = longitude
+        self.settings.save()
+        # The times cache keys on latitude and longitude, so moving invalidates it by itself.
+        # Cleared anyway rather than relied on: a cache that decides for itself when it is stale
+        # is exactly the thing that would show the old town's times for the rest of the day.
+        self._times_key = None
+        if getattr(self, "place_label", None) is not None:
+            self.place_label.setText(outward)
+        self.tick()
+        self.open_settings()
+
     def open_wifi(self) -> None:
         """Go to the Wi-Fi screen. Not while praying: the big screen is busy and the touch is
         almost certainly a stray knee."""
@@ -2744,6 +2783,20 @@ class MainWindow(QtWidgets.QWidget):
         self.wifi_button.setObjectName("pill")
         self.wifi_button.clicked.connect(self.open_wifi)
         wifi_row.addWidget(self.wifi_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        # Where the mat is, on the same line. Until this existed the coordinates were whatever
+        # was in the settings file and there was no way to change them -- carry the mat anywhere
+        # and it kept showing Bury's times with nothing to say so.
+        #
+        # Both on one row rather than two because two put a 1920x1080 monitor 41px into
+        # scrolling, which a test caught. They belong together anyway: both are about where the
+        # mat is and what it can reach.
+        self.place_button = no_focus(QtWidgets.QPushButton(self.t("place.row")))
+        self.place_button.setObjectName("pill")
+        self.place_button.clicked.connect(self.open_place)
+        wifi_row.addWidget(self.place_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.place_label = QtWidgets.QLabel(self.settings.place or "")
+        self.place_label.setObjectName("settingValue")
+        wifi_row.addWidget(self.place_label, 0, Qt.AlignmentFlag.AlignVCenter)
         wifi_row.addStretch(1)
         right.addLayout(wifi_row)
         right.addStretch(1)

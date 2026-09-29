@@ -241,6 +241,14 @@
         "why.permission": "此拜毯无权更改网络。",
         "why.missing": "此拜毯没有网络设置。",
         "why.no_internet": "已加入网络，但没有互联网。",
-        "why.unknown": "无法连接。"
+        "why.unknown": "无法连接。",
+        "place.title": "拜毯的位置",
+        "place.row": "位置",
+        "place.ask": "请输入邮编，例如 BL9",
+        "place.found": "{code} — 今天的时间如下",
+        "place.unknown": "{code} 不是已知的邮编",
+        "place.no_table": "此拜毯缺少邮编数据",
+        "place.save": "使用此位置",
+        "place.now": "当前：{name}"
     }
 }

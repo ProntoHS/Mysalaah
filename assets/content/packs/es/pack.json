@@ -241,6 +241,14 @@
         "why.permission": "Esta alfombra no puede cambiar la red.",
         "why.missing": "Los ajustes de red no están disponibles.",
         "why.no_internet": "Red conectada, pero sin internet.",
-        "why.unknown": "No se pudo conectar."
+        "why.unknown": "No se pudo conectar.",
+        "place.title": "Dónde está la alfombra",
+        "place.row": "Ubicación",
+        "place.ask": "Escriba un código postal, por ejemplo BL9",
+        "place.found": "{code} — estos serían los horarios de hoy",
+        "place.unknown": "{code} no es un código postal conocido",
+        "place.no_table": "Falta la tabla de códigos postales",
+        "place.save": "Usar este lugar",
+        "place.now": "Ahora: {name}"
     }
 }
