@@ -890,6 +890,22 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#bigTitle {{ color:{c.ink}; }}
             QLabel#bigDetail {{ color:{c.stone}; }}
             QLabel#h1 {{ font-size:{px(64)}px; font-weight:bold; }}
+            QLabel#wifiName {{ font-size:{px(30)}px; font-weight:bold; color:{c.strong}; }}
+            QLabel#wifiLock {{ font-size:{px(26)}px; color:{c.stone}; }}
+            QLabel#wifiField {{ font-size:{px(38)}px; color:{c.strong}; letter-spacing:{px(3)}px;
+                                border:{px(3)}px solid {c.line}; border-radius:{px(10)}px;
+                                padding:{px(8)}px {px(16)}px; }}
+            QLabel#wifiTrouble {{ font-size:{px(24)}px; color:{BRICK}; }}
+            QPushButton#key {{ background:{c.paper}; color:{c.strong};
+                               border:{px(2)}px solid {c.line}; border-radius:{px(10)}px;
+                               font-size:{px(32)}px; font-weight:bold; }}
+            QPushButton#key:pressed {{ background:{c.pale}; border-color:{c.lapis}; }}
+            QPushButton#keyShift {{ background:{c.pale}; color:{c.lapis};
+                                    border:{px(3)}px solid {c.lapis}; border-radius:{px(10)}px;
+                                    font-size:{px(32)}px; font-weight:bold; }}
+            QPushButton#keyDone {{ background:{LAPIS}; color:white; border:none;
+                                   border-radius:{px(10)}px; font-size:{px(32)}px;
+                                   font-weight:bold; }}
             QLabel#namePlate {{ background:white; color:black; font-size:{px(52)}px;
                               font-weight:bold; padding:{px(14)}px {px(48)}px; }}
             QFrame#duaCard {{ background:{c.paper}; border:{px(2)}px solid {c.line};
@@ -2510,6 +2526,30 @@ class MainWindow(QtWidgets.QWidget):
 
     # Settings
 
+    def open_wifi(self) -> None:
+        """Go to the Wi-Fi screen. Not while praying: the big screen is busy and the touch is
+        almost certainly a stray knee."""
+        if self.playing or self.asleep:
+            return
+        self.stir()
+        if getattr(self, "wifi_screen", None) is None:
+            from .wifiscreen import WifiScreen
+            screen = WifiScreen(self)
+            screen.leave.clicked.connect(self.open_settings)
+            self.wifi_screen = screen
+            # The same strip as every other screen. Where you are, what is next, how loud it is
+            # and the way home belong in the same place wherever you have got to -- a screen
+            # without it reads as having left the app, which is the one thing this must not do.
+            page = QtWidgets.QWidget()
+            lay = QtWidgets.QVBoxLayout(page)
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.setSpacing(0)
+            lay.addWidget(self.make_banner(gear=False, home=True))
+            lay.addWidget(screen, 1)
+            self.wifi_page = page
+            self.stack.addWidget(page)
+        self.stack.setCurrentWidget(self.wifi_page)
+
     def open_settings(self) -> None:
         self.devices_label.setText(self.devices_text())
         self.update_status()
@@ -2691,6 +2731,21 @@ class MainWindow(QtWidgets.QWidget):
         ring.addWidget(self.devices_label, 0, Qt.AlignmentFlag.AlignVCenter)
         ring.addStretch(1)
         right.addLayout(ring)
+
+        # Wi-Fi. A row here rather than a box that appears over whatever is on the mat: this
+        # screen shows prayer times in a room, and a dialog seizing it mid-prayer would be
+        # worse than no wifi. The only thing that offers it unprompted is the line where
+        # something actually failed for want of a network.
+        wifi_row = QtWidgets.QHBoxLayout()
+        wifi_row.setSpacing(self.px(14))
+        self.wifi_dot = Dot(self.px(28))
+        wifi_row.addWidget(self.wifi_dot, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.wifi_button = no_focus(QtWidgets.QPushButton(self.t("wifi.row")))
+        self.wifi_button.setObjectName("pill")
+        self.wifi_button.clicked.connect(self.open_wifi)
+        wifi_row.addWidget(self.wifi_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        wifi_row.addStretch(1)
+        right.addLayout(wifi_row)
         right.addStretch(1)
 
         # No way out to the desktop: the mat is the product, and there is nothing behind it to

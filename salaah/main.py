@@ -85,6 +85,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.inset is not None:
         settings.inset = max(0, args.inset)
         settings.save()
+    # If somebody has written a network onto the SD card, join it before anything else -- this
+    # is the way in when the mat is somewhere new and the screen cannot be reached, and it is
+    # the one path that must work when everything else has failed. It never stops the mat
+    # starting: whatever happens it prints a line and carries on.
+    try:
+        from datetime import datetime
+        from .network import Wifi, join_from_the_card
+        said = join_from_the_card(Wifi(), when=datetime.now().strftime("%Y-%m-%d %H:%M"))
+        if said:
+            print(said, file=sys.stderr)
+    except Exception as why:                       # never let the way in take the mat down
+        print(f"wifi: the card could not be read ({why})", file=sys.stderr)
+
     # The compass is switched off for now (ui.QIBLA), so the chip is not looked for.
     compass = find_compass(stand_in=args.compass_stand_in) if QIBLA else NoCompass()
     print(f"compass: {compass.name}", file=sys.stderr)

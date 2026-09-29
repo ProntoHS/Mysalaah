@@ -797,6 +797,45 @@ picture, and draws its own numbers and labels, so a prayer can have any number o
 `salaah/pages.py`, including where the hands are: folded for the recitation, at the sides from
 standing up after bowing until prostration.
 
+## Wi-Fi
+
+Settings has a Wi-Fi row. It is a screen you go to, not a box that appears over whatever is on
+the mat: this screen shows prayer times in a room, and a dialog seizing it mid-prayer would be
+worse than no wifi at all.
+
+Everything goes through `nmcli`, so no desktop is involved and the mat never leaves the app.
+Three things it is careful about, all learned from the real mat:
+
+- **Joined is not online.** The mat spent an evening associated to the wifi and unable to resolve
+  a name. Nothing is called a success until a lookup works.
+- **A failed attempt puts the old network back.** Getting a password wrong must not cost somebody
+  the connection they already had.
+- **It says which thing went wrong.** Wrong password, out of range, and a router that never
+  answers need three different things doing about them.
+
+The network list is deduplicated by name: a mesh, or 2.4 and 5GHz under one name, reports the
+same network several times, and the real mat saw its own five times.
+
+### The way in when the screen itself is broken
+
+This is the one feature on the mat that cannot be fixed by shipping a new version — a broken
+wifi screen on a mat with no network has no route in. `run.sh` puts the previous version back
+when a new one CRASHES, but a version that starts fine and has a useless wifi screen sails past
+that guard.
+
+So there is a way in that does not involve the app. Write two lines onto the SD card's boot
+partition, which is FAT32 and readable from any Windows or Mac laptop, as
+`/boot/firmware/salaah-wifi.txt`:
+
+    network: TheirWifi
+    password: whatever it is
+
+The mat joins that network next time it starts, then **wipes the password from the file**,
+leaving a note of what it joined. NetworkManager keeps the credential from then on in its own
+root-only store. The plain text lives from the moment it is written until the mat's next start
+and no longer -- that shortens the exposure, it does not remove it. If joining fails the password
+is left alone, because it is the only thing there is to correct.
+
 ## Known limits (prototype)
 
 - **Fajr and Isha in high summer.** At Bury's latitude the sun only reaches about 13 degrees

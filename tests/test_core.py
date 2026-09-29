@@ -2609,3 +2609,285 @@ class HighLatitudeTest(unittest.TestCase):
         pole = Place(89.0, 0.0, "the pole")
         got = times_for(date(2026, 6, 21), pole)
         self.assertIsNone(got["fajr"], "it invented a Fajr at the north pole")
+
+
+class WifiTest(unittest.TestCase):
+    """Joining a network, tested against recorded nmcli output on a machine with no wifi.
+
+    Everything goes through a runner that can be swapped, so the real nmcli is never needed.
+    The recordings below are what Harry's mat actually printed, including its own network
+    appearing five times.
+    """
+
+    # straight from the mat: one network, five access points, one of them weak
+    REAL_SCAN = ("NOVA_26DU_A2:95:WPA2\n"
+                 "NOVA_26DU_A2:95:WPA2\n"
+                 "NOVA_26DU_A2:89:WPA2\n"
+                 "NOVA_26DU_A2:77:WPA2\n"
+                 "NOVA_26DU_A2:64:WPA2\n")
+    REAL_CONNECTIONS = ("NOVA_26DU_A2:802-11-wireless\n"
+                        "lo:loopback\n"
+                        "Wired connection 1:802-3-ethernet\n")
+
+    def wifi(self, replies, online=True):
+        """A Wifi whose nmcli is a lookup table, and a note of what was asked."""
+        from salaah.network import Wifi
+        asked = []
+
+        def runner(args, timeout=None):
+            asked.append(list(args))
+            for match, answer in replies:
+                if all(m in args for m in match):
+                    return answer
+            return 1, "", "unexpected"
+
+        w = Wifi(runner=runner, resolver=lambda name=None: online)
+        w.asked = asked
+        return w
+
+    def test_the_same_network_seen_five_times_is_listed_once(self):
+        w = self.wifi([(["wifi", "list"], (0, self.REAL_SCAN, "")),
+                       (["connection", "show"], (0, self.REAL_CONNECTIONS, ""))])
+        found = w.scan()
+        self.assertEqual(1, len(found), f"listed {[n.name for n in found]}")
+        self.assertEqual("NOVA_26DU_A2", found[0].name)
+        self.assertEqual(95, found[0].strength, "the strongest of the five should be kept")
+
+    def test_a_saved_network_is_marked_as_known(self):
+        w = self.wifi([(["wifi", "list"], (0, self.REAL_SCAN, "")),
+                       (["connection", "show"], (0, self.REAL_CONNECTIONS, ""))])
+        self.assertTrue(w.scan()[0].known, "the mat has joined this one before")
+
+    def test_a_network_it_has_never_seen_is_not_marked_known(self):
+        w = self.wifi([(["wifi", "list"], (0, "SomeCafe:70:WPA2\n", "")),
+                       (["connection", "show"], (0, self.REAL_CONNECTIONS, ""))])
+        self.assertFalse(w.scan()[0].known)
+
+    def test_networks_come_back_strongest_first(self):
+        scan = "Weak:20:WPA2\nStrong:90:WPA2\nMiddling:55:WPA2\n"
+        w = self.wifi([(["wifi", "list"], (0, scan, "")),
+                       (["connection", "show"], (0, "", ""))])
+        self.assertEqual(["Strong", "Middling", "Weak"], [n.name for n in w.scan()])
+
+    def test_an_open_network_is_not_marked_secured(self):
+        scan = "Free Wifi:60:\nLocked:60:WPA2\n"
+        w = self.wifi([(["wifi", "list"], (0, scan, "")),
+                       (["connection", "show"], (0, "", ""))])
+        got = {n.name: n.secured for n in w.scan()}
+        self.assertFalse(got["Free Wifi"])
+        self.assertTrue(got["Locked"])
+
+    def test_a_nameless_hidden_network_is_left_out(self):
+        """It has nothing to show on a row and nothing to tap."""
+        scan = ":80:WPA2\nReal:60:WPA2\n"
+        w = self.wifi([(["wifi", "list"], (0, scan, "")),
+                       (["connection", "show"], (0, "", ""))])
+        self.assertEqual(["Real"], [n.name for n in w.scan()])
+
+    def test_a_name_with_a_colon_in_it_survives(self):
+        r"""nmcli -t escapes them as \:. Splitting on every colon turns one network into two
+        pieces of nonsense."""
+        w = self.wifi([(["wifi", "list"], (0, "Joe\\: Wifi:70:WPA2\n", "")),
+                       (["connection", "show"], (0, "", ""))])
+        found = w.scan()
+        self.assertEqual(1, len(found))
+        self.assertEqual("Joe: Wifi", found[0].name)
+        self.assertEqual(70, found[0].strength)
+
+    def test_bars_run_from_nought_to_four(self):
+        from salaah.network import Network
+        got = [Network("x", s, True).bars for s in (0, 10, 40, 60, 95)]
+        self.assertEqual([0, 1, 2, 3, 4], got)
+
+    def test_joining_says_yes_only_when_a_name_really_resolves(self):
+        """The evening this was written for: nmcli happy, mat still unable to reach anything."""
+        w = self.wifi([(["connect"], (0, "successfully activated", "")),
+                       (["--active"], (0, "", ""))], online=False)
+        joined, why = w.join("NOVA_26DU_A2", "hunter2")
+        self.assertFalse(joined, "it called a network with no internet a success")
+        self.assertEqual("no_internet", why)
+
+    def test_joining_says_yes_when_it_does_resolve(self):
+        w = self.wifi([(["connect"], (0, "successfully activated", "")),
+                       (["--active"], (0, "", ""))], online=True)
+        joined, why = w.join("NOVA_26DU_A2", "hunter2")
+        self.assertTrue(joined, why)
+        self.assertEqual("", why)
+
+    def test_a_wrong_password_is_told_apart_from_being_out_of_range(self):
+        bad = self.wifi([(["connect"], (4, "", "Error: Secrets were required, but not provided")),
+                         (["--active"], (0, "", ""))])
+        self.assertEqual("password", bad.join("Net", "wrong")[1])
+        far = self.wifi([(["connect"], (10, "", "Error: No network with SSID 'Net' found.")),
+                         (["--active"], (0, "", ""))])
+        self.assertEqual("range", far.join("Net", "x")[1])
+
+    def test_a_failed_attempt_puts_the_old_network_back(self):
+        """A typo in the kitchen must not cost somebody the network they were already on."""
+        w = self.wifi([(["--active"], (0, "NOVA_26DU_A2:802-11-wireless:wlan0\n", "")),
+                       (["connect"], (4, "", "Error: Secrets were required, but not provided")),
+                       (["connection", "up"], (0, "", ""))])
+        joined, why = w.join("SomeCafe", "wrong")
+        self.assertFalse(joined)
+        self.assertEqual("password", why)
+        put_back = [a for a in w.asked if a[:2] == ["connection", "up"]]
+        self.assertEqual([["connection", "up", "NOVA_26DU_A2"]], put_back,
+                         "the network that was in use was not restored")
+
+    def test_it_does_not_bother_restoring_the_one_it_was_already_on(self):
+        w = self.wifi([(["--active"], (0, "NOVA_26DU_A2:802-11-wireless:wlan0\n", "")),
+                       (["connect"], (4, "", "Error: Secrets were required")),
+                       (["connection", "up"], (0, "", ""))])
+        w.join("NOVA_26DU_A2", "wrong")
+        self.assertEqual([], [a for a in w.asked if a[:2] == ["connection", "up"]])
+
+    def test_the_password_is_never_put_in_the_failure_message(self):
+        w = self.wifi([(["connect"], (4, "", "Error: Secrets were required for 'hunter2'")),
+                       (["--active"], (0, "", ""))])
+        _joined, why = w.join("Net", "hunter2")
+        self.assertNotIn("hunter2", why, "the password leaked into what gets shown")
+
+    def test_a_mat_with_no_wifi_card_is_not_offered_the_screen(self):
+        none = self.wifi([(["device", "status"], (0, "ethernet\nloopback\n", ""))])
+        self.assertFalse(none.there())
+        some = self.wifi([(["device", "status"], (0, "wifi\nethernet\nloopback\n", ""))])
+        self.assertTrue(some.there())
+
+    def test_nmcli_missing_altogether_is_a_refusal_not_a_crash(self):
+        w = self.wifi([([], (127, "", "nmcli is not installed"))])
+        self.assertEqual([], w.scan())
+        self.assertFalse(w.there())
+        self.assertEqual("missing", w.join("Net", "x")[1])
+
+
+class EscapeHatchTest(unittest.TestCase):
+    """The way onto a network when the wifi screen itself is what is broken.
+
+    This is the one thing on the mat that cannot be fixed by shipping a new version, so it is
+    tested harder than the screen it exists to rescue.
+    """
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        self.folder = Path(tempfile.mkdtemp())
+        self.card = self.folder / "salaah-wifi.txt"
+        self.addCleanup(lambda: __import__("shutil").rmtree(self.folder, ignore_errors=True))
+
+    def wifi(self, joined=True, why="", online=False):
+        from salaah.network import Wifi
+        calls = []
+
+        class Fake(Wifi):
+            def __init__(self):
+                super().__init__(runner=lambda *a, **k: (0, "", ""), resolver=lambda n=None: online)
+
+            def join(self, name, password=""):
+                calls.append((name, password))
+                return joined, why
+
+            def online(self):
+                return online
+
+        w = Fake()
+        w.calls = calls
+        return w
+
+    def test_it_reads_the_network_and_password(self):
+        from salaah.network import read_hatch
+        self.card.write_text("network: TheirWifi\npassword: hunter2\n", encoding="utf-8")
+        self.assertEqual(("TheirWifi", "hunter2"), read_hatch(self.card))
+
+    def test_a_password_with_a_colon_in_it_survives(self):
+        """Wifi passwords are allowed colons, and the file is 'key: value'. Splitting on every
+        colon would hand the router half a password and blame the user."""
+        from salaah.network import read_hatch
+        self.card.write_text("network: Cafe\npassword: a:b:c\n", encoding="utf-8")
+        self.assertEqual(("Cafe", "a:b:c"), read_hatch(self.card))
+
+    def test_spacing_and_case_and_comments_are_forgiven(self):
+        """Somebody types this on a laptop, probably in Notepad, probably in a hurry."""
+        from salaah.network import read_hatch
+        self.card.write_text("# my wifi\n\n  NETWORK :  Their Wifi  \n  Password:hunter2\n",
+                             encoding="utf-8")
+        self.assertEqual(("Their Wifi", "hunter2"), read_hatch(self.card))
+
+    def test_no_file_at_all_is_simply_nothing(self):
+        from salaah.network import read_hatch, join_from_the_card
+        self.assertEqual(("", ""), read_hatch(self.card))
+        self.assertEqual("", join_from_the_card(self.wifi(), self.card))
+
+    def test_it_joins_what_the_card_says(self):
+        from salaah.network import join_from_the_card
+        self.card.write_text("network: TheirWifi\npassword: hunter2\n", encoding="utf-8")
+        w = self.wifi(joined=True)
+        said = join_from_the_card(w, self.card, when="a Tuesday")
+        self.assertEqual([("TheirWifi", "hunter2")], w.calls)
+        self.assertIn("joined", said)
+
+    def test_the_password_is_wiped_once_it_has_been_used(self):
+        from salaah.network import join_from_the_card, read_hatch
+        self.card.write_text("network: TheirWifi\npassword: hunter2\n", encoding="utf-8")
+        join_from_the_card(self.wifi(joined=True), self.card, when="a Tuesday")
+        left = self.card.read_text(encoding="utf-8")
+        self.assertNotIn("hunter2", left, "the password is still on the card")
+        self.assertIn("TheirWifi", left, "it should still say what it joined")
+        self.assertEqual(("TheirWifi", ""), read_hatch(self.card))
+
+    def test_the_password_is_kept_if_joining_failed(self):
+        """Wiping a password that never worked would take away the only thing they could fix."""
+        from salaah.network import join_from_the_card
+        self.card.write_text("network: TheirWifi\npassword: hunter2\n", encoding="utf-8")
+        said = join_from_the_card(self.wifi(joined=False, why="password"), self.card)
+        self.assertIn("hunter2", self.card.read_text(encoding="utf-8"))
+        self.assertIn("password", said)
+
+    def test_it_does_nothing_when_the_mat_is_already_online(self):
+        """The card is a way in, not something that re-joins a network on every start."""
+        from salaah.network import join_from_the_card
+        self.card.write_text("network: TheirWifi\npassword: hunter2\n", encoding="utf-8")
+        w = self.wifi(online=True)
+        said = join_from_the_card(w, self.card)
+        self.assertEqual([], w.calls, "it joined a network despite already being online")
+        self.assertIn("already online", said)
+        self.assertNotIn("hunter2", self.card.read_text(encoding="utf-8"),
+                         "the password should still be cleared off the card")
+
+    def test_a_card_it_cannot_write_to_still_gets_the_mat_online(self):
+        """Being unable to tidy up must not be treated as being unable to connect.
+
+        The failure is injected rather than made with chmod, because these tests run as root
+        and root ignores file permissions -- a chmod 444 here wrote happily and the test passed
+        while proving nothing. On the mat the app runs as `pi` and a read-only card really is
+        read-only. What is under test is the handling, and that runs for real.
+        """
+        from unittest.mock import patch
+        from salaah.network import join_from_the_card
+        self.card.write_text("network: TheirWifi\npassword: hunter2\n", encoding="utf-8")
+        with patch("pathlib.Path.write_text", side_effect=OSError("read-only file system")):
+            said = join_from_the_card(self.wifi(joined=True), self.card)
+        self.assertIn("joined", said, "it should still report being on the network")
+        self.assertIn("could not clear", said, "it should say the password is still on the card")
+        self.assertIn("hunter2", self.card.read_text(encoding="utf-8"),
+                      "the fixture did not actually stop the write")
+
+    def test_rubbish_in_the_file_is_ignored_rather_than_thrown(self):
+        from salaah.network import read_hatch, join_from_the_card
+        for junk in ("", "\n\n", "hello", "network:\n", "\x00\xff binary", "password: lonely\n"):
+            self.card.write_text(junk, encoding="utf-8", errors="replace")
+            name, _ = read_hatch(self.card)
+            self.assertEqual("", name, f"{junk!r} should name no network")
+            self.assertEqual("", join_from_the_card(self.wifi(), self.card))
+
+    def test_an_open_network_needs_no_password_line(self):
+        from salaah.network import join_from_the_card
+        self.card.write_text("network: Free Library Wifi\n", encoding="utf-8")
+        w = self.wifi(joined=True)
+        join_from_the_card(w, self.card)
+        self.assertEqual([("Free Library Wifi", "")], w.calls)
+
+    def test_the_hatch_lives_on_the_boot_partition(self):
+        """It has to be somewhere a Windows or Mac laptop can write to with the card in a
+        reader. That is the FAT partition, and on Bookworm it is /boot/firmware."""
+        from salaah.network import HATCH
+        self.assertEqual("/boot/firmware/salaah-wifi.txt", str(HATCH))

@@ -7756,3 +7756,219 @@ class EmptyKindScreenTest(unittest.TestCase):
         at = button.mapTo(page, button.rect().center())
         self.assertGreater(at.x(), page.width() * 0.7, "not on the right")
         self.assertGreater(at.y(), page.height() * 0.7, "not at the bottom")
+
+
+class WifiScreenTest(unittest.TestCase):
+    """The Wi-Fi screen, driven against a fake nmcli. No radio is involved."""
+
+    SCAN = ("NOVA_26DU_A2:95:WPA2\nNOVA_26DU_A2:77:WPA2\nBT-HUB-9K2:64:WPA2\n"
+            "Free Library Wifi:38:\n")
+    SAVED = "NOVA_26DU_A2:802-11-wireless\nlo:loopback\n"
+
+    def window(self, online=True, join=(0, "ok", "")):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        self.asked = []
+
+        def runner(args, timeout=None):
+            self.asked.append(list(args))
+            if "list" in args:
+                return 0, self.SCAN, ""
+            if "--active" in args:
+                return 0, "NOVA_26DU_A2:802-11-wireless:wlan0\n", ""
+            if any("NAME,TYPE" in a for a in args):
+                return 0, self.SAVED, ""
+            if "connect" in args:
+                return join
+            return 0, "", ""
+
+        from salaah.network import Wifi
+        w.open_wifi()
+        settle()
+        w.wifi_screen.wifi = Wifi(runner=runner, resolver=lambda n=None: online)
+        return w
+
+    def scanned(self, w):
+        screen = w.wifi_screen
+        screen.look()
+        settle()
+        if screen.errand is not None:
+            screen.errand.wait(5000)
+        settle()
+        return screen
+
+    def test_the_wifi_row_in_settings_opens_it_without_leaving_the_app(self):
+        w = self.window()
+        w.open_settings()
+        settle()
+        self.assertTrue(w.wifi_button.isVisible(), "no way to Wi-Fi from Settings")
+        w.wifi_button.click()
+        settle()
+        self.assertIs(w.wifi_page, w.stack.currentWidget())
+
+    def test_it_wears_the_same_strip_as_every_other_screen(self):
+        """A screen without it reads as having left the app, which is the one thing it must
+        never do."""
+        w = self.window()
+        strips = [x for x in w.wifi_page.findChildren(QtWidgets.QWidget)
+                  if x.objectName() == "banner"]
+        self.assertTrue(strips, "the Wi-Fi screen has no strip")
+        home = [b for b in w.wifi_page.findChildren(QtWidgets.QPushButton)
+                if b.objectName() == "mainScreen"]
+        self.assertTrue(home, "no way back to the mat from the Wi-Fi screen")
+
+    def test_one_row_per_network_however_many_times_it_is_seen(self):
+        w = self.window()
+        screen = self.scanned(w)
+        names = [r.network.name for r in screen.network_rows()]
+        self.assertEqual(["NOVA_26DU_A2", "BT-HUB-9K2", "Free Library Wifi"], names)
+
+    def test_a_saved_secured_network_joins_without_asking_for_a_password(self):
+        w = self.window()
+        screen = self.scanned(w)
+        screen.network_rows()[0].click()          # NOVA: secured but already saved
+        settle()
+        self.assertEqual(0, screen.pages.currentIndex(),
+                         "it asked for a password it already has")
+
+    def test_an_open_network_joins_without_asking_either(self):
+        w = self.window()
+        screen = self.scanned(w)
+        screen.network_rows()[2].click()          # Free Library Wifi: no password
+        settle()
+        self.assertEqual(0, screen.pages.currentIndex())
+
+    def test_a_new_secured_network_asks_for_one(self):
+        w = self.window()
+        screen = self.scanned(w)
+        screen.network_rows()[1].click()          # BT-HUB: secured, never seen
+        settle()
+        self.assertEqual(1, screen.pages.currentIndex())
+        self.assertIn("BT-HUB-9K2", screen.asking.text())
+
+    def test_the_password_is_hidden_until_show_is_pressed(self):
+        w = self.window()
+        screen = self.scanned(w)
+        screen.network_rows()[1].click()
+        settle()
+        for ch in "Pa55":
+            screen.add(ch)
+        settle()
+        self.assertNotIn("Pa55", screen.field.text(), "the password is on screen in the clear")
+        self.assertEqual(4, len(screen.field.text()))
+        screen.reveal.setChecked(True)
+        settle()
+        self.assertEqual("Pa55", screen.field.text(),
+                         "Show password must really show it -- on a touchscreen there is no "
+                         "other way to tell a key missed")
+
+    def test_backspace_takes_one_character_off(self):
+        w = self.window()
+        screen = self.scanned(w)
+        screen.network_rows()[1].click()
+        settle()
+        for ch in "abc":
+            screen.add(ch)
+        screen.rub()
+        screen.reveal.setChecked(True)
+        settle()
+        self.assertEqual("ab", screen.field.text())
+
+    def test_shift_gives_one_capital_and_then_lets_go(self):
+        """A shift that stays on is how a whole password ends up in capitals unnoticed."""
+        w = self.window()
+        screen = self.scanned(w)
+        screen.network_rows()[1].click()
+        settle()
+        keys = screen.keys
+        keys.flip_shift()
+        self.assertIn("Q", keys.letters_on_show())
+        keys.press("Q")
+        settle()
+        self.assertIn("q", keys.letters_on_show(), "shift stayed on")
+        keys.press("b")
+        screen.reveal.setChecked(True)
+        settle()
+        self.assertEqual("Qb", screen.field.text())
+
+    def test_the_numbers_layer_has_digits_and_comes_back_to_letters(self):
+        w = self.window()
+        screen = self.scanned(w)
+        screen.network_rows()[1].click()
+        settle()
+        keys = screen.keys
+        keys.next_layer()
+        self.assertIn("1", keys.letters_on_show())
+        keys.next_layer()
+        keys.next_layer()
+        self.assertIn("q", keys.letters_on_show(), "it never got back to the letters")
+
+    def test_joining_with_no_internet_is_not_called_a_success(self):
+        """The evening that prompted all this: associated to the wifi, unable to reach a thing."""
+        w = self.window(online=False)
+        screen = self.scanned(w)
+        screen.network_rows()[1].click()
+        settle()
+        screen.go()
+        settle()
+        if screen.errand is not None:
+            screen.errand.wait(5000)
+        settle()
+        self.assertIn(w.t("why.no_internet"), screen.trouble.text() + screen.saying.text())
+
+    def test_a_wrong_password_says_so_rather_than_could_not_connect(self):
+        w = self.window(join=(4, "", "Error: Secrets were required, but not provided"))
+        screen = self.scanned(w)
+        screen.network_rows()[1].click()
+        settle()
+        screen.go()
+        settle()
+        if screen.errand is not None:
+            screen.errand.wait(5000)
+        settle()
+        said = screen.trouble.text() + screen.saying.text()
+        self.assertIn(w.t("why.password"), said)
+        self.assertNotIn(w.t("why.unknown"), said)
+
+    def test_the_password_is_dropped_the_moment_it_has_been_used(self):
+        w = self.window()
+        screen = self.scanned(w)
+        screen.network_rows()[1].click()
+        settle()
+        for ch in "hunter2":
+            screen.add(ch)
+        screen.go()
+        settle()
+        if screen.errand is not None:
+            screen.errand.wait(5000)
+        settle()
+        self.assertEqual("", screen.typed, "the password is still held after joining")
+        screen.reveal.setChecked(True)
+        settle()
+        self.assertNotIn("hunter2", screen.field.text())
+
+    def test_searching_again_does_not_bring_the_mat_down(self):
+        """The worker used to delete itself while the screen still pointed at it, and the
+        second press died on a deleted C++ object -- which on the mat is the app going."""
+        w = self.window()
+        for _ in range(3):
+            screen = self.scanned(w)
+        self.assertEqual(3, len(screen.network_rows()))
+
+    def test_it_is_left_alone_while_a_prayer_is_going_on(self):
+        w = self.window()
+        w.go_home()
+        settle()
+        was = w.stack.currentWidget()
+        with mock.patch.object(type(w), "playing", property(lambda _s: True)):
+            w.open_wifi()
+            settle()
+            self.assertIs(was, w.stack.currentWidget(), "a stray knee opened Wi-Fi mid-prayer")
