@@ -1850,9 +1850,13 @@ class DuaContentTest(unittest.TestCase):
         return Path(__file__).resolve().parent.parent / "assets"
 
     def duas(self):
+        """Only the ones taken from the Qur'an. The du'as that come from hadith are not slices
+        of verses and there is nothing here to re-derive them from -- they are checked against
+        two corpora when they are built, and their own test says the file records that."""
         import json
-        return json.loads((self.assets() / "content" / "duas" / "duas.json")
-                          .read_text(encoding="utf-8"))
+        whole = json.loads((self.assets() / "content" / "duas" / "duas.json")
+                           .read_text(encoding="utf-8"))
+        return [d for d in whole["items"] if d.get("verses")]
 
     def verse(self, lang, surah, number):
         import json
@@ -2006,12 +2010,18 @@ class PassagesTest(unittest.TestCase):
         return Passages(root or (Path(__file__).resolve().parent.parent / "assets"), section)
 
     def test_it_reads_both_sections(self):
-        self.assertEqual(10, len(self.loader("duas").items))
+        duas = self.loader("duas").items
+        self.assertEqual(10, len([d for d in duas if d.ref and ":" in d.ref]),
+                         "the ten Qur'anic du'as")
+        self.assertGreaterEqual(len(duas), 33, "the du'as from hadith as well")
         self.assertEqual(6, len(self.loader("kalima").items))
 
-    def test_both_sections_are_checked_now(self):
-        self.assertTrue(self.loader("duas").reviewed)
+    def test_the_kalima_are_checked_and_the_duas_are_not_yet(self):
+        """The kalima have been read through. The du'as now carry lines lifted from the hadith
+        collections whose English and filing nobody has been over, so the file says so -- and
+        saying so is the thing that must not quietly stop being true."""
         self.assertTrue(self.loader("kalima").reviewed)
+        self.assertFalse(self.loader("duas").reviewed)
 
     def test_a_kalima_knows_which_word_is_sounding(self):
         item = self.loader("kalima").at(0)
@@ -2353,7 +2363,7 @@ class DuaCategoriesTest(unittest.TestCase):
     def duas(self):
         import json
         return json.loads((self.assets / "content" / "duas" / "duas.json")
-                          .read_text(encoding="utf-8"))
+                          .read_text(encoding="utf-8"))["items"]
 
     def test_every_category_has_a_tile_drawn_for_it(self):
         for cat in self.cats:
@@ -2367,8 +2377,29 @@ class DuaCategoriesTest(unittest.TestCase):
 
     def test_every_dua_is_filed_under_a_category_that_exists(self):
         for d in self.duas():
-            self.assertIn("cat", d, f"{d['key']} is filed nowhere")
-            self.assertIn(d["cat"], self.cats, f"{d['key']} is filed under {d.get('cat')!r}")
+            self.assertTrue(d.get("cats"), f"{d['key']} is filed nowhere")
+            for cat in d["cats"]:
+                self.assertIn(cat, self.cats, f"{d['key']} is filed under {cat!r}")
+
+    def test_every_kind_has_at_least_two_duas_behind_it(self):
+        """What was asked for: two under every tile, so no kind opens on a near-empty screen."""
+        import collections
+        how_many = collections.Counter(c for d in self.duas() for c in d["cats"])
+        thin = {c: how_many[c] for c in self.cats if how_many[c] < 2}
+        self.assertEqual({}, thin, f"these kinds have fewer than two: {thin}")
+
+    def test_the_hadith_duas_carry_their_source_and_are_marked_unchecked(self):
+        """The Arabic was lifted from two corpora and nothing was typed from memory, but no
+        reviewer has been through the English or the filing. The file must say so."""
+        import json
+        whole = json.loads((self.assets / "content" / "duas" / "duas.json")
+                           .read_text(encoding="utf-8"))
+        self.assertFalse(whole["reviewed"], "the du'as are marked as checked, and they are not")
+        from_hadith = [d for d in self.duas() if d.get("from") == "hadith"]
+        self.assertGreaterEqual(len(from_hadith), 20)
+        for d in from_hadith:
+            self.assertTrue(d.get("ref", "").strip(), f"{d['key']} does not say where it is from")
+            self.assertTrue(d.get("arabic", "").strip(), f"{d['key']} has no Arabic")
 
     def test_every_pack_can_name_every_category(self):
         """A category with no word for it would head its screen with a blank."""

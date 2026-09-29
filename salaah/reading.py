@@ -400,12 +400,15 @@ class Reader(QtWidgets.QWidget):
         self.back_button.clicked.connect(self.back.emit)
         bar.addWidget(self.back_button)
 
-        # A glyph rather than the word "Recite": spelled out in six languages it crowded the
-        # language buttons off the bar and clipped "Arabic only" to "abic on". The word is on
-        # the tooltip for anyone who wonders.
-        self.recite_button = QtWidgets.QPushButton(PLAY)
+        # The drawn play mark rather than the word "Recite": spelled out in six languages it
+        # crowded the language buttons off the bar and clipped "Arabic only" to "abic on". It is
+        # the same mark that sits beside every du'a, so one thing means play across the app.
+        # The word is on the tooltip for anyone who wonders.
+        self.recite_button = QtWidgets.QPushButton()
         self.recite_button.setObjectName("reciteButton")
         self.recite_button.setToolTip(self.win.t("quran.recite"))
+        self.reciting_now = False
+        self.draw_recite_mark()
 
         self.recite_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.recite_button.clicked.connect(self.toggle_reciting)
@@ -503,6 +506,16 @@ class Reader(QtWidgets.QWidget):
         wanted = self.back_button.size()
         if wanted.width() > 0 and self.recite_button.size() != wanted:
             self.recite_button.setFixedSize(wanted)
+            self.draw_recite_mark()
+
+    def draw_recite_mark(self) -> None:
+        """Redraw the mark at the button's size and the theme's ink."""
+        from .ui import play_icon
+        from .theme import palette
+        side = max(self.win.px(30), int(self.recite_button.height() * 0.62)) or self.win.px(30)
+        icon = play_icon(side, palette().ink, stop=self.reciting_now)
+        self.recite_button.setIcon(QtGui.QIcon(icon))
+        self.recite_button.setIconSize(icon.size())
 
     def showEvent(self, ev):
         super().showEvent(ev)
@@ -541,7 +554,8 @@ class Reader(QtWidgets.QWidget):
         start, _end = self.spread.pages[max(0, min(self.spread.at, len(self.spread.pages) - 1))]
         self.reciting = True
         self.at_verse = start
-        self.recite_button.setText(STOP)
+        self.reciting_now = True
+        self.draw_recite_mark()
         self.recite_button.setToolTip(self.win.t("quran.stop_reciting"))
         self.begin_verse()
         self.follow.start()
@@ -556,7 +570,8 @@ class Reader(QtWidgets.QWidget):
         self.win.recitation.stop()
         self.spread.clear_highlight()
         self.saying.setText(said)
-        self.recite_button.setText(PLAY)
+        self.reciting_now = False
+        self.draw_recite_mark()
         self.recite_button.setToolTip(self.win.t("quran.recite"))
 
     def begin_verse(self) -> None:

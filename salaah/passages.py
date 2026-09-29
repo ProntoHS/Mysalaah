@@ -46,7 +46,8 @@ class Passage:
     ref: str               # "2:201", or "The Word of Purity"
     arabic: str
     said: str              # the transliteration
-    cat: str = ""          # which du'a category it is filed under, if any
+    cats: tuple = ()       # the du'a kinds it is filed under; a du'a can sit
+                           # under more than one, and most of them do
     text: dict = field(default_factory=dict)      # language -> meaning
     trimmed: tuple = ()    # languages showing only the supplication, not the whole verse
     audio: str = ""        # a file under assets/audio, if there is a recording
@@ -111,7 +112,7 @@ class Passages:
                 continue            # a half-copied file shows what it has, not an error screen
             self._items.append(Passage(
                 key=str(row.get("key", "")),
-                cat=str(row.get("cat", "")),
+                cats=tuple(str(c) for c in (row.get("cats") or [])),
                 title=str(row.get("title", "")),
                 ref=str(row.get("ref", "")),
                 arabic=str(row["arabic"]),
@@ -193,7 +194,7 @@ class PassageList(QtWidgets.QWidget):
 
     def wanted(self) -> list[tuple[int, Passage]]:
         return [(i, item) for i, item in enumerate(self.passages.items)
-                if self.only is None or item.cat == self.only]
+                if self.only is None or self.only in item.cats]
 
     def fill(self) -> None:
         want = (self.only, len(self.passages.items))

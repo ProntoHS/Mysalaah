@@ -41,29 +41,29 @@ QUOTES = '"“”«»‘’'
 # Ten du'as. 'drop' is how many words to lose from the front of that verse, per language.
 # Read off the verified text, never typed from memory -- see the note at the top.
 DUAS = [
-    dict(key="both_worlds", cat="general", title="Good in this world and the next",
+    dict(key="both_worlds", cats=('general',), title="Good in this world and the next",
          parts=[(2, 201, {"ar": 3, "said": 3, "en": 7})]),
-    dict(key="no_burden", cat="worry", title="Do not burden us beyond our strength",
+    dict(key="no_burden", cats=('worry', 'forgiveness', 'protection'), title="Do not burden us beyond our strength",
          parts=[(2, 286, {"ar": 12, "said": 12, "en": 35})]),
-    dict(key="steady_heart", cat="guidance", title="Let not our hearts turn away",
+    dict(key="steady_heart", cats=('guidance', 'general'), title="Let not our hearts turn away",
          parts=[(3, 8, {"en": 2})]),
-    dict(key="wronged_ourselves", cat="forgiveness", title="We have wronged ourselves",
+    dict(key="wronged_ourselves", cats=('forgiveness',), title="We have wronged ourselves",
          parts=[(7, 23, {"ar": 1, "said": 1, "en": 2})]),
-    dict(key="steadfast_in_prayer", cat="prayer", title="Make me steadfast in prayer",
+    dict(key="steadfast_in_prayer", cats=('prayer', 'family'), title="Make me steadfast in prayer",
          parts=[(14, 40, {}), (14, 41, {})]),
-    dict(key="open_my_chest", cat="worry", title="Expand my breast and ease my task",
+    dict(key="open_my_chest", cats=('worry', 'knowledge'), title="Expand my breast and ease my task",
          parts=[(20, 25, {"ar": 1, "said": 1, "en": 2}), (20, 26, {}),
                 (20, 27, {}), (20, 28, {})]),
     # "and say" kept on the front of these two: slicing after it leaves a shadda on رَّبِّ that
     # belongs to the word before, which reads oddly standing alone. Including it is still a
     # plain slice -- nothing edited -- and it is how the verse is usually quoted.
-    dict(key="more_knowledge", cat="knowledge", title="Increase me in knowledge",
+    dict(key="more_knowledge", cats=('knowledge',), title="Increase me in knowledge",
          parts=[(20, 114, {"ar": 13, "said": 13, "en": 30})]),
-    dict(key="no_deity_but_you", cat="worry", title="There is no deity except You",
+    dict(key="no_deity_but_you", cats=('worry', 'forgiveness'), title="There is no deity except You",
          parts=[(21, 87, {"ar": 14, "said": 14, "en": 30})]),
-    dict(key="forgive_and_mercy", cat="forgiveness", title="Forgive, and have mercy",
+    dict(key="forgive_and_mercy", cats=('forgiveness',), title="Forgive, and have mercy",
          parts=[(23, 118, {"ar": 0, "said": 0, "en": 4})]),
-    dict(key="comfort_of_family", cat="family", title="Comfort in our families",
+    dict(key="comfort_of_family", cats=('family', 'guidance'), title="Comfort in our families",
          parts=[(25, 74, {"ar": 2, "said": 2, "en": 4})]),
 ]
 
@@ -117,11 +117,12 @@ def build_one(spec: dict, langs: tuple[str, ...]) -> dict:
     first, last = spec["parts"][0], spec["parts"][-1]
     ref = (f"{first[0]}:{first[1]}" if first is last
            else f"{first[0]}:{first[1]}-{last[1]}")
-    if spec["cat"] not in CATEGORIES:
-        raise SystemExit(f"{spec['key']}: no such category {spec['cat']!r}")
+    for cat in spec["cats"]:
+        if cat not in CATEGORIES:
+            raise SystemExit(f"{spec['key']}: no such category {cat!r}")
     return {
         "key": spec["key"],
-        "cat": spec["cat"],
+        "cats": list(spec["cats"]),
         "title": spec["title"],
         "ref": ref,
         "verses": [[p[0], p[1]] for p in spec["parts"]],
@@ -147,9 +148,34 @@ def main() -> int:
         print("Two du'as share a key.", file=sys.stderr)
         return 1
 
+    # The du'as that come from hadith are built separately, by tools/build_dua_hadith.py, which
+    # lifts their Arabic out of two corpora. They are folded in here so the mat still reads one
+    # file. If that file is not there the Qur'anic ones are written on their own rather than
+    # failing -- but it is said plainly, because most of the kinds would then be empty.
+    from_hadith = OUT / "hadith.json"
+    extra, reviewed = [], True
+    if from_hadith.is_file():
+        other = json.loads(from_hadith.read_text(encoding="utf-8"))
+        extra = other.get("items", [])
+        reviewed = bool(other.get("reviewed", False))
+        for d in extra:
+            for cat in d.get("cats", []):
+                if cat not in CATEGORIES:
+                    print(f"{d['key']}: no such category {cat!r}", file=sys.stderr)
+                    return 1
+    else:
+        print(f"No {from_hadith.name}: writing the Qur'anic du'as only. Most of the kinds on "
+              f"the menu will have nothing behind them. Run tools/build_dua_hadith.py.",
+              file=sys.stderr)
+    built = built + extra
+
     OUT.mkdir(parents=True, exist_ok=True)
     where = OUT / "duas.json"
-    where.write_text(json.dumps(built, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    where.write_text(json.dumps({
+        "schema": 1,
+        "reviewed": reviewed,
+        "items": built,
+    }, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"{len(built)} du'as -> {where}")
     print(f"languages: {', '.join(langs)}  (trimmed: {', '.join(l for l in langs if l in CUT)})")
     for d in built:

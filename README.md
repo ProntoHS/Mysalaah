@@ -818,13 +818,28 @@ standing up after bowing until prostration.
   the non-Qur'anic wordings were typed from memory of the standard Hanafi texts. Both need
   checking by a qualified reviewer before anyone relies on them.
 - A Bluetooth keyboard paired with the Pi would also be treated as the prayer button.
-- The du'a menu has eighteen kinds and only five of them have anything behind them. The ten
-  du'as on the mat are all Qur'anic, and the kinds that are empty -- morning, evening, sleep,
-  waking, food, home, mosque, travel, protection, gratitude, health, forgiveness in part -- are
-  the ones whose du'as come from hadith rather than the Qur'an. Nothing has been typed in from
-  memory to fill them. The route to filling them is the one the daily sayings took: the wording
-  lifted from a public-domain dataset and checked letter for letter against the MIT-licensed
-  'hadith' corpus, which has 62,178 narrations and had no part in producing the file. A probe of
-  that corpus found wordings for twelve of the thirteen empty kinds, so the work is possible --
-  it has not been done. Which kind a du'a is filed under is a judgement, and it lives in one
-  word per du'a in tools/build_duas.py so a reviewer can move one by changing that word.
+- The du'as are in two parts. The ten Qur'anic ones are sliced out of the Qur'an already on the
+  mat by `tools/build_duas.py`, so not one word of Arabic is typed in that file. The twenty-three
+  from hadith are built by `tools/build_dua_hadith.py`, which does the same job a different way:
+  each one carries two ANCHORS, a few words at its start and a few at its end, and the tool finds
+  a narration holding both and lifts the text between them out of the corpus, vowels and all.
+  Nothing is typed from memory there either. Every line is then looked for again in a second,
+  independent dataset, and only the seven collections BOTH datasets carry are used -- lifting
+  from Musnad Ahmad and checking against a corpus that does not contain it would be no check at
+  all. A du'a that cannot be lifted, or that the second corpus lacks, is refused and not written.
+  Rebuild with:
+
+      python3 tools/build_dua_hadith.py --second <folder of hadith-api ara-*.json>
+      python3 tools/build_duas.py
+
+  `assets/content/duas/duas.json` says `reviewed: false` and it means it. The Arabic is the
+  corpora's, letter for letter; the English is a plain rendering written for this app; where each
+  du'a starts and stops, and which of the eighteen kinds it is filed under, are judgements made
+  here. All three need a qualified reviewer. The filing is one line per du'a in the two builders
+  so a reviewer can move one by changing a word.
+- The du'as from hadith have no transliteration. The Qur'anic ones do, because it came out of the
+  checked Qur'an text; typing twenty-three more by hand is the sort of thing this project has
+  avoided everywhere else, so the line is left out rather than guessed at and the card shows no
+  gap where it would be.
+- There are no recordings of the du'as yet. The play mark on each card opens the du'a for now, so
+  it is not a dead button; it is where the audio goes once there is any.

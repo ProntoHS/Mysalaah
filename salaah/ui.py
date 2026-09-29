@@ -27,6 +27,7 @@ from .side import SideWindow
 from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .duamenu import DuaMenu
+from .duaboard import DuaBoard
 from .recite import Store, WordTimes
 from .call import Adhan, CallBox
 from .reading import LIST_BAR, NUMBER_LINE, Reader, SurahList
@@ -143,6 +144,48 @@ def map_pin(size: int, colour: str) -> QtGui.QPixmap:
     p.drawPath(body.united(tip).subtracted(hole))
     p.end()
     return pin
+
+
+def play_icon(size: int, colour: str, stop: bool = False) -> QtGui.QPixmap:
+    """A ring with a play triangle inside it, drawn rather than loaded.
+
+    The same mark is wanted beside every du'a and on the Qur'an's recite button, at sizes from a
+    row's height to a bar's. Drawn, it is sharp at all of them and takes the colour of whatever
+    it sits on, so one icon serves the light screen and the dark one. A picture would need two
+    copies and would go soft on the big screen.
+
+    With `stop` it becomes a square in the same ring, so the button does not change shape when
+    the recitation starts.
+    """
+    icon = QtGui.QPixmap(size, size)
+    icon.fill(Qt.GlobalColor.transparent)
+    p = QtGui.QPainter(icon)
+    p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+    ink = QtGui.QColor(colour)
+    line = max(2.0, size * 0.075)
+    middle = QtCore.QPointF(size / 2, size / 2)
+    ring = size / 2 - line / 2 - size * 0.04
+    pen = QtGui.QPen(ink, line)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawEllipse(middle, ring, ring)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(ink)
+    if stop:
+        side = size * 0.30
+        p.drawRect(QtCore.QRectF(middle.x() - side / 2, middle.y() - side / 2, side, side))
+    else:
+        # Set a little right of centre: a triangle centred on its bounding box looks left-heavy
+        # inside a ring, which is why every play button in the world is nudged across.
+        reach = size * 0.21
+        mark = QtGui.QPainterPath()
+        mark.moveTo(middle.x() - reach * 0.82 + size * 0.03, middle.y() - reach)
+        mark.lineTo(middle.x() + reach * 1.02 + size * 0.03, middle.y())
+        mark.lineTo(middle.x() - reach * 0.82 + size * 0.03, middle.y() + reach)
+        mark.closeSubpath()
+        p.drawPath(mark)
+    p.end()
+    return icon
 
 
 class Dot(QtWidgets.QWidget):
@@ -847,6 +890,20 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#bigTitle {{ color:{c.ink}; }}
             QLabel#bigDetail {{ color:{c.stone}; }}
             QLabel#h1 {{ font-size:{px(64)}px; font-weight:bold; }}
+            QLabel#namePlate {{ background:white; color:black; font-size:{px(52)}px;
+                              font-weight:bold; padding:{px(14)}px {px(48)}px; }}
+            QFrame#duaCard {{ background:{c.paper}; border:{px(2)}px solid {c.line};
+                              border-radius:{px(10)}px; }}
+            QLabel#duaCardName {{ font-size:{px(26)}px; font-weight:bold; color:{c.strong};
+                                  border:none; }}
+            QLabel#duaCardArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
+                                    font-size:{px(38)}px; color:{c.strong}; border:none; }}
+            QLabel#duaCardSaid {{ font-size:{px(20)}px; color:{c.stone};
+                                  font-style:italic; border:none; }}
+            QLabel#duaCardMeaning {{ font-size:{px(22)}px; color:{c.ink}; border:none; }}
+            QToolButton#duaPlay {{ background:transparent; border:none; }}
+            QToolButton#duaPlay:pressed {{ background:{c.pressed};
+                                           border-radius:{px(8)}px; }}
             QLabel#h2 {{ font-size:{px(30)}px; color:{c.lapis}; font-weight:bold; }}
             QLabel#sub {{ font-size:{px(28)}px; color:{c.stone}; }}
             QLabel#note {{ font-size:{px(22)}px; color:{c.stone}; }}
@@ -941,10 +998,10 @@ class MainWindow(QtWidgets.QWidget):
             /* The same metrics as the Back button beside it, so the pair reads as a pair.
                Its width is matched to Back's at runtime too, because "Back" is a different
                length in every language and the glyph is always one character wide. */
-            QPushButton#reciteButton {{ background:{c.lapis}; color:{c.paper}; border:none;
-                                        border-radius:{px(8)}px; font-size:{px(28)}px;
-                                        font-weight:bold; padding:{px(12)}px {px(30)}px; }}
-            QPushButton#reciteButton:pressed {{ background:{c.chip}; }}
+            QPushButton#reciteButton {{ background:transparent; border:none;
+                                        padding:{px(4)}px; }}
+            QPushButton#reciteButton:pressed {{ background:{c.pale};
+                                                border-radius:{px(8)}px; }}
             QLabel#sayingVerse {{ font-size:{px(22)}px; color:{c.highlight};
                                   padding-left:{px(8)}px; }}
             QLabel#readerWhere {{ font-size:{px(24)}px; color:{c.stone};
@@ -1274,6 +1331,14 @@ class MainWindow(QtWidgets.QWidget):
         else:
             menu.deleteLater()
 
+        # The du'as of one kind are shown on a board rather than in a list: a kind holds two to
+        # five and they all fit, so there is nothing to scroll for.
+        self.dua_board = DuaBoard(self, self.duas)
+        self.dua_board.chose.connect(lambda n: self.open_passage("duas", n))
+        self.dua_board.play.connect(self.say_a_dua)
+        self.dua_board.back_button.clicked.connect(self.open_the_kinds_of_dua)
+        stack.addWidget(self.dua_board)
+
         self.corner_soon = self.page_soon()
         stack.addWidget(self.corner_soon)
         return stack
@@ -1286,8 +1351,19 @@ class MainWindow(QtWidgets.QWidget):
         says which of the three it is, not merely that something is missing.
         """
         w, lay = self.page("", "")
-        self.soon_title = next(x for x in w.findChildren(QtWidgets.QLabel)
-                               if x.objectName() == "h1")
+        # The page's own heading is emptied and the name goes in a plate of its own, centred
+        # at the top: white, filled, black letters.
+        blank = next(x for x in w.findChildren(QtWidgets.QLabel) if x.objectName() == "h1")
+        blank.hide()
+        plate = QtWidgets.QHBoxLayout()
+        plate.addStretch(1)
+        self.soon_title = QtWidgets.QLabel("")
+        self.soon_title.setObjectName("namePlate")
+        self.soon_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        plate.addWidget(self.soon_title)
+        plate.addStretch(1)
+        lay.insertLayout(0, plate)
+
         lay.addStretch(1)
         said = QtWidgets.QLabel(self.t("corner.not_yet"))
         said.setObjectName("settingHead")
@@ -1297,12 +1373,27 @@ class MainWindow(QtWidgets.QWidget):
         lay.addStretch(1)
         row = QtWidgets.QHBoxLayout()
         row.addStretch(1)
-        home = no_focus(QtWidgets.QPushButton(self.t("settings.main_screen")))
-        home.setObjectName("mainScreen")
-        home.clicked.connect(self.go_home)
-        row.addWidget(home)
+        # Back rather than Main screen: you got here from somewhere one step away -- the kinds
+        # of du'a, usually -- and being thrown out to the front door to try the next one is a
+        # long way round.
+        back = no_focus(QtWidgets.QPushButton(self.t("corner.back")))
+        back.setObjectName("backButton")
+        back.clicked.connect(self.leave_the_empty_screen)
+        self.soon_back_button = back
+        row.addWidget(back)
         lay.addLayout(row)
         return w
+
+    # Where Back goes from the empty screen. Set when it is opened, so the button leads back
+    # the way the person came rather than always to the same place.
+    soon_back = None
+
+    def leave_the_empty_screen(self) -> None:
+        where = self.soon_back
+        if where is None:
+            self.go_home()
+            return
+        where()
 
     def chose_on_the_small_screen(self, which: str) -> None:
         """A tile was touched on the 7in. Most of them open something to read; Settings is the
@@ -1337,6 +1428,7 @@ class MainWindow(QtWidgets.QWidget):
         # Anything with nothing behind it yet -- the three new tiles, or one of the three old
         # ones whose content is missing -- lands here, named.
         self.soon_title.setText(self.t(f"corner.{which}") if which else "")
+        self.soon_back = self.go_home        # nothing behind these tiles to go back to
         self.corner_screen.setCurrentWidget(self.corner_soon)
         self.stack.setCurrentWidget(self.corner_page)
 
@@ -1356,7 +1448,12 @@ class MainWindow(QtWidgets.QWidget):
         return any(r.saying for r in getattr(self, "section_readers", {}).values())
 
     def open_section(self, which: str) -> None:
-        """The kinds of du'a, or -- for the kalima -- the six arches."""
+        """Back out of a du'a lands on the board it came from; the kalima have their arches."""
+        if which == "duas" and getattr(self, "dua_board", None) is not None \
+                and self.dua_board.only:
+            self.corner_screen.setCurrentWidget(self.dua_board)
+            self.stack.setCurrentWidget(self.corner_page)
+            return
         menu = self.arch_menus.get(which)
         if menu is not None:
             self.corner_screen.setCurrentWidget(menu)
@@ -1383,15 +1480,22 @@ class MainWindow(QtWidgets.QWidget):
         self.stir()
         listing = self.section_lists.get("duas")
         named = self.t(f"dua.{cat}")
-        if listing is None or not any(item.cat == cat for item in listing.passages.items):
+        if listing is None or not any(cat in item.cats for item in listing.passages.items):
             self.soon_title.setText(named)
+            self.soon_back = self.open_the_kinds_of_dua
             self.corner_screen.setCurrentWidget(self.corner_soon)
             self.stack.setCurrentWidget(self.corner_page)
             return
-        listing.show_only(cat, named)
-        listing.to_the_top()
-        self.corner_screen.setCurrentWidget(listing)
+        self.dua_board.show_only(cat, named)
+        self.dua_board.to_the_top()
+        self.corner_screen.setCurrentWidget(self.dua_board)
         self.stack.setCurrentWidget(self.corner_page)
+
+    def say_a_dua(self, index: int) -> None:
+        """The play mark on a card. There are no recordings of the du'as yet, so this opens the
+        du'a rather than doing nothing at all -- the mark is wired to what will read it aloud
+        once Harry has the vocals, and until then it is not a dead button."""
+        self.open_passage("duas", index)
 
     def open_passage(self, which: str, index: int) -> None:
         reader = self.section_readers.get(which)

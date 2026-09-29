@@ -3915,16 +3915,17 @@ class PassageScreenTest(unittest.TestCase):
         for cat in CATEGORIES:
             w.open_dua_category(cat)
             settle()
-            if w.corner_screen.currentWidget() is not w.section_lists["duas"]:
+            if w.corner_screen.currentWidget() is not w.dua_board:
                 continue
-            listing = w.section_lists["duas"]
-            rows = [b for b in listing.findChildren(QtWidgets.QPushButton)
-                    if b.objectName() == "surahRow"]
-            drawn += len(rows)
-            seen.update(item.key for _, item in listing.wanted())
+            board = w.dua_board
+            drawn += len(board.cards)
+            seen.update(item.key for _, item in board.wanted())
         self.assertEqual({d.key for d in w.duas.items}, seen, "a du'a is behind no tile at all")
-        self.assertEqual(10, len(seen))
-        self.assertEqual(10, drawn, "the rows on screen do not add up to ten")
+        self.assertGreaterEqual(len(seen), 33, "du'as have gone missing from the menu")
+        # A du'a under two kinds is drawn under each, so the rows outnumber the du'as -- but
+        # never by more than the filings add up to.
+        filings = sum(len(d.cats) for d in w.duas.items)
+        self.assertEqual(filings, drawn, "the rows do not add up to the filings")
 
     def test_choosing_one_opens_it_and_back_returns_to_the_list(self):
         w = self.window()
@@ -3932,19 +3933,18 @@ class PassageScreenTest(unittest.TestCase):
         settle()
         w.open_dua_category("guidance")          # 3:8 is filed here
         settle()
-        rows = [b for b in w.section_lists["duas"].findChildren(QtWidgets.QPushButton)
-                if b.objectName() == "surahRow"]
-        rows[0].click()
+        board = w.dua_board
+        card = next(c for c in board.cards if "3:8" == c.item.ref)
+        card.opened.emit(card.index)
         settle()
         reader = w.corner_screen.currentWidget()
         self.assertIs(w.section_readers["duas"], reader)
         self.assertIn("3:8", reader.title.text())
         reader.back_button.click()
         settle()
-        listing = w.section_lists["duas"]
-        self.assertIs(listing, w.corner_screen.currentWidget())
-        self.assertEqual("guidance", listing.only,
-                         "Back dropped the kind and went to the whole list")
+        self.assertIs(board, w.corner_screen.currentWidget())
+        self.assertEqual("guidance", board.only,
+                         "Back dropped the kind and went somewhere else")
 
     def test_nothing_on_either_screen_says_it_is_waiting_to_be_checked(self):
         """The kalima screens used to carry a line saying the Arabic was pending review. Harry
@@ -4000,7 +4000,10 @@ class PassageScreenTest(unittest.TestCase):
         settle()
         self.assertNotEqual(first, reader.arabic.lines[0])
         self.assertTrue(reader.earlier.isEnabled())
-        w.open_passage("duas", 9)
+        # The last one, whatever number that is -- hard-coding 9 made this test go stale the
+        # moment more du'as were added, and it failed by saying the arrow worked when the
+        # index simply was not the end any more.
+        w.open_passage("duas", len(w.duas.items) - 1)
         settle()
         self.assertFalse(reader.later.isEnabled(), "nothing after the last")
 
@@ -4439,7 +4442,7 @@ class ArchMenuTest(unittest.TestCase):
         self.assertIsNot(w.arch_menus["kalima"], w.corner_screen.currentWidget())
         w.open_dua_category("worry")
         settle()
-        self.assertIs(w.section_lists["duas"], w.corner_screen.currentWidget())
+        self.assertIs(w.dua_board, w.corner_screen.currentWidget())
 
     def test_touching_an_arch_opens_that_kalima(self):
         w = self.window()
@@ -7174,13 +7177,14 @@ class DuaMenuTest(unittest.TestCase):
         w = self.window()
         w.open_dua_category("worry")
         settle()
-        listing = w.section_lists["duas"]
-        self.assertIs(listing, w.corner_screen.currentWidget())
-        shown = [item for _, item in listing.wanted()]
+        board = w.dua_board
+        self.assertIs(board, w.corner_screen.currentWidget())
+        shown = [item for _, item in board.wanted()]
         self.assertTrue(shown, "nothing came up under worry")
         for item in shown:
-            self.assertEqual("worry", item.cat)
-        missed = [d for d in listing.passages.items if d.cat == "worry" and d not in shown]
+            self.assertIn("worry", item.cats)
+        missed = [d for d in board.passages.items
+                  if "worry" in d.cats and d not in shown]
         self.assertEqual([], missed, "a du'a filed under worry was left out")
 
     def test_the_rows_on_screen_are_the_ones_the_filter_kept(self):
@@ -7188,28 +7192,31 @@ class DuaMenuTest(unittest.TestCase):
         w = self.window()
         w.open_dua_category("forgiveness")
         settle()
-        listing = w.section_lists["duas"]
-        titles = {item.title for _, item in listing.wanted()}
-        on_screen = {x.text() for x in listing.findChildren(QtWidgets.QLabel)
+        board = w.dua_board
+        titles = {item.title for _, item in board.wanted()}
+        on_screen = {x.text() for x in board.findChildren(QtWidgets.QLabel)
                      if x.text() and x.isVisible()}
         self.assertTrue(titles <= on_screen, f"{titles - on_screen} is filed here but not drawn")
-        others = {d.title for d in listing.passages.items if d.cat != "forgiveness"}
+        others = {d.title for d in board.passages.items
+                  if "forgiveness" not in d.cats}
         self.assertEqual(set(), others & on_screen, "a du'a from another kind is on screen")
 
     def test_changing_kind_replaces_the_rows_rather_than_adding_to_them(self):
         w = self.window()
-        listing = w.section_lists["duas"]
+        board = w.dua_board
         w.open_dua_category("worry")
         settle()
-        first = len(listing.wanted())
-        self.assertGreater(first, 0, "nothing was listed to begin with")
+        first = len(board.wanted())
+        self.assertGreater(first, 0, "nothing was shown to begin with")
         w.open_dua_category("forgiveness")
         settle()
-        drawn = [x for x in listing.findChildren(QtWidgets.QPushButton)
-                 if x.objectName() == "surahRow"]
-        self.assertEqual(len(listing.wanted()), len(drawn),
-                         f"{len(drawn)} rows drawn for {len(listing.wanted())} du'as -- "
-                         f"the rows from the kind before are still standing")
+        self.assertEqual(len(board.wanted()), len(board.cards),
+                         f"{len(board.cards)} cards for {len(board.wanted())} du'as -- "
+                         f"the cards from the kind before are still standing")
+        titles = {c.item.title for c in board.cards}
+        self.assertEqual(set(), titles & {"Do not burden us beyond our strength"} - {
+                             d.title for _, d in board.wanted()},
+                         "a card from the kind before survived")
 
     def test_opening_one_from_a_narrowed_list_opens_that_very_dua(self):
         """The row keeps its place in the whole section. Number the rows 0,1,2 inside the
@@ -7218,23 +7225,28 @@ class DuaMenuTest(unittest.TestCase):
         w.open_dua_category("worry")
         settle()
         listing = w.section_lists["duas"]
-        index, wanted = listing.wanted()[-1]
-        # Press the row itself. Emitting chose(index) here instead would prove nothing: the
-        # test would be supplying the very number the row is supposed to carry.
-        rows = [x for x in listing.findChildren(QtWidgets.QPushButton)
-                if x.objectName() == "surahRow"]
-        self.assertEqual(len(listing.wanted()), len(rows))
-        rows[-1].click()
+        board = w.dua_board
+        index, wanted = board.wanted()[-1]
+        # Press the card itself. Emitting chose(index) here instead would prove nothing: the
+        # test would be supplying the very number the card is supposed to carry.
+        self.assertEqual(len(board.wanted()), len(board.cards))
+        board.cards[-1].opened.emit(board.cards[-1].index)
         settle()
         reader = w.section_readers["duas"]
         self.assertIs(reader, w.corner_screen.currentWidget())
         self.assertEqual(index, reader.at, "a different du'a opened")
         opened = reader.passages.items[reader.at]
         self.assertEqual(wanted.title, opened.title)
-        self.assertEqual("worry", opened.cat)
+        self.assertIn("worry", opened.cats)
 
     def test_a_kind_with_nothing_in_it_says_which_kind_it_is(self):
+        """Every kind has du'as now, so this empties one to get at the behaviour -- which is
+        what a mat with a half-copied content folder would see."""
         w = self.window()
+        listing = w.section_lists["duas"]
+        kept = list(listing.passages.items)     # reading it is what loads the file
+        listing.passages._items = [d for d in kept if "travel" not in d.cats]
+        self.addCleanup(lambda: setattr(listing.passages, "_items", kept))
         w.open_dua_category("travel")
         settle()
         self.assertIs(w.corner_soon, w.corner_screen.currentWidget())
@@ -7243,28 +7255,346 @@ class DuaMenuTest(unittest.TestCase):
 
     def test_the_whole_list_comes_back_when_it_is_asked_for(self):
         w = self.window()
-        listing = w.section_lists["duas"]
+        board = w.dua_board
         w.open_dua_category("worry")
         settle()
-        narrowed = len(listing.wanted())
-        listing.show_only(None)
+        narrowed = len(board.wanted())
+        board.show_only(None)
         settle()
-        self.assertEqual(len(listing.passages.items), len(listing.wanted()))
-        self.assertLess(narrowed, len(listing.wanted()))
+        self.assertEqual(len(board.passages.items), len(board.wanted()))
+        self.assertLess(narrowed, len(board.wanted()))
 
     def test_the_kinds_are_left_alone_while_a_prayer_is_going_on(self):
         w = self.window()
         w.open_dua_category("worry")
         settle()
-        listing = w.section_lists["duas"]
-        # Both kinds land on the same widget, so what is LISTED is what has to be looked at.
-        was = [i for i, _ in listing.wanted()]
+        board = w.dua_board
+        # Both kinds land on the same widget, so what is SHOWN is what has to be looked at.
+        was = [i for i, _ in board.wanted()]
         with mock.patch.object(type(w), "playing", property(lambda _self: True)):
             w.open_dua_category("forgiveness")
             settle()
-            self.assertEqual(was, [i for i, _ in listing.wanted()],
+            self.assertEqual(was, [i for i, _ in board.wanted()],
                              "a stray knee changed the screen mid-prayer")
         w.open_dua_category("forgiveness")
         settle()
-        self.assertNotEqual(was, [i for i, _ in listing.wanted()],
+        self.assertNotEqual(was, [i for i, _ in board.wanted()],
                             "and it still works once the prayer is over")
+
+
+class DuaBoardTest(unittest.TestCase):
+    """Two columns with a rule between them, a play mark on every du'a, and the meaning under
+    the Arabic -- all of it measured off what is drawn, not off the layout's opinion."""
+
+    def window(self, theme="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def board(self, w, cat="travel"):
+        w.open_corner("duas")
+        settle()
+        w.open_dua_category(cat)
+        settle()
+        self.assertIs(w.dua_board, w.corner_screen.currentWidget())
+        return w.dua_board
+
+    def test_the_duas_are_shared_between_two_columns(self):
+        w = self.window()
+        for cat in ("mosque", "travel", "worry", "forgiveness"):
+            board = self.board(w, cat)
+            left = [board.left.itemAt(i).widget() for i in range(board.left.count())]
+            right = [board.right.itemAt(i).widget() for i in range(board.right.count())]
+            left = [x for x in left if x is not None]
+            right = [x for x in right if x is not None]
+            self.assertTrue(left and right, f"{cat} put everything in one column")
+            self.assertGreaterEqual(len(left), len(right), f"{cat} is bottom-heavy on the right")
+            self.assertLessEqual(len(left) - len(right), 1, f"{cat} is lopsided")
+
+    def test_the_two_columns_really_are_side_by_side_on_screen(self):
+        """Counting widgets in two boxes says nothing about where they were drawn."""
+        w = self.window()
+        board = self.board(w, "worry")
+        left = [c for c in board.cards if board.left.indexOf(c) >= 0]
+        right = [c for c in board.cards if board.right.indexOf(c) >= 0]
+        edge = max(c.mapTo(board, c.rect().topRight()).x() for c in left)
+        start = min(c.mapTo(board, c.rect().topLeft()).x() for c in right)
+        self.assertLess(edge, start, "the columns overlap instead of sitting side by side")
+
+    def test_a_thick_rule_is_drawn_between_them(self):
+        w = self.window()
+        board = self.board(w, "travel")
+        self.assertIsNotNone(board.rule, "no rule between the columns")
+        self.assertGreaterEqual(board.rule.width(), w.px(5), "the rule is a hairline")
+        # Drawn, not merely sized: a widget styled to a width it paints nothing into is not a
+        # line. Its own pixels are what settle it.
+        image = board.rule.grab().toImage()
+        self.assertGreater(image.width(), 0)
+        middle = image.pixelColor(image.width() // 2, image.height() // 2)
+        page = w.palette().color(w.backgroundRole())
+        self.assertNotEqual((page.red(), page.green(), page.blue()),
+                            (middle.red(), middle.green(), middle.blue()),
+                            "the rule is the same colour as the page behind it")
+
+    def test_the_rule_sits_between_the_columns_and_not_beside_them(self):
+        w = self.window()
+        board = self.board(w, "worry")
+        rule = board.rule.mapTo(board, board.rule.rect().center()).x()
+        left = [c for c in board.cards if board.left.indexOf(c) >= 0]
+        right = [c for c in board.cards if board.right.indexOf(c) >= 0]
+        self.assertLess(max(c.mapTo(board, c.rect().topRight()).x() for c in left), rule)
+        self.assertGreater(min(c.mapTo(board, c.rect().topLeft()).x() for c in right), rule)
+
+    def test_every_dua_carries_a_play_mark_that_is_actually_drawn(self):
+        w = self.window()
+        board = self.board(w, "worry")
+        for card in board.cards:
+            self.assertFalse(card.button.icon().isNull(), f"{card.item.key} has no play mark")
+            shot = card.button.grab().toImage()
+            page = w.palette().color(w.backgroundRole())
+            ink = sum(1 for y in range(0, shot.height(), 2) for x in range(0, shot.width(), 2)
+                      if abs(shot.pixelColor(x, y).red() - page.red()) > 40)
+            self.assertGreater(ink, 20, f"{card.item.key}'s mark is a blank square")
+
+    def test_the_arabic_and_the_meaning_are_both_on_the_card(self):
+        w = self.window()
+        board = self.board(w, "travel")
+        for card in board.cards:
+            self.assertEqual(card.item.arabic, card.arabic.text())
+            self.assertTrue(card.meaning.text().strip(), f"{card.item.key} has no meaning")
+            self.assertTrue(card.meaning.isVisible())
+            self.assertNotEqual(card.item.arabic, card.meaning.text())
+
+    def test_a_dua_with_no_transliteration_shows_no_empty_line_for_it(self):
+        """The ones from hadith have no transliteration yet. An empty italic line would read
+        as a missing word rather than as nothing to say."""
+        w = self.window()
+        board = self.board(w, "travel")
+        for card in board.cards:
+            if card.item.said.strip():
+                self.assertTrue(card.said.isVisible())
+            else:
+                self.assertFalse(card.said.isVisible(), f"{card.item.key} shows a blank line")
+
+    def test_pressing_a_card_opens_that_very_dua(self):
+        w = self.window()
+        board = self.board(w, "worry")
+        for card in board.cards:
+            board.cards and card.opened.emit(card.index)
+            settle()
+            reader = w.section_readers["duas"]
+            self.assertIs(reader, w.corner_screen.currentWidget())
+            self.assertEqual(card.item.title, reader.passages.items[reader.at].title)
+            w.open_dua_category("worry")
+            settle()
+
+    def test_the_play_mark_opens_the_same_dua_its_card_stands_for(self):
+        w = self.window()
+        board = self.board(w, "health")
+        card = board.cards[-1]
+        card.button.click()
+        settle()
+        reader = w.section_readers["duas"]
+        self.assertIs(reader, w.corner_screen.currentWidget())
+        self.assertEqual(card.item.key, reader.passages.items[reader.at].key)
+
+    def test_back_returns_to_the_kinds(self):
+        w = self.window()
+        board = self.board(w, "travel")
+        board.back_button.click()
+        settle()
+        self.assertIs(w.dua_menu, w.corner_screen.currentWidget())
+
+    def test_almost_every_kind_fits_without_scrolling(self):
+        """The point of the board. One kind holds 2:286, which is longer than the screen on its
+        own, so that one scrolls -- but if a change makes them all scroll, the board has stopped
+        doing its job and this says so."""
+        from salaah.duamenu import CATEGORIES
+        w = self.window()
+        scrolls = []
+        for cat in CATEGORIES:
+            board = self.board(w, cat)
+            if board.scroll.verticalScrollBar().maximum() > 0:
+                scrolls.append(cat)
+        self.assertLessEqual(len(scrolls), 2, f"these kinds do not fit: {scrolls}")
+
+
+class PlayMarkTest(unittest.TestCase):
+    """One mark means play, wherever it is."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=True, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def test_it_is_a_ring_with_a_mark_inside_and_not_a_filled_blob(self):
+        from salaah.ui import play_icon
+        shot = play_icon(120, "#ffffff").toImage()
+        def lit(x, y):
+            c = shot.pixelColor(x, y)
+            return c.alpha() > 40 and c.red() > 120
+        self.assertTrue(lit(60, 4) or lit(60, 6), "no ring at the top")
+        self.assertFalse(lit(20, 20), "the corner is filled in -- this is a blob, not a ring")
+        self.assertTrue(lit(56, 60), "nothing inside the ring")
+        # the gap between ring and triangle: a filled circle would have no dark band here
+        self.assertFalse(lit(26, 60), "the ring and the mark have run together")
+
+    def test_the_stop_mark_is_a_different_shape_from_the_play_mark(self):
+        from salaah.ui import play_icon
+        go = play_icon(120, "#ffffff").toImage()
+        stop = play_icon(120, "#ffffff", stop=True).toImage()
+        def ink(image):
+            return sum(1 for y in range(0, 120, 2) for x in range(0, 120, 2)
+                       if image.pixelColor(x, y).alpha() > 40)
+        self.assertNotEqual(ink(go), ink(stop), "play and stop draw the same thing")
+        # the play triangle has a sloped edge, so its bottom-left corner is empty and the
+        # square's is not
+        self.assertNotEqual(go.pixelColor(46, 78).alpha() > 40,
+                            stop.pixelColor(46, 78).alpha() > 40)
+
+    def test_the_quran_recite_button_is_the_drawn_mark_not_a_blue_rectangle(self):
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        button = w.reader.recite_button
+        self.assertFalse(button.icon().isNull(), "the recite button has no mark on it")
+        self.assertEqual("", button.text(), "the recite button still spells something out")
+        shot = button.grab().toImage()
+        # It used to be a solid lapis slab with a glyph on it. Two things settle that it is not:
+        # the button's background is the page's, not a colour of its own, and there is a mark
+        # drawn on it. Counting distinct colours does not settle either -- a white ring on a
+        # black page is two colours, and so is a blue slab.
+        page = w.palette().color(w.backgroundRole())
+        lapis = QtGui.QColor(w.colours().lapis)
+        blue = ink = total = 0
+        for y in range(0, shot.height(), 2):
+            for x in range(0, shot.width(), 2):
+                c = shot.pixelColor(x, y)
+                total += 1
+                if abs(c.red() - lapis.red()) < 40 and abs(c.blue() - lapis.blue()) < 40 \
+                        and c.blue() > c.red() + 30:
+                    blue += 1
+                if abs(c.red() - page.red()) > 60:
+                    ink += 1
+        self.assertLess(blue / total, 0.05, "the button is still a blue slab")
+        self.assertGreater(ink / total, 0.02, "nothing is drawn on the button")
+        self.assertLess(ink / total, 0.6, "the button is filled in rather than marked")
+
+    def test_the_mark_turns_to_stop_and_back(self):
+        """Driven through the flag rather than by starting the audio. Playing a recitation for
+        real needs a player, which is not always there in a test run -- this failed once in a
+        full run and passed on its own, and a test that only sometimes looks is no test."""
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        reader = w.reader
+        before = reader.recite_button.icon().pixmap(40, 40).toImage()
+        reader.reciting_now = True
+        reader.draw_recite_mark()
+        during = reader.recite_button.icon().pixmap(40, 40).toImage()
+        self.assertNotEqual(before, during, "the mark did not change")
+        reader.reciting_now = False
+        reader.draw_recite_mark()
+        self.assertEqual(before, reader.recite_button.icon().pixmap(40, 40).toImage())
+
+    def test_starting_and_stopping_are_what_set_that_flag(self):
+        """The half the test above does not cover: that reciting actually flips the flag the
+        mark is drawn from. Checked without a player, which start_reciting copes with."""
+        w = self.window()
+        w.open_surah(1)
+        settle()
+        reader = w.reader
+        self.assertFalse(reader.reciting_now)
+        reader.start_reciting()
+        settle()
+        # `reciting` is the flag that says it really began -- `saying` is the label in the bar
+        # and is always truthy, which is how the first version of this test managed to pass
+        # and fail on the same code.
+        if reader.reciting:                    # no recitation audio here: nothing to check
+            self.assertTrue(reader.reciting_now, "reciting did not change the mark")
+        reader.stop_reciting()
+        settle()
+        self.assertFalse(reader.reciting_now, "the mark was left on stop")
+
+
+class EmptyKindScreenTest(unittest.TestCase):
+    """The screen a kind with nothing behind it lands on."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: (w.shutdown(), w.close(), w.deleteLater(), settle()))
+        return w
+
+    def empty(self, w, cat="travel"):
+        listing = w.section_lists["duas"]
+        kept = list(listing.passages.items)
+        listing.passages._items = [d for d in kept if cat not in d.cats]
+        w.dua_board.filled = None
+        self.addCleanup(lambda: setattr(listing.passages, "_items", kept))
+        w.open_corner("duas")
+        settle()
+        w.open_dua_category(cat)
+        settle()
+        return w
+
+    def test_the_name_is_on_a_white_plate_with_black_letters(self):
+        w = self.empty(w=self.window())
+        plate = w.soon_title
+        self.assertTrue(plate.isVisible())
+        shot = plate.grab().toImage()
+        white = black = 0
+        for y in range(0, shot.height(), 2):
+            for x in range(0, shot.width(), 2):
+                c = shot.pixelColor(x, y)
+                if c.red() > 230 and c.green() > 230 and c.blue() > 230:
+                    white += 1
+                elif c.red() < 60 and c.green() < 60 and c.blue() < 60:
+                    black += 1
+        self.assertGreater(white, black, "the plate is not mostly white")
+        self.assertGreater(black, 20, "there are no black letters on it")
+
+    def test_the_plate_is_centred_across_the_top(self):
+        w = self.empty(w=self.window())
+        plate, page = w.soon_title, w.corner_soon
+        middle = plate.mapTo(page, plate.rect().center())
+        self.assertLess(abs(middle.x() - page.width() // 2), page.width() * 0.04,
+                        "the name is not centred")
+        self.assertLess(middle.y(), page.height() * 0.25, "the name is not near the top")
+
+    def test_the_button_says_back_and_returns_to_the_kinds(self):
+        w = self.empty(w=self.window())
+        button = w.soon_back_button
+        self.assertEqual(w.t("corner.back"), button.text())
+        self.assertNotIn(w.t("settings.main_screen"), button.text())
+        button.click()
+        settle()
+        self.assertIs(w.dua_menu, w.corner_screen.currentWidget())
+
+    def test_the_button_is_in_the_bottom_right(self):
+        w = self.empty(w=self.window())
+        button, page = w.soon_back_button, w.corner_soon
+        at = button.mapTo(page, button.rect().center())
+        self.assertGreater(at.x(), page.width() * 0.7, "not on the right")
+        self.assertGreater(at.y(), page.height() * 0.7, "not at the bottom")
