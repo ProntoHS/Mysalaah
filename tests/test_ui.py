@@ -8515,3 +8515,213 @@ class WorldScreenTest(unittest.TestCase):
             white = sum(1 for v in seen if v > 195) / len(seen)
             self.assertGreater(black, 0.2, f"{theme}: hardly anything is dark")
             self.assertGreater(white, 0.2, f"{theme}: hardly anything is light")
+
+
+class CommunityColumnTest(unittest.TestCase):
+    """The column beside the globe: how many mats are on, and which of them can be seen.
+
+    The service that would tell a mat about any other does not exist yet, on purpose -- it is a
+    decision about children's home locations before it is a piece of code. So the count is one.
+    What is tested here is the shape it will arrive into, because a seam that has never had
+    anything put through it is not a seam.
+    """
+
+    def window(self, theme="dark", place="Bury", where=(53.593, -2.298), size=(1024, 600)):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, place=place, latitude=where[0], longitude=where[1]),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(*size)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    FOUR = ((53.593, -2.298, "Bury", True), (-33.8688, 151.2093, "Sydney", False),
+            (30.0444, 31.2357, "Cairo", False), (31.5204, 74.3587, "Lahore", False))
+
+    def pretend(self, w, rows=FOUR):
+        """Put a community in the list the screen draws from, as the service would."""
+        from salaah.worldscreen import Mat
+        mats = [Mat(lat, lon, name, mine=mine) for lat, lon, name, mine in rows]
+        w.world_screen.mats = lambda: mats
+        return mats
+
+    def opened(self, w):
+        w.open_corner("world")
+        settle()
+        return w.world_screen
+
+    def wind_to(self, screen, frame):
+        """QMovie will only seek forward a frame at a time, so the film is walked there."""
+        screen.world.film.stop()
+        while screen.world.film.currentFrameNumber() % 72 != frame:
+            screen.world.film.jumpToNextFrame()
+        settle()
+        screen.relight()
+        screen.world.repaint()
+        settle()
+
+    def blue(self, widget):
+        shot = widget.grab().toImage()
+        found = []
+        for y in range(0, shot.height(), 2):
+            for x in range(0, shot.width(), 2):
+                c = shot.pixelColor(x, y)
+                if c.blue() > c.red() + 40 and c.blue() > 80:
+                    found.append((x, y))
+        return found
+
+    # -- the header ---------------------------------------------------------------------------
+
+    def test_the_header_is_the_name_of_the_thing(self):
+        w = self.window()
+        self.opened(w)
+        self.assertEqual("MySalaah Community", w.world_title.text())
+
+    def test_it_is_the_name_in_every_language(self):
+        """A brand is not translated. Every pack carries it as it is written."""
+        for lang in available_packs(ASSETS):
+            with self.subTest(lang):
+                w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                               Settings(theme="dark", place="Bury", lang=lang),
+                               scale=1.0, save_settings=False, aspect=None, side=True)
+                w.resize(1024, 600)
+                w.show()
+                w.tick()
+                settle()
+                self.addCleanup(lambda x=w: shut(x))
+                w.open_corner("world")
+                settle()
+                self.assertEqual("MySalaah Community", w.world_title.text())
+
+    # -- the count ---------------------------------------------------------------------------
+
+    def test_one_mat_on_its_own_counts_one(self):
+        w = self.window()
+        screen = self.opened(w)
+        self.assertEqual("Active", screen.heading.text())
+        self.assertEqual("1", screen.count.text())
+
+    def test_the_count_follows_the_list(self):
+        w = self.window()
+        self.pretend(w)
+        screen = self.opened(w)
+        self.assertEqual("4", screen.count.text())
+
+    def test_a_thousand_mats_are_written_as_a_thousand(self):
+        """Not 1000. The number is the thing a child reads off the screen."""
+        w = self.window()
+        self.pretend(w, tuple((10 + i % 60, (i * 7) % 300 - 150, "", i == 0)
+                              for i in range(1000)))
+        screen = self.opened(w)
+        self.assertEqual("1,000", screen.count.text())
+
+    # -- what is drawn ------------------------------------------------------------------------
+
+    def test_a_line_is_drawn_for_every_mat_that_can_be_seen(self):
+        """Four mats at a frame where all four are on the near side: four routes to the Kaaba,
+        four markers. Counted as separate runs of blue rather than by area, so that a single
+        fatter line cannot pass for four."""
+        from salaah.globe import KAABA
+        w = self.window()
+        mats = self.pretend(w)
+        screen = self.opened(w)
+        self.wind_to(screen, 19)
+        seen = [m for m in mats if screen.globe.at(19, m.latitude, m.longitude).seen]
+        self.assertEqual(4, len(seen), "the frame chosen does not show all four")
+        spots = self.blue(screen.world)
+        left, top, side = screen.world.circle()
+        # Each mat's marker is its own island of blue. Finding blue within a marker's width of
+        # every one of the four is the claim that all four were drawn.
+        for mat in seen:
+            here = screen.globe.at(19, mat.latitude, mat.longitude)
+            target = (left + here.x * side, top + here.y * side)
+            near = min(abs(x - target[0]) + abs(y - target[1]) for x, y in spots)
+            self.assertLess(near, side * 0.05,
+                            f"nothing drawn at {mat.name or 'a remote mat'}")
+        # And the Kaaba end, which every line has to reach.
+        mecca = screen.globe.at(19, *KAABA)
+        target = (left + mecca.x * side, top + mecca.y * side)
+        near = min(abs(x - target[0]) + abs(y - target[1]) for x, y in spots)
+        self.assertLess(near, side * 0.06, "no line reaches the Kaaba")
+
+    def test_more_mats_means_more_blue_on_the_globe(self):
+        """The plain version of the same thing, measured a different way: four lines put more
+        blue on the picture than one does."""
+        one = self.window()
+        alone = self.opened(one)
+        self.wind_to(alone, 19)
+        few = len(self.blue(alone.world))
+        many_window = self.window()
+        self.pretend(many_window)
+        crowd = self.opened(many_window)
+        self.wind_to(crowd, 19)
+        lots = len(self.blue(crowd.world))
+        self.assertGreater(lots, few * 1.8, f"one mat drew {few}, four drew {lots}")
+
+    # -- the dots ----------------------------------------------------------------------------
+
+    def test_a_mat_round_the_back_has_its_dot_dimmed(self):
+        """Bury and Sydney are 153 degrees apart, so they share the visible face for six frames
+        in seventy-two. A count of four beside one line would read as a fault; the dots are what
+        makes the number and the picture agree."""
+        w = self.window()
+        self.pretend(w)
+        screen = self.opened(w)
+        self.wind_to(screen, 39)      # the Pacific facing us: Sydney only
+        lit = {mat.name or "remote": pip.lit for pip, mat in screen.pips}
+        self.assertEqual({"Bury": False, "Sydney": True, "Cairo": False, "Lahore": False}, lit)
+
+    def test_the_dots_come_back_as_the_earth_turns(self):
+        w = self.window()
+        self.pretend(w)
+        screen = self.opened(w)
+        self.wind_to(screen, 39)
+        self.assertFalse(dict((m.name, p) for p, m in screen.pips)["Bury"].lit)
+        self.wind_to(screen, 66)
+        self.assertTrue(dict((m.name, p) for p, m in screen.pips)["Bury"].lit,
+                        "Bury never came back round")
+
+    # -- what is not shown --------------------------------------------------------------------
+
+    def test_only_this_mat_is_named(self):
+        """A town beside a dot is a household. This screen is looked at by children, and the
+        only one it is allowed to name is the one it is standing on."""
+        w = self.window()
+        self.pretend(w)
+        screen = self.opened(w)
+        said = [x.text() for x in screen.column.findChildren(QtWidgets.QLabel)
+                if x.objectName() == "worldWho"]
+        self.assertIn("Bury", said, "the mat's own place should be named")
+        for elsewhere in ("Sydney", "Cairo", "Lahore"):
+            self.assertNotIn(elsewhere, said, f"{elsewhere} is named on screen")
+        whole = " ".join(x.text() for x in w.world_page.findChildren(QtWidgets.QLabel))
+        for elsewhere in ("Sydney", "Cairo", "Lahore"):
+            self.assertNotIn(elsewhere, whole, f"{elsewhere} appears somewhere on the page")
+
+    def test_the_list_stops_before_it_runs_out_of_page(self):
+        """Thirty-one mats must not push the Back button off the bottom."""
+        w = self.window()
+        self.pretend(w, tuple((10 + i, 20 + i * 3, "", i == 0) for i in range(31)))
+        screen = self.opened(w)
+        self.assertEqual("31", screen.count.text(), "the count should still be the truth")
+        self.assertLessEqual(len(screen.pips), screen.ROWS)
+        self.assertTrue(w.world_back_button.isVisible())
+        self.assertLessEqual(screen.column.height(), w.world_page.height(),
+                             "the column is taller than the page it is on")
+
+    # -- the room it takes --------------------------------------------------------------------
+
+    def test_the_column_costs_the_globe_nothing(self):
+        """The globe is square and every screen the mat has is wider than it is tall, so its
+        size is settled by the height left over and never by the width. The column goes in room
+        that was empty. If it ever starts costing the globe pixels, that is worth knowing."""
+        for size, expect in (((1024, 600), 417), ((1280, 720), 517), ((1920, 1080), 821)):
+            with self.subTest(f"{size[0]}x{size[1]}"):
+                w = self.window(size=size)
+                screen = self.opened(w)
+                self.assertEqual(expect, screen.world.circle()[2],
+                                 "the globe has been squeezed by the column")

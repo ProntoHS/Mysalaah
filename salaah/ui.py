@@ -916,6 +916,10 @@ class MainWindow(QtWidgets.QWidget):
                                    font-weight:bold; }}
             QLabel#namePlate {{ background:white; color:black; font-size:{px(52)}px;
                               font-weight:bold; padding:{px(14)}px {px(48)}px; }}
+            QFrame#worldRail {{ background:{c.line}; border:none; }}
+            QLabel#worldTallyHead {{ font-size:{px(34)}px; font-weight:bold; color:{c.ink}; }}
+            QLabel#worldTally {{ font-size:{px(120)}px; font-weight:bold; color:{c.lapis}; }}
+            QLabel#worldWho {{ font-size:{px(26)}px; color:{c.ink}; }}
             QFrame#duaCard {{ background:{c.paper}; border:{px(2)}px solid {c.line};
                               border-radius:{px(10)}px; }}
             QLabel#duaCardName {{ font-size:{px(38)}px; font-weight:bold; color:{c.strong};
