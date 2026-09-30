@@ -198,6 +198,8 @@
         "corner.quran": "Coran",
         "corner.hadith": "Hadith",
         "corner.world": "Le monde musulman",
+        "world.line": "De {place} à La Mecque — environ {km} km",
+        "world.here": "le tapis",
         "dua.morning": "Matin",
         "dua.evening": "Soir",
         "dua.sleep": "Sommeil",

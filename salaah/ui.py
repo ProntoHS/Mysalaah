@@ -1364,7 +1364,58 @@ class MainWindow(QtWidgets.QWidget):
 
         self.corner_soon = self.page_soon()
         stack.addWidget(self.corner_soon)
+
+        # The world. Built here rather than when it is first touched, because it holds a film
+        # and the first frame of a 72-frame animation is not something to go looking for while
+        # somebody is watching an empty screen.
+        self.world_screen = self.page_world()
+        if self.world_screen is not None:
+            stack.addWidget(self.world_page)
         return stack
+
+    def page_world(self):
+        """The turning globe, with the way to the Kaaba drawn on it. None if the film is not on
+        this mat, and then the tile lands on the empty screen as it did before."""
+        from .worldscreen import WorldScreen
+        page, lay = self.page("", "")
+        blank = next(x for x in page.findChildren(QtWidgets.QLabel) if x.objectName() == "h1")
+        blank.hide()
+        plate = QtWidgets.QHBoxLayout()
+        plate.addStretch(1)
+        self.world_title = QtWidgets.QLabel(self.t("corner.world"))
+        self.world_title.setObjectName("namePlate")
+        self.world_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        plate.addWidget(self.world_title)
+        plate.addStretch(1)
+        lay.insertLayout(0, plate)
+
+        # Tight. The globe is square and the screen is not, so its size is whatever height is
+        # left over after everything else on the page -- and on a 7" panel there is not much
+        # to go round. Every row that can share another row does.
+        lay.setContentsMargins(self.px(28), self.px(12), self.px(28), self.px(12))
+        lay.setSpacing(self.px(6))
+
+        screen = WorldScreen(self, page, lay)
+        if not screen.there:
+            page.deleteLater()
+            return None
+
+        back = no_focus(QtWidgets.QPushButton(self.t("corner.back")))
+        back.setObjectName("backButton")
+        back.clicked.connect(self.go_home)
+        self.world_back_button = back
+        # On the same row as the words under the globe, and the words stay centred on the page
+        # rather than being shoved off centre by the button beside them.
+        foot = QtWidgets.QHBoxLayout()
+        foot.addWidget(back, 1, Qt.AlignmentFlag.AlignLeft)
+        foot.addWidget(screen.caption, 0)
+        spacer = QtWidgets.QWidget()
+        spacer.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred,
+                             QtWidgets.QSizePolicy.Policy.Fixed)
+        foot.addWidget(spacer, 1)
+        lay.addLayout(foot)
+        self.world_page = page
+        return screen
 
     def page_soon(self) -> QtWidgets.QWidget:
         """The screen a tile with nothing behind it yet lands on.
@@ -1448,11 +1499,21 @@ class MainWindow(QtWidgets.QWidget):
         if which in self.section_lists and self.section_lists[which].passages.items:
             self.open_section(which)
             return
+        if which == "world" and getattr(self, "world_screen", None) is not None:
+            self.open_world()
+            return
         # Anything with nothing behind it yet -- the three new tiles, or one of the three old
         # ones whose content is missing -- lands here, named.
         self.soon_title.setText(self.t(f"corner.{which}") if which else "")
         self.soon_back = self.go_home        # nothing behind these tiles to go back to
         self.corner_screen.setCurrentWidget(self.corner_soon)
+        self.stack.setCurrentWidget(self.corner_page)
+
+    def open_world(self) -> None:
+        self.world_title.setText(self.t("corner.world"))
+        self.world_back_button.setText(self.t("corner.back"))
+        self.world_screen.retell()
+        self.corner_screen.setCurrentWidget(self.world_page)
         self.stack.setCurrentWidget(self.corner_page)
 
     def open_corner_list(self) -> None:

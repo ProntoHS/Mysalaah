@@ -1,4 +1,5 @@
 """Core checks. Run on the Pi or any computer: python3 -m unittest discover -s tests"""
+import math
 import os
 import unittest
 from unittest import mock
@@ -3105,3 +3106,183 @@ class PostureTrimTest(unittest.TestCase):
                         widest = max(widest, run)
                     self.assertLess(widest / h, 0.05,
                                     f"{folder}/{path.name}: a band of blank paper in the picture")
+
+
+class GlobeTest(unittest.TestCase):
+    """The maths behind the world screen: where a place lands on a drawing of a turning earth,
+    and the line from the mat to the Kaaba."""
+
+    BURY = (53.593, -2.298)
+
+    def globe(self):
+        from salaah.globe import Globe
+        return Globe(ASSETS / "world")
+
+    # -- the projection --------------------------------------------------------------------
+
+    def test_whatever_is_facing_us_is_drawn_in_the_middle(self):
+        g = self.globe()
+        for frame in (0, 7, 31, 71):
+            with self.subTest(frame):
+                spot = g.at(frame, *g.facing(frame))
+                self.assertAlmostEqual(g.centre[0], spot.x, places=6)
+                self.assertAlmostEqual(g.centre[1], spot.y, places=6)
+                self.assertAlmostEqual(1.0, spot.facing, places=6)
+
+    def test_a_quarter_of_the_way_round_lands_on_the_edge(self):
+        """The rim of the drawing is a quarter of the earth from the middle, by definition.
+
+        Note that a quarter of the earth is not ninety degrees of longitude: the globe is drawn
+        tilted, so the point ninety degrees of longitude from the middle is nearer than the rim.
+        The distance is what makes it the rim, so the distance is what this goes by."""
+        from salaah.globe import apart
+        g = self.globe()
+        lat, lon = g.facing(0)
+        # Down the meridian a quarter turn, and up it a quarter turn -- which goes over the
+        # pole and comes down the other side, hence the flip.
+        for quarter in ((lat - 90, lon), (90 - lat, lon + 180)):
+            self.assertAlmostEqual(6371.0 * math.pi / 2, apart((lat, lon), quarter), delta=1.0,
+                                   msg="this test's own point is not a quarter of the way round")
+            spot = g.at(0, *quarter)
+            gap = ((spot.x - g.centre[0]) ** 2 + (spot.y - g.centre[1]) ** 2) ** 0.5
+            self.assertAlmostEqual(g.radius, gap, places=6)
+            self.assertAlmostEqual(0.0, spot.facing, places=6)
+
+    def test_the_far_side_is_not_seen(self):
+        g = self.globe()
+        lat, lon = g.facing(0)
+        self.assertFalse(g.at(0, -lat, lon + 180).seen, "the back of the earth is on show")
+        self.assertTrue(g.at(0, lat, lon).seen)
+
+    def test_everything_drawn_is_inside_the_circle(self):
+        """Nothing that is in sight may be drawn outside the globe, at any latitude, on any
+        frame -- a marker floating in the black beside the earth."""
+        g = self.globe()
+        for frame in range(0, 72, 5):
+            for lat in range(-80, 81, 20):
+                for lon in range(-180, 180, 30):
+                    spot = g.at(frame, lat, lon)
+                    if spot.seen:
+                        gap = ((spot.x - g.centre[0]) ** 2 + (spot.y - g.centre[1]) ** 2) ** 0.5
+                        self.assertLessEqual(gap, g.radius + 1e-9,
+                                             f"{lat},{lon} on frame {frame} is off the globe")
+
+    def test_it_turns_the_way_the_animation_turns(self):
+        """A place drifts left across the picture as the earth turns east under it. Backwards
+        here would put England on the wrong side of the Atlantic for half the loop."""
+        g = self.globe()
+        across = [g.at(f, *self.BURY).x for f in range(0, 10)]
+        self.assertTrue(all(b < a for a, b in zip(across, across[1:])), across)
+
+    # -- against the drawing itself --------------------------------------------------------
+
+    def test_the_kaaba_lands_on_the_one_the_animator_drew(self):
+        """The whole point of the calibration, checked against the artwork rather than against
+        the numbers that produced it: project Mecca, look at the picture there, and the marker
+        drawn on the globe should be around it.
+
+        The marker is a white disc with a black cube inside, drawn a little above the place it
+        marks the way a pin is. So the test looks at a ring between the cube and the disc's
+        edge: inside the marker that ring is white nearly all the way round, and forty pixels
+        off it is not.
+        """
+        import math
+        from PIL import Image
+        from salaah.globe import KAABA
+        g = self.globe()
+        picture = Image.open(ASSETS / "world" / "globe.gif")
+        side = picture.width
+
+        def ring(sheet, x, y, r=17, samples=24):
+            lit = 0
+            for i in range(samples):
+                a = i * 2 * math.pi / samples
+                at = (int(x + r * math.cos(a)), int(y + r * math.sin(a)))
+                if 0 <= at[0] < side and 0 <= at[1] < side and sheet[at] > 128:
+                    lit += 1
+            return lit
+
+        # The ring is a sharp thing to aim at: full marks on the spot, half that six pixels off
+        # and a quarter twenty pixels off. Twenty out of twenty-four catches an error of more
+        # than about eight pixels, which on this globe is two degrees of the earth.
+        for frame in (0, 4, 8, 12):
+            with self.subTest(frame):
+                picture.seek(frame)
+                sheet = picture.convert("L").load()
+                spot = g.at(frame, *KAABA)
+                self.assertTrue(spot.seen, "Mecca should be in view early in the loop")
+                # The pin sits 15.4 pixels above its place in the 1024px drawing it was
+                # measured in; the film ships smaller, so the offset comes with it.
+                x, y = spot.x * side, spot.y * side - 15.4 / 1024 * side
+                self.assertGreaterEqual(ring(sheet, x, y), 18,
+                                        f"frame {frame}: no marker where Mecca was projected")
+                for away in (-20, 20):
+                    self.assertLessEqual(ring(sheet, x + away, y), 12,
+                                         f"frame {frame}: the marker is not where it looked")
+        picture.close()
+
+    # -- the route -------------------------------------------------------------------------
+
+    def test_the_way_to_mecca_is_the_way_you_would_actually_go(self):
+        """A great circle, not a line ruled on a flat map. From Bury the two are four hundred
+        miles apart in the middle -- the real one crosses the Alps, the ruled one Sardinia."""
+        from salaah.globe import KAABA, apart, between
+        path = between(self.BURY, KAABA, 96)
+        walked = sum(apart(path[i], path[i + 1]) for i in range(len(path) - 1))
+        self.assertAlmostEqual(apart(self.BURY, KAABA), walked, delta=1.0)
+        middle = path[48]
+        flat = ((self.BURY[0] + KAABA[0]) / 2, (self.BURY[1] + KAABA[1]) / 2)
+        self.assertGreater(apart(middle, flat), 300, "the route has been drawn straight")
+        self.assertGreater(middle[0], flat[0], "a great circle bows towards the pole")
+
+    def test_how_far_it_is(self):
+        """Against distances anybody can look up, rather than against itself."""
+        from salaah.globe import apart
+        for one, two, km, name in (
+                ((51.5074, -0.1278), (40.7128, -74.0060), 5570, "London to New York"),
+                ((51.5074, -0.1278), (-33.8688, 151.2093), 16990, "London to Sydney"),
+                ((51.5074, -0.1278), (48.8566, 2.3522), 344, "London to Paris")):
+            with self.subTest(name):
+                self.assertAlmostEqual(km, apart(one, two), delta=max(5, km * 0.005))
+
+    def test_the_part_in_sight_is_all_in_one_piece(self):
+        """The claim route() is built on: the short way between two places in the half of the
+        earth facing us never dips round the back and comes out again. Checked here on the
+        route that matters and on a thousand random pairs."""
+        import random
+        from salaah.globe import KAABA, between
+        g = self.globe()
+        random.seed(11)
+        pairs = [(self.BURY, KAABA)] + [((random.uniform(-89, 89), random.uniform(-180, 180)),
+                                         (random.uniform(-89, 89), random.uniform(-180, 180)))
+                                        for _ in range(1000)]
+        for one, two in pairs:
+            for frame in (0, 23, 47):
+                seen = [g.at(frame, lat, lon).seen for lat, lon in between(one, two, 60)]
+                breaks = sum(1 for a, b in zip(seen, seen[1:]) if a != b)
+                self.assertLessEqual(breaks, 1,
+                                     f"{one} to {two} on frame {frame} left sight and came back")
+
+    def test_the_line_disappears_when_the_mat_turns_away(self):
+        g = self.globe()
+        from salaah.globe import KAABA
+        lengths = [len(g.route(f, self.BURY, KAABA)) for f in range(0, 72, 4)]
+        self.assertTrue(any(n == 0 for n in lengths), "the route is never out of sight")
+        self.assertTrue(any(n > 90 for n in lengths), "the route is never wholly in sight")
+
+    def test_a_mat_somewhere_else_draws_a_different_line(self):
+        """Carry the mat to Cape Town and the line starts from Cape Town."""
+        from salaah.globe import KAABA
+        g = self.globe()
+        here = g.at(0, *self.BURY)
+        there = g.at(0, -33.9249, 18.4241)
+        self.assertGreater(abs(here.y - there.y), 0.2, "the two places are drawn on top of "
+                                                       "each other")
+
+    def test_a_mat_with_no_globe_still_answers(self):
+        """A mat whose assets were half copied has no film. It must not throw; the screen is
+        simply not offered."""
+        from salaah.globe import Globe
+        nothing = Globe(ASSETS / "no-such-folder")
+        self.assertFalse(nothing.there)
+        self.assertTrue(0 <= nothing.at(0, 53.5, -2.3).x <= 1)

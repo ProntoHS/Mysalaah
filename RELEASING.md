@@ -7,16 +7,17 @@ Run everything from the project folder — the one holding `run.sh` and `latest.
 prompt should end with `\salaah-pi>`.
 
 Every command below can be pasted exactly as it stands. The version is read out of the file
-that holds it, so there is nothing to substitute and nothing to get wrong. Do this first, in
-the project folder, and check that it prints the version you expect:
+that holds it, so there is nothing to substitute and nothing to get wrong. `$v` is set in
+step 1, **after** the new files are in place — not before.
 
-```
-$v = ([regex]'"(.+)"').Match((Select-String '__version__' salaah\__init__.py).Line).Groups[1].Value
-$v
-```
+> That used to be the first thing on this page, above step 1, and it was wrong. Step 1 is what
+> changes the version, so anything read before it holds the OLD one. `sign_release.py` then
+> refuses, quite correctly, because the address says one version and the build says another;
+> it prints "Nothing has been built and nothing signed" and leaves the folder empty, and the
+> next thing you see is a release with no zip to attach. Read `$v` after the files land, never
+> before.
 
-`$v` then stands for that version for the rest of the session. If you open a new PowerShell
-window, run those two lines again.
+If you open a new PowerShell window part way through, run the `$v` lines from step 1 again.
 
 ---
 
@@ -43,14 +44,16 @@ Expand-Archive -Path $zip.FullName -DestinationPath . -Force
 
 Check the name it printed is the one you meant. Windows saves repeat downloads as `(1)`, `(2)`.
 
-**Then verify it landed, before anything else:**
+**Then read the version out of the file that now holds it, and check it landed:**
 
 ```
-Select-String "__version__" salaah\__init__.py
+$v = ([regex]'"(.+)"').Match((Select-String '__version__' salaah\__init__.py).Line).Groups[1].Value
+$v
 git status
 ```
 
-- The version must be the new one — the same as `$v` above. If it still says the old one, the files did not arrive.
+- `$v` must print the new version. If it still says the old one, the files did not arrive —
+  and everything after this point would be built for the wrong version.
 - `git status` must list the changed files. "working tree clean" means nothing was replaced —
   stop and find out why rather than carrying on.
 
@@ -162,6 +165,7 @@ new version will not start it puts the old one back without being asked.
 | Mat says "up to date" when it should not | `latest.json` was never pushed (step 6) |
 | Version on the mat does not match its contents | `salaah/__init__.py` was not bumped before signing |
 | Two zips in the staging folder | step 0 was skipped; one of them will get attached by mistake |
+| Nothing in `..\salaah-release` to attach | `sign_release.py` refused and said so. Almost always `$v` holding the old version because it was read before step 1 put the new files in. Re-read `$v` and sign again |
 
 ## When `run.sh` changes
 

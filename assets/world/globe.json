@@ -1,0 +1,14 @@
+{
+  "about": "Where things are on the turning globe. Measured by tools/build_globe.py from the animation itself: the outline gives the circle, and the Kaaba marker drawn onto it gives the tilt and the turning. Fractions of the picture.",
+  "centre": [
+    0.5,
+    0.5
+  ],
+  "radius": 0.414015,
+  "tilt": 9.9778,
+  "start": -0.6601,
+  "per_frame": 5.10918,
+  "frames": 72,
+  "fit_rms_px": 1.035,
+  "fitted_over_frames": 20
+}

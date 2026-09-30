@@ -22,7 +22,13 @@ from pathlib import Path
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import Fonts, TextBox
 
-ARABIC_FLOOR, ARABIC_CAP = 22, 64
+# The called words are the point of the box, and they were coming out at eighteen pixels on the
+# 7" screen -- readable at arm's length and not from across a room, which is where somebody
+# stands when the call goes off. The size is not chosen here: each line is drawn as large as its
+# row is tall, so the way to make the words bigger is to give the rows more height. That is what
+# the numbers below are for. The cap is only a backstop now, high enough never to be what
+# decides.
+ARABIC_FLOOR, ARABIC_CAP = 22, 110
 BRICK = "#A63D33"
 
 
@@ -233,7 +239,7 @@ class CallBox(QtWidgets.QDialog):
                                border-radius:{px(20)}px; }}
             QDialog#callBox QLabel {{ color:#FFFFFF; background:transparent; }}
             QLabel#callTitle {{ font-size:{px(44)}px; font-weight:bold; }}
-            QLabel#callMeaning {{ font-size:{px(24)}px; color:#C9C9C9; }}
+            QLabel#callMeaning {{ font-size:{px(22)}px; color:#C9C9C9; }}
             QDialog#callBox QPushButton {{ background:{BRICK}; color:#FFFFFF; border:none;
                                            border-radius:{px(8)}px; font-size:{px(28)}px;
                                            font-weight:bold; padding:{px(14)}px {px(34)}px; }}
@@ -241,8 +247,8 @@ class CallBox(QtWidgets.QDialog):
         """)
 
         outer = QtWidgets.QVBoxLayout(self)
-        outer.setContentsMargins(px(40), px(32), px(40), px(28))
-        outer.setSpacing(px(16))
+        outer.setContentsMargins(px(34), px(20), px(34), px(18))
+        outer.setSpacing(px(10))
 
         head = QtWidgets.QLabel(f"{window.t('call.title')} · {window.t(f'prayer.{prayer}')}")
         head.setObjectName("callTitle")
@@ -258,7 +264,10 @@ class CallBox(QtWidgets.QDialog):
             self.drawing.hide()
 
         lines = QtWidgets.QVBoxLayout()
-        lines.setSpacing(px(10))
+        # Tight. Every pixel not spent between the rows is a pixel the words are drawn at, seven
+        # times over, and a meaning belongs against the line it translates rather than floating
+        # between two of them.
+        lines.setSpacing(px(2))
         self.boxes: dict[str, TextBox] = {}
         lang = self.meaning_language()
         for key in adhan.shown(recording):
@@ -278,6 +287,7 @@ class CallBox(QtWidgets.QDialog):
             said.setAlignment(Qt.AlignmentFlag.AlignCenter)
             said.setLayoutDirection(Qt.LayoutDirection.RightToLeft if lang in ("ur", "ar")
                                     else Qt.LayoutDirection.LeftToRight)
+            said.setContentsMargins(0, 0, 0, px(8))     # the gap goes below the pair, not inside it
             lines.addWidget(said, 0)
         body.addLayout(lines, 5)
         outer.addLayout(body, 1)
@@ -325,7 +335,7 @@ class CallBox(QtWidgets.QDialog):
         parent = self.parentWidget()
         if parent is None:
             return
-        wide, tall = int(parent.width() * 0.82), int(parent.height() * 0.84)
+        wide, tall = int(parent.width() * 0.88), int(parent.height() * 0.92)
         self.resize(wide, tall)
         self.move(parent.x() + (parent.width() - wide) // 2,
                   parent.y() + (parent.height() - tall) // 2)

@@ -5976,9 +5976,14 @@ class MuezzinPictureTest(unittest.TestCase):
                          "the ink must be white so the screen can tint it to any colour")
 
     def test_it_is_the_tall_shape_the_box_gives_it(self):
+        """Tall, and big enough for the largest the box ever draws it -- which is about four
+        hundred pixels across on a 1920 monitor, so this has headroom. It used to ask for eight
+        hundred pixels of height, back when the drawing shipped at whatever size it arrived in;
+        the one it wants now is cut down on purpose, because seven megabytes of muezzin is a
+        download every mat pays for and nobody can see."""
         image = QtGui.QImage(str(ASSETS / "azaan" / "muezzin.png"))
         self.assertGreater(image.height(), image.width(), "an upright arch, not a wide one")
-        self.assertGreaterEqual(image.height(), 800, "too small to draw at the size of the box")
+        self.assertGreaterEqual(image.width(), 430, "too small to draw at the size of the box")
 
 
 class DrawnForTheDarkTest(unittest.TestCase):
@@ -6953,10 +6958,12 @@ class SixTileMenuTest(unittest.TestCase):
         self.assertIn(w.corner_screen.currentWidget(),
                       (w.arch_menus.get("kalima"), w.section_lists["kalima"]))
 
-    def test_the_three_that_are_not_land_on_a_named_empty_screen(self):
+    def test_the_ones_that_are_not_land_on_a_named_empty_screen(self):
+        """Only hadith now. The world used to be here too and has its own screen since -- the
+        turning globe -- which is what WorldScreenTest is about."""
         w = self.window()
         by_name = {t.name: t for t in w.side.corner.tiles}
-        for name, heading in (("hadith", "Hadith"), ("world", "The Muslim world")):
+        for name, heading in (("hadith", "Hadith"),):
             w.go_home()
             settle()
             by_name[name].click()
@@ -6969,7 +6976,7 @@ class SixTileMenuTest(unittest.TestCase):
 
     def test_the_empty_screen_carries_the_strip_like_every_other(self):
         w = self.window()
-        {t.name: t for t in w.side.corner.tiles}["world"].click()
+        {t.name: t for t in w.side.corner.tiles}["hadith"].click()
         settle()
         strips = [x for x in w.corner_page.findChildren(QtWidgets.QWidget)
                   if x.objectName() == "banner"]
@@ -7062,7 +7069,7 @@ class SettingsFromTheTileTest(unittest.TestCase):
         self.assertIs(w.settings_screen, w.stack.currentWidget())
         w.go_home()
         settle()
-        w.chose_on_the_small_screen("world")
+        w.chose_on_the_small_screen("hadith")
         settle()
         self.assertIs(w.corner_soon, w.corner_screen.currentWidget(),
                       "the readings should still go the way they did")
@@ -8257,3 +8264,254 @@ class WifiCircleTest(unittest.TestCase):
             w.wifi_errand.wait(5000)
         settle()
         self.assertEqual(MINT, w.wifi_dot.color.name().upper(), "the circle kept a stale answer")
+
+
+class CalledWordsTest(unittest.TestCase):
+    """How large the call is written.
+
+    It was coming out at eighteen pixels on a 1024x600 screen -- fine at arm's length, and the
+    call is heard from wherever you happen to be standing. The size is not set anywhere: each
+    line is drawn as large as its row is tall, so the words got bigger by the rows getting
+    taller. Which is exactly why this is measured rather than read off a constant.
+    """
+
+    def box(self, wide, tall, prayer="fajr", recording="azaan-fajr.mp3"):
+        from salaah.call import CallBox
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(wide, tall)
+        w.show()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        b = CallBox(w, prayer, recording, w.adhan)
+        b.show()
+        settle()
+        self.addCleanup(lambda: (b.close(), b.deleteLater(), settle()))
+        return b
+
+    def test_the_words_are_worth_reading_from_across_a_room(self):
+        for wide, tall, floor in ((1024, 600, 24), (1280, 720, 28), (1920, 1080, 40)):
+            with self.subTest(f"{wide}x{tall}"):
+                b = self.box(wide, tall)
+                sizes = [x.fitted_size() for x in b.boxes.values()]
+                self.assertGreaterEqual(min(sizes), floor,
+                                        f"the call is drawn at {min(sizes)}px on {wide}x{tall}")
+
+    def test_fajr_has_the_most_lines_and_they_all_get_the_same_room(self):
+        """Fajr carries "prayer is better than sleep" and so runs to seven lines against six.
+        Nothing ever hangs out of the box -- Qt shrinks the rows instead, which is the failure
+        worth looking for: one line squeezed while the rest are comfortable."""
+        for wide, tall in ((1024, 600), (1280, 720), (1920, 1080)):
+            with self.subTest(f"{wide}x{tall}"):
+                b = self.box(wide, tall)
+                self.assertEqual(7, len(b.boxes), "Fajr should have seven lines")
+                heights = [x.height() for x in b.boxes.values()]
+                self.assertGreater(min(heights) / max(heights), 0.9,
+                                   f"the rows are uneven: {heights}")
+
+    def test_each_meaning_sits_under_its_own_line(self):
+        """The English is nearer the Arabic it translates than the Arabic below it. It used to
+        sit midway between the two, which on seven lines reads as a list of fourteen things."""
+        b = self.box(1920, 1080)
+        keys = list(b.boxes)
+        meanings = [x for x in b.findChildren(QtWidgets.QLabel)
+                    if x.objectName() == "callMeaning"]
+        self.assertEqual(len(keys), len(meanings))
+        for i in range(len(keys) - 1):
+            # The label's own margin is where the gap lives, so it is the text's box that is
+            # measured from, not the widget's.
+            text = meanings[i].contentsRect().translated(meanings[i].pos())
+            above = text.top() - b.boxes[keys[i]].geometry().bottom()
+            below = b.boxes[keys[i + 1]].y() - text.bottom()
+            self.assertLess(above, below,
+                            f"{keys[i]}: {above}px under its line, {below}px above the next")
+
+    def test_the_box_leaves_some_of_the_mat_showing(self):
+        """It is a notice on top of the mat, not the mat. Bigger words are not worth the box
+        becoming the whole screen."""
+        b = self.box(1024, 600)
+        self.assertLess(b.width(), 1024, "the box fills the screen edge to edge")
+        self.assertLess(b.height(), 600)
+        self.assertGreater(b.width() * b.height(), 1024 * 600 * 0.5, "the box has gone small")
+
+
+class WorldScreenTest(unittest.TestCase):
+    """The world tile: the earth turning, with the mat's own place on it and a line to the
+    Kaaba. The maths is tested in test_core; this is about what actually gets drawn."""
+
+    def window(self, theme="dark", place="Bury", where=(53.593, -2.298), size=(1024, 600)):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, place=place, latitude=where[0], longitude=where[1]),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(*size)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def blue(self, widget):
+        """Where the line and the marker are: the globe is black and white, so anything blue
+        was drawn by us."""
+        shot = widget.grab().toImage()
+        found = []
+        for y in range(0, shot.height(), 2):
+            for x in range(0, shot.width(), 2):
+                c = shot.pixelColor(x, y)
+                if c.blue() > c.red() + 40 and c.blue() > 80:
+                    found.append((x, y))
+        return found
+
+    def test_the_world_tile_opens_the_globe(self):
+        w = self.window()
+        w.open_corner("world")
+        settle()
+        self.assertIs(w.world_page, w.corner_screen.currentWidget(),
+                      "the world tile still lands on the empty screen")
+        self.assertIs(w.corner_page, w.stack.currentWidget())
+
+    def test_it_says_where_the_mat_is_and_how_far_that_is(self):
+        w = self.window()
+        w.open_corner("world")
+        settle()
+        said = w.world_screen.caption.text()
+        self.assertIn("Bury", said)
+        self.assertIn("Makkah", said)
+        self.assertIn("5,030", said, f"the distance is wrong: {said}")
+
+    def test_carrying_the_mat_somewhere_else_changes_the_distance(self):
+        """The line starts from the mat's own place, not from Bury for ever."""
+        w = self.window(place="Cape Town", where=(-33.9249, 18.4241))
+        w.open_corner("world")
+        settle()
+        self.assertIn("Cape Town", w.world_screen.caption.text())
+        self.assertIn("6,560", w.world_screen.caption.text(),
+                      w.world_screen.caption.text())
+
+    def test_the_line_is_drawn_and_it_reaches_the_kaaba(self):
+        """Blue on the screen, running from the mat's place to where Mecca is projected. The
+        Kaaba end is the marker the animator drew, so the line landing on it is the whole
+        calibration showing its work."""
+        from salaah.globe import KAABA
+        w = self.window()
+        w.open_corner("world")
+        settle()
+        world = w.world_screen.world
+        left, top, side = world.circle()
+        drawn = world.film.currentPixmap().scaled(side, side, Qt.AspectRatioMode.KeepAspectRatio)
+        at = world.film.currentFrameNumber()
+        spots = self.blue(world)
+        self.assertGreater(len(spots), 40, "nothing blue was drawn on the globe")
+        mecca = w.world_screen.globe.at(at, *KAABA)
+        target = (left + mecca.x * drawn.width(), top + mecca.y * drawn.width())
+        near = min((abs(x - target[0]) + abs(y - target[1])) for x, y in spots)
+        self.assertLess(near, side * 0.06,
+                        f"the line stops {near:.0f}px short of the Kaaba on a {side}px globe")
+
+    def test_the_marker_moves_when_the_mat_does(self):
+        here = self.window(place="Bury", where=(53.593, -2.298))
+        here.open_corner("world")
+        settle()
+        one = self.blue(here.world_screen.world)
+        there = self.window(place="Cairo", where=(30.0444, 31.2357))
+        there.open_corner("world")
+        settle()
+        two = self.blue(there.world_screen.world)
+        self.assertTrue(one and two)
+        # The topmost blue is the home end of the line in both cases, and Bury is a long way
+        # north of Cairo.
+        self.assertLess(min(y for _, y in one), min(y for _, y in two) - 20,
+                        "the mat is drawn in the same place wherever it is")
+
+    def test_the_film_is_stopped_when_the_screen_is_left(self):
+        """Ten repaints a second for a screen nobody is looking at is the Pi woken for nothing,
+        and on the call box it was worse than that -- it was a crash."""
+        w = self.window()
+        w.open_corner("world")
+        settle()
+        self.assertEqual(QtGui.QMovie.MovieState.Running, w.world_screen.world.film.state())
+        w.go_home()
+        settle()
+        self.assertNotEqual(QtGui.QMovie.MovieState.Running, w.world_screen.world.film.state(),
+                            "the globe is still turning off screen")
+
+    def test_the_globe_leaves_nothing_behind_when_the_window_goes(self):
+        """A window that has shown the globe must take all of it with it. The suite was killed
+        for running out of memory once already, by a screen that was a top-level window without
+        meaning to be, and this one holds a seventy-two frame film."""
+        # Counted in two passes rather than measured against a baseline. A plain count would be
+        # satisfied by whatever earlier tests have left lying about, and comparing the objects
+        # themselves does not work either: PySide6 hands out a fresh Python wrapper for a widget
+        # whose old one has been collected, so the same window looks like a new one. What a leak
+        # does is grow, so growth is what this looks for -- the same work twice, and the second
+        # time must add nothing the first did not.
+        def pass_of(n):
+            for _ in range(n):
+                w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                               Settings(theme="dark", place="Bury"),
+                               scale=1.0, save_settings=False, aspect=None, side=True)
+                w.resize(1024, 600)
+                w.show()
+                w.side.resize(600, 1024)
+                w.side.show()
+                w.tick()
+                w.open_corner("world")
+                settle()
+                shut(w)
+            settle()
+            return len(QtWidgets.QApplication.topLevelWidgets())
+
+        first = pass_of(3)
+        second = pass_of(3)
+        self.assertLessEqual(second, first,
+                             f"windows pile up as the globe is opened: {first} then {second}")
+
+        # And the plain statement of what must be true, which the counting is only evidence for:
+        # everything the world screen makes belongs to the page it was put on, so that closing
+        # the window closes all of it.
+        w = self.window()
+        w.open_corner("world")
+        settle()
+        floating = []
+        for name in dir(w.world_screen):
+            if name.startswith("__"):
+                continue
+            thing = getattr(w.world_screen, name, None)
+            if isinstance(thing, QtWidgets.QWidget) and thing.window() is not w:
+                floating.append(f"{name} ({type(thing).__name__})")
+        if isinstance(w.world_screen, QtWidgets.QWidget) and w.world_screen.window() is not w:
+            floating.append(f"the screen itself ({type(w.world_screen).__name__})")
+        self.assertEqual([], floating, f"not part of the window: {floating}")
+
+    def test_it_is_drawn_the_right_way_round_for_the_screen_it_is_on(self):
+        """The globe is drawn black on white like every other picture here, and turned inside
+        out for the dark screen. A white disc on a black screen at Fajr would be no good."""
+        inside = {}
+        for theme in ("dark", "light"):
+            w = self.window(theme=theme)
+            w.open_corner("world")
+            settle()
+            world = w.world_screen.world
+            shot = world.grab().toImage()
+            left, top, side = world.circle()
+            middle, spread = side / 2, side * 0.32
+            inside[theme] = [shot.pixelColor(int(left + middle + dx),
+                                             int(top + middle + dy)).red()
+                             for dx in range(-int(spread), int(spread), 7)
+                             for dy in range(-int(spread), int(spread), 7)]
+        dark, light = inside["dark"], inside["light"]
+        self.assertEqual(len(dark), len(light))
+        # Point for point, one is the other turned inside out. Allowing a few to disagree: the
+        # line drawn over the top is a different blue on the two screens.
+        odd = sum(1 for a, b in zip(dark, light) if abs(a + b - 255) > 30)
+        self.assertLess(odd, len(dark) * 0.08,
+                        f"{odd} of {len(dark)} points are not inverses of each other")
+        # And it is a picture of the world on both, not a grey wash on either.
+        for theme, seen in inside.items():
+            black = sum(1 for v in seen if v < 60) / len(seen)
+            white = sum(1 for v in seen if v > 195) / len(seen)
+            self.assertGreater(black, 0.2, f"{theme}: hardly anything is dark")
+            self.assertGreater(white, 0.2, f"{theme}: hardly anything is light")

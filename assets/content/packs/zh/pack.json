@@ -200,6 +200,8 @@
         "corner.quran": "《古兰经》",
         "corner.hadith": "圣训",
         "corner.world": "穆斯林世界",
+        "world.line": "{place} 到麦加 — 约 {km} 公里",
+        "world.here": "拜毯",
         "dua.morning": "早晨",
         "dua.evening": "傍晚",
         "dua.sleep": "睡前",

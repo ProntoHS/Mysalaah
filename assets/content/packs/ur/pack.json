@@ -198,6 +198,8 @@
         "corner.quran": "قرآن",
         "corner.hadith": "حدیث",
         "corner.world": "عالمِ اسلام",
+        "world.line": "{place} سے مکہ — تقریباً {km} کلومیٹر",
+        "world.here": "مصلیٰ",
         "dua.morning": "صبح",
         "dua.evening": "شام",
         "dua.sleep": "سونا",
