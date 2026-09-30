@@ -68,21 +68,19 @@ class DuaCard(QtWidgets.QFrame):
         top.addWidget(self.name, 1)
         lay.addLayout(top)
 
+        # by_word, so a word can go red while it is being said. It costs nothing here: the
+        # card holds one du'a and is not paginated, so the tighter word-by-word layout cannot
+        # change where anything breaks.
         self.arabic = TextBox(Fonts.arabic(window.settings.arabic_font),
-                              ARABIC_FLOOR, ARABIC_CAP, rtl=True)
+                              ARABIC_FLOOR, ARABIC_CAP, rtl=True, by_word=True)
         self.arabic.scale = window.s
         self.arabic.set_lines([item.arabic])
         lay.addWidget(self.arabic, 1)
 
-        # The transliteration, where there is one. The Qur'anic du'as carry it because it came
-        # out of the checked Qur'an text; the ones from hadith do not yet, and an empty line is
-        # left out rather than shown as a gap.
-        self.said = QtWidgets.QLabel(item.said)
-        self.said.setObjectName("duaCardSaid")
-        self.said.setWordWrap(True)
-        lay.addWidget(self.said)
-        if not item.said.strip():
-            self.said.hide()
+        # No transliteration here. Ten of the forty-eight du'as had one and thirty-eight did
+        # not, so it was a line that appeared on some cards and not others; and now that every
+        # du'a can be heard read aloud, the way to learn how it sounds is to press play rather
+        # than to read it in English letters. The room goes to the Arabic.
 
         self.meaning = QtWidgets.QLabel(meaning)
         self.meaning.setObjectName("duaCardMeaning")
@@ -139,6 +137,11 @@ class DuaBoard(QtWidgets.QWidget):
         self.passages = passages
         self.only = None
         self.setObjectName("duaBoard")
+        # Which card is being read aloud, if any, and the clock that follows the words.
+        self.said_by: DuaCard | None = None
+        self.follow = QtCore.QTimer(self)
+        self.follow.setInterval(50)
+        self.follow.timeout.connect(self.tick)
 
         outer = QtWidgets.QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -231,13 +234,16 @@ class DuaBoard(QtWidgets.QWidget):
         want = (tuple(i for i, _ in self.showing), self.language())
         if self.filled == want:
             return
+        self.stop_saying()          # the cards are about to go; the voice must not outlive them
         self.filled = want
         self.clear()
         lang = self.language()
         for place, (index, item) in enumerate(self.showing):
             card = DuaCard(self.win, index, item, item.meaning(lang))
             card.opened.connect(self.chose.emit)
-            card.play.connect(self.play.emit)
+            # Straight to the board's own player, with the card's place bound rather than the
+            # du'a's number in the file: the board reads it here, so it is the board's business.
+            card.play.connect(lambda _=0, k=place: self.say(k))
             (self.left if place == 0 else self.right).addWidget(card)
             self.cards.append(card)
         if len(self.showing) > 1:
@@ -251,12 +257,77 @@ class DuaBoard(QtWidgets.QWidget):
         self.fill()
         super().showEvent(ev)
 
+    def hideEvent(self, ev):
+        # Leaving the screen stops the voice. A recording left playing to an empty room is the
+        # thing hush_passages exists to prevent, and the board is another way to start one.
+        self.stop_saying()
+        super().hideEvent(ev)
+
     def follow_theme(self) -> None:
         for card in self.cards:
-            card.draw_mark(False)
+            card.draw_mark(card is self.said_by)
         if self.rule is not None:
             self.rule.update()
 
     def retitle(self) -> None:
         self.filled = None          # the meanings are in a language that may have changed
         self.fill()
+
+    # -- reading one aloud, here on the board -------------------------------------------------
+
+    def can_say(self, card) -> bool:
+        item = card.item
+        return bool(item.audio and item.times and self.win.recitation.available
+                    and (self.win.assets / "audio" / item.audio).is_file())
+
+    def say(self, place: int) -> None:
+        """The play mark on a card was pressed.
+
+        It reads the du'a on the card, here, with the word going red as it is said. It used to
+        open the du'a's own page and read it there, which meant the two-column screen vanished
+        the moment you pressed play -- you lost the du'a beside it and the thing you had been
+        looking at was replaced by a different arrangement of the same words. Pressing it again
+        stops; pressing the other card's mark moves the voice across.
+        """
+        card = self.cards[place] if 0 <= place < len(self.cards) else None
+        if card is None:
+            return
+        if card is self.said_by:
+            return self.stop_saying()
+        self.stop_saying()
+        if not self.can_say(card):
+            # No recording for this one. Open it rather than doing nothing, which is what the
+            # mark did for as long as there were no recordings at all.
+            return self.chose.emit(card.index)
+        from .audio import WHOLE, Span
+        if not self.win.recitation.play(self.win.assets / "audio" / card.item.audio,
+                                        Span(0.0, WHOLE)):
+            return
+        self.said_by = card
+        card.draw_mark(True)
+        self.follow.start()
+
+    def stop_saying(self) -> None:
+        if self.said_by is None:
+            return
+        self.follow.stop()
+        self.win.recitation.stop()
+        self.said_by.arabic.set_highlight(None)
+        self.said_by.draw_mark(False)
+        self.said_by = None
+
+    @property
+    def saying(self) -> bool:
+        return self.said_by is not None
+
+    def tick(self) -> None:
+        """Light the word being said. One du'a on the card, so the line is always nought."""
+        if self.said_by is None:
+            return
+        position = self.win.recitation.position()
+        if position is None and not self.win.recitation.busy:
+            return self.stop_saying()
+        if position is None:
+            return
+        word = self.said_by.item.word_at(position)
+        self.said_by.arabic.set_highlight(None if word is None else (0, word))

@@ -667,14 +667,14 @@ class UiTest(unittest.TestCase):
             w.open_prayer(prayer)
             APP.processEvents()
             labels = {x.objectName(): x for x in w.pick.findChildren(QtWidgets.QLabel)}
-            self.assertEqual(w.t(f"prayer.{prayer}"), labels["h1"].text())
-            self.assertEqual(CONTENT.prayer_names[prayer], labels["prayerNameBig"].text())
-            # English one side, Arabic the other
-            middle = w.pick.width() / 2
-            self.assertLess(labels["h1"].mapTo(w.pick, labels["h1"].rect().center()).x(), middle)
-            self.assertGreater(
-                labels["prayerNameBig"].mapTo(w.pick, labels["prayerNameBig"].rect().center()).x(),
-                middle)
+            self.assertEqual(w.t(f"prayer.{prayer}"), labels["plateWord"].text())
+            self.assertEqual(CONTENT.prayer_names[prayer], labels["plateArabic"].text())
+            # Both on the same white plate now, side by side. They used to sit at opposite
+            # edges of the screen, which read as two headings rather than one name twice.
+            plate = w.prayer_plate
+            self.assertEqual("namePlate", plate.objectName())
+            self.assertLess(plate.mapTo(w.pick, plate.rect().center()).x(), w.pick.width() / 2,
+                            "the plate should be on the left")
             texts = [x.text() for x in w.pick.findChildren(QtWidgets.QLabel)]
             self.assertNotIn(w.t("prayer.pick"), texts, "no 'choose what to pray' line")
             back = next(b for b in w.pick.findChildren(QtWidgets.QPushButton)
@@ -7445,14 +7445,17 @@ class DuaBoardTest(unittest.TestCase):
 
     def test_a_dua_with_no_transliteration_shows_no_empty_line_for_it(self):
         """The ones from hadith have no transliteration yet. An empty italic line would read
-        as a missing word rather than as nothing to say."""
+        as a missing word rather than as nothing to say.
+
+        Which is now moot: there is no transliteration line on a card at all. It appeared on ten
+        du'as and not on the other thirty-eight, and Harry had it taken out once every du'a could
+        be heard read aloud. So what this asks is the stronger version of what it used to ask --
+        not that the line is hidden when empty, but that it is not there to be empty."""
         w = self.window()
         board = self.board(w, "travel")
         for card in board.cards:
-            if card.item.said.strip():
-                self.assertTrue(card.said.isVisible())
-            else:
-                self.assertFalse(card.said.isVisible(), f"{card.item.key} shows a blank line")
+            self.assertFalse(hasattr(card, "said"),
+                             f"{card.item.key} still carries a transliteration line")
 
     def test_pressing_a_card_opens_that_very_dua(self):
         w = self.window()
@@ -7471,15 +7474,19 @@ class DuaBoardTest(unittest.TestCase):
             w.corner_screen.setCurrentWidget(board)      # back without reshuffling
             settle()
 
-    def test_the_play_mark_opens_the_same_dua_its_card_stands_for(self):
+    def test_the_play_mark_reads_the_dua_its_card_stands_for(self):
+        """It used to open that du'a's own page. It reads it here now, and the card it reads is
+        the card that was pressed -- which is the same claim, about the right du'a, made against
+        what actually happens."""
         w = self.window()
         board = self.board(w, "health")
         card = board.cards[-1]
         card.button.click()
         settle()
-        reader = w.section_readers["duas"]
-        self.assertIs(reader, w.corner_screen.currentWidget())
-        self.assertEqual(card.item.key, reader.passages.items[reader.at].key)
+        self.assertIs(board, w.corner_screen.currentWidget(), "it left the board")
+        self.assertIs(card, board.said_by, "the wrong card is being read")
+        board.stop_saying()
+        settle()
 
     def test_there_is_no_button_strip_along_the_bottom(self):
         """It was taken away to give the Arabic the height. Checked by looking for any button
@@ -7752,12 +7759,15 @@ class EmptyKindScreenTest(unittest.TestCase):
         self.assertGreater(white, black, "the plate is not mostly white")
         self.assertGreater(black, 20, "there are no black letters on it")
 
-    def test_the_plate_is_centred_across_the_top(self):
+    def test_the_plate_sits_top_left(self):
+        """It was centred across the top until Harry asked for it on the left, like the world
+        screen's. A heading centred over an empty page has nothing to be centred on."""
         w = self.empty(w=self.window())
         plate, page = w.soon_title, w.corner_soon
         middle = plate.mapTo(page, plate.rect().center())
-        self.assertLess(abs(middle.x() - page.width() // 2), page.width() * 0.04,
-                        "the name is not centred")
+        left = plate.mapTo(page, QtCore.QPoint(0, 0)).x()
+        self.assertLess(left, page.width() * 0.1, "the name is not against the left")
+        self.assertLess(middle.x(), page.width() * 0.45, "the name is still in the middle")
         self.assertLess(middle.y(), page.height() * 0.25, "the name is not near the top")
 
     def test_the_button_says_back_and_returns_to_the_kinds(self):
@@ -8385,23 +8395,26 @@ class WorldScreenTest(unittest.TestCase):
                       "the world tile still lands on the empty screen")
         self.assertIs(w.corner_page, w.stack.currentWidget())
 
-    def test_it_says_where_the_mat_is_and_how_far_that_is(self):
+    def test_there_are_no_words_under_the_globe(self):
+        """There was a line saying "Bury to Makkah, about 5,030 km" and Harry asked for it to
+        go. It was a fact rather than something to look at, sat across the bottom of a screen
+        whose whole job is the picture above it."""
         w = self.window()
         w.open_corner("world")
         settle()
-        said = w.world_screen.caption.text()
-        self.assertIn("Bury", said)
-        self.assertIn("Makkah", said)
-        self.assertIn("5,030", said, f"the distance is wrong: {said}")
+        said = " ".join(x.text() for x in w.world_page.findChildren(QtWidgets.QLabel)
+                        if x.isVisible() and x.text())
+        for gone in ("Makkah", "km", "5,030"):
+            self.assertNotIn(gone, said, f"{gone!r} is still under the globe: {said!r}")
 
-    def test_carrying_the_mat_somewhere_else_changes_the_distance(self):
-        """The line starts from the mat's own place, not from Bury for ever."""
-        w = self.window(place="Cape Town", where=(-33.9249, 18.4241))
-        w.open_corner("world")
-        settle()
-        self.assertIn("Cape Town", w.world_screen.caption.text())
-        self.assertIn("6,560", w.world_screen.caption.text(),
-                      w.world_screen.caption.text())
+    def test_the_mat_still_knows_how_far_it_is(self):
+        """The words went; the arithmetic did not, and the line on the globe is drawn from it.
+        Measured here so that losing the caption cannot quietly lose the thing behind it."""
+        from salaah.globe import KAABA, apart
+        bury = apart((53.593, -2.298), KAABA)
+        cape = apart((-33.9249, 18.4241), KAABA)
+        self.assertEqual(5030, round(bury, -1))
+        self.assertEqual(6560, round(cape, -1))
 
     def test_the_line_is_drawn_and_it_reaches_the_kaaba(self):
         """Blue on the screen, running from the mat's place to where Mecca is projected. The
@@ -8963,32 +8976,88 @@ class DuaPlayTest(unittest.TestCase):
                 cannot.append(w.duas.items[i].key)
         self.assertEqual([], cannot, f"no recording or no timings for: {cannot}")
 
-    def test_the_mark_opens_the_du_a_and_starts_reading_it(self):
-        """The card shows the Arabic in one piece and the du'a's own page shows it word by
-        word, so the mark goes to the page -- the red word is the whole point of the recording
-        and only the page can show it."""
+    def test_the_mark_reads_the_du_a_where_it_stands(self):
+        """It used to open the du'a's own page and read it there, which meant the two-column
+        screen vanished the moment you pressed play -- and with it the du'a beside the one you
+        wanted. It reads it here now, and here is where it stays."""
         w = self.window()
         board = self.board(w)
-        reader = w.section_readers["duas"]
         board.cards[0].button.click()
         settle()
-        self.assertIs(reader, w.corner_screen.currentWidget(), "it did not open the du'a")
-        self.assertTrue(reader.saying, "it opened the du'a but did not start reading")
-        reader.stop_saying()
+        self.assertIs(board, w.corner_screen.currentWidget(), "it left the two-column screen")
+        self.assertTrue(board.saying, "nothing is being read")
+        self.assertIs(board.cards[0], board.said_by)
+        board.stop_saying()
         settle()
 
-    def test_a_du_a_with_no_recording_still_opens(self):
-        """A mat part way through an update, or a set of du'as that grew past its recordings.
-        The mark must not become a dead button again."""
+    def test_pressing_it_again_stops_and_the_other_card_takes_over(self):
         w = self.window()
         board = self.board(w)
-        reader = w.section_readers["duas"]
-        with mock.patch.object(type(reader), "can_say", lambda self: False):
+        board.cards[0].button.click()
+        settle()
+        board.cards[1].button.click()
+        settle()
+        self.assertIs(board.cards[1], board.said_by, "the voice did not move across")
+        board.cards[1].button.click()
+        settle()
+        self.assertFalse(board.saying, "pressing it again should stop it")
+
+    def test_a_du_a_with_no_recording_opens_instead(self):
+        """A mat part way through an update, or a set of du'as that grew past its recordings.
+        The mark must not become a dead button."""
+        w = self.window()
+        board = self.board(w)
+        opened = []
+        board.chose.connect(opened.append)
+        with mock.patch.object(type(board), "can_say", lambda self, card: False):
             board.cards[0].button.click()
             settle()
-            self.assertIs(reader, w.corner_screen.currentWidget(),
-                          "with no recording it should still open the du'a")
-            self.assertFalse(reader.saying)
+            self.assertFalse(board.saying)
+            self.assertEqual([board.cards[0].index], opened,
+                             "with no recording it should open the du'a instead")
+
+    def test_leaving_the_screen_stops_the_voice(self):
+        """A recording left playing to an empty room."""
+        w = self.window()
+        board = self.board(w)
+        board.cards[0].button.click()
+        settle()
+        self.assertTrue(board.saying)
+        w.go_home()
+        settle()
+        self.assertFalse(board.saying, "it is still reading to nobody")
+
+    def test_it_does_not_fall_asleep_over_a_du_a_on_the_board(self):
+        w = self.window()
+        board = self.board(w)
+        board.cards[0].button.click()
+        settle()
+        w.maybe_sleep()
+        settle()
+        self.assertFalse(w.asleep, "it went to sleep while reading a du'a aloud")
+        board.stop_saying()
+        settle()
+
+    def test_the_word_being_said_goes_red_on_the_card(self):
+        """The whole point of reading it here rather than on its own page."""
+        w = self.window()
+        board = self.board(w)
+        board.cards[0].button.click()
+        settle()
+        card = board.said_by
+        self.assertTrue(card.arabic.by_word, "the card cannot light a single word")
+        for k in (0, 1):
+            start, end = card.item.times[k]
+            with mock.patch.object(type(w.recitation), "position",
+                                   lambda self, k=k: (card.item.times[k][0]
+                                                      + card.item.times[k][1]) / 2000.0):
+                board.tick()
+                settle()
+                self.assertEqual((0, k), card.arabic.highlight,
+                                 f"word {k + 1} was not the one lit")
+        board.stop_saying()
+        settle()
+        self.assertIsNone(card.arabic.highlight, "a word is still red after it stopped")
 
     def test_the_word_being_said_is_the_one_in_red(self):
         """Walked against the timings rather than against the clock: at a moment inside word
@@ -9006,3 +9075,163 @@ class DuaPlayTest(unittest.TestCase):
             self.assertEqual(k, item.word_at(middle),
                              f"half way through word {k + 1} the app thinks it is somewhere else")
             self.assertEqual((0, k), reader.arabic.highlight)
+
+
+class PlainerDuasTest(unittest.TestCase):
+    """No transliteration on the du'as. Ten of the forty-eight had one and thirty-eight did
+    not, so it was a line that turned up on some and not others; and now that every du'a can be
+    heard read aloud, pressing play is a better answer to "how does it sound" than English
+    letters are. The kalima keep theirs -- same reader, but only six of them and all six have it.
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1024, 600)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def said_on(self, page):
+        return [x for x in page.findChildren(QtWidgets.QLabel)
+                if x.objectName() in ("duaCardSaid", "passageSaid") and x.isVisible()
+                and x.text().strip()]
+
+    def test_no_transliteration_on_a_du_a_card(self):
+        w = self.window()
+        w.open_the_kinds_of_dua()
+        settle()
+        for kind in ("general", "morning", "forgiveness"):
+            with self.subTest(kind):
+                w.open_dua_category(kind)
+                settle()
+                for card in w.dua_board.cards:
+                    self.assertEqual([], self.said_on(card),
+                                     "a card is still showing a transliteration")
+
+    def test_no_transliteration_on_a_du_a_s_own_page(self):
+        w = self.window()
+        for i in (0, 3, 9):          # three of the ten that have one in the file
+            with self.subTest(i):
+                w.open_passage("duas", i)
+                settle()
+                self.assertEqual([], self.said_on(w.section_readers["duas"]))
+
+    def test_the_kalima_keep_theirs(self):
+        """The same reader serves both, so this is the line that stops the du'a change from
+        quietly taking the kalima's transliteration with it."""
+        w = self.window()
+        w.open_passage("kalima", 0)
+        settle()
+        said = self.said_on(w.section_readers["kalima"])
+        self.assertTrue(said, "the first kalima has lost its transliteration")
+        self.assertIn("ilaha", said[0].text().lower())
+
+    def test_the_arabic_got_the_room(self):
+        """The point of removing it. Measured against a card built with the line put back."""
+        w = self.window()
+        w.open_the_kinds_of_dua()
+        settle()
+        w.open_dua_category("general")
+        settle()
+        card = w.dua_board.cards[0]
+        self.assertGreater(card.arabic.height(), card.height() * 0.45,
+                           "the Arabic is not using the room the transliteration left")
+
+
+class HadithHeadingTest(unittest.TestCase):
+    """The Hadith plate sits against the left of the page, as the world screen's does."""
+
+    def window(self, size=(1024, 600)):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(*size)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_corner("hadith")
+        settle()
+        return w
+
+    def test_the_plate_is_against_the_left(self):
+        for size in ((1024, 600), (1920, 1080)):
+            with self.subTest(f"{size[0]}x{size[1]}"):
+                w = self.window(size)
+                plate = w.soon_title
+                page = w.corner_soon
+                left = plate.mapTo(page, QtCore.QPoint(0, 0)).x()
+                middle = plate.mapTo(page, plate.rect().center()).x()
+                self.assertEqual("Hadith", plate.text())
+                self.assertLess(left, page.width() * 0.1,
+                                f"the plate starts {left}px in on a {page.width()}px page")
+                self.assertLess(middle, page.width() * 0.45,
+                                "the plate is still in the middle of the page")
+
+
+class PrayerPlateTest(unittest.TestCase):
+    """Each prayer's name on the same white plate the Hadith and world screens wear, with the
+    Arabic beside the English rather than at the far edge of the screen."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1024, 600)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    PRAYERS = ("fajr", "dhuhr", "asr", "maghrib", "isha")
+
+    def test_every_prayer_wears_the_plate(self):
+        w = self.window()
+        for pid in self.PRAYERS:
+            with self.subTest(pid):
+                w.open_prayer(pid)
+                settle()
+                plate = w.prayer_plate
+                self.assertEqual("namePlate", plate.objectName())
+                words = [x.text() for x in plate.findChildren(QtWidgets.QLabel)]
+                self.assertIn(w.t(f"prayer.{pid}"), words, "the name is not on the plate")
+                self.assertIn(w.content.prayer_names.get(pid, ""), words,
+                              "the Arabic name is not on the plate")
+
+    def test_the_plate_is_white_with_the_name_on_it_in_black(self):
+        """The thing Harry asked for is the look, so the look is what is measured: a white
+        rectangle with dark lettering, grabbed off the screen rather than read off a stylesheet.
+        """
+        w = self.window()
+        w.open_prayer("fajr")
+        settle()
+        shot = w.prayer_plate.grab().toImage()
+        white = dark = 0
+        for y in range(0, shot.height(), 2):
+            for x in range(0, shot.width(), 2):
+                c = shot.pixelColor(x, y)
+                level = (c.red() + c.green() + c.blue()) / 3
+                if level > 230:
+                    white += 1
+                elif level < 80:
+                    dark += 1
+        self.assertGreater(white, dark * 2, "the plate is not mostly white")
+        self.assertGreater(dark, 40, "there is no dark lettering on it")
+
+    def test_the_arabic_sits_beside_the_english_not_across_the_screen(self):
+        """They are the same name. At opposite edges they read as two separate headings."""
+        w = self.window()
+        w.open_prayer("maghrib")
+        settle()
+        labels = w.prayer_plate.findChildren(QtWidgets.QLabel)
+        self.assertEqual(2, len(labels))
+        gap = abs(labels[0].geometry().center().x() - labels[1].geometry().center().x())
+        self.assertLess(gap, w.width() * 0.3,
+                        f"{gap}px apart on a {w.width()}px screen is not beside each other")

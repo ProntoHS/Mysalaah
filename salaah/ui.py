@@ -917,6 +917,14 @@ class MainWindow(QtWidgets.QWidget):
                                    font-weight:bold; }}
             QLabel#namePlate {{ background:white; color:black; font-size:{px(52)}px;
                               font-weight:bold; padding:{px(14)}px {px(48)}px; }}
+            /* The same plate as a frame, for the prayer names, which need two fonts on it:
+               the name in the app's lettering and the same name in Arabic. */
+            QFrame#namePlate {{ background:white; }}
+            QLabel#plateWord {{ background:transparent; color:black; font-size:{px(52)}px;
+                                font-weight:bold; }}
+            QLabel#plateArabic {{ background:transparent; color:black;
+                                  font-family:'{Fonts.arabic(self.settings.arabic_font)}';
+                                  font-size:{px(52)}px; font-weight:bold; }}
             QFrame#worldRail {{ background:{c.line}; border:none; }}
             QLabel#worldTallyHead {{ font-size:{px(34)}px; font-weight:bold; color:{c.ink}; }}
             QLabel#worldTally {{ font-size:{px(120)}px; font-weight:bold; color:{c.lapis}; }}
@@ -1379,7 +1387,6 @@ class MainWindow(QtWidgets.QWidget):
         # five and they all fit, so there is nothing to scroll for.
         self.dua_board = DuaBoard(self, self.duas)
         self.dua_board.chose.connect(lambda n: self.open_passage("duas", n))
-        self.dua_board.play.connect(self.say_a_dua)
         stack.addWidget(self.dua_board)
 
         self.corner_soon = self.page_soon()
@@ -1430,12 +1437,8 @@ class MainWindow(QtWidgets.QWidget):
         # On the same row as the words under the globe, and the words stay centred on the page
         # rather than being shoved off centre by the button beside them.
         foot = QtWidgets.QHBoxLayout()
-        foot.addWidget(back, 1, Qt.AlignmentFlag.AlignLeft)
-        foot.addWidget(screen.caption, 0)
-        spacer = QtWidgets.QWidget()
-        spacer.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred,
-                             QtWidgets.QSizePolicy.Policy.Fixed)
-        foot.addWidget(spacer, 1)
+        foot.addWidget(back, 0, Qt.AlignmentFlag.AlignLeft)
+        foot.addStretch(1)
         lay.addLayout(foot)
         self.world_page = page
         return screen
@@ -1453,7 +1456,8 @@ class MainWindow(QtWidgets.QWidget):
         blank = next(x for x in w.findChildren(QtWidgets.QLabel) if x.objectName() == "h1")
         blank.hide()
         plate = QtWidgets.QHBoxLayout()
-        plate.addStretch(1)
+        # Left, like the world screen's. A heading centred over an empty page has nothing to
+        # be centred on.
         self.soon_title = QtWidgets.QLabel("")
         self.soon_title.setObjectName("namePlate")
         self.soon_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1551,9 +1555,16 @@ class MainWindow(QtWidgets.QWidget):
         for reader in getattr(self, "section_readers", {}).values():
             if reader.saying:
                 reader.stop_saying()
+        board = getattr(self, "dua_board", None)
+        if board is not None and board.saying:
+            board.stop_saying()
 
     def saying_a_passage(self) -> bool:
-        return any(r.saying for r in getattr(self, "section_readers", {}).values())
+        """Is a du'a or a kalima being read aloud, anywhere? The board counts: going to sleep
+        over a du'a is as rude as going to sleep over a surah."""
+        board = getattr(self, "dua_board", None)
+        return (any(r.saying for r in getattr(self, "section_readers", {}).values())
+                or (board is not None and board.saying))
 
     def open_section(self, which: str) -> None:
         """Back out of a du'a lands on the board it came from; the kalima have their arches."""
@@ -1598,20 +1609,6 @@ class MainWindow(QtWidgets.QWidget):
         self.dua_board.to_the_top()
         self.corner_screen.setCurrentWidget(self.dua_board)
         self.stack.setCurrentWidget(self.corner_page)
-
-    def say_a_dua(self, index: int) -> None:
-        """The play mark on a card: open the du'a and start reading it.
-
-        It opens rather than playing where it stands because the card has the Arabic as one
-        piece of text and the du'a's own page has it word by word -- and the point of the
-        recording is the word turning red as it is said, which only the page can show. A mat
-        with no recording for this one still opens it, which is what the mark did for as long
-        as there were no recordings at all.
-        """
-        self.open_passage("duas", index)
-        reader = self.section_readers.get("duas")
-        if reader is not None and reader.can_say():
-            reader.start_saying()
 
     def open_passage(self, which: str, index: int) -> None:
         reader = self.section_readers.get(which)
@@ -1901,15 +1898,24 @@ class MainWindow(QtWidgets.QWidget):
         top.addStretch(1)
         lay.addLayout(top)
 
-        # The prayer's name in English on one side, in Arabic on the other.
-        names = QtWidgets.QHBoxLayout()
+        # The prayer's name on a white plate, the same one the Hadith and world screens wear,
+        # with the Arabic beside the English rather than thrown to the far side of the screen.
+        # They are the same name; having them at opposite edges read as two separate headings.
+        plate = QtWidgets.QFrame()
+        plate.setObjectName("namePlate")
+        inside = QtWidgets.QHBoxLayout(plate)
+        inside.setContentsMargins(self.px(30), self.px(6), self.px(30), self.px(6))
+        inside.setSpacing(self.px(26))
         english = QtWidgets.QLabel(self.t(f"prayer.{pid}"))
-        english.setObjectName("h1")
+        english.setObjectName("plateWord")
+        inside.addWidget(english, 0, Qt.AlignmentFlag.AlignVCenter)
         arabic = QtWidgets.QLabel(self.content.prayer_names.get(pid, ""))
-        arabic.setObjectName("prayerNameBig")
-        names.addWidget(english)
+        arabic.setObjectName("plateArabic")
+        inside.addWidget(arabic, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.prayer_plate = plate
+        names = QtWidgets.QHBoxLayout()
+        names.addWidget(plate, 0, Qt.AlignmentFlag.AlignLeft)
         names.addStretch(1)
-        names.addWidget(arabic)
         lay.addLayout(names)
 
         if self.arch_shape.ready and entries:

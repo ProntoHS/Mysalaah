@@ -405,7 +405,10 @@ class PassageReader(QtWidgets.QWidget):
             b.setChecked(key == lang)
         self.title.setText(f"{item.title} · {item.ref}" if item.ref else item.title)
         self.arabic.set_lines([item.arabic])
-        self.said.setText(item.said)
+        # The du'as show no transliteration; the kalima still do. Same reader, different
+        # sections, and the du'as are the ones where it appeared on some and not others.
+        self.said.setText("" if self.passages.section == "duas" else item.said)
+        self.said.setVisible(self.passages.section != "duas")
         self.meaning.setText(item.meaning(lang))
         rtl = lang in RTL
         self.meaning.setAlignment(Qt.AlignmentFlag.AlignCenter)

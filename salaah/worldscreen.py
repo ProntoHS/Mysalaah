@@ -36,7 +36,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from .globe import Globe, KAABA, apart
+from .globe import Globe, KAABA
 from .qt import QtCore, QtGui, QtWidgets, Qt
 from .theme import palette
 
@@ -271,11 +271,9 @@ class WorldScreen:
         across.addWidget(self.column)
         lay.addLayout(across, 1)
 
-        # Made here, put on the page by whoever built it: it shares a row with the Back button
-        # so that the globe gets the height that row would otherwise have cost it.
-        self.caption = QtWidgets.QLabel("")
-        self.caption.setObjectName("settingHead")
-        self.caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # There was a line of words under the globe -- "Bury to Makkah, about 5,030 km" -- and
+        # it is gone at Harry's asking. It was a fact rather than a thing to look at, and it
+        # sat across the bottom of a screen whose whole job is the picture above it.
         if self.world.there:
             # The dots follow the film, so they dim on the frame the mat goes over the edge
             # rather than on the next time something else happens to redraw them.
@@ -306,15 +304,7 @@ class WorldScreen:
             pip.light(self.globe.at(at, mat.latitude, mat.longitude).seen)
 
     def retell(self) -> None:
-        """The line under the globe, and the column beside it.
-
-        The distance is rounded to ten kilometres. The mat knows where it is to within a postcode
-        district, and writing 5,034 km would be claiming to know it to the street.
-        """
-        where = self.win.settings.place or self.win.t("world.here")
-        km = apart((self.win.settings.latitude, self.win.settings.longitude), KAABA)
-        self.caption.setText(self.win.t("world.line", place=where, km=f"{round(km, -1):,.0f}"))
-
+        """Fill the column beside the globe."""
         mats = self.mats()
         self.heading.setText(self.win.t("world.active"))
         self.count.setText(f"{len(mats):,}")
