@@ -618,7 +618,8 @@ class UiTest(unittest.TestCase):
         for prayer, kind in (("fajr", "sunnah"), ("isha", "witr"), ("isha", "nafl")):
             self.finish(prayer, kind)
             self.assertFalse(w.slide.tasbih.isVisible(), f"{prayer} {kind}")
-            self.assertTrue(w.slide.done.isVisible(), f"{prayer} {kind}")
+            # And nothing takes its place: the passage of the day that used to be here is gone.
+            self.assertFalse(w.slide.done.isVisible(), f"{prayer} {kind}")
 
     def test_the_counters_start_again_with_each_fardh_prayer(self):
         w = self.finish("asr", "farz")
@@ -628,26 +629,22 @@ class UiTest(unittest.TestCase):
         w = self.finish("isha", "farz")
         self.assertEqual([33, 33, 33], w.slide.tasbih.beads.left)
 
-    def test_completion_screen_shows_the_day_s_passage_and_saying(self):
-        from datetime import datetime
+    def test_the_last_page_of_a_prayer_is_the_last_page(self):
+        """This used to be the day's passage and saying, checked line by line. Harry had that
+        page taken out, so what is left to check is that the end of a prayer is now simply the
+        end of it: the dhikr counter and nothing laid over the top of it."""
         w = self.win
-        w.start("fajr", w.school.prayers["fajr"][0])
+        # The fardh units, by their kind: fajr's first entry is its sunnah, and a sunnah prayer
+        # ends without the beads, so asking for [0] proved nothing either way.
+        fardh = [e for e in w.school.prayers["fajr"] if e.kind == "farz"][0]
+        w.start("fajr", fardh)
         APP.processEvents()
         w.session.position = len(w.text_pages) - 1
         w.session.finished = True
         w.refresh()
         APP.processEvents()
-        self.assertTrue(w.slide.done.isVisible())
-        passage, saying = w.content.daily.for_day(datetime.now().date())
-        self.assertEqual([saying["arabic"]], w.hadith_arabic.lines, "the saying in Arabic too")
-        self.assertIn("Sahih", saying["reference"], "with a reference that can be checked")
-        self.assertEqual(saying["reference"], w.hadith_source.text())
-        self.assertEqual(saying["english"], w.hadith_text.text())
-        buttons = [b.text() for b in w.slide.done.findChildren(QtWidgets.QPushButton)]
-        self.assertEqual([], buttons, "no Done button; the Menu button leaves")
-        self.assertEqual(passage["english"], w.quran_english.text())
-        self.assertEqual([passage["arabic"]], w.quran_arabic.lines)
-        self.assertIn(passage["reference"], w.quran_source.text())
+        self.assertFalse(w.slide.done.isVisible(), "something is covering the last page")
+        self.assertTrue(w.slide.tasbih.isVisible(), "the dhikr counter should be here")
         self.shot("12-prayer-complete")
 
     def test_the_stop_button_is_now_the_menu(self):
@@ -682,7 +679,7 @@ class UiTest(unittest.TestCase):
             self.assertIn("QPushButton#backButton", w.styleSheet())
             back.click()
             APP.processEvents()
-            self.assertIs(w.home, w.stack.currentWidget())
+            self.assertIs(w.welcome, w.stack.currentWidget())
 
     def test_choosing_an_arch_starts_that_unit(self):
         from salaah.mosque import ArchButton
@@ -833,7 +830,7 @@ class UiTest(unittest.TestCase):
         self.assertGreater(home.mapTo(screen, home.rect().center()).x(), middle, "top right")
         home.click()
         APP.processEvents()
-        self.assertIs(w.home, w.stack.currentWidget(), "it goes back to the mosque")
+        self.assertIs(w.welcome, w.stack.currentWidget(), "it goes back to the mosque")
         self.shot("10-settings")
 
     def test_only_two_settings_keep_their_explanation(self):
@@ -1129,7 +1126,7 @@ class QiblaScreenTest(unittest.TestCase):
             screen.tick()                          # ...and held: on to the main screen
         finally:
             compass_module.HOLD = old_hold
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
         self.assertAlmostEqual(118.0, w.settings.qibla_heading, delta=0.5, msg="remembered")
 
     def test_with_no_compass_the_bearing_is_the_headline(self):
@@ -1186,7 +1183,7 @@ class QiblaScreenTest(unittest.TestCase):
         from salaah.qibla import StandIn
         w = self.window(StandIn(start=120.0), qibla_heading=118.0)
         w.begin()
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
 
     def test_it_asks_again_when_the_mat_has_been_turned(self):
         from salaah.qibla import StandIn
@@ -1199,7 +1196,7 @@ class QiblaScreenTest(unittest.TestCase):
         w.begin()
         self.assertIs(w.compass_screen, w.stack.currentWidget())
         w.on_button("next")
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
 
     def test_without_a_compass_it_shows_the_bearing(self):
         w = self.window()
@@ -1216,7 +1213,7 @@ class QiblaScreenTest(unittest.TestCase):
     def test_it_can_be_switched_off(self):
         w = self.window(qibla_start=False)
         w.begin()
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
 
     def test_the_arrow_keys_turn_the_stand_in(self):
         from salaah.qibla import StandIn
@@ -1373,7 +1370,7 @@ class SideScreenTest(unittest.TestCase):
     def test_start_up_puts_the_compass_on_the_side_and_the_mosque_on_the_main(self):
         w = self.window()
         w.begin()
-        self.assertIs(w.home, w.stack.currentWidget(), "the main screen is not held up")
+        self.assertIs(w.welcome, w.stack.currentWidget(), "the main screen is not held up")
         self.assertTrue(w.side.showing_compass)
         self.assertTrue(w.side.compass.timer.isActive())
 
@@ -1426,7 +1423,7 @@ class SideScreenTest(unittest.TestCase):
             compass.tick()
         self.assertAlmostEqual(118.5, w.settings.qibla_heading, delta=1)
         self.assertTrue(compass.timer.isActive(), "it keeps watching")
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
 
     def test_a_touch_on_the_side_compass_does_not_skip(self):
         w = self.window()
@@ -1582,7 +1579,7 @@ class QiblaAtStartTest(unittest.TestCase):
         w = self.window(side=True)
         w.begin()
         self.assertTrue(w.side.showing_compass, "the 7\" should show the Qibla at start-up")
-        self.assertIs(w.home, w.stack.currentWidget(), "the big screen goes straight to the menu")
+        self.assertIs(w.welcome, w.stack.currentWidget(), "the big screen goes straight to the menu")
         self.assertFalse(w.qibla_open, "and not to the compass as well")
 
     def test_the_small_screen_compass_keeps_watching(self):
@@ -1601,7 +1598,7 @@ class QiblaAtStartTest(unittest.TestCase):
         w.begin()
         self.assertFalse(w.side.showing_compass)
         self.assertTrue(str(w.side.posture.path).endswith("standing_arms_down.png"))
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
 
     def test_the_posture_takes_the_small_screen_during_a_prayer_and_gives_it_back(self):
         w = self.window(side=True)
@@ -1940,7 +1937,10 @@ class SkyAndPolishTest(unittest.TestCase):
         w.open_prayer("fajr")
         APP.processEvents()
         self.assertFalse(w.mosque.flutter.isActive(), "and stopped once it is not")
-        w.go_home()
+        # go_home lands on the front door now, which has a sky of its own and does not run
+        # this clock at all -- so the mosque is reached the way a person reaches it, through
+        # the door.
+        w.leave_welcome()
         APP.processEvents()
         self.assertTrue(w.mosque.flutter.isActive())
 
@@ -2222,7 +2222,7 @@ class ZoomIntoArchTest(unittest.TestCase):
         self.assertTrue(w.veil.running)
         w.go_home()
         self.assertFalse(w.veil.running)
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
 
     def test_nothing_to_photograph_is_not_a_crash(self):
         w = self.window()
@@ -2595,112 +2595,24 @@ class BannerAndDoneScreenTest(unittest.TestCase):
             self.assertEqual(chip, background, f"{mode}: the rakat box is {background}")
             self.assertIn("#ffffff", tally, f"{mode}: the rakat is not written in white")
 
-    def test_the_headings_are_white_on_a_box_and_bigger_than_the_words_under_them(self):
-        for mode, chip in (("light", "#000000"), ("dark", "#262626")):
-            w = self.window(theme=mode)
-            self.at_the_end(w)
-            heads = [x for x in w.slide.done.findChildren(QtWidgets.QLabel)
-                     if x.objectName() == "dailyHead"]
-            self.assertEqual(2, len(heads), "one heading over each passage")
-            for head in heads:
-                background, tally = self.painted(head)
-                self.assertEqual(chip, background, f"{mode}: {head.text()!r} sits on {background}")
-                self.assertIn("#ffffff", tally, f"{mode}: {head.text()!r} is not in white")
-            english = [x for x in w.slide.done.findChildren(QtWidgets.QLabel)
-                       if x.objectName() == "dailyEnglish"][0]
-            # The heading used to be the bigger of the two, back when the meaning was a small
-            # caption. Now the meaning is lettered to match the Arabic, so the heading is the
-            # smaller: it is a label on the passage, not a title competing with it.
-            self.assertLess(heads[0].font().pixelSize(), english.font().pixelSize(),
-                            "the passage should be lettered larger than the label over it")
-
-    def test_there_is_no_prayer_complete_heading(self):
+    def test_nothing_is_shown_when_a_prayer_finishes(self):
+        """There was a hadith and a passage of the Qur'an for the day here, and Harry had it
+        taken out: the mat has a Qur'an section and a hadith section of its own now, so a
+        quotation nobody asked for at the end of a prayer was a page to get past rather than a
+        page to read. Eight tests went with it; this is what is left of them."""
         w = self.window()
         self.at_the_end(w)
-        words = [x.text() for x in w.slide.done.findChildren(QtWidgets.QLabel) if x.text()]
-        self.assertFalse([x for x in words if "complete" in x.lower()],
-                         "the 'Prayer complete' heading is meant to be gone")
-        self.assertFalse([x for x in w.slide.done.findChildren(QtWidgets.QLabel)
-                          if x.objectName() == "doneTitle"])
+        self.assertFalse(w.slide.done.isVisible(), "something is still covering the last page")
+        for gone in ("hadith_arabic", "quran_arabic", "hadith_source", "quran_source",
+                     "show_daily", "match_daily_sizes"):
+            self.assertFalse(hasattr(w, gone), f"{gone} is still here")
+        words = [x.text() for x in w.slide.findChildren(QtWidgets.QLabel) if x.text()]
         for lang, pack in available_packs(ASSETS).items():
-            self.assertNotIn("player.done_title", pack.ui, f"{lang} still carries the wording")
+            for key in ("daily.hadith", "daily.quran"):
+                said = pack.ui.get(key, "")
+                if said:
+                    self.assertNotIn(said, words, f"{lang} still shows {key}")
 
-    def test_the_two_passages_are_still_there(self):
-        w = self.window()
-        self.at_the_end(w)
-        self.assertTrue(w.slide.done.isVisible())
-        self.assertTrue(w.hadith_arabic.lines, "no hadith")
-        self.assertTrue(w.quran_arabic.lines, "no Qur'an passage")
-        self.assertTrue(w.hadith_source.text())
-        self.assertTrue(w.quran_source.text())
-
-    def pairs(self, w):
-        """Every passage against the longest saying, and every saying against the longest
-        passage. Each kind against the worst of the other is the case that binds; all of them
-        against all of them would be two and a half thousand combinations for no more cover."""
-        passages, sayings = list(w.content.daily.passages), list(w.content.daily.sayings)
-        longest = lambda items: max(items, key=lambda x: len(x["english"]) + len(x["arabic"]))
-        return ([(p, longest(sayings)) for p in passages]
-                + [(longest(passages), s) for s in sayings])
-
-    def show(self, w, passage, saying):
-        w.quran_arabic.set_lines([passage["arabic"]])
-        w.quran_english.setText(passage["english"])
-        w.hadith_arabic.set_lines([saying["arabic"]])
-        w.hadith_text.setText(saying["english"])
-        w.match_daily_sizes()
-        APP.processEvents()
-
-    def test_the_arabic_and_its_meaning_are_set_at_one_size(self):
-        """They are quotations read one under the other, so the meaning is not a caption: it is
-        lettered the same size as the Arabic above it, and both columns agree, whichever pair the
-        day brings up."""
-        w = self.window()
-        self.at_the_end(w)
-        for passage, saying in self.pairs(w):
-            self.show(w, passage, saying)
-            size = w.quran_arabic.fitted_size()
-            what = f"{passage['reference']} with {saying['reference']}"
-            self.assertEqual(size, w.hadith_arabic.fitted_size(),
-                             f"{what}: the two columns' Arabic is lettered differently")
-            for label in (w.quran_english, w.hadith_text):
-                self.assertEqual(size, label.font().pixelSize(),
-                                 f"{what}: the meaning is {label.font().pixelSize()}px against "
-                                 f"{size}px of Arabic")
-
-    def test_no_pair_is_lettered_too_small_to_read_from_the_mat(self):
-        w = self.window()
-        self.at_the_end(w)
-        floor = int(MIN_ARABIC_PX * w.quran_arabic.scale)
-        for passage, saying in self.pairs(w):
-            self.show(w, passage, saying)
-            self.assertGreaterEqual(
-                w.quran_arabic.fitted_size(), floor,
-                f"{passage['reference']} with {saying['reference']}: down to "
-                f"{w.quran_arabic.fitted_size()}px, under the {floor}px we hold to")
-
-    def test_no_meaning_is_cut_off_at_the_foot_of_its_box(self):
-        """Checked by looking at the pixels rather than by asking the same measurement that chose
-        the size, which would only agree with itself."""
-        w = self.window()
-        self.at_the_end(w)
-
-        def reaches_the_edge(widget):
-            picture = widget.grab().toImage().convertToFormat(
-                QtGui.QImage.Format.Format_ARGB32)
-            for y in (picture.height() - 1, picture.height() - 2):
-                for x in range(0, picture.width(), 2):
-                    dot = picture.pixelColor(x, y)
-                    if dot.alpha() > 128 and dot.lightness() < 128:
-                        return True        # lettering on the last row: something is cut
-            return False
-
-        for passage, saying in self.pairs(w):
-            self.show(w, passage, saying)
-            for label in (w.quran_english, w.hadith_text):
-                self.assertFalse(reaches_the_edge(label),
-                                 f"{passage['reference']} with {saying['reference']}: the meaning "
-                                 f"runs off the bottom at {w.quran_arabic.fitted_size()}px")
 
 
 class SettingsTidiedTest(unittest.TestCase):
@@ -3016,11 +2928,12 @@ class SleepTest(unittest.TestCase):
         self.assertFalse(w.clock.isActive(), "the ten-second clock is still running")
         self.assertFalse(any(s.flutter.isActive() for s in skies), "the sky is still animating")
         self.press(w)
-        # It wakes at the front door, so that is the sky which starts moving again rather than
-        # the mosque's. What matters is that the screen somebody is looking at is alive.
+        # It wakes at the front door, whose drawing brings its own sky and runs no clock for
+        # one. So what has to come back is the ten-second clock -- the thing that keeps the
+        # times right -- and no sky anywhere may still be running.
         self.assertTrue(w.clock.isActive())
-        showing = next(s for s in skies if s.isVisible())
-        self.assertTrue(showing.flutter.isActive())
+        self.assertFalse(any(s.flutter.isActive() for s in skies if not s.isVisible()),
+                         "a sky is animating on a screen nobody is looking at")
 
     def test_it_sleeps_from_any_screen_including_partway_through_a_prayer(self):
         """One rule and no exceptions. This used to be refused mid-prayer; a button that does
@@ -3489,7 +3402,7 @@ class CallToPrayerTest(unittest.TestCase):
         self.assertTrue(w.asleep)
         self.at(w, "maghrib")
         self.assertFalse(w.asleep, "it should wake to call")
-        self.assertIs(w.home, w.stack.currentWidget(), "and come back at the mosque")
+        self.assertIs(w.welcome, w.stack.currentWidget(), "and come back at the mosque")
         self.assertEqual(["azaan.mp3"], w.call.played)
 
     def test_it_does_not_call_over_somebody_already_praying(self):
@@ -3604,7 +3517,7 @@ class NoQiblaTest(unittest.TestCase):
         w = self.window()
         w.begin()
         APP.processEvents()
-        self.assertIs(w.home, w.stack.currentWidget(), "it should start at the mosque")
+        self.assertIs(w.welcome, w.stack.currentWidget(), "it should start at the mosque")
 
     def test_the_compass_code_is_still_there_to_switch_back_on(self):
         """Switched off, not torn out. A mat with a sensor fitted should need one line."""
@@ -3630,7 +3543,7 @@ class KnowledgeCornerTest(unittest.TestCase):
     def test_the_small_screen_offers_six_things_between_prayers(self):
         w = self.window()
         self.assertTrue(w.side.showing_corner, "the 7in should show the corner between prayers")
-        self.assertEqual(["quran", "duas", "kalima", "hadith", "settings", "world"],
+        self.assertEqual(["quran", "duas", "salaah", "hadith", "settings", "world"],
                          [t.name for t in w.side.corner.tiles])
 
     def test_the_posture_takes_the_small_screen_back_during_a_prayer(self):
@@ -3656,15 +3569,29 @@ class KnowledgeCornerTest(unittest.TestCase):
         w.open_corner("quran")
         self.assertFalse(w.reading, "the prayer should not be shoved aside")
 
-    def test_all_three_tiles_now_open_something(self):
-        """Both of these used to say "not filled in yet". They are filled in."""
+    def test_the_two_reading_tiles_open_something(self):
+        """Both of these used to say "not filled in yet". They are filled in.
+
+        There were three. The third was the six kalima, which are reached from the du'a menu
+        now; its square on this menu is Salaah, and that is a way out rather than something to
+        read, so it is tested with the rest of the way out."""
         w = self.window()
-        for i, which in enumerate(("quran", "duas", "kalima")):
+        for i, which in enumerate(("quran", "duas")):
             w.side.corner.tiles[i].click()
             APP.processEvents()
             self.assertTrue(w.reading, which)
             self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget(),
                              f"{which} should no longer land on the empty page")
+
+    def test_the_salaah_tile_is_the_way_back_to_the_front_door(self):
+        w = self.window()
+        by_name = {t.name: t for t in w.side.corner.tiles}
+        self.assertIn("salaah", by_name, "the Salaah tile is not on the menu")
+        self.assertNotIn("kalima", by_name, "the kalima square is still there")
+        by_name["salaah"].click()
+        APP.processEvents()
+        self.assertIs(w.welcome, w.stack.currentWidget())
+        self.assertFalse(w.reading, "it should leave the Knowledge Corner, not read in it")
 
     def test_a_section_whose_file_is_missing_still_says_so(self):
         """The fallback has not been thrown away: a mat whose assets were half copied lands on
@@ -3924,13 +3851,13 @@ class PassageScreenTest(unittest.TestCase):
     def test_all_ten_are_still_reachable_through_the_kinds(self):
         """Ten du'as went in and ten must come out. Filing them under kinds is no good if one
         of them ends up behind a tile nobody can reach."""
-        from salaah.duamenu import CATEGORIES
+        from salaah.duamenu import CATEGORIES, NOT_A_KIND
         w = self.window()
         w.open_corner("duas")
         settle()
         self.assertIs(w.dua_menu, w.corner_screen.currentWidget())
         seen, drawn = set(), 0
-        for cat in CATEGORIES:
+        for cat in (c for c in CATEGORIES if c not in NOT_A_KIND):
             w.open_dua_category(cat)
             settle()
             if w.corner_screen.currentWidget() is not w.dua_board:
@@ -3940,7 +3867,7 @@ class PassageScreenTest(unittest.TestCase):
             seen.update(item.key for _, item in board.wanted())
         self.assertEqual({d.key for d in w.duas.items}, seen, "a du'a is behind no tile at all")
         self.assertGreaterEqual(len(seen), 48, "du'as have gone missing from the menu")
-        self.assertEqual(2 * len(CATEGORIES), drawn, "every kind should draw exactly two")
+        self.assertEqual(2 * len([c for c in CATEGORIES if c not in NOT_A_KIND]), drawn, "every kind should draw exactly two")
 
     def test_the_shuffle_can_reach_every_dua_and_not_just_the_first_two(self):
         """Only two of a kind are shown at a time now, so 'reachable' means the shuffle will
@@ -3951,10 +3878,10 @@ class PassageScreenTest(unittest.TestCase):
         same call the screen makes, it is fast, and two hundred draws makes a false alarm about
         one in 10^25 rather than one run in a hundred.
         """
-        from salaah.duamenu import CATEGORIES
+        from salaah.duamenu import CATEGORIES, NOT_A_KIND
         w = self.window()
         board = w.dua_board
-        for cat in CATEGORIES:
+        for cat in (c for c in CATEGORIES if c not in NOT_A_KIND):
             board.only = cat
             whole = {item.key for _, item in board.wanted()}
             self.assertGreaterEqual(len(whole), 3, f"{cat} has too few to shuffle")
@@ -5286,19 +5213,27 @@ class TwoMosquesTest(unittest.TestCase):
 
     def test_the_minarets_and_dome_land_in_the_same_place_on_both(self):
         w = self.window()
-        w.go_home()
+        # In to the mosque, not the screen the mat opens on. go_home lands on the new front
+        # door now, which is a different drawing altogether -- no minarets on it to line up
+        # against, and a dome in another place. This test is about the kalima building being
+        # the five-arch mosque with six arches, and that is what it has always been about.
+        #
+        # Shown rather than walked into: leave_welcome plays a zoom over the top, and offscreen
+        # that animation never finishes, so the grab catches a screen mid-walk. The first go
+        # measured a dome 450px from where it is and a left minaret that moved every run.
+        w.stack.setCurrentWidget(w.home)
         settle()
-        front = self.landmarks(w)
+        mosque = self.landmarks(w)
         w.open_corner("kalima")
         settle()
         arches = self.landmarks(w)
-        self.assertIsNotNone(front)
+        self.assertIsNotNone(mosque)
         self.assertIsNotNone(arches)
         for part in ("left", "right", "dome"):
-            across = abs(arches[part][0] - front[part][0])
-            down = abs(arches[part][1] - front[part][1])
-            self.assertLess(across, 25, f"{part} is {across}px across from the front door's")
-            self.assertLess(down, 25, f"{part} is {down}px below the front door's")
+            across = abs(arches[part][0] - mosque[part][0])
+            down = abs(arches[part][1] - mosque[part][1])
+            self.assertLess(across, 25, f"{part} is {across}px across from the mosque's")
+            self.assertLess(down, 25, f"{part} is {down}px below the mosque's")
 
     def test_the_kalima_drawing_is_the_same_shape_as_the_front_door(self):
         """The artwork arrived at a different size and aspect, so it sat smaller and higher
@@ -5366,7 +5301,7 @@ class SettingsScreenTest(unittest.TestCase):
         self.assertEqual(1, len(home), "the way home is on the strip now")
         home[0].click()
         settle()
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
 
     def test_it_is_painted_black_over_white_and_not_white_over_white(self):
         """Rendered rather than read off the layout: a strip that lays out correctly and paints
@@ -6333,7 +6268,9 @@ class WelcomeScreenTest(unittest.TestCase):
         box = w.welcome_mosque.arches[0].box
         self.assertGreater(box.width(), box.height() * 2,
                            "the opening is a wide panel, not one of the upright arches")
-        self.assertGreater(box.width(), w.welcome_mosque.picture.width() * 0.6,
+        # Against the building rather than the canvas. The drawing is widened to the screen's
+        # shape with bars of its own sky either side, and those are not part of the front.
+        self.assertGreater(box.width(), w.welcome_mosque.picture.width() * 0.4,
                            "and it spans most of the front")
 
     def test_touching_it_goes_through_to_the_mosque(self):
@@ -6355,7 +6292,7 @@ class WelcomeScreenTest(unittest.TestCase):
         settle()
         w.go_home()
         settle()
-        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIs(w.welcome, w.stack.currentWidget())
 
     def test_it_keeps_the_clock_but_lights_no_prayer(self):
         w = self.window()
@@ -6646,15 +6583,21 @@ class MovingFrontDoorTest(unittest.TestCase):
         self.assertGreater(len(stars), 0, "the stars were put there to be masked")
 
 
-    def test_the_sky_still_shows_through_the_front_door(self):
-        """The film is opaque. Painted on normally it would cover the whole screen, stars, sun
-        and all -- the dome would still look right, so only this notices."""
+    def test_the_front_door_brings_its_own_sky(self):
+        """It used to be an outline with a see-through sky, and the app drew the sun, the moon,
+        the stars and the birds behind it. The drawing Harry replaced it with has all of those
+        in it and moving, so the app's are switched off: a second moon beside the one already
+        drawn would be worse than none, and on a mat that sits on this screen all day the clock
+        that flutters them is the Pi woken thirty times a second for nothing.
+        """
         w = self.window()
         front = w.welcome_mosque
-        front.sky.birds = []
+        self.assertFalse(front.own_sky, "the front door is still asking for a sky")
+        self.assertFalse(front.flutter.isActive(), "and still running the clock for it")
+        # And the proof that it does not need one: turning the app's stars on changes nothing.
         front.set_sky(False, 0.5)
         stars = list(front.sky.stars)
-        self.assertGreater(len(stars), 20)
+        self.assertGreater(len(stars), 20, "there are stars to have shown")
         front.sky.stars = []
         front.update()
         settle()
@@ -6667,12 +6610,19 @@ class MovingFrontDoorTest(unittest.TestCase):
                       for x in range(0, front.width())
                       if (QtGui.QColor(starry.pixel(x, y)).lightness()
                           - QtGui.QColor(bare.pixel(x, y)).lightness()) > 30)
-        self.assertGreater(showing, 150,
-                           f"only {showing} pixels of sky get through the front door")
+        self.assertEqual(0, showing,
+                         f"{showing} pixels of the app's sky are coming through anyway")
 
-
-class WakeToTheFrontDoorTest(unittest.TestCase):
-    """Asleep all night, it comes back at the front door rather than wherever it was left."""
+    def test_the_time_is_still_on_the_dome(self):
+        """The one thing Harry asked for from the new drawing. It is written dark on it, where
+        the old one was written light: that dome is a solid shape and the old one was a hole."""
+        w = self.window()
+        w.tick()                         # what puts the time on the dome
+        settle()
+        front = w.welcome_mosque
+        self.assertTrue(front.clock_dark, "the numbers would be white on a white dome")
+        self.assertRegex(front.time_text, r"^\d{1,2}:\d{2}$", "there is no time on the dome")
+        self.assertTrue(front.clock_box.isValid() and front.clock_box.width() > 100)
 
     def window(self, **settings):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
@@ -6915,7 +6865,7 @@ class SixTileMenuTest(unittest.TestCase):
         self.assertEqual(3, len(rows), f"expected three rows, got {rows}")
         # reading order: across, then down
         order = sorted(tiles, key=lambda t: (t.y(), t.x()))
-        self.assertEqual(["quran", "duas", "kalima", "hadith", "settings", "world"],
+        self.assertEqual(["quran", "duas", "salaah", "hadith", "settings", "world"],
                          [t.name for t in order])
 
     def test_the_heading_is_gone_and_the_tiles_take_the_height(self):
@@ -6965,10 +6915,11 @@ class SixTileMenuTest(unittest.TestCase):
         self.assertIs(w.dua_menu, w.corner_screen.currentWidget(),
                       "the Du'as tile should open the kinds")
         w.go_home()
-        by_name["kalima"].click()
+        # The third used to be the kalima. They are behind the du'a menu now, and this square
+        # is Salaah: out to the front door rather than into anything.
+        by_name["salaah"].click()
         settle()
-        self.assertIn(w.corner_screen.currentWidget(),
-                      (w.arch_menus.get("kalima"), w.section_lists["kalima"]))
+        self.assertIs(w.welcome, w.stack.currentWidget())
 
     def test_the_ones_that_are_not_land_on_a_named_empty_screen(self):
         """Only hadith now. The world used to be here too and has its own screen since -- the
@@ -7233,7 +7184,7 @@ class DuaMenuTest(unittest.TestCase):
         self.assertIs(w.dua_menu, w.corner_screen.currentWidget())
 
     def test_every_kind_is_touchable_and_carries_its_own_picture(self):
-        from salaah.duamenu import CATEGORIES
+        from salaah.duamenu import CATEGORIES, NOT_A_KIND
         w = self.window()
         tiles = {t.name: t for t in w.dua_menu.tiles}
         self.assertEqual(set(CATEGORIES), set(tiles))
@@ -7377,9 +7328,9 @@ class DuaBoardTest(unittest.TestCase):
 
     def test_two_duas_are_shown_one_each_side(self):
         """Two, no more: the whole point of the size they are drawn at."""
-        from salaah.duamenu import CATEGORIES
+        from salaah.duamenu import CATEGORIES, NOT_A_KIND
         w = self.window()
-        for cat in CATEGORIES:
+        for cat in (c for c in CATEGORIES if c not in NOT_A_KIND):
             board = self.board(w, cat)
             left = [board.left.itemAt(i).widget() for i in range(board.left.count())]
             right = [board.right.itemAt(i).widget() for i in range(board.right.count())]
@@ -7505,10 +7456,10 @@ class DuaBoardTest(unittest.TestCase):
 
     def test_no_kind_scrolls_at_all(self):
         """Now that the Arabic sizes itself to its box, nothing should ever need scrolling."""
-        from salaah.duamenu import CATEGORIES
+        from salaah.duamenu import CATEGORIES, NOT_A_KIND
         w = self.window()
         scrolls = []
-        for cat in CATEGORIES:
+        for cat in (c for c in CATEGORIES if c not in NOT_A_KIND):
             board = self.board(w, cat)
             if board.scroll.verticalScrollBar().maximum() > 0:
                 scrolls.append(cat)
@@ -7569,7 +7520,7 @@ class DuaBoardTest(unittest.TestCase):
         self.assertTrue(outs, "no way off the du'a board at all")
         outs[0].click()
         settle()
-        self.assertIs(w.home, w.stack.currentWidget(), "the way out did not lead anywhere")
+        self.assertIs(w.welcome, w.stack.currentWidget(), "the way out did not lead anywhere")
 
     def test_the_pair_does_not_change_under_you_while_the_screen_is_shown(self):
         """Stepping into a du'a and coming back must bring back the same two. The pick belongs
@@ -9137,7 +9088,7 @@ class PlainerDuasTest(unittest.TestCase):
         w = self.window()
         w.open_the_kinds_of_dua()
         settle()
-        w.open_dua_category("general")
+        w.open_dua_category("gratitude")
         settle()
         card = w.dua_board.cards[0]
         self.assertGreater(card.arabic.height(), card.height() * 0.45,
@@ -9235,3 +9186,298 @@ class PrayerPlateTest(unittest.TestCase):
         gap = abs(labels[0].geometry().center().x() - labels[1].geometry().center().x())
         self.assertLess(gap, w.width() * 0.3,
                         f"{gap}px apart on a {w.width()}px screen is not beside each other")
+
+
+class NewFrontDoorTest(unittest.TestCase):
+    """Harry's new drawing, which the mat now opens on, and the one job it has: the time.
+
+    Three things about it differ from the two mosques behind it, and all three are measured off
+    the rendered screen rather than read back out of mosque.json. The file is only what the
+    drawing says about itself, so a test that reads it proves the file agrees with itself and
+    nothing else.
+    """
+
+    def window(self, mode="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def front(self, w):
+        front = w.welcome_mosque
+        self.assertIs(w.welcome, w.stack.currentWidget(), "the mat did not open on the front door")
+        # The film is eighty frames of moving sun and stars. Held on one frame, so that what
+        # differs between two grabs is the time and only the time.
+        if front.film is not None:
+            front.film.stop()
+            front.film.jumpToFrame(0)
+        settle()
+        return front
+
+    @staticmethod
+    def moved(front, before, after, step=2):
+        """Which pixels differ between two clock readings: (x0, y0, x1, y1), or None."""
+        front.set_time(before)
+        settle()
+        one = front.grab().toImage()
+        front.set_time(after)
+        settle()
+        two = front.grab().toImage()
+        xs, ys = [], []
+        for y in range(0, one.height(), step):
+            for x in range(0, one.width(), step):
+                if one.pixel(x, y) != two.pixel(x, y):
+                    xs.append(x)
+                    ys.append(y)
+        return (min(xs), min(ys), max(xs), max(ys)) if xs else None
+
+    def test_the_time_is_written_on_the_dome_and_nowhere_else(self):
+        """Where the numbers land is worked out from the drawing, and this is the check that it
+        landed on the dome: the only part of the picture that changes when the clock does sits
+        above the doorway and across the middle of it, which is where a dome is."""
+        w = self.window()
+        front = self.front(w)
+        box = self.moved(front, "00:00", "18:48")
+        self.assertIsNotNone(box, "the clock is not being drawn at all")
+        x0, y0, x1, y1 = box
+        door = front.arch_centre("enter")
+        self.assertIsNotNone(door, "the name panel is missing, so there is nothing to go in by")
+        self.assertLess(y1, door.y(), f"the time is drawn at y {y1}, below the doorway at {door.y()}")
+        middle = (x0 + x1) // 2
+        self.assertLess(abs(middle - front.width() // 2), front.width() * 0.1,
+                        f"the time is off to one side, centred at x {middle}")
+        self.assertGreater(x1 - x0, front.width() * 0.04, "the numbers are too small to read")
+        self.assertLess(x1 - x0, front.width() * 0.5, "the numbers are spread across the building")
+
+    def test_the_numbers_stand_out_from_the_dome_on_either_screen(self):
+        """The dome is a solid shape in this drawing rather than an outline, so the numbers on
+        it have to be the opposite of whatever it is -- and the whole drawing inverts with the
+        theme, so both ways round need checking."""
+        for mode, dome_is_light in (("dark", True), ("light", False)):
+            with self.subTest(mode):
+                w = self.window(mode)
+                front = self.front(w)
+                box = self.moved(front, "00:00", "18:48")
+                self.assertIsNotNone(box, f"{mode}: no clock on the dome")
+                x0, y0, x1, y1 = box
+                front.set_time("18:48")
+                settle()
+                shot = front.grab().toImage()
+                ink, dome = [], []
+                for y in range(y0, y1 + 1):
+                    for x in range(x0, x1 + 1):
+                        c = shot.pixelColor(x, y)
+                        ink.append((c.red() + c.green() + c.blue()) / 3)
+                # The dome either side of the numbers, in the band they sit in.
+                for y in range(y0, y1 + 1):
+                    for x in (max(0, x0 - 40), min(shot.width() - 1, x1 + 40)):
+                        c = shot.pixelColor(x, y)
+                        dome.append((c.red() + c.green() + c.blue()) / 3)
+                darkest = min(ink)
+                lightest = max(ink)
+                around = sum(dome) / len(dome)
+                if dome_is_light:
+                    self.assertGreater(around, 170, f"{mode}: the dome is not light")
+                    self.assertLess(darkest, 80, f"{mode}: the numbers are not dark on it")
+                else:
+                    self.assertLess(around, 90, f"{mode}: the dome is not dark")
+                    self.assertGreater(lightest, 170, f"{mode}: the numbers are not light on it")
+
+    def test_the_front_door_brings_its_own_sky_so_the_app_draws_none(self):
+        """The drawing has a sun, a moon and stars of its own, all moving. The app's sky behind
+        it would put a second moon beside the one already there -- and on a mat that sits on
+        this screen all day, it is a timer waking the Pi thirty times a second to draw
+        something nobody can see."""
+        w = self.window()
+        front = self.front(w)
+        self.assertFalse(front.own_sky, "the app is still painting a sky for the front door")
+        self.assertFalse(front.flutter.isActive(),
+                         "the sky clock is running on a screen with no sky to draw")
+        self.assertTrue(front.isVisible(), "and this is with the screen up, not hidden")
+        # The mosque behind it is the other way round, which is what makes the above a choice
+        # rather than a thing that is broken everywhere.
+        w.leave_welcome()
+        settle()
+        self.assertTrue(w.mosque.own_sky, "the mosque should still have the app's sky")
+        self.assertTrue(w.mosque.flutter.isActive(), "and its sky should be moving")
+
+    def test_the_drawing_fills_the_screen_side_to_side(self):
+        """It arrived narrower than the screen and sat in the middle with a black bar either
+        side. The bars are now part of the drawing, cut from its own sky, so they invert with
+        it and are not there to see."""
+        w = self.window()
+        front = self.front(w)
+        shown = front.picture.size()
+        self.assertGreater(shown.width() / shown.height(), 1.8,
+                           f"the drawing is {shown.width()}x{shown.height()}, which will letterbox")
+        shot = front.grab().toImage()
+        band = front.height() // 3
+        edge = [shot.pixelColor(x, band) for x in range(0, 12)]
+        levels = {(c.red() + c.green() + c.blue()) // 3 for c in edge}
+        self.assertEqual(1, len(levels),
+                         "the far edge of the screen is not one flat colour, so a bar shows")
+
+
+class DuaMenuSwapTest(unittest.TestCase):
+    """Harry redrew the du'a menu: the General du'as square has gone and a 6 Kalima square is
+    in its place. The kalima are not a kind of du'a, so the tile has to leave the du'as
+    altogether and land on the six arches."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_there_is_no_general_duas_square_and_nothing_is_filed_under_it(self):
+        w = self.window()
+        w.chose_on_the_small_screen("duas")
+        settle()
+        self.assertNotIn("general", [t.name for t in w.dua_menu.tiles],
+                         "the General du'as square is still on the menu")
+        listing = w.section_lists["duas"]
+        stranded = [item.said or item.english for item in listing.passages.items
+                    if item.cats == ["general"]]
+        self.assertEqual([], stranded,
+                         f"{len(stranded)} du'a(s) are filed under General only, so the square "
+                         f"went and took them with it")
+
+    def test_the_six_kalima_square_is_there_in_its_place(self):
+        w = self.window()
+        w.chose_on_the_small_screen("duas")
+        settle()
+        tiles = {t.name: t for t in w.dua_menu.tiles}
+        self.assertIn("kalima", tiles, "there is no 6 Kalima square on the du'a menu")
+        self.assertTrue(tiles["kalima"].path.is_file(),
+                        f"its picture is missing: {tiles['kalima'].path}")
+        self.assertTrue(tiles["kalima"].isEnabled())
+
+    def test_touching_it_lands_on_the_six_arches_and_not_on_a_list_of_duas(self):
+        w = self.window()
+        w.chose_on_the_small_screen("duas")
+        settle()
+        next(t for t in w.dua_menu.tiles if t.name == "kalima").click()
+        settle()
+        self.assertIn("kalima", w.arch_menus, "the kalima mosque was never built")
+        self.assertIs(w.arch_menus["kalima"], w.corner_screen.currentWidget(),
+                      "the kalima square did not land on the six arches")
+        self.assertIsNot(w.dua_board, w.corner_screen.currentWidget(),
+                         "it landed on a board of du'as instead")
+        self.assertEqual(["1", "2", "3", "4", "5", "6"],
+                         [a.prayer for a in w.arch_menus["kalima"].mosque.arches],
+                         "six arches is the whole point of the screen")
+
+    def test_a_kind_that_is_not_a_kind_is_never_looked_for_among_the_duas(self):
+        """open_dua_category filters the long list by the tile's name. Left to do that with
+        kalima it would find nothing filed under it and land on the empty page, under the
+        heading '6 Kalima' -- which looks like a section of the mat that was never finished."""
+        w = self.window()
+        w.open_dua_category("kalima")
+        settle()
+        self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget(),
+                         "the kalima went looking for du'as and found the empty page")
+
+
+class EveryWayBackTest(unittest.TestCase):
+    """Harry: any button labelled Menu now points at the new default page. There are four of
+    them on four different screens, and before this they landed on the mosque."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def a_menu_button(self, w, page):
+        """The button on [page] that says Menu, by what is written on it rather than by name."""
+        said = w.t("player.menu")
+        found = [b for b in page.findChildren(QtWidgets.QPushButton) if b.text() == said]
+        self.assertTrue(found, f"nothing on this screen says {said!r}")
+        return found[0]
+
+    def test_the_front_door_is_what_the_mat_opens_on(self):
+        w = self.window()
+        self.assertIsNotNone(w.welcome, "there is no front door")
+        self.assertIs(w.welcome, w.stack.currentWidget())
+
+    def test_the_menu_button_under_a_prayers_units_lands_on_it(self):
+        w = self.window()
+        w.leave_welcome()
+        settle()
+        w.open_prayer("asr")
+        settle()
+        self.assertIsNot(w.welcome, w.stack.currentWidget(), "we never left the front door")
+        self.a_menu_button(w, w.stack.currentWidget()).click()
+        settle()
+        self.assertIs(w.welcome, w.stack.currentWidget())
+
+    def test_main_screen_out_of_the_knowledge_corner_lands_on_it(self):
+        w = self.window()
+        w.open_corner("hadith")
+        settle()
+        self.assertIsNot(w.welcome, w.stack.currentWidget())
+        w.go_home()
+        settle()
+        self.assertIs(w.welcome, w.stack.currentWidget())
+
+    def test_it_lands_there_from_every_screen_that_can_leave(self):
+        """go_home is the one road out, so every screen that offers a way back uses it. Each of
+        these was somewhere the mat could get stuck if it landed wrong."""
+        w = self.window()
+        for name, go in (("a prayer's units", lambda: w.open_prayer("fajr")),
+                         ("the Qur'an", lambda: w.open_corner("quran")),
+                         ("the du'as", lambda: w.open_corner("duas")),
+                         ("the six kalima", lambda: w.open_corner("kalima")),
+                         ("the world", lambda: w.open_corner("world")),
+                         ("Settings", lambda: w.open_settings())):
+            with self.subTest(name):
+                w.leave_welcome()
+                settle()
+                go()
+                settle()
+                self.assertIsNot(w.welcome, w.stack.currentWidget(), f"{name} never opened")
+                w.go_home()
+                settle()
+                self.assertIs(w.welcome, w.stack.currentWidget(),
+                              f"leaving {name} did not land on the front door")
+
+    def test_the_salaah_tile_carries_a_prayer_mat_and_not_the_kalima_drawing(self):
+        """The square the kalima used to have is a prayer mat now. The picture is checked as a
+        picture: mostly white paper with a drawing on it, and not the file it replaced."""
+        w = self.window()
+        tile = next(t for t in w.side.corner.tiles if t.name == "salaah")
+        self.assertEqual("salaah.png", tile.path.name)
+        self.assertTrue(tile.path.is_file(), f"{tile.path} is missing")
+        shot = QtGui.QImage(str(tile.path))
+        self.assertFalse(shot.isNull(), "the Salaah tile will not open as a picture")
+        ink = 0
+        for y in range(0, shot.height(), 2):
+            for x in range(0, shot.width(), 2):
+                c = shot.pixelColor(x, y)
+                if (c.red() + c.green() + c.blue()) / 3 < 128 and c.alpha() > 128:
+                    ink += 1
+        looked = (shot.height() // 2 + 1) * (shot.width() // 2 + 1)
+        self.assertGreater(ink, looked * 0.02, "the tile is very nearly blank paper")
+        self.assertLess(ink, looked * 0.5, "the tile is very nearly solid ink")
+        beside = QtGui.QImage(str(tile.path.with_name("quran.png")))
+        self.assertEqual(beside.size(), shot.size(),
+                         "it is a different size to the five tiles beside it")

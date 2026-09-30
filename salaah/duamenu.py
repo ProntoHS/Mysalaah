@@ -25,8 +25,14 @@ from .knowledge import Tile
 CATEGORIES = (
     "morning", "evening", "sleep", "waking", "food", "home",
     "mosque", "travel", "prayer", "protection", "forgiveness", "guidance",
-    "gratitude", "family", "health", "worry", "knowledge", "general",
+    "gratitude", "family", "health", "worry", "knowledge", "kalima",
 )
+# The last tile is not a kind of du'a. It was "General du'as", which was the bin everything
+# that did not fit went into, and Harry took it out; the six kalima have the eighteenth square
+# now and it opens their own screen rather than a list of du'as. It is here rather than in a
+# list of its own because the menu is one drawing cut into eighteen, so the tile exists whatever
+# the app does with it.
+NOT_A_KIND = ("kalima",)
 ACROSS = 6
 
 

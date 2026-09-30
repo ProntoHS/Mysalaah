@@ -416,6 +416,15 @@ class MosqueScreen(QtWidgets.QWidget):
         self._frame: QtGui.QPixmap | None = None
         self._frame_key: tuple = ()
         self.clock_box = QtCore.QRect()
+        # Whether the app paints a sky behind this drawing. The first two mosques are outlines
+        # with a see-through sky, so the app supplies the sun, the moon, the stars and the
+        # birds. The front door brings its own, all of them moving, and painting a second moon
+        # beside the one already drawn would be worse than painting none -- so the drawing
+        # says, and when it says no, the sky is not drawn and its clock is not run.
+        self.own_sky = True
+        # Whether the numbers on the dome are dark. An outline dome is a hole in the picture
+        # and takes light numbers; a solid one takes dark. Both flip with the artwork.
+        self.clock_dark = False
         self.lit: str | None = None
         self.minarets: dict[str, QtCore.QRect] = {}
         self.sun_up = True
@@ -444,7 +453,9 @@ class MosqueScreen(QtWidgets.QWidget):
         self.picture = _load_once(folder / described["image"])
         self.drawn_dark = described.get("drawn", "light") == "dark"
         self.load_film(folder / "mosque.gif")
+        self.own_sky = bool(described.get("sky", True))
         box = described["clock"]["box"]
+        self.clock_dark = described["clock"].get("ink", "light") == "dark"
         self.clock_box = QtCore.QRect(box[0], box[1], box[2] - box[0], box[3] - box[1])
         for side, box in described.get("minarets", {}).items():
             self.minarets[side] = QtCore.QRect(box[0], box[1], box[2] - box[0], box[3] - box[1])
@@ -652,7 +663,8 @@ class MosqueScreen(QtWidgets.QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
-        self.flutter.start()
+        if self.own_sky:
+            self.flutter.start()
         if self.film is not None:
             self.film.start()
 
@@ -744,27 +756,36 @@ class MosqueScreen(QtWidgets.QWidget):
             return
         scaled, origin, scale = self.placement()
         flip = self.flipped
-        if self.sun_up:
-            self.draw_birds(painter, scaled, origin)
-        else:
-            self.draw_stars(painter, scaled, origin)
-        self.draw_sky(painter, scaled, origin)
+        if self.own_sky:
+            if self.sun_up:
+                self.draw_birds(painter, scaled, origin)
+            else:
+                self.draw_stars(painter, scaled, origin)
+            self.draw_sky(painter, scaled, origin)
         if self.lit is None and self.idle_glow:
             self.draw_minaret_glow(painter, origin, scale)
         painter.drawPixmap(origin, scaled)
-        # The film goes over the still rather than instead of it. The still is what hides the
-        # sky behind the solid parts -- the dome the clock sits on above all -- and the film
-        # has no transparency of its own, so on its own it would either paint over the stars
-        # everywhere or let them through the dome. Laid on top and combined by taking the
-        # lighter of the two, its black adds nothing and its white lines move.
         frame = self.film_frame(scaled.size(), flip)
         if frame is not None:
-            mode = (QtGui.QPainter.CompositionMode.CompositionMode_Darken if flip
-                    else QtGui.QPainter.CompositionMode.CompositionMode_Lighten)
-            painter.setCompositionMode(mode)
-            painter.drawPixmap(origin, frame)
-            painter.setCompositionMode(
-                QtGui.QPainter.CompositionMode.CompositionMode_SourceOver)
+            if self.own_sky:
+                # The film goes over the still rather than instead of it. The still is what
+                # hides the sky behind the solid parts -- the dome the clock sits on above all
+                # -- and the film has no transparency of its own, so on its own it would either
+                # paint over the stars everywhere or let them through the dome. Laid on top and
+                # combined by taking the lighter of the two, its black adds nothing and its
+                # white lines move.
+                mode = (QtGui.QPainter.CompositionMode.CompositionMode_Darken if flip
+                        else QtGui.QPainter.CompositionMode.CompositionMode_Lighten)
+                painter.setCompositionMode(mode)
+                painter.drawPixmap(origin, frame)
+                painter.setCompositionMode(
+                    QtGui.QPainter.CompositionMode.CompositionMode_SourceOver)
+            else:
+                # Nothing behind to protect, so the film is simply drawn. It has to be: on this
+                # drawing people walk along the bottom, and taking the lighter of the two would
+                # leave every one of them standing where the still put them while a second copy
+                # walked away.
+                painter.drawPixmap(origin, frame)
 
         # Which prayer it is now: its name on the arch in green, and its time in green in the
         # banner. No box over the arch; that was more shout than help.
@@ -781,7 +802,8 @@ class MosqueScreen(QtWidgets.QWidget):
                                int(self.clock_box.width() * scale),
                                int(self.clock_box.height() * scale))
             painter.setFont(self.clock_type(box, self.time_text, painter.font()))
-            painter.setPen(QtGui.QColor("black") if self.flipped else CLOCK_INK)
+            dark = self.clock_dark != self.flipped
+            painter.setPen(QtGui.QColor("black") if dark else CLOCK_INK)
             painter.drawText(self.clock_rect(box),
                              int(Qt.AlignmentFlag.AlignCenter) | int(Qt.TextFlag.TextDontClip),
                              self.time_text)

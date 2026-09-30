@@ -59,11 +59,6 @@ VEIL_MOST = 60          # never darker than this: the postures still have to be 
 NIGHT = "#0B0C0D"
 NIGHT_TEXT = "#E6E7E3"
 
-# The prayer-complete screen sets the Arabic and its meaning to one size between them, as large
-# as both will fit at. A short passage would otherwise be lettered enormously just because there
-# is room: this is the point past which bigger stops helping anyone read it from the mat.
-DAILY_MAX_PX = 88
-
 NEXT_KEYS = {
     Qt.Key.Key_VolumeUp, Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space, Qt.Key.Key_Right,
     Qt.Key.Key_PageDown, Qt.Key.Key_MediaNext, Qt.Key.Key_MediaPlay, Qt.Key.Key_MediaTogglePlayPause,
@@ -464,7 +459,7 @@ class PrayerPage(QtWidgets.QWidget):
         self.ask = QtWidgets.QWidget(self)
         self.ask.setObjectName("done")
         self.ask.hide()
-        # After a fardh prayer, the counted dhikr takes the place of the daily passage.
+        # A fardh prayer ends on the counted dhikr. Nothing else ends on anything.
         self.tasbih = TasbihScreen(Fonts.arabic(window.settings.arabic_font),
                                    Fonts.english_family, px)
         self.tasbih.setParent(self)
@@ -664,10 +659,6 @@ class MainWindow(QtWidgets.QWidget):
         if abs(scale - self.s) > 0.01:
             self.s = scale
             QtCore.QTimer.singleShot(0, self.restyle)
-        # The daily passages are lettered to the room they have, so a new shape wants a new size.
-        # Once the columns have their new width, not now, hence the timer.
-        if hasattr(self, "quran_arabic"):
-            QtCore.QTimer.singleShot(0, self.match_daily_sizes)
         super().resizeEvent(event)
 
     def restyle(self) -> None:
@@ -1137,15 +1128,6 @@ class MainWindow(QtWidgets.QWidget):
             QWidget#bar QPushButton#stop:pressed {{ background:#8E342C; }}
             QWidget#done {{ background:{c.paper}; }}
             QWidget#done QLabel {{ background:transparent; color:{c.strong}; font-size:{px(56)}px; font-weight:bold; }}
-            QWidget#done QLabel#dailyHead {{ background:{c.chip}; color:white; font-size:{px(38)}px;
-                                             font-weight:bold; padding:{px(8)}px {px(22)}px;
-                                             border-radius:{px(8)}px; }}
-            /* No font-size here: match_daily_sizes() sets it, to whatever the Arabic above it
-               came out at. A size in the stylesheet would win over that. */
-            QWidget#done QLabel#dailyEnglish {{ font-weight:normal; color:{c.strong}; }}
-            QWidget#done QLabel#dailySource {{ font-size:{px(19)}px; font-weight:normal;
-                                               color:{c.source}; }}
-            QFrame#dailyDivider {{ background:{c.divider}; border:none; }}
             QWidget#tasbih {{ background:{c.paper}; }}
             QLabel#askHint {{ font-size:{px(26)}px; font-weight:normal; color:{c.source}; }}
         """
@@ -1514,6 +1496,9 @@ class MainWindow(QtWidgets.QWidget):
         if self.playing or self.asleep:
             return
         self.stir()
+        # Not a section: the way back to the front door, where the six kalima used to sit.
+        if which == "salaah":
+            return self.go_home()
         if which == "quran" and self.quran.there:
             self.open_corner_list()
             return
@@ -1597,6 +1582,11 @@ class MainWindow(QtWidgets.QWidget):
         if self.playing or self.asleep:
             return
         self.stir()
+        # The eighteenth tile is the six kalima, which are not a kind of du'a and have a screen
+        # of their own.
+        from .duamenu import NOT_A_KIND
+        if cat in NOT_A_KIND:
+            return self.open_section(cat)
         listing = self.section_lists.get("duas")
         named = self.t(f"dua.{cat}")
         if listing is None or not any(cat in item.cats for item in listing.passages.items):
@@ -1955,7 +1945,11 @@ class MainWindow(QtWidgets.QWidget):
             self.veil.stop()        # don't walk into an arch we have just walked back out of
         if hasattr(self, "compass_screen"):
             self.compass_screen.close_screen()
-        self.stack.setCurrentWidget(self.home)
+        # The front door, not the mosque. It is the main page now -- Harry's word -- and
+        # everything that means "take me back to the start" lands on the same screen: the
+        # Menu button off a prayer's units, Main screen from the Knowledge Corner, and the
+        # Salaah tile on the 7in. From there one touch on MySalaah is the mosque.
+        self.stack.setCurrentWidget(self.welcome if self.welcome is not None else self.home)
 
     # The Qibla
 
@@ -2073,65 +2067,10 @@ class MainWindow(QtWidgets.QWidget):
         self.slide = PrayerPage(self)
         self.slide.tapped.connect(self.on_tap)
         self.slide.tasbih.tapped.connect(self.tap_bead)
-        # When the prayer finishes: a saying on the left, a passage of the Qur'an on the right.
-        dl = QtWidgets.QVBoxLayout(self.slide.done)
-        dl.setContentsMargins(self.px(56), self.px(28), self.px(56), self.px(24))
-        dl.setSpacing(self.px(10))
-        # No "Prayer complete" heading: the two passages are the screen, and you know you have
-        # finished because you just did.
-        pair = QtWidgets.QHBoxLayout()
-        pair.setSpacing(self.px(56))
-
-        hadith = QtWidgets.QVBoxLayout()
-        hadith.setSpacing(self.px(8))
-        hadith_head = QtWidgets.QLabel(self.t("daily.hadith"))
-        hadith_head.setObjectName("dailyHead")
-        self.hadith_arabic = TextBox(Fonts.arabic(self.settings.arabic_font), MIN_ARABIC_PX,
-                                     MAX_ARABIC_PX, rtl=True, weight=700, slack=0.98,
-                                     by_word=True, gap=0.18)
-        self.hadith_arabic.scale = self.s
-        self.hadith_text = QtWidgets.QLabel()
-        self.hadith_text.setObjectName("dailyEnglish")
-        self.hadith_text.setWordWrap(True)
-        self.hadith_source = QtWidgets.QLabel()
-        self.hadith_source.setObjectName("dailySource")
-        # The Arabic and its English are set at one size, so the Arabic is no longer stretched to
-        # fill the column. Each block hangs from its heading, which keeps the two columns' first
-        # lines level with each other however differently long the two passages are; the spare
-        # room goes to the bottom.
-        hadith.addWidget(hadith_head, 0, Qt.AlignmentFlag.AlignHCenter)
-        hadith.addWidget(self.hadith_arabic, 0)
-        hadith.addWidget(self.hadith_text)
-        hadith.addWidget(self.hadith_source)
-        hadith.addStretch(1)
-        pair.addLayout(hadith, 1)
-
-        divider = QtWidgets.QFrame()
-        divider.setObjectName("dailyDivider")
-        divider.setFrameShape(QtWidgets.QFrame.Shape.VLine)
-        divider.setFixedWidth(max(1, self.px(2)))
-        pair.addWidget(divider)
-
-        quran = QtWidgets.QVBoxLayout()
-        quran.setSpacing(self.px(8))
-        quran_head = QtWidgets.QLabel(self.t("daily.quran"))
-        quran_head.setObjectName("dailyHead")
-        self.quran_arabic = TextBox(Fonts.arabic(self.settings.arabic_font), MIN_ARABIC_PX,
-                                    MAX_ARABIC_PX, rtl=True, weight=700, slack=0.98,
-                                    by_word=True, gap=0.18)
-        self.quran_arabic.scale = self.s
-        self.quran_english = QtWidgets.QLabel()
-        self.quran_english.setObjectName("dailyEnglish")
-        self.quran_english.setWordWrap(True)
-        self.quran_source = QtWidgets.QLabel()
-        self.quran_source.setObjectName("dailySource")
-        quran.addWidget(quran_head, 0, Qt.AlignmentFlag.AlignHCenter)
-        quran.addWidget(self.quran_arabic, 0)
-        quran.addWidget(self.quran_english)
-        quran.addWidget(self.quran_source)
-        quran.addStretch(1)
-        pair.addLayout(quran, 1)
-        dl.addLayout(pair, 1)
+        # Nothing is shown when a prayer finishes. There used to be a hadith and a passage of
+        # the Qur'an for the day here, and Harry had it taken out: the mat has a Qur'an section
+        # and a hadith section of its own now, so a quotation nobody asked for at the end of a
+        # prayer was a page to get past rather than a page to read.
         al = QtWidgets.QVBoxLayout(self.slide.ask)
         al.addStretch(1)
         al.setContentsMargins(self.px(80), 0, self.px(80), 0)
@@ -2280,11 +2219,9 @@ class MainWindow(QtWidgets.QWidget):
         self.rakat_label.setText(self.t("player.rakat", n=page.rakat, total=s.total_rakats))
         self.progress.set_value(1.0 if s.finished else s.progress)
         self.slide.show_page(page, self.assets)
-        # A fardh prayer ends on the counted dhikr, anything else on the daily passage.
+        # A fardh prayer ends on the counted dhikr; everything else simply ends.
         counting = s.finished and self.counts_dhikr
-        if s.finished and not counting:
-            self.show_daily()
-        self.slide.done.setVisible(s.finished and not counting)
+        self.slide.done.setVisible(False)
         self.slide.tasbih.setVisible(counting)
         if counting:
             self.slide.tasbih.raise_()
@@ -2398,84 +2335,6 @@ class MainWindow(QtWidgets.QWidget):
                 self.slide.set_highlight((line, word))
                 return
         self.slide.set_highlight(None)
-
-    def show_daily(self) -> None:
-        """The passage and the saying for today. The same all day, different tomorrow."""
-        passage, saying = self.content.daily.for_day(datetime.now().date())
-        if saying:
-            self.hadith_arabic.set_lines([saying.get("arabic", "")])
-            self.hadith_text.setText(saying.get("english", ""))
-            self.hadith_source.setText(saying.get("reference", ""))
-        if passage:
-            self.quran_arabic.set_lines([passage.get("arabic", "")])
-            self.quran_english.setText(passage.get("english", ""))
-            self.quran_source.setText(self.t("daily.quran_ref", ref=passage.get("reference", "")))
-        self.match_daily_sizes()
-
-    def match_daily_sizes(self) -> None:
-        """Sets the Arabic and the English of both daily passages to one size between them.
-
-        They are quotations, read one under the other, so a small English caption under a huge
-        line of Arabic makes the meaning look like a footnote to the words. One size for all four
-        blocks: the largest at which each column's Arabic, English and reference all still fit in
-        the room that column has. Both columns take the smaller of the two answers, so the screen
-        reads as one thing rather than two columns lettered differently.
-        """
-        columns = [(self.hadith_arabic, self.hadith_text, self.hadith_source),
-                   (self.quran_arabic, self.quran_english, self.quran_source)]
-        room = self.daily_room()
-        if room <= 0 or any(box.width() < 50 for box, _, _ in columns):
-            return                      # not laid out yet; show_daily runs again once it is
-
-        def english_height(label, size: int) -> int:
-            """The height the meaning takes at that size, and a little over.
-
-            Built from the face the stylesheet gives it, not label.font(), which does not reflect
-            a stylesheet. The bit over matters: measured exactly, a descender on the last line
-            comes out a single pixel clear of the bottom, which is the sort of thing that fits
-            here and clips on the Pi.
-            """
-            font = QtGui.QFont(self.pack_face())
-            font.setPixelSize(size)
-            box = QtGui.QFontMetrics(font).boundingRect(
-                0, 0, label.width(), 0,
-                int(Qt.TextFlag.TextWordWrap) | int(Qt.AlignmentFlag.AlignLeft),
-                label.text()).height()
-            return box + max(2, size // 10)
-
-        def fits(column, size: int) -> bool:
-            box, english, source = column
-            return (box.height_at(size) + english_height(english, size)
-                    + source.sizeHint().height()) <= room
-
-        low, high = self.px(20), self.px(DAILY_MAX_PX)
-        best = low
-        while low <= high:
-            mid = (low + high) // 2
-            if all(fits(column, mid) for column in columns):
-                best, low = mid, mid + 1
-            else:
-                high = mid - 1
-        for box, english, source in columns:
-            box.pin(best)
-            box.setFixedHeight(box.height_at(best))
-            # Set through the widget's own stylesheet: a font-size in an ancestor's stylesheet
-            # (QWidget#done QLabel) would otherwise win over setFont and nothing would change.
-            english.setStyleSheet(f"font-size:{best}px;")
-            english.setFixedHeight(english_height(english, best))
-
-    def daily_room(self) -> int:
-        """The height in one column of the prayer-complete screen left for the words themselves,
-        once the heading, the gaps between the rows and the margins are taken out."""
-        page = self.slide.done
-        lay = page.layout()
-        if lay is None or page.height() < 100:
-            return 0
-        margins = lay.contentsMargins()
-        heads = [x for x in page.findChildren(QtWidgets.QLabel) if x.objectName() == "dailyHead"]
-        heading = max((x.sizeHint().height() for x in heads), default=0)
-        gaps = self.px(8) * 3           # heading to Arabic, Arabic to English, English to source
-        return page.height() - margins.top() - margins.bottom() - heading - gaps
 
     def preload(self) -> None:
         """Scale the next few posture pictures while the person is reading this page."""

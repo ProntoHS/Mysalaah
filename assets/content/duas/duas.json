@@ -5,7 +5,7 @@
   {
    "key": "both_worlds",
    "cats": [
-    "general"
+    "protection"
    ],
    "title": "Good in this world and the next",
    "ref": "2:201",
@@ -261,8 +261,7 @@
   {
    "key": "steady_heart",
    "cats": [
-    "guidance",
-    "general"
+    "guidance"
    ],
    "title": "Let not our hearts turn away",
    "ref": "3:8",
@@ -1175,8 +1174,7 @@
   {
    "key": "waking_in_the_night",
    "cats": [
-    "waking",
-    "general"
+    "waking"
    ],
    "title": "Waking in the night",
    "ref": "Sahih al-Bukhari",
@@ -2445,8 +2443,7 @@
   {
    "key": "guidance_and_enough",
    "cats": [
-    "guidance",
-    "general"
+    "guidance"
    ],
    "title": "Guidance, mindfulness and enough",
    "ref": "Sahih Muslim",

@@ -25,7 +25,10 @@ from .theme import palette
 
 # The tiles, in reading order: two across, three down, the way they were drawn. The name is
 # the picture's file name and the word the rest of the app knows the section by.
-TILES = ("quran", "duas", "kalima", "hadith", "settings", "world")
+# "salaah" is not a section of the Knowledge Corner at all: it is the way back to the front
+# door, and it took the square the six kalima had until the du'a menu gave them one of its own.
+# A tile rather than a button because this menu is six squares and always has been.
+TILES = ("quran", "duas", "salaah", "hadith", "settings", "world")
 ACROSS = 2
 
 

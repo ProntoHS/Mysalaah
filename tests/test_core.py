@@ -2369,8 +2369,14 @@ class DuaCategoriesTest(unittest.TestCase):
     """The eighteen kinds of du'a: the drawing, the filing and the words for them."""
 
     def setUp(self):
-        from salaah.duamenu import CATEGORIES
+        from salaah.duamenu import CATEGORIES, NOT_A_KIND
         self.cats = CATEGORIES
+        # The eighteenth square is the six kalima. It is on the menu, it is drawn, and it is not
+        # a kind of du'a -- it took the place of "General du'as", which was the bin everything
+        # that fitted nowhere went into, and Harry took that out. So it has a tile and no du'as,
+        # and the tests about what is behind a kind have to leave it out or they are asking the
+        # wrong question of it.
+        self.kinds = tuple(c for c in CATEGORIES if c not in NOT_A_KIND)
         self.assets = Path(__file__).resolve().parent.parent / "assets"
 
     def duas(self):
@@ -2399,7 +2405,7 @@ class DuaCategoriesTest(unittest.TestCase):
         same pair on every visit and the shuffling has nothing to work with."""
         import collections
         how_many = collections.Counter(c for d in self.duas() for c in d["cats"])
-        thin = {c: how_many[c] for c in self.cats if how_many[c] < 3}
+        thin = {c: how_many[c] for c in self.kinds if how_many[c] < 3}
         self.assertEqual({}, thin, f"these kinds have fewer than three: {thin}")
 
     def test_the_hadith_duas_carry_their_source_and_are_marked_unchecked(self):
@@ -2420,7 +2426,7 @@ class DuaCategoriesTest(unittest.TestCase):
         packs = available_packs(self.assets)
         self.assertGreaterEqual(len(packs), 6, "the packs did not load")
         for lang, pack in packs.items():
-            for cat in self.cats:
+            for cat in self.kinds:
                 said = pack.ui.get(f"dua.{cat}", "")
                 self.assertTrue(said.strip(), f"{lang} cannot name {cat}")
 
