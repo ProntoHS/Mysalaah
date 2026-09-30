@@ -169,7 +169,7 @@
         "settings.figure": "Qui est montré",
         "figure.boy": "Garçon",
         "figure.girl": "Fille",
-        "update.check": "Rechercher une mise à jour",
+        "update.check": "MISE À JOUR",
         "update.looking": "Recherche…",
         "update.current": "Version {number} — à jour",
         "update.found": "La version {number} est disponible. Mettre à jour ?",

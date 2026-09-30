@@ -171,7 +171,7 @@
         "settings.figure": "Quién aparece",
         "figure.boy": "Niño",
         "figure.girl": "Niña",
-        "update.check": "Buscar actualizaciones",
+        "update.check": "ACTUALIZAR",
         "update.looking": "Buscando…",
         "update.current": "Versión {number} — actualizado",
         "update.found": "La versión {number} está disponible. ¿Actualizar ahora?",

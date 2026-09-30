@@ -91,6 +91,7 @@ def no_focus(w: QtWidgets.QWidget) -> QtWidgets.QWidget:
     return w
 
 
+
 class Bridge(QtCore.QObject):
     """Carries button events from the reader threads to the screen thread."""
     action = Signal(str)
@@ -990,6 +991,20 @@ class MainWindow(QtWidgets.QWidget):
                                       border-radius:{px(8)}px; font-size:{px(28)}px;
                                       font-weight:bold; padding:{px(12)}px {px(30)}px; }}
             QPushButton#backButton:pressed {{ background:#8E342C; }}
+            /* The same button, given a thumb's worth of height. It is pressed by somebody
+               standing over a mat on the floor, and it was 29 pixels tall on the 7" panel --
+               a fingernail. Twice that, and a floor under the width as well so that a short
+               word cannot shrink it: Chinese has two characters for Back and came out 60 wide
+               against 60 tall, which the floor takes to 80. The sizes live here rather than on
+               the widget because the scale changes with the window, and it is the stylesheet,
+               not the widgets, that gets rebuilt when it does -- a minimum set on the widget
+               at build time keeps whatever scale happened to be in force then, which is how
+               the first attempt at this came out full size on the 7" screen. */
+            QPushButton#bigBack {{ background:{BRICK}; color:white; border:none;
+                                   border-radius:{px(8)}px; font-size:{px(28)}px;
+                                   font-weight:bold; padding:{px(12)}px {px(30)}px;
+                                   min-height:{px(90)}px; min-width:{px(90)}px; }}
+            QPushButton#bigBack:pressed {{ background:#8E342C; }}
             QLabel#prayerNameBig {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                     font-size:{px(64)}px; font-weight:bold; }}
             QWidget#banner {{ background:{c.chip}; }}
@@ -1000,7 +1015,8 @@ class MainWindow(QtWidgets.QWidget):
             QPushButton#updateButton {{ background:{BRICK}; color:white; border:none;
                                         font-size:{px(22)}px; font-weight:bold;
                                         padding:{px(10)}px {px(24)}px;
-                                        border-radius:{px(8)}px; }}
+                                        border-radius:{px(8)}px;
+                                        min-height:{px(72)}px; min-width:{px(72)}px; }}
             QPushButton#updateButton:pressed {{ background:#8E342C; }}
             QPushButton#updateButton:disabled {{ background:#8E342C; color:#E3BDB9; }}
             QWidget#knowledge {{ background:{c.paper}; }}
@@ -1385,7 +1401,9 @@ class MainWindow(QtWidgets.QWidget):
         blank = next(x for x in page.findChildren(QtWidgets.QLabel) if x.objectName() == "h1")
         blank.hide()
         plate = QtWidgets.QHBoxLayout()
-        plate.addStretch(1)
+        # Left, not centred. The globe sits to the left of the page now that the column is on
+        # the right, and a heading centred over the whole width floated away from the thing it
+        # was heading.
         self.world_title = QtWidgets.QLabel(self.t("corner.world"))
         self.world_title.setObjectName("namePlate")
         self.world_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1406,6 +1424,7 @@ class MainWindow(QtWidgets.QWidget):
 
         back = no_focus(QtWidgets.QPushButton(self.t("corner.back")))
         back.setObjectName("backButton")
+        back.setObjectName("bigBack")
         back.clicked.connect(self.go_home)
         self.world_back_button = back
         # On the same row as the words under the globe, and the words stay centred on the page
@@ -1456,6 +1475,7 @@ class MainWindow(QtWidgets.QWidget):
         # long way round.
         back = no_focus(QtWidgets.QPushButton(self.t("corner.back")))
         back.setObjectName("backButton")
+        back.setObjectName("bigBack")
         back.clicked.connect(self.leave_the_empty_screen)
         self.soon_back_button = back
         row.addWidget(back)
@@ -2774,7 +2794,11 @@ class MainWindow(QtWidgets.QWidget):
         outer = QtWidgets.QVBoxLayout(w)
         # Tighter at the top than it was: the banner above now carries the height the old head
         # row had, and on a 1920x1080 monitor the last section was six pixels below the fold.
-        outer.setContentsMargins(self.px(48), self.px(12), self.px(48), self.px(20))
+        # The bottom margin is thin because the update button in the foot is now a block
+        # rather than a strip, and a block brings its own breathing room. The 46 pixels it grew
+        # by had to come from somewhere: a 1920x1080 monitor had 28 to spare and started
+        # scrolling by 18, which the scroll test caught.
+        outer.setContentsMargins(self.px(48), self.px(12), self.px(48), self.px(8))
         outer.setSpacing(self.px(6))
 
         head = QtWidgets.QHBoxLayout()
@@ -2944,7 +2968,6 @@ class MainWindow(QtWidgets.QWidget):
 
         # No way out to the desktop: the mat is the product, and there is nothing behind it to
         # go to. Ctrl+Q still quits, for working on it (see eventFilter).
-        outer.addSpacing(self.px(12))        # so the version never sits against the last option
         foot = QtWidgets.QHBoxLayout()
         version = QtWidgets.QLabel(self.t("settings.version", number=__version__))
         version.setObjectName("settingValue")

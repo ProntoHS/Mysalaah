@@ -8718,10 +8718,184 @@ class CommunityColumnTest(unittest.TestCase):
     def test_the_column_costs_the_globe_nothing(self):
         """The globe is square and every screen the mat has is wider than it is tall, so its
         size is settled by the height left over and never by the width. The column goes in room
-        that was empty. If it ever starts costing the globe pixels, that is worth knowing."""
-        for size, expect in (((1024, 600), 417), ((1280, 720), 517), ((1920, 1080), 821)):
+        that was already empty beside it.
+
+        This was written against the three sizes the globe came out at, and a version later that
+        caught something real and named it wrongly: the globe had shrunk, but by the Back button
+        doubling in height underneath it, not by the column. So what it asks now is the thing it
+        always meant -- that the globe is still hemmed in by the height and not by the width. If
+        the column ever starts squeezing it, the globe turns width-limited and this fails.
+        """
+        for size in ((1024, 600), (1280, 720), (1920, 1080)):
             with self.subTest(f"{size[0]}x{size[1]}"):
                 w = self.window(size=size)
                 screen = self.opened(w)
-                self.assertEqual(expect, screen.world.circle()[2],
-                                 "the globe has been squeezed by the column")
+                world = screen.world
+                side = world.circle()[2]
+                self.assertEqual(world.height(), side,
+                                 "the globe is no longer as tall as the room it has -- the "
+                                 "column is squeezing it")
+                self.assertGreater(world.width(), side,
+                                   "there is no width to spare beside the globe any more")
+                # And a floor, so it cannot quietly dwindle: still over half the page.
+                self.assertGreater(side, w.world_page.height() * 0.6,
+                                   f"the globe is down to {side}px on a "
+                                   f"{w.world_page.height()}px page")
+
+
+class ThumbButtonsTest(unittest.TestCase):
+    """The buttons that are pressed hardest, given room to be pressed.
+
+    Back on the world and hadith screens came out 29 pixels tall on the 7" panel, and the
+    update button 23. That is a fingernail, on a screen somebody prods with a thumb while
+    standing over a mat on the floor. These are twice that and no narrower than they are tall.
+
+    Measured against a plain Back button in the same window rather than against a pixel count,
+    because the point is the ratio: the sizes follow the screen, so a number written here would
+    only be true on one of them.
+    """
+
+    def window(self, size=(1024, 600), lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(*size)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def plain_back(self, w):
+        """An ordinary Back button in this same window, for the comparison."""
+        w.open_place()
+        settle()
+        return w.place_screen.leave
+
+    SIZES = ((1024, 600), (1280, 720), (1920, 1080))
+
+    def test_the_world_back_button_is_twice_the_height_of_a_plain_one(self):
+        for size in self.SIZES:
+            with self.subTest(f"{size[0]}x{size[1]}"):
+                w = self.window(size)
+                plain = self.plain_back(w).height()
+                w.open_world()
+                settle()
+                big = w.world_back_button
+                self.assertGreater(big.height(), plain * 1.8,
+                                   f"{big.height()}px against a plain {plain}px")
+                self.assertGreaterEqual(big.width(), big.height(),
+                                        "taller than it is wide is not a square")
+
+    def test_the_hadith_back_button_is_the_same(self):
+        for size in self.SIZES:
+            with self.subTest(f"{size[0]}x{size[1]}"):
+                w = self.window(size)
+                plain = self.plain_back(w).height()
+                w.open_corner("hadith")
+                settle()
+                big = w.soon_back_button
+                self.assertGreater(big.height(), plain * 1.8,
+                                   f"{big.height()}px against a plain {plain}px")
+                self.assertGreaterEqual(big.width(), big.height())
+
+    def test_the_update_button_says_update_and_is_twice_as_tall(self):
+        for size in self.SIZES:
+            with self.subTest(f"{size[0]}x{size[1]}"):
+                w = self.window(size)
+                plain = self.plain_back(w).height()
+                w.open_settings()
+                settle()
+                button = w.update_button
+                self.assertEqual("UPDATE", button.text())
+                self.assertGreater(button.height(), plain * 1.5,
+                                   f"{button.height()}px against a plain back button's {plain}px")
+
+    def test_the_update_button_is_a_block_in_every_language(self):
+        """The height is only half of it: "Check for updates" was three times wider than it was
+        tall, which is a strip rather than something to aim a thumb at. Measured as the ratio in
+        all six languages at all three sizes -- Spanish is the widest at 2.21 and Chinese the
+        narrowest at 0.98, against 3.0 for the words it used to carry."""
+        for lang in sorted(available_packs(ASSETS)):
+            for size in self.SIZES:
+                with self.subTest(f"{lang} {size[0]}x{size[1]}"):
+                    w = self.window(size, lang=lang)
+                    w.open_settings()
+                    settle()
+                    button = w.update_button
+                    self.assertTrue(button.text(), f"{lang} has no word for it")
+                    shape = button.width() / button.height()
+                    self.assertLess(shape, 2.6,
+                                    f"{lang}: {button.text()!r} makes it {shape:.2f} times "
+                                    f"wider than it is tall")
+                    # Never narrower than it is tall. Chinese is the word that tests it: 更新
+                    # comes out 47px wide against 48 tall on its own, and the floor in the
+                    # stylesheet takes it to 62 -- a third more to aim at.
+                    self.assertGreaterEqual(shape, 1.0,
+                                            f"{lang}: {button.text()!r} makes it "
+                                            f"{button.width()}x{button.height()}, narrower "
+                                            f"than it is tall")
+
+    def test_the_ordinary_back_buttons_are_left_as_they_were(self):
+        """The bigger size is its own object name rather than a change to every Back button in
+        the app. The reader's bar and the keyboard screens are laid out around the small one."""
+        w = self.window()
+        plain = self.plain_back(w)
+        self.assertEqual("backButton", plain.objectName())
+        w.open_wifi()
+        settle()
+        self.assertEqual("backButton", w.wifi_screen.leave.objectName())
+        w.open_world()
+        settle()
+        self.assertEqual("bigBack", w.world_back_button.objectName())
+        # And the plain one is still the small size beside the big one.
+        self.assertLess(plain.height(), w.world_back_button.height() * 0.7)
+
+
+class WorldHeadingTest(unittest.TestCase):
+    """Where the name plate sits on the world screen. It was centred over the whole page, which
+    once the Active column took the right-hand side left it floating above nothing in
+    particular. Harry asked for it on the left, over the globe."""
+
+    def window(self, size=(1024, 600)):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(*size)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_corner("world")
+        settle()
+        return w
+
+    def test_the_plate_is_against_the_left_of_the_page(self):
+        for size in ((1024, 600), (1920, 1080)):
+            with self.subTest(f"{size[0]}x{size[1]}"):
+                w = self.window(size)
+                plate = w.world_title
+                page = w.world_page
+                left = plate.mapTo(page, QtCore.QPoint(0, 0)).x()
+                middle = plate.mapTo(page, plate.rect().center()).x()
+                self.assertLess(left, page.width() * 0.1,
+                                f"the plate starts {left}px in on a {page.width()}px page")
+                self.assertLess(middle, page.width() * 0.45,
+                                "the plate is still sitting in the middle of the page")
+
+    def test_it_is_over_the_globe_rather_than_the_column(self):
+        w = self.window()
+        plate = w.world_title
+        page = w.world_page
+        globe = w.world_screen.world
+        plate_middle = plate.mapTo(page, plate.rect().center()).x()
+        column_left = w.world_screen.column.mapTo(page, QtCore.QPoint(0, 0)).x()
+        globe_left, _, side = globe.circle()
+        globe_middle = globe.mapTo(page, QtCore.QPoint(globe_left + side // 2, 0)).x()
+        self.assertLess(plate_middle, column_left, "the heading has drifted over the column")
+        self.assertLess(abs(plate_middle - globe_middle), page.width() * 0.5,
+                        "the heading is nowhere near the globe it heads")
