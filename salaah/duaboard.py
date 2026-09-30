@@ -90,9 +90,14 @@ class DuaCard(QtWidgets.QFrame):
         lay.addWidget(self.meaning)
         self.draw_mark(False)
 
+    # Twice what it was. It is the thing on this screen most likely to be aimed at -- there is
+    # one per card and it is now the only way to hear a du'a read -- and at 46 it was a quarter
+    # of the size of the card it sat on, which on a touchscreen is a thumb hunting for a stamp.
+    MARK = 92
+
     def draw_mark(self, playing: bool) -> None:
         from .ui import play_icon
-        side = self.win.px(46)
+        side = self.win.px(self.MARK)
         icon = play_icon(side, palette().ink, stop=playing)
         self.button.setIcon(QtGui.QIcon(icon))
         self.button.setIconSize(icon.size())

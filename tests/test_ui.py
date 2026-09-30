@@ -4784,12 +4784,24 @@ class KalimaVoiceTest(unittest.TestCase):
         self.assertFalse(w.asleep)
         self.assertTrue(r.saying)
 
-    def test_a_duaa_has_no_play_button_to_press(self):
-        """The du'as are Qur'an, and are recited by the surah reader with real timings."""
+    def test_a_duaa_has_a_play_button_now_and_it_stays_awake_too(self):
+        """This said the opposite until Harry recorded the du'as: there was nothing to play, so
+        the button was not offered. There is now, so a du'a behaves like a kalima -- including
+        the part that matters at two in the morning, which is that the mat does not go to sleep
+        in the middle of reading one aloud."""
         w = self.window()
         w.open_passage("duas", 0)
         settle()
-        self.assertFalse(w.section_readers["duas"].can_say())
+        r = w.section_readers["duas"]
+        self.assertTrue(r.can_say())
+        r.say_button.click()
+        settle()
+        w.maybe_sleep()
+        settle()
+        self.assertFalse(w.asleep, "it went to sleep while reading a du'a")
+        self.assertTrue(r.saying)
+        r.stop_saying()
+        settle()
 
     def test_with_no_player_on_the_machine_nothing_happens(self):
         w = self.window()
@@ -8899,3 +8911,98 @@ class WorldHeadingTest(unittest.TestCase):
         self.assertLess(plate_middle, column_left, "the heading has drifted over the column")
         self.assertLess(abs(plate_middle - globe_middle), page.width() * 0.5,
                         "the heading is nowhere near the globe it heads")
+
+
+class DuaPlayTest(unittest.TestCase):
+    """The play mark on a du'a card. It opened the du'a and stopped there for as long as there
+    were no recordings; there are recordings now, so it should read it aloud."""
+
+    def window(self, size=(1024, 600)):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(*size)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def board(self, w, kind="morning"):
+        w.open_the_kinds_of_dua()
+        settle()
+        w.open_dua_category(kind)
+        settle()
+        return w.dua_board
+
+    def test_the_mark_is_twice_the_size_it_was(self):
+        """46 pixels on a 440 pixel card is a stamp to aim a thumb at, and it is now the only
+        way to hear a du'a read."""
+        from salaah.duaboard import DuaCard
+        for size in ((1024, 600), (1920, 1080)):
+            with self.subTest(f"{size[0]}x{size[1]}"):
+                w = self.window(size)
+                card = self.board(w).cards[0]
+                self.assertEqual(w.px(DuaCard.MARK) + w.px(10), card.button.width())
+                self.assertGreaterEqual(card.button.height(), w.px(92),
+                                        "the mark has gone back to its old size")
+                self.assertEqual(card.button.width(), card.button.height(), "it is square")
+                self.assertLess(card.button.width(), card.width() * 0.25,
+                                "the mark has taken over the card")
+
+    def test_every_du_a_can_be_read_aloud_now(self):
+        w = self.window()
+        reader = w.section_readers["duas"]
+        cannot = []
+        for i in range(len(w.duas.items)):
+            reader.open(i)
+            settle()
+            if not reader.can_say():
+                cannot.append(w.duas.items[i].key)
+        self.assertEqual([], cannot, f"no recording or no timings for: {cannot}")
+
+    def test_the_mark_opens_the_du_a_and_starts_reading_it(self):
+        """The card shows the Arabic in one piece and the du'a's own page shows it word by
+        word, so the mark goes to the page -- the red word is the whole point of the recording
+        and only the page can show it."""
+        w = self.window()
+        board = self.board(w)
+        reader = w.section_readers["duas"]
+        board.cards[0].button.click()
+        settle()
+        self.assertIs(reader, w.corner_screen.currentWidget(), "it did not open the du'a")
+        self.assertTrue(reader.saying, "it opened the du'a but did not start reading")
+        reader.stop_saying()
+        settle()
+
+    def test_a_du_a_with_no_recording_still_opens(self):
+        """A mat part way through an update, or a set of du'as that grew past its recordings.
+        The mark must not become a dead button again."""
+        w = self.window()
+        board = self.board(w)
+        reader = w.section_readers["duas"]
+        with mock.patch.object(type(reader), "can_say", lambda self: False):
+            board.cards[0].button.click()
+            settle()
+            self.assertIs(reader, w.corner_screen.currentWidget(),
+                          "with no recording it should still open the du'a")
+            self.assertFalse(reader.saying)
+
+    def test_the_word_being_said_is_the_one_in_red(self):
+        """Walked against the timings rather than against the clock: at a moment inside word
+        five's span, word five is the one lit."""
+        w = self.window()
+        reader = w.section_readers["duas"]
+        reader.open(1)                       # the 37-word one, which has the most to get wrong
+        settle()
+        item = w.duas.items[1]
+        for k in (0, 5, 17, 36):
+            start, end = item.times[k]
+            middle = (start + end) / 2000.0
+            reader.arabic.set_highlight((0, item.word_at(middle)))
+            settle()
+            self.assertEqual(k, item.word_at(middle),
+                             f"half way through word {k + 1} the app thinks it is somewhere else")
+            self.assertEqual((0, k), reader.arabic.highlight)

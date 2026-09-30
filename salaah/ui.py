@@ -1600,10 +1600,18 @@ class MainWindow(QtWidgets.QWidget):
         self.stack.setCurrentWidget(self.corner_page)
 
     def say_a_dua(self, index: int) -> None:
-        """The play mark on a card. There are no recordings of the du'as yet, so this opens the
-        du'a rather than doing nothing at all -- the mark is wired to what will read it aloud
-        once Harry has the vocals, and until then it is not a dead button."""
+        """The play mark on a card: open the du'a and start reading it.
+
+        It opens rather than playing where it stands because the card has the Arabic as one
+        piece of text and the du'a's own page has it word by word -- and the point of the
+        recording is the word turning red as it is said, which only the page can show. A mat
+        with no recording for this one still opens it, which is what the mark did for as long
+        as there were no recordings at all.
+        """
         self.open_passage("duas", index)
+        reader = self.section_readers.get("duas")
+        if reader is not None and reader.can_say():
+            reader.start_saying()
 
     def open_passage(self, which: str, index: int) -> None:
         reader = self.section_readers.get(which)

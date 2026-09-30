@@ -2036,9 +2036,17 @@ class PassagesTest(unittest.TestCase):
             self.assertEqual(i, item.word_at(middle), f"word {i} was not lit in its own middle")
         self.assertIsNone(item.word_at(item.times[-1][1] / 1000.0 + 5))
 
-    def test_a_duaa_has_no_recording_of_its_own(self):
-        """The du'as are Qur'an, so they are recited by the surah reader, not from here."""
-        self.assertEqual("", self.loader("duas").at(0).audio)
+    def test_a_duaa_knows_which_word_is_sounding_too(self):
+        """This used to assert the opposite -- that a du'a had no recording of its own, because
+        the Qur'anic ones were recited by the surah reader and the rest were not recited at all.
+        Harry recorded all forty-eight, so the du'as now work exactly as the kalima do and the
+        old expectation was simply out of date."""
+        item = self.loader("duas").at(0)
+        self.assertTrue(item.audio, "the first du'a should have a recording")
+        self.assertTrue(item.times, "and word times to go with it")
+        for i, (start, end) in enumerate(item.times):
+            middle = (start + end) / 2000.0
+            self.assertEqual(i, item.word_at(middle), f"word {i} was not lit in its own middle")
 
     def test_times_are_never_read_past_the_words_they_belong_to(self):
         """A recording timed against a longer wording would otherwise light a word that is not
@@ -3286,3 +3294,94 @@ class GlobeTest(unittest.TestCase):
         nothing = Globe(ASSETS / "no-such-folder")
         self.assertFalse(nothing.there)
         self.assertTrue(0 <= nothing.at(0, 53.5, -2.3).x <= 1)
+
+
+class DuaRecordingTest(unittest.TestCase):
+    """The du'a recordings and the word timings taken off them.
+
+    Harry recorded all forty-eight and the timings were measured from the audio: the pauses are
+    found in the recording, the words are dealt out between them, and inside a stretch of speech
+    they are shared by how much Arabic each word carries. That last part is an estimate, which
+    is why the file says `estimated: true`. What is tested here is everything that must be true
+    whatever the estimate came out as.
+    """
+
+    def duas(self):
+        from salaah.passages import Passages
+        return Passages(ASSETS, "duas").items
+
+    def test_every_dua_has_a_recording_that_is_really_there(self):
+        for i, item in enumerate(self.duas(), start=1):
+            with self.subTest(f"{i} {item.key}"):
+                self.assertEqual(f"duas/{i}.mp3", item.audio,
+                                 "the recording is numbered by where the du'a sits in the file")
+                self.assertTrue((ASSETS / "audio" / item.audio).is_file(),
+                                f"{item.audio} is missing")
+
+    def test_there_is_a_timing_for_every_word_and_no_more(self):
+        for i, item in enumerate(self.duas(), start=1):
+            with self.subTest(f"{i} {item.key}"):
+                self.assertEqual(len(item.arabic.split()), len(item.times),
+                                 "a word without a timing is a word that never lights up")
+
+    def test_the_timings_run_forwards_and_do_not_overlap(self):
+        for i, item in enumerate(self.duas(), start=1):
+            with self.subTest(f"{i} {item.key}"):
+                last = -1
+                for k, (start, end) in enumerate(item.times, start=1):
+                    self.assertLess(start, end, f"word {k} ends before it starts")
+                    self.assertGreaterEqual(start, last, f"word {k} starts before {k - 1} ends")
+                    last = end
+
+    def test_every_word_has_its_turn_in_order(self):
+        """Walked the way the screen walks it -- asking every fiftieth of a second which word is
+        sounding -- because that is what decides whether a word is ever seen in red."""
+        for i, item in enumerate(self.duas(), start=1):
+            with self.subTest(f"{i} {item.key}"):
+                words = item.arabic.split()
+                order, at = [], 0.0
+                end = item.times[-1][1] / 1000.0
+                while at < end + 0.2:
+                    which = item.word_at(at)
+                    if which is not None and (not order or order[-1] != which):
+                        order.append(which)
+                    at += 0.05
+                self.assertEqual(list(range(len(words))), order,
+                                 "the words do not light one after another")
+
+    def test_no_word_is_timed_past_the_end_of_its_recording(self):
+        import json
+        raw = json.loads((ASSETS / "content" / "duas" / "duas.json").read_text(encoding="utf-8"))
+        for i, row in enumerate(raw["items"], start=1):
+            with self.subTest(f"{i} {row['key']}"):
+                seconds = row["seconds"]
+                self.assertGreater(seconds, 0)
+                self.assertLessEqual(row["times"][-1][1] / 1000.0, seconds + 0.06,
+                                     "the last word runs past the end of the recording")
+
+    def test_each_recording_is_the_right_length_for_the_du_a_it_belongs_to(self):
+        """The guard against a mis-numbered file. Arabic is spoken at a fairly steady rate, so
+        the letters in a du'a divided by the length of its recording lands in a narrow band --
+        five to eight letters a second across all forty-eight. A recording filed against the
+        wrong du'a falls far outside it, which is how a short du'a with a long recording would
+        be caught before anybody heard it."""
+        import json
+        raw = json.loads((ASSETS / "content" / "duas" / "duas.json").read_text(encoding="utf-8"))
+        rates = []
+        for i, row in enumerate(raw["items"], start=1):
+            letters = sum(1 for c in row["arabic"] if "ء" <= c <= "ي")
+            rate = letters / row["seconds"]
+            rates.append((rate, i, row["key"]))
+        for rate, i, key in rates:
+            with self.subTest(f"{i} {key}"):
+                self.assertGreater(rate, 3.5, f"{key}: {rate:.1f} letters a second is too slow "
+                                              f"-- is {i}.mp3 the right recording?")
+                self.assertLess(rate, 11.0, f"{key}: {rate:.1f} letters a second is too fast "
+                                            f"-- is {i}.mp3 the right recording?")
+
+    def test_the_timings_are_still_marked_as_estimates(self):
+        """They were measured off the audio, not tapped in by ear, and the app is entitled to
+        say so. If someone ever does tap them in, this is the line that changes."""
+        import json
+        raw = json.loads((ASSETS / "content" / "duas" / "duas.json").read_text(encoding="utf-8"))
+        self.assertTrue(all(row.get("estimated") for row in raw["items"]))

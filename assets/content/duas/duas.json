@@ -26,7 +26,56 @@
    },
    "trimmed": [
     "en"
-   ]
+   ],
+   "audio": "duas/1.mp3",
+   "seconds": 6.65,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     1400
+    ],
+    [
+     1400,
+     1650
+    ],
+    [
+     1650,
+     2350
+    ],
+    [
+     2350,
+     3000
+    ],
+    [
+     3000,
+     3250
+    ],
+    [
+     3250,
+     4000
+    ],
+    [
+     4000,
+     4650
+    ],
+    [
+     5000,
+     5550
+    ],
+    [
+     5550,
+     5900
+    ],
+    [
+     5900,
+     6500
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "no_burden",
@@ -54,7 +103,160 @@
    },
    "trimmed": [
     "en"
-   ]
+   ],
+   "audio": "duas/2.mp3",
+   "seconds": 20.75,
+   "times": [
+    [
+     0,
+     450
+    ],
+    [
+     450,
+     800
+    ],
+    [
+     800,
+     1600
+    ],
+    [
+     1600,
+     1950
+    ],
+    [
+     1950,
+     2600
+    ],
+    [
+     2600,
+     2950
+    ],
+    [
+     2950,
+     3650
+    ],
+    [
+     4250,
+     4850
+    ],
+    [
+     4850,
+     5100
+    ],
+    [
+     5100,
+     5500
+    ],
+    [
+     5500,
+     6300
+    ],
+    [
+     6300,
+     6850
+    ],
+    [
+     6850,
+     7250
+    ],
+    [
+     7250,
+     7800
+    ],
+    [
+     7800,
+     8250
+    ],
+    [
+     8250,
+     8750
+    ],
+    [
+     8750,
+     8950
+    ],
+    [
+     8950,
+     9550
+    ],
+    [
+     10150,
+     10750
+    ],
+    [
+     10750,
+     11150
+    ],
+    [
+     11150,
+     11950
+    ],
+    [
+     11950,
+     12000
+    ],
+    [
+     12000,
+     12500
+    ],
+    [
+     12500,
+     12900
+    ],
+    [
+     12900,
+     13350
+    ],
+    [
+     13350,
+     13600
+    ],
+    [
+     14100,
+     14450
+    ],
+    [
+     14450,
+     15000
+    ],
+    [
+     15000,
+     15300
+    ],
+    [
+     15300,
+     15900
+    ],
+    [
+     15900,
+     16650
+    ],
+    [
+     17200,
+     17450
+    ],
+    [
+     17450,
+     18350
+    ],
+    [
+     18350,
+     18850
+    ],
+    [
+     18850,
+     19450
+    ],
+    [
+     19450,
+     19850
+    ],
+    [
+     19850,
+     20550
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "steady_heart",
@@ -81,7 +283,72 @@
    },
    "trimmed": [
     "en"
-   ]
+   ],
+   "audio": "duas/3.mp3",
+   "seconds": 8.2,
+   "times": [
+    [
+     0,
+     450
+    ],
+    [
+     450,
+     800
+    ],
+    [
+     800,
+     1300
+    ],
+    [
+     1300,
+     1900
+    ],
+    [
+     1900,
+     2500
+    ],
+    [
+     2500,
+     2700
+    ],
+    [
+     2700,
+     3550
+    ],
+    [
+     3950,
+     4300
+    ],
+    [
+     4300,
+     4950
+    ],
+    [
+     4950,
+     5150
+    ],
+    [
+     5150,
+     5750
+    ],
+    [
+     6200,
+     6700
+    ],
+    [
+     6700,
+     7100
+    ],
+    [
+     7100,
+     7500
+    ],
+    [
+     7500,
+     8050
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "wronged_ourselves",
@@ -107,7 +374,56 @@
    },
    "trimmed": [
     "en"
-   ]
+   ],
+   "audio": "duas/4.mp3",
+   "seconds": 7.2,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     1250
+    ],
+    [
+     1250,
+     2100
+    ],
+    [
+     2350,
+     2650
+    ],
+    [
+     2650,
+     3050
+    ],
+    [
+     3050,
+     3400
+    ],
+    [
+     3400,
+     3900
+    ],
+    [
+     3900,
+     4700
+    ],
+    [
+     5000,
+     5850
+    ],
+    [
+     5850,
+     6250
+    ],
+    [
+     6250,
+     7050
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "steadfast_in_prayer",
@@ -138,7 +454,80 @@
    },
    "trimmed": [
     "en"
-   ]
+   ],
+   "audio": "duas/5.mp3",
+   "seconds": 10.9,
+   "times": [
+    [
+     0,
+     250
+    ],
+    [
+     250,
+     950
+    ],
+    [
+     950,
+     1450
+    ],
+    [
+     1450,
+     1900
+    ],
+    [
+     1900,
+     2300
+    ],
+    [
+     2300,
+     2950
+    ],
+    [
+     3450,
+     4100
+    ],
+    [
+     4100,
+     4650
+    ],
+    [
+     4650,
+     5250
+    ],
+    [
+     5650,
+     6250
+    ],
+    [
+     6550,
+     6900
+    ],
+    [
+     6900,
+     7250
+    ],
+    [
+     7250,
+     7850
+    ],
+    [
+     7850,
+     9150
+    ],
+    [
+     9150,
+     9550
+    ],
+    [
+     9550,
+     10100
+    ],
+    [
+     10100,
+     10650
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "open_my_chest",
@@ -177,7 +566,64 @@
    },
    "trimmed": [
     "en"
-   ]
+   ],
+   "audio": "duas/6.mp3",
+   "seconds": 6.8,
+   "times": [
+    [
+     0,
+     250
+    ],
+    [
+     250,
+     700
+    ],
+    [
+     700,
+     950
+    ],
+    [
+     950,
+     1550
+    ],
+    [
+     1550,
+     1950
+    ],
+    [
+     1950,
+     2250
+    ],
+    [
+     2250,
+     2900
+    ],
+    [
+     3350,
+     3950
+    ],
+    [
+     3950,
+     4450
+    ],
+    [
+     4450,
+     4750
+    ],
+    [
+     4750,
+     5400
+    ],
+    [
+     5400,
+     6150
+    ],
+    [
+     6150,
+     6650
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "more_knowledge",
@@ -203,7 +649,28 @@
    },
    "trimmed": [
     "en"
-   ]
+   ],
+   "audio": "duas/7.mp3",
+   "seconds": 2.4,
+   "times": [
+    [
+     0,
+     500
+    ],
+    [
+     500,
+     800
+    ],
+    [
+     800,
+     1500
+    ],
+    [
+     1500,
+     2050
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "no_deity_but_you",
@@ -230,7 +697,48 @@
    },
    "trimmed": [
     "en"
-   ]
+   ],
+   "audio": "duas/8.mp3",
+   "seconds": 5.4,
+   "times": [
+    [
+     0,
+     150
+    ],
+    [
+     150,
+     600
+    ],
+    [
+     600,
+     1000
+    ],
+    [
+     1000,
+     1550
+    ],
+    [
+     1550,
+     2150
+    ],
+    [
+     2150,
+     2700
+    ],
+    [
+     3200,
+     3700
+    ],
+    [
+     3700,
+     4000
+    ],
+    [
+     4000,
+     5150
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "forgive_and_mercy",
@@ -256,7 +764,40 @@
    },
    "trimmed": [
     "en"
-   ]
+   ],
+   "audio": "duas/9.mp3",
+   "seconds": 4.1,
+   "times": [
+    [
+     0,
+     400
+    ],
+    [
+     400,
+     650
+    ],
+    [
+     650,
+     1150
+    ],
+    [
+     1150,
+     1850
+    ],
+    [
+     1850,
+     2450
+    ],
+    [
+     2450,
+     2700
+    ],
+    [
+     2700,
+     3850
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "comfort_of_family",
@@ -283,7 +824,56 @@
    },
    "trimmed": [
     "en"
-   ]
+   ],
+   "audio": "duas/10.mp3",
+   "seconds": 7.45,
+   "times": [
+    [
+     0,
+     700
+    ],
+    [
+     700,
+     900
+    ],
+    [
+     900,
+     1450
+    ],
+    [
+     1450,
+     1700
+    ],
+    [
+     1700,
+     2600
+    ],
+    [
+     2600,
+     3700
+    ],
+    [
+     3700,
+     4100
+    ],
+    [
+     4100,
+     4800
+    ],
+    [
+     5150,
+     5800
+    ],
+    [
+     5800,
+     6700
+    ],
+    [
+     6700,
+     7300
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "morning_kingdom",
@@ -296,7 +886,28 @@
    "text": {
     "en": "We have entered upon the morning, and the dominion belongs to Allah."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/11.mp3",
+   "seconds": 3.15,
+   "times": [
+    [
+     0,
+     1000
+    ],
+    [
+     1000,
+     1700
+    ],
+    [
+     1700,
+     2450
+    ],
+    [
+     2450,
+     2850
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "evening_kingdom",
@@ -309,7 +920,68 @@
    "text": {
     "en": "We have entered upon the evening, and the dominion belongs to Allah. Praise belongs to Allah. There is no god but Allah alone, who has no partner."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/12.mp3",
+   "seconds": 8.55,
+   "times": [
+    [
+     0,
+     900
+    ],
+    [
+     900,
+     1600
+    ],
+    [
+     1600,
+     2250
+    ],
+    [
+     2250,
+     2700
+    ],
+    [
+     3150,
+     3900
+    ],
+    [
+     3900,
+     4250
+    ],
+    [
+     4700,
+     5100
+    ],
+    [
+     5100,
+     5350
+    ],
+    [
+     5350,
+     5950
+    ],
+    [
+     5950,
+     6450
+    ],
+    [
+     6450,
+     7050
+    ],
+    [
+     7050,
+     7350
+    ],
+    [
+     7350,
+     7950
+    ],
+    [
+     7950,
+     8300
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "by_you_we_wake",
@@ -323,7 +995,56 @@
    "text": {
     "en": "O Allah, by You we enter the morning and by You we enter the evening; by You we live and by You we die, and to You is the return."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/13.mp3",
+   "seconds": 8.1,
+   "times": [
+    [
+     0,
+     800
+    ],
+    [
+     800,
+     950
+    ],
+    [
+     950,
+     2100
+    ],
+    [
+     2100,
+     2450
+    ],
+    [
+     2450,
+     3400
+    ],
+    [
+     3900,
+     4450
+    ],
+    [
+     4450,
+     5050
+    ],
+    [
+     5050,
+     5400
+    ],
+    [
+     5400,
+     6200
+    ],
+    [
+     6650,
+     7100
+    ],
+    [
+     7100,
+     7900
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "sleep_in_your_name",
@@ -336,7 +1057,28 @@
    "text": {
     "en": "In Your name, O Allah, I die and I live."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/14.mp3",
+   "seconds": 3.15,
+   "times": [
+    [
+     0,
+     750
+    ],
+    [
+     750,
+     1500
+    ],
+    [
+     1700,
+     2200
+    ],
+    [
+     2200,
+     2950
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "sleep_your_name_live",
@@ -349,7 +1091,32 @@
    "text": {
     "en": "O Allah, in Your name I live and in Your name I die."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/15.mp3",
+   "seconds": 3.95,
+   "times": [
+    [
+     0,
+     900
+    ],
+    [
+     900,
+     1500
+    ],
+    [
+     1500,
+     2250
+    ],
+    [
+     2450,
+     3300
+    ],
+    [
+     3300,
+     3750
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "waking_praise",
@@ -362,7 +1129,48 @@
    "text": {
     "en": "Praise belongs to Allah, who gave us life after He had caused us to die, and to Him is the rising."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/16.mp3",
+   "seconds": 5.95,
+   "times": [
+    [
+     0,
+     750
+    ],
+    [
+     750,
+     1000
+    ],
+    [
+     1000,
+     1600
+    ],
+    [
+     1600,
+     2500
+    ],
+    [
+     2500,
+     2750
+    ],
+    [
+     2750,
+     3150
+    ],
+    [
+     3150,
+     3950
+    ],
+    [
+     4400,
+     4950
+    ],
+    [
+     4950,
+     5800
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "waking_in_the_night",
@@ -376,7 +1184,144 @@
    "text": {
     "en": "There is no god but Allah alone, who has no partner. His is the dominion and His is the praise, and He has power over all things. Glory be to Allah, and praise belongs to Allah, and Allah is greatest, and there is no power and no strength except by Allah."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/17.mp3",
+   "seconds": 19.2,
+   "times": [
+    [
+     0,
+     350
+    ],
+    [
+     350,
+     600
+    ],
+    [
+     600,
+     1050
+    ],
+    [
+     1050,
+     1800
+    ],
+    [
+     1800,
+     2200
+    ],
+    [
+     2200,
+     2500
+    ],
+    [
+     2500,
+     3100
+    ],
+    [
+     3100,
+     3400
+    ],
+    [
+     3400,
+     3800
+    ],
+    [
+     4500,
+     5150
+    ],
+    [
+     5150,
+     5450
+    ],
+    [
+     5450,
+     5900
+    ],
+    [
+     5900,
+     6400
+    ],
+    [
+     6800,
+     7200
+    ],
+    [
+     7200,
+     7600
+    ],
+    [
+     7600,
+     8000
+    ],
+    [
+     8000,
+     8550
+    ],
+    [
+     8550,
+     9200
+    ],
+    [
+     9650,
+     9900
+    ],
+    [
+     9900,
+     10800
+    ],
+    [
+     11150,
+     11850
+    ],
+    [
+     11850,
+     12200
+    ],
+    [
+     12750,
+     13250
+    ],
+    [
+     13250,
+     13500
+    ],
+    [
+     13500,
+     14250
+    ],
+    [
+     14250,
+     14800
+    ],
+    [
+     14800,
+     15300
+    ],
+    [
+     15300,
+     15850
+    ],
+    [
+     16400,
+     16750
+    ],
+    [
+     16750,
+     17200
+    ],
+    [
+     17200,
+     17800
+    ],
+    [
+     17800,
+     18150
+    ],
+    [
+     18150,
+     19000
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "after_eating",
@@ -390,7 +1335,64 @@
    "text": {
     "en": "Praise belongs to Allah, who fed me this and provided it for me with no strength or power of my own."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/18.mp3",
+   "seconds": 7.6,
+   "times": [
+    [
+     0,
+     700
+    ],
+    [
+     700,
+     1050
+    ],
+    [
+     1050,
+     1400
+    ],
+    [
+     1400,
+     2350
+    ],
+    [
+     2350,
+     2650
+    ],
+    [
+     2650,
+     3450
+    ],
+    [
+     3900,
+     5000
+    ],
+    [
+     5000,
+     5100
+    ],
+    [
+     5100,
+     5550
+    ],
+    [
+     5550,
+     6050
+    ],
+    [
+     6050,
+     6600
+    ],
+    [
+     6600,
+     7000
+    ],
+    [
+     7000,
+     7450
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "bless_this_food",
@@ -403,7 +1405,40 @@
    "text": {
     "en": "O Allah, bless it for us and feed us better than it."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/19.mp3",
+   "seconds": 4.65,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     1250
+    ],
+    [
+     1250,
+     1800
+    ],
+    [
+     1800,
+     2200
+    ],
+    [
+     2650,
+     3500
+    ],
+    [
+     3500,
+     4000
+    ],
+    [
+     4000,
+     4300
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "entering_the_house",
@@ -416,7 +1451,80 @@
    "text": {
     "en": "O Allah, I ask You for the best of entrances and the best of exits. In the name of Allah we enter, and in the name of Allah we leave, and upon Allah our Lord we rely."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/20.mp3",
+   "seconds": 11.7,
+   "times": [
+    [
+     0,
+     750
+    ],
+    [
+     750,
+     1200
+    ],
+    [
+     1200,
+     1800
+    ],
+    [
+     1800,
+     2300
+    ],
+    [
+     2300,
+     3000
+    ],
+    [
+     3000,
+     3650
+    ],
+    [
+     3650,
+     4400
+    ],
+    [
+     4950,
+     5450
+    ],
+    [
+     5450,
+     5850
+    ],
+    [
+     5850,
+     6550
+    ],
+    [
+     6950,
+     7550
+    ],
+    [
+     7550,
+     7950
+    ],
+    [
+     7950,
+     8600
+    ],
+    [
+     9150,
+     9550
+    ],
+    [
+     9550,
+     10250
+    ],
+    [
+     10250,
+     10650
+    ],
+    [
+     10650,
+     11450
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "leaving_the_house",
@@ -430,7 +1538,56 @@
    "text": {
     "en": "In the name of Allah. I rely upon Allah. There is no power and no strength except by Allah."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/21.mp3",
+   "seconds": 6.0,
+   "times": [
+    [
+     0,
+     500
+    ],
+    [
+     500,
+     900
+    ],
+    [
+     900,
+     1500
+    ],
+    [
+     1500,
+     2000
+    ],
+    [
+     2000,
+     2550
+    ],
+    [
+     3000,
+     3350
+    ],
+    [
+     3350,
+     3650
+    ],
+    [
+     3650,
+     4150
+    ],
+    [
+     4150,
+     4650
+    ],
+    [
+     4650,
+     5000
+    ],
+    [
+     5000,
+     5800
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "entering_the_mosque",
@@ -443,7 +1600,32 @@
    "text": {
     "en": "O Allah, open for me the doors of Your mercy."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/22.mp3",
+   "seconds": 2.9,
+   "times": [
+    [
+     0,
+     600
+    ],
+    [
+     600,
+     1150
+    ],
+    [
+     1150,
+     1400
+    ],
+    [
+     1400,
+     1900
+    ],
+    [
+     1900,
+     2550
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "leaving_the_mosque",
@@ -456,7 +1638,32 @@
    "text": {
     "en": "O Allah, I ask You of Your bounty."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/23.mp3",
+   "seconds": 3.15,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     1200
+    ],
+    [
+     1200,
+     1750
+    ],
+    [
+     1750,
+     2250
+    ],
+    [
+     2250,
+     2750
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "setting_off",
@@ -469,7 +1676,60 @@
    "text": {
     "en": "O Allah, we ask You on this journey of ours for righteousness and mindfulness of You, and for deeds that please You."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/24.mp3",
+   "seconds": 7.15,
+   "times": [
+    [
+     0,
+     750
+    ],
+    [
+     750,
+     1050
+    ],
+    [
+     1050,
+     1800
+    ],
+    [
+     1800,
+     2000
+    ],
+    [
+     2000,
+     2550
+    ],
+    [
+     2550,
+     3000
+    ],
+    [
+     3000,
+     3600
+    ],
+    [
+     3600,
+     4500
+    ],
+    [
+     4500,
+     4950
+    ],
+    [
+     5300,
+     6100
+    ],
+    [
+     6100,
+     6400
+    ],
+    [
+     6400,
+     6900
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "ease_the_journey",
@@ -482,7 +1742,44 @@
    "text": {
     "en": "O Allah, make this journey of ours easy for us, and fold up its distance for us."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/25.mp3",
+   "seconds": 5.05,
+   "times": [
+    [
+     0,
+     800
+    ],
+    [
+     800,
+     1300
+    ],
+    [
+     1300,
+     1850
+    ],
+    [
+     1850,
+     2600
+    ],
+    [
+     2600,
+     3150
+    ],
+    [
+     3500,
+     4050
+    ],
+    [
+     4050,
+     4350
+    ],
+    [
+     4350,
+     4800
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "companion_on_the_road",
@@ -496,7 +1793,44 @@
    "text": {
     "en": "O Allah, You are the companion on the journey and the guardian of the family left behind."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/26.mp3",
+   "seconds": 4.75,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     1050
+    ],
+    [
+     1050,
+     1750
+    ],
+    [
+     1750,
+     2100
+    ],
+    [
+     2100,
+     2650
+    ],
+    [
+     2950,
+     3900
+    ],
+    [
+     3900,
+     4100
+    ],
+    [
+     4100,
+     4550
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "perfect_words",
@@ -510,7 +1844,44 @@
    "text": {
     "en": "I take refuge in the perfect words of Allah from the evil of what He has created."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/27.mp3",
+   "seconds": 4.8,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     1700
+    ],
+    [
+     1700,
+     2350
+    ],
+    [
+     2350,
+     3400
+    ],
+    [
+     3400,
+     3700
+    ],
+    [
+     3700,
+     4100
+    ],
+    [
+     4100,
+     4400
+    ],
+    [
+     4600,
+     4650
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "from_worry",
@@ -523,7 +1894,72 @@
    "text": {
     "en": "O Allah, I take refuge in You from worry and grief, from helplessness and idleness, from cowardice and miserliness, from being weighed down by debt and overpowered by men."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/28.mp3",
+   "seconds": 10.5,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     1000
+    ],
+    [
+     1000,
+     1750
+    ],
+    [
+     1750,
+     1900
+    ],
+    [
+     1900,
+     2300
+    ],
+    [
+     2300,
+     2850
+    ],
+    [
+     2850,
+     3550
+    ],
+    [
+     3550,
+     4450
+    ],
+    [
+     4450,
+     5250
+    ],
+    [
+     5250,
+     6150
+    ],
+    [
+     6150,
+     6900
+    ],
+    [
+     6900,
+     7450
+    ],
+    [
+     7800,
+     8450
+    ],
+    [
+     8450,
+     9350
+    ],
+    [
+     9350,
+     10250
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "take_away_the_harm",
@@ -536,7 +1972,72 @@
    "text": {
     "en": "Take away the harm, Lord of mankind, and heal; You are the Healer. There is no healing but Your healing -- a healing that leaves no illness behind."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/29.mp3",
+   "seconds": 9.45,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     1400
+    ],
+    [
+     1400,
+     1850
+    ],
+    [
+     2500,
+     3100
+    ],
+    [
+     3100,
+     3600
+    ],
+    [
+     3600,
+     4200
+    ],
+    [
+     4700,
+     5550
+    ],
+    [
+     5550,
+     5600
+    ],
+    [
+     5600,
+     6300
+    ],
+    [
+     6300,
+     6700
+    ],
+    [
+     6700,
+     7400
+    ],
+    [
+     7400,
+     7750
+    ],
+    [
+     7750,
+     8150
+    ],
+    [
+     8150,
+     8750
+    ],
+    [
+     8750,
+     9250
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "ask_the_lord_of_the_throne",
@@ -549,7 +2050,44 @@
    "text": {
     "en": "I ask Allah the Mighty, Lord of the Mighty Throne, to heal you."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/30.mp3",
+   "seconds": 4.8,
+   "times": [
+    [
+     0,
+     400
+    ],
+    [
+     400,
+     1000
+    ],
+    [
+     1000,
+     1700
+    ],
+    [
+     1700,
+     2050
+    ],
+    [
+     2050,
+     2600
+    ],
+    [
+     2600,
+     3400
+    ],
+    [
+     3700,
+     4000
+    ],
+    [
+     4000,
+     4600
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "help_me_remember_you",
@@ -563,7 +2101,40 @@
    "text": {
     "en": "O Allah, help me to remember You, to thank You, and to worship You well."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/31.mp3",
+   "seconds": 5.3,
+   "times": [
+    [
+     0,
+     800
+    ],
+    [
+     800,
+     1450
+    ],
+    [
+     1450,
+     1900
+    ],
+    [
+     1900,
+     2400
+    ],
+    [
+     2400,
+     3200
+    ],
+    [
+     3200,
+     4050
+    ],
+    [
+     4050,
+     4900
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "benefit_me",
@@ -576,7 +2147,48 @@
    "text": {
     "en": "O Allah, benefit me by what You have taught me, teach me what benefits me, and increase me in knowledge."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/32.mp3",
+   "seconds": 6.65,
+   "times": [
+    [
+     0,
+     600
+    ],
+    [
+     600,
+     1450
+    ],
+    [
+     1450,
+     1950
+    ],
+    [
+     1950,
+     2700
+    ],
+    [
+     3050,
+     3900
+    ],
+    [
+     3900,
+     4150
+    ],
+    [
+     4150,
+     4900
+    ],
+    [
+     5350,
+     6000
+    ],
+    [
+     6000,
+     6450
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "best_way_to_ask_pardon",
@@ -591,7 +2203,160 @@
    "text": {
     "en": "O Allah, You are my Lord. There is no god but You. You created me and I am Your servant, and I hold to Your covenant and Your promise as much as I can. I acknowledge Your favour upon me and I acknowledge my sin; forgive me, for none forgives sins but You."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/33.mp3",
+   "seconds": 22.5,
+   "times": [
+    [
+     0,
+     600
+    ],
+    [
+     600,
+     1050
+    ],
+    [
+     1050,
+     1400
+    ],
+    [
+     1400,
+     1750
+    ],
+    [
+     2250,
+     2750
+    ],
+    [
+     2750,
+     2950
+    ],
+    [
+     2950,
+     3350
+    ],
+    [
+     3350,
+     4300
+    ],
+    [
+     4750,
+     5600
+    ],
+    [
+     5850,
+     6500
+    ],
+    [
+     6500,
+     6950
+    ],
+    [
+     7350,
+     7850
+    ],
+    [
+     7850,
+     8350
+    ],
+    [
+     8350,
+     9100
+    ],
+    [
+     9100,
+     9350
+    ],
+    [
+     9350,
+     10100
+    ],
+    [
+     10750,
+     11250
+    ],
+    [
+     11250,
+     11400
+    ],
+    [
+     11400,
+     11750
+    ],
+    [
+     11750,
+     12000
+    ],
+    [
+     12000,
+     12350
+    ],
+    [
+     12350,
+     12750
+    ],
+    [
+     13300,
+     13900
+    ],
+    [
+     13900,
+     14100
+    ],
+    [
+     14100,
+     15050
+    ],
+    [
+     15050,
+     15550
+    ],
+    [
+     15800,
+     16350
+    ],
+    [
+     16350,
+     16650
+    ],
+    [
+     16650,
+     17450
+    ],
+    [
+     17750,
+     18550
+    ],
+    [
+     18900,
+     19200
+    ],
+    [
+     19200,
+     19700
+    ],
+    [
+     19700,
+     19950
+    ],
+    [
+     19950,
+     20400
+    ],
+    [
+     20400,
+     21300
+    ],
+    [
+     21300,
+     21800
+    ],
+    [
+     21800,
+     22150
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "no_harm_with_his_name",
@@ -606,7 +2371,76 @@
    "text": {
     "en": "In the name of Allah, with whose name nothing on earth or in heaven can cause harm, and He is the All-Hearing, the All-Knowing."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/34.mp3",
+   "seconds": 8.2,
+   "times": [
+    [
+     0,
+     250
+    ],
+    [
+     250,
+     750
+    ],
+    [
+     750,
+     1400
+    ],
+    [
+     1400,
+     1650
+    ],
+    [
+     1650,
+     2000
+    ],
+    [
+     2000,
+     2350
+    ],
+    [
+     2350,
+     2750
+    ],
+    [
+     2750,
+     3300
+    ],
+    [
+     3300,
+     3350
+    ],
+    [
+     3350,
+     4000
+    ],
+    [
+     4000,
+     4450
+    ],
+    [
+     4450,
+     4800
+    ],
+    [
+     4800,
+     5600
+    ],
+    [
+     5600,
+     5900
+    ],
+    [
+     6400,
+     7300
+    ],
+    [
+     7300,
+     8000
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "guidance_and_enough",
@@ -620,7 +2454,40 @@
    "text": {
     "en": "O Allah, I ask You for guidance, mindfulness of You, restraint, and sufficiency."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/35.mp3",
+   "seconds": 5.4,
+   "times": [
+    [
+     0,
+     800
+    ],
+    [
+     800,
+     1050
+    ],
+    [
+     1050,
+     1850
+    ],
+    [
+     1850,
+     2600
+    ],
+    [
+     2600,
+     3450
+    ],
+    [
+     3450,
+     4400
+    ],
+    [
+     4400,
+     5200
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "content_with_allah",
@@ -635,7 +2502,40 @@
    "text": {
     "en": "I am content with Allah as Lord, with Islam as religion, and with Muhammad as Prophet."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/36.mp3",
+   "seconds": 6.1,
+   "times": [
+    [
+     0,
+     450
+    ],
+    [
+     450,
+     1450
+    ],
+    [
+     1450,
+     1900
+    ],
+    [
+     1900,
+     3200
+    ],
+    [
+     3200,
+     3750
+    ],
+    [
+     4150,
+     5200
+    ],
+    [
+     5200,
+     5850
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "wellbeing_in_my_body",
@@ -650,7 +2550,60 @@
    "text": {
     "en": "O Allah, grant me wellbeing in my body. O Allah, grant me wellbeing in my hearing. O Allah, grant me wellbeing in my sight."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/37.mp3",
+   "seconds": 7.6,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     1400
+    ],
+    [
+     1400,
+     1650
+    ],
+    [
+     1650,
+     2150
+    ],
+    [
+     2650,
+     3400
+    ],
+    [
+     3400,
+     4050
+    ],
+    [
+     4050,
+     4300
+    ],
+    [
+     4300,
+     4850
+    ],
+    [
+     5300,
+     6050
+    ],
+    [
+     6050,
+     6650
+    ],
+    [
+     6650,
+     6900
+    ],
+    [
+     6900,
+     7400
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "waking_restored",
@@ -664,7 +2617,60 @@
    "text": {
     "en": "Praise belongs to Allah, who restored my body to health, returned my soul to me, and permitted me to remember Him."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/38.mp3",
+   "seconds": 7.15,
+   "times": [
+    [
+     0,
+     750
+    ],
+    [
+     750,
+     1000
+    ],
+    [
+     1000,
+     1550
+    ],
+    [
+     1550,
+     2300
+    ],
+    [
+     2300,
+     2550
+    ],
+    [
+     2550,
+     3200
+    ],
+    [
+     3600,
+     3950
+    ],
+    [
+     3950,
+     4400
+    ],
+    [
+     4400,
+     5100
+    ],
+    [
+     5500,
+     6100
+    ],
+    [
+     6100,
+     6350
+    ],
+    [
+     6350,
+     6950
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "opening_the_prayer",
@@ -677,7 +2683,116 @@
    "text": {
     "en": "O Allah, put distance between me and my sins as You have put distance between east and west. O Allah, cleanse me of my sins as a white garment is cleansed of dirt. O Allah, wash me of my sins with snow and water and hail."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/39.mp3",
+   "seconds": 16.75,
+   "times": [
+    [
+     0,
+     600
+    ],
+    [
+     600,
+     1250
+    ],
+    [
+     1250,
+     1650
+    ],
+    [
+     1650,
+     2050
+    ],
+    [
+     2050,
+     2850
+    ],
+    [
+     2850,
+     3350
+    ],
+    [
+     3550,
+     4150
+    ],
+    [
+     4150,
+     4400
+    ],
+    [
+     4400,
+     5250
+    ],
+    [
+     5250,
+     6150
+    ],
+    [
+     6850,
+     7300
+    ],
+    [
+     7300,
+     7700
+    ],
+    [
+     7700,
+     8100
+    ],
+    [
+     8100,
+     8850
+    ],
+    [
+     8850,
+     9100
+    ],
+    [
+     9300,
+     9850
+    ],
+    [
+     9850,
+     10200
+    ],
+    [
+     10200,
+     10900
+    ],
+    [
+     10900,
+     11350
+    ],
+    [
+     11350,
+     11850
+    ],
+    [
+     12600,
+     13200
+    ],
+    [
+     13200,
+     13700
+    ],
+    [
+     13700,
+     14350
+    ],
+    [
+     14350,
+     14900
+    ],
+    [
+     14900,
+     15650
+    ],
+    [
+     15650,
+     16300
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "from_the_grave_and_the_fire",
@@ -691,7 +2806,72 @@
    "text": {
     "en": "O Allah, I take refuge in You from the punishment of the grave and the punishment of the Fire, from the trial of living and of dying, and from the trial of the false messiah."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/40.mp3",
+   "seconds": 10.0,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     850
+    ],
+    [
+     850,
+     1350
+    ],
+    [
+     1350,
+     1750
+    ],
+    [
+     1750,
+     1900
+    ],
+    [
+     1900,
+     2450
+    ],
+    [
+     2450,
+     3100
+    ],
+    [
+     3100,
+     3650
+    ],
+    [
+     3650,
+     4200
+    ],
+    [
+     4200,
+     4850
+    ],
+    [
+     5350,
+     6200
+    ],
+    [
+     6200,
+     6900
+    ],
+    [
+     6900,
+     7400
+    ],
+    [
+     7950,
+     8700
+    ],
+    [
+     8700,
+     9700
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "mosque_refuge",
@@ -705,7 +2885,52 @@
    "text": {
     "en": "I take refuge in Allah the Mighty, in His noble face and His eternal authority, from the outcast devil."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/41.mp3",
+   "seconds": 7.8,
+   "times": [
+    [
+     0,
+     500
+    ],
+    [
+     500,
+     1000
+    ],
+    [
+     1000,
+     1850
+    ],
+    [
+     2100,
+     2950
+    ],
+    [
+     2950,
+     3650
+    ],
+    [
+     4000,
+     4800
+    ],
+    [
+     4800,
+     5500
+    ],
+    [
+     5500,
+     5650
+    ],
+    [
+     6100,
+     6950
+    ],
+    [
+     6950,
+     7550
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "spare_me_that_day",
@@ -718,7 +2943,36 @@
    "text": {
     "en": "O Allah, spare me Your punishment on the day You raise up Your servants."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/42.mp3",
+   "seconds": 4.0,
+   "times": [
+    [
+     0,
+     800
+    ],
+    [
+     800,
+     1250
+    ],
+    [
+     1250,
+     1950
+    ],
+    [
+     1950,
+     2350
+    ],
+    [
+     2350,
+     2950
+    ],
+    [
+     2950,
+     3650
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "coming_home",
@@ -732,7 +2986,36 @@
    "text": {
     "en": "Returning, repenting, worshipping, and praising our Lord."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/43.mp3",
+   "seconds": 6.75,
+   "times": [
+    [
+     0,
+     1000
+    ],
+    [
+     1300,
+     2100
+    ],
+    [
+     2600,
+     3650
+    ],
+    [
+     3900,
+     4750
+    ],
+    [
+     4750,
+     5600
+    ],
+    [
+     5600,
+     6450
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "knowledge_that_does_not_help",
@@ -745,7 +3028,60 @@
    "text": {
     "en": "O Allah, I take refuge in You from knowledge that is of no benefit and from a heart that is not humbled."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/44.mp3",
+   "seconds": 6.0,
+   "times": [
+    [
+     0,
+     800
+    ],
+    [
+     800,
+     1300
+    ],
+    [
+     1300,
+     1750
+    ],
+    [
+     1750,
+     2000
+    ],
+    [
+     2000,
+     2400
+    ],
+    [
+     2400,
+     2900
+    ],
+    [
+     2900,
+     3250
+    ],
+    [
+     3250,
+     3800
+    ],
+    [
+     4150,
+     4550
+    ],
+    [
+     4550,
+     5050
+    ],
+    [
+     5050,
+     5300
+    ],
+    [
+     5300,
+     5750
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "feed_the_one_who_fed_me",
@@ -759,7 +3095,40 @@
    "text": {
     "en": "O Allah, feed the one who fed me and give drink to the one who gave me drink."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/45.mp3",
+   "seconds": 4.5,
+   "times": [
+    [
+     0,
+     650
+    ],
+    [
+     650,
+     1100
+    ],
+    [
+     1100,
+     1550
+    ],
+    [
+     1550,
+     2350
+    ],
+    [
+     2750,
+     3150
+    ],
+    [
+     3150,
+     3600
+    ],
+    [
+     3600,
+     4300
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "breaking_the_fast",
@@ -773,7 +3142,48 @@
    "text": {
     "en": "The thirst has gone, the veins are moistened, and the reward is certain, if Allah wills."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/46.mp3",
+   "seconds": 5.25,
+   "times": [
+    [
+     0,
+     400
+    ],
+    [
+     400,
+     1100
+    ],
+    [
+     1100,
+     1800
+    ],
+    [
+     1800,
+     2750
+    ],
+    [
+     2950,
+     3350
+    ],
+    [
+     3350,
+     3850
+    ],
+    [
+     3850,
+     4200
+    ],
+    [
+     4200,
+     4600
+    ],
+    [
+     4600,
+     5000
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "from_the_house_falling",
@@ -787,7 +3197,76 @@
    "text": {
     "en": "O Allah, I take refuge in You from being crushed, from falling, and from frailty."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/47.mp3",
+   "seconds": 9.45,
+   "times": [
+    [
+     0,
+     800
+    ],
+    [
+     800,
+     1050
+    ],
+    [
+     1050,
+     1700
+    ],
+    [
+     1700,
+     1950
+    ],
+    [
+     1950,
+     2250
+    ],
+    [
+     2250,
+     2950
+    ],
+    [
+     3350,
+     3900
+    ],
+    [
+     3900,
+     4150
+    ],
+    [
+     4150,
+     4600
+    ],
+    [
+     4600,
+     5300
+    ],
+    [
+     5800,
+     6400
+    ],
+    [
+     6400,
+     6600
+    ],
+    [
+     6600,
+     7000
+    ],
+    [
+     7000,
+     7650
+    ],
+    [
+     7650,
+     8300
+    ],
+    [
+     8300,
+     9150
+    ]
+   ],
+   "estimated": true
   },
   {
    "key": "much_good_praise",
@@ -801,7 +3280,40 @@
    "text": {
     "en": "Praise belongs to Allah -- much praise, good and blessed."
    },
-   "from": "hadith"
+   "from": "hadith",
+   "audio": "duas/48.mp3",
+   "seconds": 4.75,
+   "times": [
+    [
+     0,
+     800
+    ],
+    [
+     800,
+     1050
+    ],
+    [
+     1050,
+     1800
+    ],
+    [
+     1800,
+     2600
+    ],
+    [
+     2600,
+     3050
+    ],
+    [
+     3050,
+     4100
+    ],
+    [
+     4100,
+     4450
+    ]
+   ],
+   "estimated": true
   }
  ]
 }
