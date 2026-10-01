@@ -9990,3 +9990,54 @@ class FreshPairTest(unittest.TestCase):
             settle()
             self.assertEqual(2, len(board.showing))
             self.assertEqual({i for i, _ in held}, {i for i, _ in board.showing})
+
+
+class TheTrialEndsTest(unittest.TestCase):
+    """The app has to clear its own trial, or every update is reverted on the next restart.
+
+    This is the thing that broke 1.51 on the mat: the guard saw a version still on trial that
+    had already been started once, concluded it was never going to settle, and put 1.49 back.
+    It is checked here against a real state file and a real window rather than by reading the
+    code, because what matters is whether the timer actually fires in a running app.
+    """
+
+    def window(self, root):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_a_version_on_trial_clears_it_by_running(self):
+        import json
+        import time
+        from salaah.update import Installer
+        state = ASSETS.parent / "update-state.json"
+        kept = state.read_text(encoding="utf-8") if state.is_file() else None
+
+        def put_it_back():
+            if kept is None:
+                state.unlink(missing_ok=True)
+            else:
+                state.write_text(kept, encoding="utf-8")
+        self.addCleanup(put_it_back)
+
+        state.write_text(json.dumps({"trial": "9.99", "was": "9.98",
+                                     "at": time.time(), "attempts": 1}), encoding="utf-8")
+        w = self.window(ASSETS.parent)
+        self.assertEqual(ASSETS.parent, w.root, "the app is looking for the state file elsewhere")
+        giving_up = time.time() + Installer.SETTLES + 10
+        while time.time() < giving_up:
+            settle(2)
+            time.sleep(0.05)
+            if not json.loads(state.read_text(encoding="utf-8")).get("trial"):
+                break
+        now = json.loads(state.read_text(encoding="utf-8"))
+        self.assertFalse(now.get("trial"),
+                         "still on trial: the guard would put the previous version back")
+        self.assertEqual("9.99", now.get("installed"),
+                         "the trial cleared without recording what was installed")

@@ -45,15 +45,17 @@ WHAT THIS DOES NOT DO, and what a qualified reviewer still has to:
     (Muhsin Khan for Bukhari, Abdul Hamid Siddiqui for Muslim); the dataset publishes them
     under the Unlicense and every hadith site uses them, but their standing is not mine to
     assert, and neither is their accuracy.
-  * Decide what belongs in front of a child. The first version of this table kept out
-    narrations about slavery and about marital intimacy. Harry asked for them, which was the
-    right correction: manumission is one of the great charitable acts in Islam and the hadiths
-    on it are mostly about FREEING people and about what is owed to somebody in your charge;
-    the intimacy ones in these two collections are matters of ritual purity, and one of them --
-    Umm Sulaim's question in Bukhari 3328 -- is the standing proof that asking plainly about
-    such things is not shameful. They are in now. What is still kept out is narration whose
-    language is explicit rather than instructive, which remains a judgement about a mat a child
-    uses and not about the hadith; say the word and it comes out.
+  * Decide what belongs in front of a child. This table twice kept things out on my own
+    judgement and Harry twice overruled it, correctly both times. First it held back slavery and
+    marital intimacy altogether. Then it kept the explicit ones -- the washing that is obligatory
+    after intercourse, 'azl, a wife called to her husband's bed, "until he has tasted her
+    sweetness" -- on the grounds that the language was explicit rather than instructive. That
+    was a distinction I invented. The frankness in these narrations is there because the law
+    needs it to be: a ruling about when a bath becomes compulsory cannot be made delicately and
+    still be a ruling. They are printed in every copy of Bukhari and Muslim a family owns, and
+    leaving them out was me editing the two Sahihs on an authority I do not have. NOTHING is now
+    held back on grounds of subject or language; the only filters left are the two Sahihs, the
+    two-corpus check, and length.
 
 That is why the file it writes says reviewed: false, and why the app draws the section with
 that flag showing.
@@ -113,6 +115,9 @@ CHOSEN = {
         ("bukhari", "248"),     # how he washed after intimacy
         ("bukhari", "3328"),    # Umm Sulaim asks, and is answered plainly
         ("muslim", "591"),      # the tooth-stick on coming in
+        ("bukhari", "291"),     # when the washing becomes obligatory
+        ("muslim", "776"),      # and on a seminal emission
+        ("bukhari", "270"),     # he went round his wives, and was in ihram by morning
     ],
     "fasting": [
         ("bukhari", "38"),      # whoever fasts Ramadan out of faith and hope
@@ -122,6 +127,8 @@ CHOSEN = {
         ("bukhari", "2017"),    # look for the Night of Qadr in the odd nights
         ("muslim", "2550"),     # the meal before dawn
         ("muslim", "2676"),     # not on the two Eids
+        ("muslim", "2585"),     # he kissed his wives while fasting
+        ("bukhari", "1930"),    # bathed at dawn, not from a dream, and kept the fast
     ],
     "charity": [
         ("bukhari", "1417"),    # even half a date
@@ -165,6 +172,10 @@ CHOSEN = {
         ("bukhari", "5199"),    # your body, your eyes and your wife each have a right over you
         ("bukhari", "5192"),    # the optional fast, and her husband at home
         ("muslim", "3499"),     # freed her, then married her: two rewards
+        ("muslim", "3400"),     # young men, those who can support a wife should marry
+        ("bukhari", "3237"),    # when he calls her to his bed
+        ("muslim", "3529"),     # not until he has tasted her sweetness
+        ("muslim", "3561"),     # 'azl, and he did not forbid it
     ],
     "community": [
         ("bukhari", "6951"),    # a Muslim is a brother of another Muslim

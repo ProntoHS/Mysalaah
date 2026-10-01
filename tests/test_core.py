@@ -2,6 +2,7 @@
 import json
 import math
 import os
+import sys
 import unittest
 from unittest import mock
 from dataclasses import replace
@@ -3589,3 +3590,142 @@ class SayingsSubjectsTest(unittest.TestCase):
     def test_there_are_enough_of_them_that_a_heading_does_not_repeat_within_a_sitting(self):
         self.assertGreaterEqual(len(self.items), 70,
                                 f"only {len(self.items)} sayings in the whole section")
+
+
+class NothingHeldBackTest(unittest.TestCase):
+    """The subjects I twice kept out on my own judgement, and Harry twice told me to put in.
+
+    The second time was the explicit ones -- when the washing becomes obligatory, 'azl, a wife
+    called to her husband's bed. I had drawn a line between language that was explicit and
+    language that was instructive, which is a distinction I invented: a ruling about when a bath
+    is compulsory cannot be made delicately and still be a ruling. These are printed in every
+    copy of Bukhari and Muslim a family owns.
+
+    Checked by subject rather than by hadith number, so a reviewer swapping one for a better one
+    on the same subject does not fail this.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                               .read_text(encoding="utf-8"))["items"]
+
+    def about(self, *words):
+        return [i for i in self.items
+                if any(w in i["text"]["en"].lower() for w in words)]
+
+    def test_the_washing_that_is_obligatory_after_intercourse_is_in(self):
+        found = self.about("bath becomes compulsory", "bathing is obligatory",
+                           "obligatory in case of", "take a bath")
+        self.assertTrue(found, "the section will not say when the washing is due")
+
+    def test_what_is_owed_between_a_husband_and_a_wife_is_in(self):
+        found = self.about("to his bed", "calls his wife", "invites his wife")
+        self.assertTrue(found, "nothing on what a husband and wife owe one another")
+
+    def test_the_plain_language_ones_were_not_quietly_dropped(self):
+        """The specific thing that was held back: narrations that name what they are about
+        rather than talking round it."""
+        plain = self.about("sexual intercourse", "coitus interruptus", "'azl",
+                           "seminal", "tasted her sweetness")
+        self.assertGreaterEqual(len(plain), 3,
+                                "the explicit narrations are out again")
+
+    def test_they_went_under_the_headings_they_belong_to(self):
+        """Not swept into one heading to keep them together, which would be the same squeamish
+        instinct wearing a different hat."""
+        where = {i["cats"][0] for i in self.about(
+            "sexual intercourse", "coitus interruptus", "'azl", "seminal",
+            "tasted her sweetness", "to his bed")}
+        self.assertIn("purification", where)
+        self.assertIn("family", where)
+
+    def test_they_came_through_the_same_two_corpora_as_everything_else(self):
+        """Being asked for them is not a reason to lower the bar they clear."""
+        for item in self.about("sexual intercourse", "coitus interruptus", "'azl",
+                               "seminal", "tasted her sweetness", "to his bed"):
+            with self.subTest(item["ref"]):
+                self.assertTrue(item["ref"].startswith(("Sahih al-Bukhari ", "Sahih Muslim ")))
+                self.assertEqual("hadith-api", item["from"])
+                self.assertTrue(item["arabic"].strip())
+
+
+class ItSaysWhyItWouldNotStartTest(unittest.TestCase):
+    """A version that will not start has to leave a note somewhere the rollback cannot reach.
+
+    1.51 crashed on the mat, the guard put 1.49 back and deleted the broken copy, and there was
+    nothing left to look at -- not the code, not the traceback. A day went on working out that
+    much. This is the test that it cannot happen the same way twice.
+    """
+
+    def mat(self, broken: str = "") -> Path:
+        """A folder laid out like the mat's: salaah/, assets/, and run.sh's job done by hand."""
+        import shutil, tempfile
+        root = Path(tempfile.mkdtemp(prefix="matsim-"))
+        self.addCleanup(shutil.rmtree, root, True)
+        shutil.copytree(ASSETS.parent / "salaah", root / "salaah",
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        # Linked rather than copied: the mat's assets are twenty-four megabytes and this test
+        # does not care what is in them, only that the folder is the one an update replaces.
+        os.symlink(ASSETS, root / "assets", target_is_directory=True)
+        if broken:
+            (root / "salaah" / broken).write_text(
+                "raise RuntimeError('a deliberately broken release')\n", encoding="utf-8")
+        return root
+
+    def start(self, root: Path):
+        import subprocess
+        env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+        return subprocess.run([sys.executable, "-m", "salaah", "--quit-after", "1"],
+                              cwd=root, env=env, capture_output=True, text=True, timeout=180)
+
+    def test_a_release_that_will_not_import_writes_the_reason_down(self):
+        """A module that will not import is the likeliest way a release fails, and it happens
+        while __main__'s own imports are running -- which is why the net has to be round the
+        import of main() and not just round the call to it. The first version of this file had
+        it the other way round and wrote an empty log."""
+        root = self.mat(broken="theme.py")
+        done = self.start(root)
+        self.assertNotEqual(0, done.returncode, "the guard would not have rolled this back")
+        log = root / "startup-error.log"
+        self.assertTrue(log.is_file(), f"nothing written down. stderr was:\n{done.stderr[-600:]}")
+        said = log.read_text(encoding="utf-8")
+        self.assertIn("a deliberately broken release", said, "the log does not name the error")
+        self.assertIn("version", said, "the log does not say which version it was")
+
+    def test_the_note_survives_the_rollback_that_follows(self):
+        """The guard throws salaah/ and assets/ away and puts the previous ones back. The log
+        sits outside both, which is the whole reason it is where it is."""
+        import shutil
+        root = self.mat(broken="theme.py")
+        self.start(root)
+        log = root / "startup-error.log"
+        self.assertTrue(log.is_file())
+        # What put_the_old_one_back does: both folders thrown away and the old ones put back.
+        shutil.rmtree(root / "salaah")
+        self.assertTrue((root / "assets").is_symlink(), "about to delete the real assets")
+        (root / "assets").unlink()
+        shutil.copytree(ASSETS.parent / "salaah", root / "salaah",
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        os.symlink(ASSETS, root / "assets", target_is_directory=True)
+        self.assertTrue(log.is_file(), "the rollback took the only record of why with it")
+        self.assertIn("a deliberately broken release", log.read_text(encoding="utf-8"))
+
+    def test_a_release_that_starts_properly_leaves_no_note(self):
+        """A log that appears every time is a log nobody reads."""
+        root = self.mat()
+        done = self.start(root)
+        self.assertEqual(0, done.returncode, done.stderr[-600:])
+        self.assertFalse((root / "startup-error.log").is_file(),
+                         "a clean start wrote an error log")
+
+    def test_the_trial_is_short_enough_that_touching_the_mat_cannot_undo_an_update(self):
+        """The guard reverts a version started a second time without having settled, so the
+        trial is also the window in which switching the mat off loses the update. At sixty
+        seconds that window swallowed two releases. A version that has kept an event loop
+        running this long has started; past that the trial protects against nothing."""
+        from salaah.update import Installer
+        self.assertLessEqual(Installer.SETTLES, 15,
+                             f"{Installer.SETTLES}s is long enough to lose an update in")
+        self.assertGreaterEqual(Installer.SETTLES, 5,
+                                "too short to notice a release that dies on startup")

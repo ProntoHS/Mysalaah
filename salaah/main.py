@@ -147,7 +147,11 @@ def main(argv: list[str] | None = None) -> int:
         if tr.personal:
             print(f"personal translation loaded: {tr.name} ({tr.lang}.personal.json). "
                   "Private use only; delete it before packaging a release.", file=sys.stderr)
-    print(f"Salaah running with {API}", file=sys.stderr)
+    # The version goes in the banner so that any log anybody sends -- a photograph of
+    # the mat's terminal, a journalctl dump -- says which version produced it. Without
+    # it, "none of the changes have happened" and "it crashed" look the same.
+    from . import __version__
+    print(f"Salaah {__version__} running with {API}", file=sys.stderr)
     code = app.exec()
     if buttons:
         buttons.stop()

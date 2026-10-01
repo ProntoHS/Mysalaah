@@ -259,7 +259,19 @@ class Installer:
     """
 
     TRIAL = "trial"          # the version on trial, until it has run long enough to be trusted
-    SETTLES = 60.0           # seconds a new version must run before it is considered good
+    # Seconds a new version must run before it is considered good. Was sixty, which turned out
+    # to be a trap rather than a safeguard: the guard reverts a version that is started a second
+    # time without having settled, so ANY interruption inside that minute -- the mat switched
+    # off, the app closed to have a look, a power cut -- silently put the previous version back
+    # on the next boot. That cost two releases before anybody worked out what was happening,
+    # and the mat gave no sign either time.
+    #
+    # Ten is what the trial is actually for. A version that will not start fails in its first
+    # second or two: a bad import, a missing asset, a file that will not parse, Qt refusing a
+    # screen. One that has kept a live event loop running for ten seconds has started. Beyond
+    # that the trial is not protecting against anything, it is only a window in which a person
+    # watching their mat can lose the update by touching it.
+    SETTLES = 10.0
 
     def __init__(self, root: Path):
         self.root = Path(root)
