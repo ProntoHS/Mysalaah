@@ -1,0 +1,618 @@
+{
+  "schema": 1,
+  "reviewed": false,
+  "source": "Sahih al-Bukhari and Sahih Muslim only. Arabic AND English both lifted from the public-domain hadith-api dataset (github.com/fawazahmed0/hadith-api, Unlicense), matched to each other by hadith number; not one word of either was typed from memory. Every Arabic line was then found again in the MIT-licensed 'hadith' package (62,178 narrations, nine collections), a separate compilation that had no part in the lift. The English is the translation that circulates with these collections, with only the dataset's missing final full stop and closing quote put back. DRAFT: which heading each saying is filed under is an editorial choice made by the build and needs a qualified reviewer, as do the hadith numbers, which should be checked on sunnah.com one at a time.",
+  "items": [
+    {
+      "key": "bukhari_8",
+      "cats": [
+        "faith"
+      ],
+      "title": "Belief",
+      "ref": "Sahih al-Bukhari 8",
+      "arabic": "حَدَّثَنَا عُبَيْدُ اللَّهِ بْنُ مُوسَى، قَالَ أَخْبَرَنَا حَنْظَلَةُ بْنُ أَبِي سُفْيَانَ، عَنْ عِكْرِمَةَ بْنِ خَالِدٍ، عَنِ ابْنِ عُمَرَ ـ رضى الله عنهما ـ قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ بُنِيَ الإِسْلاَمُ عَلَى خَمْسٍ شَهَادَةِ أَنْ لاَ إِلَهَ إِلاَّ اللَّهُ وَأَنَّ مُحَمَّدًا رَسُولُ اللَّهِ، وَإِقَامِ الصَّلاَةِ، وَإِيتَاءِ الزَّكَاةِ، وَالْحَجِّ، وَصَوْمِ رَمَضَانَ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Ibn 'Umar: Allah's Messenger (ﷺ) said: Islam is based on (the following) five (principles): 1. To testify that none has the right to be worshipped but Allah and Muhammad is Allah's Messenger (ﷺ). 2. To offer the (compulsory congregational) prayers dutifully and perfectly. 3. To pay Zakat (i.e. obligatory charity) . 4. To perform Hajj. (i.e. Pilgrimage to Mecca) 5. To observe fast during the month of Ramadan."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_13",
+      "cats": [
+        "faith"
+      ],
+      "title": "Belief",
+      "ref": "Sahih al-Bukhari 13",
+      "arabic": "حَدَّثَنَا مُسَدَّدٌ، قَالَ حَدَّثَنَا يَحْيَى، عَنْ شُعْبَةَ، عَنْ قَتَادَةَ، عَنْ أَنَسٍ ـ رضى الله عنه ـ عَنِ النَّبِيِّ صلى الله عليه وسلم‏.‏ وَعَنْ حُسَيْنٍ الْمُعَلِّمِ، قَالَ حَدَّثَنَا قَتَادَةُ، عَنْ أَنَسٍ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ لا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Anas: The Prophet (ﷺ) said, \"None of you will have faith till he wishes for his (Muslim) brother what he likes for himself\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_152",
+      "cats": [
+        "faith"
+      ],
+      "title": "The Book of Faith",
+      "ref": "Sahih Muslim 152",
+      "arabic": "حَدَّثَنَا عُبَيْدُ اللَّهِ بْنُ سَعِيدٍ، وَعَبْدُ بْنُ حُمَيْدٍ، قَالاَ حَدَّثَنَا أَبُو عَامِرٍ الْعَقَدِيُّ، حَدَّثَنَا سُلَيْمَانُ بْنُ بِلاَلٍ، عَنْ عَبْدِ اللَّهِ بْنِ دِينَارٍ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ الإِيمَانُ بِضْعٌ وَسَبْعُونَ شُعْبَةً وَالْحَيَاءُ شُعْبَةٌ مِنَ الإِيمَانِ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "It is narrated on the authority of Abu Huraira that the Prophet (ﷺ) said:Iman has over seventy branches, and modesty is a branch of Iman."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_7453",
+      "cats": [
+        "faith"
+      ],
+      "title": "Oneness, Uniqueness of Allah (Tawheed)",
+      "ref": "Sahih al-Bukhari 7453",
+      "arabic": "حَدَّثَنَا إِسْمَاعِيلُ، حَدَّثَنِي مَالِكٌ، عَنْ أَبِي الزِّنَادِ، عَنِ الأَعْرَجِ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ لَمَّا قَضَى اللَّهُ الْخَلْقَ كَتَبَ عِنْدَهُ فَوْقَ عَرْشِهِ، إِنَّ رَحْمَتِي سَبَقَتْ غَضَبِي ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"When Allah created the creations, He wrote with Him on His Throne: 'My Mercy has preceded My Anger\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_528",
+      "cats": [
+        "prayer"
+      ],
+      "title": "Times of the Prayers",
+      "ref": "Sahih al-Bukhari 528",
+      "arabic": "حَدَّثَنَا إِبْرَاهِيمُ بْنُ حَمْزَةَ، قَالَ حَدَّثَنِي ابْنُ أَبِي حَازِمٍ، وَالدَّرَاوَرْدِيُّ، عَنْ يَزِيدَ، عَنْ مُحَمَّدِ بْنِ إِبْرَاهِيمَ، عَنْ أَبِي سَلَمَةَ بْنِ عَبْدِ الرَّحْمَنِ، عَنْ أَبِي هُرَيْرَةَ، أَنَّهُ سَمِعَ رَسُولَ اللَّهِ صلى الله عليه وسلم يَقُولُ ‏\"‏ أَرَأَيْتُمْ لَوْ أَنَّ نَهَرًا بِبَابِ أَحَدِكُمْ، يَغْتَسِلُ فِيهِ كُلَّ يَوْمٍ خَمْسًا، مَا تَقُولُ ذَلِكَ يُبْقِي مِنْ دَرَنِهِ ‏\"‏‏.‏ قَالُوا لاَ يُبْقِي مِنْ دَرَنِهِ شَيْئًا‏.‏ قَالَ ‏\"‏ فَذَلِكَ مِثْلُ الصَّلَوَاتِ الْخَمْسِ، يَمْحُو اللَّهُ بِهَا الْخَطَايَا ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: I heard Allah's Messenger (ﷺ) saying, \"If there was a river at the door of anyone of you and he took a bath in it five times a day would you notice any dirt on him?\" They said, \"Not a trace of dirt would be left.\" The Prophet (ﷺ) added, \"That is the example of the five prayers with which Allah blots out (annuls) evil deeds\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_550",
+      "cats": [
+        "prayer"
+      ],
+      "title": "The Book of Purification",
+      "ref": "Sahih Muslim 550",
+      "arabic": "حَدَّثَنَا يَحْيَى بْنُ أَيُّوبَ، وَقُتَيْبَةُ بْنُ سَعِيدٍ، وَعَلِيُّ بْنُ حُجْرٍ، كُلُّهُمْ عَنْ إِسْمَاعِيلَ، - قَالَ ابْنُ أَيُّوبَ حَدَّثَنَا إِسْمَاعِيلُ بْنُ جَعْفَرٍ، - أَخْبَرَنِي الْعَلاَءُ بْنُ عَبْدِ الرَّحْمَنِ بْنِ يَعْقُوبَ، مَوْلَى الْحُرَقَةِ عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ الصَّلاَةُ الْخَمْسُ وَالْجُمُعَةُ إِلَى الْجُمُعَةِ كَفَّارَةٌ لِمَا بَيْنَهُنَّ مَا لَمْ تُغْشَ الْكَبَائِرُ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Abu Huraira reported:The Messenger of Allah (ﷺ) said: Five prayers and from one Friday prayer to (the next) Friday prayer is an expiation (of the sins committed in between their intervals) if major sins are not committed."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_1478",
+      "cats": [
+        "prayer"
+      ],
+      "title": "The Book of Mosques and Places of Prayer",
+      "ref": "Sahih Muslim 1478",
+      "arabic": "وَحَدَّثَنِي زُهَيْرُ بْنُ حَرْبٍ، وَمُحَمَّدُ بْنُ الْمُثَنَّى، قَالاَ حَدَّثَنَا يَحْيَى، عَنْ عُبَيْدِ اللَّهِ، قَالَ أَخْبَرَنِي نَافِعٌ، عَنِ ابْنِ عُمَرَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ صَلاَةُ الرَّجُلِ فِي الْجَمَاعَةِ تَزِيدُ عَلَى صَلاَتِهِ وَحْدَهُ سَبْعًا وَعِشْرِينَ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Ibn 'Umar reported Allah's Apostle (ﷺ) as saying:The prayer of a person in congregation is twenty-seven times in excess to the prayer said alone."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_256",
+      "cats": [
+        "prayer"
+      ],
+      "title": "The Book of Faith",
+      "ref": "Sahih Muslim 256",
+      "arabic": "حَدَّثَنَا عُثْمَانُ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا جَرِيرٌ، عَنِ الْحَسَنِ بْنِ عُبَيْدِ اللَّهِ، عَنْ أَبِي عَمْرٍو الشَّيْبَانِيِّ، عَنْ عَبْدِ اللَّهِ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ أَفْضَلُ الأَعْمَالِ - أَوِ الْعَمَلِ - الصَّلاَةُ لِوَقْتِهَا وَبِرُّ الْوَالِدَيْنِ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "It is reported on the authority of 'Abdullah that the Messenger of Allah observed:The best of' the deeds or deed is the (observance of) prayer at its proper time and kindness to the parents."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_245",
+      "cats": [
+        "purification"
+      ],
+      "title": "Ablutions (Wudu')",
+      "ref": "Sahih al-Bukhari 245",
+      "arabic": "حَدَّثَنَا عُثْمَانُ، قَالَ حَدَّثَنَا جَرِيرٌ، عَنْ مَنْصُورٍ، عَنْ أَبِي وَائِلٍ، عَنْ حُذَيْفَةَ، قَالَ كَانَ النَّبِيُّ صلى الله عليه وسلم إِذَا قَامَ مِنَ اللَّيْلِ يَشُوصُ فَاهُ بِالسِّوَاكِ‏.‏",
+      "text": {
+        "en": "Narrated Hudhaifa: Whenever the Prophet (ﷺ) got up at night, he used to clean his mouth with Siwak."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_578",
+      "cats": [
+        "purification"
+      ],
+      "title": "The Book of Purification",
+      "ref": "Sahih Muslim 578",
+      "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ مَعْمَرِ بْنِ رِبْعِيٍّ الْقَيْسِيُّ، حَدَّثَنَا أَبُو هِشَامٍ الْمَخْزُومِيُّ، عَنْ عَبْدِ الْوَاحِدِ، - وَهُوَ ابْنُ زِيَادٍ - حَدَّثَنَا عُثْمَانُ بْنُ حَكِيمٍ، حَدَّثَنَا مُحَمَّدُ بْنُ الْمُنْكَدِرِ، عَنْ حُمْرَانَ، عَنْ عُثْمَانَ بْنِ عَفَّانَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ تَوَضَّأَ فَأَحْسَنَ الْوُضُوءَ خَرَجَتْ خَطَايَاهُ مِنْ جَسَدِهِ حَتَّى تَخْرُجَ مِنْ تَحْتِ أَظْفَارِهِ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Uthman b. 'Affan reported:The Messenger of Allah (way peace be upon him) said: He who performed ablution well, his sins would come out from his body, even coming out from under his nails."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6954",
+      "cats": [
+        "purification"
+      ],
+      "title": "Tricks",
+      "ref": "Sahih al-Bukhari 6954",
+      "arabic": "حَدَّثَنِي إِسْحَاقُ، حَدَّثَنَا عَبْدُ الرَّزَّاقِ، عَنْ مَعْمَرٍ، عَنْ هَمَّامٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ لاَ يَقْبَلُ اللَّهُ صَلاَةَ أَحَدِكُمْ إِذَا أَحْدَثَ حَتَّى يَتَوَضَّأَ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Allah does not accept prayer of anyone of you if he does Hadath (passes wind) till he performs the ablution (anew)\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_543",
+      "cats": [
+        "purification"
+      ],
+      "title": "The Book of Purification",
+      "ref": "Sahih Muslim 543",
+      "arabic": "حَدَّثَنَا عَبْدُ بْنُ حُمَيْدٍ، وَحَجَّاجُ بْنُ الشَّاعِرِ، كِلاَهُمَا عَنْ أَبِي الْوَلِيدِ، قَالَ عَبْدٌ حَدَّثَنِي أَبُو الْوَلِيدِ، حَدَّثَنَا إِسْحَاقُ بْنُ سَعِيدِ بْنِ عَمْرِو بْنِ سَعِيدِ بْنِ الْعَاصِ، حَدَّثَنِي أَبِي، عَنْ أَبِيهِ، قَالَ كُنْتُ عِنْدَ عُثْمَانَ فَدَعَا بِطَهُورٍ فَقَالَ سَمِعْتُ رَسُولَ اللَّهِ صلى الله عليه وسلم يَقُولُ ‏ \"‏ مَا مِنِ امْرِئٍ مُسْلِمٍ تَحْضُرُهُ صَلاَةٌ مَكْتُوبَةٌ فَيُحْسِنُ وُضُوءَهَا وَخُشُوعَهَا وَرُكُوعَهَا إِلاَّ كَانَتْ كَفَّارَةً لِمَا قَبْلَهَا مِنَ الذُّنُوبِ مَا لَمْ يُؤْتِ كَبِيرَةً وَذَلِكَ الدَّهْرَ كُلَّهُ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Amr b Sa'id b al-As reported:I was with Uthman, and he called for ablution water and said: I heard Allah's Messenger (ﷺ) say: When the time for a prescribed prayer comes, if any Muslim performs ablution well and offers his prayer with humility and bowing, it will be an expiation for his past sins, so long as he has not committed a major sin; and this applies for all times."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_38",
+      "cats": [
+        "fasting"
+      ],
+      "title": "Belief",
+      "ref": "Sahih al-Bukhari 38",
+      "arabic": "حَدَّثَنَا ابْنُ سَلاَمٍ، قَالَ أَخْبَرَنَا مُحَمَّدُ بْنُ فُضَيْلٍ، قَالَ حَدَّثَنَا يَحْيَى بْنُ سَعِيدٍ، عَنْ أَبِي سَلَمَةَ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ صَامَ رَمَضَانَ إِيمَانًا وَاحْتِسَابًا غُفِرَ لَهُ مَا تَقَدَّمَ مِنْ ذَنْبِهِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"Whoever observes fasts during the month of Ramadan out of sincere faith, and hoping to attain Allah's rewards, then all his past sins will be forgiven\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_3277",
+      "cats": [
+        "fasting"
+      ],
+      "title": "Beginning of Creation",
+      "ref": "Sahih al-Bukhari 3277",
+      "arabic": "حَدَّثَنَا يَحْيَى بْنُ بُكَيْرٍ، حَدَّثَنَا اللَّيْثُ، قَالَ حَدَّثَنِي عُقَيْلٌ، عَنِ ابْنِ شِهَابٍ، قَالَ حَدَّثَنِي ابْنُ أَبِي أَنَسٍ، مَوْلَى التَّيْمِيِّينَ أَنَّ أَبَاهُ، حَدَّثَهُ أَنَّهُ، سَمِعَ أَبَا هُرَيْرَةَ ـ رضى الله عنه ـ يَقُولُ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ إِذَا دَخَلَ رَمَضَانُ فُتِّحَتْ أَبْوَابُ الْجَنَّةِ، وَغُلِّقَتْ أَبْوَابُ جَهَنَّمَ، وَسُلْسِلَتِ الشَّيَاطِينُ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"When the month of Ramadan comes, the gates of Paradise are opened and the gates of the (Hell) Fire are closed, and the devils are chained\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6057",
+      "cats": [
+        "fasting"
+      ],
+      "title": "Good Manners and Form (Al-Adab)",
+      "ref": "Sahih al-Bukhari 6057",
+      "arabic": "حَدَّثَنَا أَحْمَدُ بْنُ يُونُسَ، حَدَّثَنَا ابْنُ أَبِي ذِئْبٍ، عَنِ الْمَقْبُرِيِّ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ مَنْ لَمْ يَدَعْ قَوْلَ الزُّورِ وَالْعَمَلَ بِهِ وَالْجَهْلَ فَلَيْسَ لِلَّهِ حَاجَةٌ أَنْ يَدَعَ طَعَامَهُ وَشَرَابَهُ ‏\"‏‏.‏ قَالَ أَحْمَدُ أَفْهَمَنِي رَجُلٌ إِسْنَادَهُ‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Whoever does not give up false statements (i.e. telling lies), and evil deeds, and speaking bad words to others, Allah is not in need of his (fasting) leaving his food and drink\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_1957",
+      "cats": [
+        "fasting"
+      ],
+      "title": "Fasting",
+      "ref": "Sahih al-Bukhari 1957",
+      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنْ أَبِي حَازِمٍ، عَنْ سَهْلِ بْنِ سَعْدٍ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ لاَ يَزَالُ النَّاسُ بِخَيْرٍ مَا عَجَّلُوا الْفِطْرَ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Sahl bin Sa`d: Allah's Messenger (ﷺ) said, \"The people will remain on the right path as long as they hasten the breaking of the fast\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_1417",
+      "cats": [
+        "charity"
+      ],
+      "title": "Obligatory Charity Tax (Zakat)",
+      "ref": "Sahih al-Bukhari 1417",
+      "arabic": "حَدَّثَنَا سُلَيْمَانُ بْنُ حَرْبٍ، حَدَّثَنَا شُعْبَةُ، عَنْ أَبِي إِسْحَاقَ، قَالَ سَمِعْتُ عَبْدَ اللَّهِ بْنَ مَعْقِلٍ، قَالَ سَمِعْتُ عَدِيَّ بْنَ حَاتِمٍ ـ رضى الله عنه ـ قَالَ سَمِعْتُ رَسُولَ اللَّهِ صلى الله عليه وسلم يَقُولُ ‏ \"‏ اتَّقُوا النَّارَ وَلَوْ بِشِقِّ تَمْرَةٍ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated `Adi bin Hatim heard the Prophet (ﷺ) saying: \"Save yourself from Hell-fire even by giving half a date-fruit in charity\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_6592",
+      "cats": [
+        "charity"
+      ],
+      "title": "The Book of Virtue, Enjoining Good Manners, and Joining of the Ties of Kinship",
+      "ref": "Sahih Muslim 6592",
+      "arabic": "حَدَّثَنَا يَحْيَى بْنُ أَيُّوبَ، وَقُتَيْبَةُ، وَابْنُ، حُجْرٍ قَالُوا حَدَّثَنَا إِسْمَاعِيلُ، - وَهُوَ ابْنُ جَعْفَرٍ - عَنِ الْعَلاَءِ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، عَنْ رَسُولِ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ مَا نَقَصَتْ صَدَقَةٌ مِنْ مَالٍ وَمَا زَادَ اللَّهُ عَبْدًا بِعَفْوٍ إِلاَّ عِزًّا وَمَا تَوَاضَعَ أَحَدٌ لِلَّهِ إِلاَّ رَفَعَهُ اللَّهُ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Abu Huraira reported Allah's Messenger (ﷺ) as saying:Charity does not decrease wealth, no one forgives another except that Allah increases his honor, and no one humbles himself for the sake of Allah except that Allah raises his status."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_2386",
+      "cats": [
+        "charity"
+      ],
+      "title": "The Book of Zakat",
+      "ref": "Sahih Muslim 2386",
+      "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ بَشَّارٍ، وَمُحَمَّدُ بْنُ حَاتِمٍ، وَأَحْمَدُ بْنُ عَبْدَةَ، جَمِيعًا عَنْ يَحْيَى الْقَطَّانِ، - قَالَ ابْنُ بَشَّارٍ حَدَّثَنَا يَحْيَى، - حَدَّثَنَا عَمْرُو بْنُ عُثْمَانَ، قَالَ سَمِعْتُ مُوسَى بْنَ طَلْحَةَ، يُحَدِّثُ أَنَّ حَكِيمَ بْنَ حِزَامٍ، حَدَّثَهُ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ أَفْضَلُ الصَّدَقَةِ - أَوْ خَيْرُ الصَّدَقَةِ - عَنْ ظَهْرِ غِنًى وَالْيَدُ الْعُلْيَا خَيْرٌ مِنَ الْيَدِ السُّفْلَى وَابْدَأْ بِمَنْ تَعُولُ ‏\"‏‏.‏",
+      "text": {
+        "en": "Hakim b. Hizam reported Allah's Messenger (ﷺ) having said this:The most excellent Sadaqa or the best of Sadaqa is that after giving which the (giver) remains rich and the upper hand is better than the lower hand, and begin from the members of your household."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_2328",
+      "cats": [
+        "charity"
+      ],
+      "title": "The Book of Zakat",
+      "ref": "Sahih Muslim 2328",
+      "arabic": "حَدَّثَنَا قُتَيْبَةُ بْنُ سَعِيدٍ، حَدَّثَنَا أَبُو عَوَانَةَ، ح وَحَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا عَبَّادُ بْنُ الْعَوَّامِ، كِلاَهُمَا عَنْ أَبِي مَالِكٍ الأَشْجَعِيِّ، عَنْ رِبْعِيِّ بْنِ حِرَاشٍ، عَنْ حُذَيْفَةَ، فِي حَدِيثِ قُتَيْبَةَ قَالَ قَالَ نَبِيُّكُمْ صلى الله عليه وسلم وَقَالَ ابْنُ أَبِي شَيْبَةَ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ كُلُّ مَعْرُوفٍ صَدَقَةٌ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Hudhaifa and Abu Shaiba reported Allah's Messenger (ﷺ) as saying:Every act of goodness is sadaqa."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_1521",
+      "cats": [
+        "hajj"
+      ],
+      "title": "Hajj (Pilgrimage)",
+      "ref": "Sahih al-Bukhari 1521",
+      "arabic": "حَدَّثَنَا آدَمُ، حَدَّثَنَا شُعْبَةُ، حَدَّثَنَا سَيَّارٌ أَبُو الْحَكَمِ، قَالَ سَمِعْتُ أَبَا حَازِمٍ، قَالَ سَمِعْتُ أَبَا هُرَيْرَةَ ـ رضى الله عنه ـ قَالَ سَمِعْتُ النَّبِيَّ صلى الله عليه وسلم يَقُولُ ‏ \"‏ مَنْ حَجَّ لِلَّهِ فَلَمْ يَرْفُثْ وَلَمْ يَفْسُقْ رَجَعَ كَيَوْمِ وَلَدَتْهُ أُمُّهُ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Whoever performs Hajj for Allah's pleasure and does not have sexual relations with his wife, and does not do evil or sins then he will return (after Hajj free from all sins) as if he were born anew\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_1773",
+      "cats": [
+        "hajj"
+      ],
+      "title": "`Umrah (Minor pilgrimage)",
+      "ref": "Sahih al-Bukhari 1773",
+      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنْ سُمَىٍّ، مَوْلَى أَبِي بَكْرِ بْنِ عَبْدِ الرَّحْمَنِ عَنْ أَبِي صَالِحٍ السَّمَّانِ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ الْعُمْرَةُ إِلَى الْعُمْرَةِ كَفَّارَةٌ لِمَا بَيْنَهُمَا، وَالْحَجُّ الْمَبْرُورُ لَيْسَ لَهُ جَزَاءٌ إِلاَّ الْجَنَّةُ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"(The performance of) `Umra is an expiation for the sins committed (between it and the previous one). And the reward of Hajj Mabrur (the one accepted by Allah) is nothing except Paradise\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_1549",
+      "cats": [
+        "hajj"
+      ],
+      "title": "Hajj (Pilgrimage)",
+      "ref": "Sahih al-Bukhari 1549",
+      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنْ نَافِعٍ، عَنْ عَبْدِ اللَّهِ بْنِ عُمَرَ ـ رضى الله عنهما ـ أَنَّ تَلْبِيَةَ، رَسُولِ اللَّهِ صلى الله عليه وسلم لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لاَ شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لاَ شَرِيكَ لَكَ‏.‏",
+      "text": {
+        "en": "Narrated `Abdullah bin `Umar: The Talbiya of Allah's Messenger (ﷺ) was : 'Labbaika Allahumma labbaik, Labbaika la sharika Laka labbaik, Inna-l-hamda wan-ni'mata Laka walmulk, La sharika Laka' (I respond to Your call O Allah, I respond to Your call, and I am obedient to Your orders, You have no partner, I respond to Your call All the praises and blessings are for You, All the sovereignty is for You, And You have no partners with You)."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5617",
+      "cats": [
+        "hajj"
+      ],
+      "title": "Drinks",
+      "ref": "Sahih al-Bukhari 5617",
+      "arabic": "حَدَّثَنَا أَبُو نُعَيْمٍ، حَدَّثَنَا سُفْيَانُ، عَنْ عَاصِمٍ الأَحْوَلِ، عَنِ الشَّعْبِيِّ، عَنِ ابْنِ عَبَّاسٍ، قَالَ شَرِبَ النَّبِيُّ صلى الله عليه وسلم قَائِمًا مِنْ زَمْزَمَ‏.‏",
+      "text": {
+        "en": "Narrated Ibn `Abbas: The Prophet (ﷺ) drank Zamzam (water) while standing."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5028",
+      "cats": [
+        "knowledge"
+      ],
+      "title": "Virtues of the Qur'an",
+      "ref": "Sahih al-Bukhari 5028",
+      "arabic": "حَدَّثَنَا أَبُو نُعَيْمٍ، حَدَّثَنَا سُفْيَانُ، عَنْ عَلْقَمَةَ بْنِ مَرْثَدٍ، عَنْ أَبِي عَبْدِ الرَّحْمَنِ السُّلَمِيِّ، عَنْ عُثْمَانَ بْنِ عَفَّانَ، قَالَ قَالَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ إِنَّ أَفْضَلَكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated `Uthman bin `Affan: The Prophet (ﷺ) said, \"The most superior among you (Muslims) are those who learn the Qur'an and teach it\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_71",
+      "cats": [
+        "knowledge"
+      ],
+      "title": "Knowledge",
+      "ref": "Sahih al-Bukhari 71",
+      "arabic": "حَدَّثَنَا سَعِيدُ بْنُ عُفَيْرٍ، قَالَ حَدَّثَنَا ابْنُ وَهْبٍ، عَنْ يُونُسَ، عَنِ ابْنِ شِهَابٍ، قَالَ قَالَ حُمَيْدُ بْنُ عَبْدِ الرَّحْمَنِ سَمِعْتُ مُعَاوِيَةَ، خَطِيبًا يَقُولُ سَمِعْتُ النَّبِيَّ صلى الله عليه وسلم يَقُولُ ‏ \"‏ مَنْ يُرِدِ اللَّهُ بِهِ خَيْرًا يُفَقِّهْهُ فِي الدِّينِ، وَإِنَّمَا أَنَا قَاسِمٌ وَاللَّهُ يُعْطِي، وَلَنْ تَزَالَ هَذِهِ الأُمَّةُ قَائِمَةً عَلَى أَمْرِ اللَّهِ لاَ يَضُرُّهُمْ مَنْ خَالَفَهُمْ حَتَّى يَأْتِيَ أَمْرُ اللَّهِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Muawiya: I heard Allah's Messenger (ﷺ) saying, \"If Allah wants to do good to a person, He makes him comprehend the religion. I am just a distributor, but the grant is from Allah. (And remember) that this nation (true Muslims) will keep on following Allah's teachings strictly and they will not be harmed by any one going on a different path till Allah's order (Day of Judgment) is established\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_106",
+      "cats": [
+        "knowledge"
+      ],
+      "title": "Knowledge",
+      "ref": "Sahih al-Bukhari 106",
+      "arabic": "حَدَّثَنَا عَلِيُّ بْنُ الْجَعْدِ، قَالَ أَخْبَرَنَا شُعْبَةُ، قَالَ أَخْبَرَنِي مَنْصُورٌ، قَالَ سَمِعْتُ رِبْعِيَّ بْنَ حِرَاشٍ، يَقُولُ سَمِعْتُ عَلِيًّا، يَقُولُ قَالَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ لاَ تَكْذِبُوا عَلَىَّ، فَإِنَّهُ مَنْ كَذَبَ عَلَىَّ فَلْيَلِجِ النَّارَ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated `Ali: The Prophet (ﷺ) said, \"Do not tell a lie against me for whoever tells a lie against me (intentionally) then he will surely enter the Hell-fire\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5033",
+      "cats": [
+        "knowledge"
+      ],
+      "title": "Virtues of the Qur'an",
+      "ref": "Sahih al-Bukhari 5033",
+      "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ الْعَلاَءِ، حَدَّثَنَا أَبُو أُسَامَةَ، عَنْ بُرَيْدٍ، عَنْ أَبِي بُرْدَةَ، عَنْ أَبِي مُوسَى، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ تَعَاهَدُوا الْقُرْآنَ فَوَالَّذِي نَفْسِي بِيَدِهِ لَهُوَ أَشَدُّ تَفَصِّيًا مِنَ الإِبِلِ فِي عُقُلِهَا ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Musa: The Prophet (ﷺ) said, \"Commit yourself to the Qur'an, for by Him in whose Hand is my soul, it is surely more prone to break away than a camel in its bind\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6035",
+      "cats": [
+        "character"
+      ],
+      "title": "Good Manners and Form (Al-Adab)",
+      "ref": "Sahih al-Bukhari 6035",
+      "arabic": "حَدَّثَنَا عُمَرُ بْنُ حَفْصٍ، حَدَّثَنَا أَبِي، حَدَّثَنَا الأَعْمَشُ، قَالَ حَدَّثَنِي شَقِيقٌ، عَنْ مَسْرُوقٍ، قَالَ كُنَّا جُلُوسًا مَعَ عَبْدِ اللَّهِ بْنِ عَمْرٍو يُحَدِّثُنَا إِذْ قَالَ لَمْ يَكُنْ رَسُولُ اللَّهِ صلى الله عليه وسلم فَاحِشًا وَلاَ مُتَفَحِّشًا، وَإِنَّهُ كَانَ يَقُولُ ‏ \"‏ إِنَّ خِيَارَكُمْ أَحَاسِنُكُمْ أَخْلاَقًا ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Masruq: We were sitting with `Abdullah bin `Amr who was narrating to us (Hadith): He said, \"Allah's Messenger (ﷺ) was neither a Fahish nor a Mutafahhish, and he used to say, 'The best among you are the best in character (having good manners)\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6114",
+      "cats": [
+        "character"
+      ],
+      "title": "Good Manners and Form (Al-Adab)",
+      "ref": "Sahih al-Bukhari 6114",
+      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنِ ابْنِ شِهَابٍ، عَنْ سَعِيدِ بْنِ الْمُسَيَّبِ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ لَيْسَ الشَّدِيدُ بِالصُّرَعَةِ، إِنَّمَا الشَّدِيدُ الَّذِي يَمْلِكُ نَفْسَهُ عِنْدَ الْغَضَبِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"The strong is not the one who overcomes the people by his strength, but the strong is the one who controls himself while in anger\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6136",
+      "cats": [
+        "character"
+      ],
+      "title": "Good Manners and Form (Al-Adab)",
+      "ref": "Sahih al-Bukhari 6136",
+      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ مُحَمَّدٍ، حَدَّثَنَا ابْنُ مَهْدِيٍّ، حَدَّثَنَا سُفْيَانُ، عَنْ أَبِي حَصِينٍ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الآخِرِ فَلاَ يُؤْذِ جَارَهُ، وَمَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الآخِرِ فَلْيُكْرِمْ ضَيْفَهُ، وَمَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الآخِرِ فَلْيَقُلْ خَيْرًا أَوْ لِيَصْمُتْ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Whoever believes in Allah and the Last Day, should not hurt his neighbor and whoever believes in Allah and the Last Day, should serve his guest generously and whoever believes in Allah and the Last Day, should speak what is good or keep silent\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_7376",
+      "cats": [
+        "character"
+      ],
+      "title": "Oneness, Uniqueness of Allah (Tawheed)",
+      "ref": "Sahih al-Bukhari 7376",
+      "arabic": "حَدَّثَنَا مُحَمَّدٌ، أَخْبَرَنَا أَبُو مُعَاوِيَةَ، عَنِ الأَعْمَشِ، عَنْ زَيْدِ بْنِ وَهْبٍ، وَأَبِي، ظَبْيَانَ عَنْ جَرِيرِ بْنِ عَبْدِ اللَّهِ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ لاَ يَرْحَمُ اللَّهُ مَنْ لاَ يَرْحَمُ النَّاسَ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Jarir bin `Abdullah: Allah's Messenger (ﷺ) said, \"Allah will not be merciful to those who are not merciful to mankind\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5971",
+      "cats": [
+        "family"
+      ],
+      "title": "Good Manners and Form (Al-Adab)",
+      "ref": "Sahih al-Bukhari 5971",
+      "arabic": "حَدَّثَنَا قُتَيْبَةُ بْنُ سَعِيدٍ، حَدَّثَنَا جَرِيرٌ، عَنْ عُمَارَةَ بْنِ الْقَعْقَاعِ بْنِ شُبْرُمَةَ، عَنْ أَبِي زُرْعَةَ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ قَالَ جَاءَ رَجُلٌ إِلَى رَسُولِ اللَّهِ صلى الله عليه وسلم فَقَالَ يَا رَسُولَ اللَّهِ مَنْ أَحَقُّ بِحُسْنِ صَحَابَتِي قَالَ ‏\"‏ أُمُّكَ ‏\"‏‏.‏ قَالَ ثُمَّ مَنْ قَالَ ‏\"‏ أُمُّكَ ‏\"‏‏.‏ قَالَ ثُمَّ مَنْ قَالَ ‏\"‏ أُمُّكَ ‏\"‏‏.‏ قَالَ ثُمَّ مَنْ قَالَ ‏\"‏ ثُمَّ أَبُوكَ ‏\"‏‏.‏ وَقَالَ ابْنُ شُبْرُمَةَ وَيَحْيَى بْنُ أَيُّوبَ حَدَّثَنَا أَبُو زُرْعَةَ مِثْلَهُ‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: A man came to Allah's Messenger (ﷺ) and said, \"O Allah's Messenger (ﷺ)! Who is more entitled to be treated with the best companionship by me?\" The Prophet (ﷺ) said, \"Your mother.\" The man said. \"Who is next?\" The Prophet said, \"Your mother.\" The man further said, \"Who is next?\" The Prophet (ﷺ) said, \"Your mother.\" The man asked for the fourth time, \"Who is next?\" The Prophet (ﷺ) said, \"Your father\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5200",
+      "cats": [
+        "family"
+      ],
+      "title": "Wedlock, Marriage (Nikaah)",
+      "ref": "Sahih al-Bukhari 5200",
+      "arabic": "حَدَّثَنَا عَبْدَانُ، أَخْبَرَنَا عَبْدُ اللَّهِ، أَخْبَرَنَا مُوسَى بْنُ عُقْبَةَ، عَنْ نَافِعٍ، عَنِ ابْنِ عُمَرَ ـ رضى الله عنهما ـ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ كُلُّكُمْ رَاعٍ، وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ، وَالأَمِيرُ رَاعٍ، وَالرَّجُلُ رَاعٍ عَلَى أَهْلِ بَيْتِهِ، وَالْمَرْأَةُ رَاعِيَةٌ عَلَى بَيْتِ زَوْجِهَا وَوَلَدِهِ، فَكُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Ibn `Umar: The Prophet (ﷺ) said, \"All of you are guardians and are responsible for your wards. The ruler is a guardian and the man is a guardian of his family; the lady is a guardian and is responsible for her husband's house and his offspring; and so all of you are guardians and are responsible for your wards\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5995",
+      "cats": [
+        "family"
+      ],
+      "title": "Good Manners and Form (Al-Adab)",
+      "ref": "Sahih al-Bukhari 5995",
+      "arabic": "حَدَّثَنَا أَبُو الْيَمَانِ، أَخْبَرَنَا شُعَيْبٌ، عَنِ الزُّهْرِيِّ، قَالَ حَدَّثَنِي عَبْدُ اللَّهِ بْنُ أَبِي بَكْرٍ، أَنَّ عُرْوَةَ بْنَ الزُّبَيْرِ، أَخْبَرَهُ أَنَّ عَائِشَةَ زَوْجَ النَّبِيِّ صلى الله عليه وسلم حَدَّثَتْهُ قَالَتْ جَاءَتْنِي امْرَأَةٌ مَعَهَا ابْنَتَانِ تَسْأَلُنِي، فَلَمْ تَجِدْ عِنْدِي غَيْرَ تَمْرَةٍ وَاحِدَةٍ، فَأَعْطَيْتُهَا، فَقَسَمَتْهَا بَيْنَ ابْنَتَيْهَا، ثُمَّ قَامَتْ فَخَرَجَتْ، فَدَخَلَ النَّبِيُّ صلى الله عليه وسلم فَحَدَّثْتُهُ فَقَالَ ‏ \"‏ مَنْ يَلِي مِنْ هَذِهِ الْبَنَاتِ شَيْئًا فَأَحْسَنَ إِلَيْهِنَّ كُنَّ لَهُ سِتْرًا مِنَ النَّارِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated `Aisha: (the wife of the Prophet) A lady along with her two daughters came to me asking me (for some alms), but she found nothing with me except one date which I gave to her and she divided it between her two daughters, and then she got up and went away. Then the Prophet (ﷺ) came in and I informed him about this story. He said, \"Whoever is in charge of (put to test by) these daughters and treats them generously, then they will act as a shield for him from the (Hell) Fire\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6951",
+      "cats": [
+        "community"
+      ],
+      "title": "(Statements made under) Coercion",
+      "ref": "Sahih al-Bukhari 6951",
+      "arabic": "حَدَّثَنَا يَحْيَى بْنُ بُكَيْرِ، حَدَّثَنَا اللَّيْثُ، عَنْ عُقَيْلٍ، عَنِ ابْنِ شِهَابٍ، أَنَّ سَالِمًا، أَخْبَرَهُ أَنَّ عَبْدَ اللَّهِ بْنَ عُمَرَ ـ رضى الله عنهما ـ أَخْبَرَهُ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ الْمُسْلِمُ أَخُو الْمُسْلِمِ، لاَ يَظْلِمُهُ، وَلاَ يُسْلِمُهُ، وَمَنْ كَانَ فِي حَاجَةِ أَخِيهِ، كَانَ اللَّهُ فِي حَاجَتِهِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated `Abdullah bin `Umar: Allah's Messenger (ﷺ) said, \"A Muslim is a brother of another Muslim. So he should neither oppress him nor hand him over to an oppressor. And whoever fulfilled the needs of his brother, Allah will fulfill his needs\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6011",
+      "cats": [
+        "community"
+      ],
+      "title": "Good Manners and Form (Al-Adab)",
+      "ref": "Sahih al-Bukhari 6011",
+      "arabic": "حَدَّثَنَا أَبُو نُعَيْمٍ، حَدَّثَنَا زَكَرِيَّاءُ، عَنْ عَامِرٍ، قَالَ سَمِعْتُهُ يَقُولُ سَمِعْتُ النُّعْمَانَ بْنَ بَشِيرٍ، يَقُولُ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ تَرَى الْمُؤْمِنِينَ فِي تَرَاحُمِهِمْ وَتَوَادِّهِمْ وَتَعَاطُفِهِمْ كَمَثَلِ الْجَسَدِ إِذَا اشْتَكَى عُضْوًا تَدَاعَى لَهُ سَائِرُ جَسَدِهِ بِالسَّهَرِ وَالْحُمَّى ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated An-Nu`man bin Bashir: Allah's Messenger (ﷺ) said, \"You see the believers as regards their being merciful among themselves and showing love among themselves and being kind, resembling one body, so that, if any part of the body is not well then the whole body shares the sleeplessness (insomnia) and fever with it\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6076",
+      "cats": [
+        "community"
+      ],
+      "title": "Good Manners and Form (Al-Adab)",
+      "ref": "Sahih al-Bukhari 6076",
+      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنِ ابْنِ شِهَابٍ، عَنْ أَنَسِ بْنِ مَالِكٍ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ لاَ تَبَاغَضُوا، وَلاَ تَحَاسَدُوا، وَلاَ تَدَابَرُوا، وَكُونُوا عِبَادَ اللَّهِ إِخْوَانًا، وَلاَ يَحِلُّ لِمُسْلِمٍ أَنْ يَهْجُرَ أَخَاهُ فَوْقَ ثَلاَثِ لَيَالٍ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Anas bin Malik: Allah's Messenger (ﷺ) said, \"Do not hate one another, nor be jealous of one another; and do not desert one another, but O Allah's worshipers! Be Brothers! And it is unlawful for a Muslim to desert his brother Muslim (and not to talk to him) for more than three nights\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6064",
+      "cats": [
+        "community"
+      ],
+      "title": "Good Manners and Form (Al-Adab)",
+      "ref": "Sahih al-Bukhari 6064",
+      "arabic": "حَدَّثَنَا بِشْرُ بْنُ مُحَمَّدٍ، أَخْبَرَنَا عَبْدُ اللَّهِ، أَخْبَرَنَا مَعْمَرٌ، عَنْ هَمَّامِ بْنِ مُنَبِّهٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ إِيَّاكُمْ وَالظَّنَّ، فَإِنَّ الظَّنَّ أَكْذَبُ الْحَدِيثِ، وَلاَ تَحَسَّسُوا، وَلاَ تَجَسَّسُوا، وَلاَ تَحَاسَدُوا، وَلاَ تَدَابَرُوا، وَلاَ تَبَاغَضُوا، وَكُونُوا عِبَادَ اللَّهِ إِخْوَانًا ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Beware of suspicion, for suspicion is the worst of false tales; and do not look for the others' faults and do not spy, and do not be jealous of one another, and do not desert (cut your relation with) one another, and do not hate one another; and O Allah's worshipers! Be brothers (as Allah has ordered you)\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_5269",
+      "cats": [
+        "daily"
+      ],
+      "title": "The Book of Drinks",
+      "ref": "Sahih Muslim 5269",
+      "arabic": "حَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، وَابْنُ أَبِي عُمَرَ، جَمِيعًا عَنْ سُفْيَانَ، قَالَ أَبُو بَكْرٍ حَدَّثَنَا سُفْيَانُ بْنُ عُيَيْنَةَ، عَنِ الْوَلِيدِ بْنِ كَثِيرٍ، عَنْ وَهْبِ بْنِ كَيْسَانَ، سَمِعَهُ مِنْ، عُمَرَ بْنِ أَبِي سَلَمَةَ قَالَ كُنْتُ فِي حَجْرِ رَسُولِ اللَّهِ صلى الله عليه وسلم وَكَانَتْ يَدِي تَطِيشُ فِي الصَّحْفَةِ فَقَالَ لِي ‏ \"‏ يَا غُلاَمُ سَمِّ اللَّهَ وَكُلْ بِيَمِينِكَ وَكُلْ مِمَّا يَلِيكَ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Umar b. Abu Salama reported:I was under the care of Allah's Messenger (way peace be upon him), and as my hand used to roam about in the dish he said to me: Boy, mention the name of Allah, and eat with your right hand and eat from what is near to you."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6405",
+      "cats": [
+        "daily"
+      ],
+      "title": "Invocations",
+      "ref": "Sahih al-Bukhari 6405",
+      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ مَسْلَمَةَ، عَنْ مَالِكٍ، عَنْ سُمَىٍّ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ مَنْ قَالَ سُبْحَانَ اللَّهِ وَبِحَمْدِهِ‏.‏ فِي يَوْمٍ مِائَةَ مَرَّةٍ حُطَّتْ خَطَايَاهُ، وَإِنْ كَانَتْ مِثْلَ زَبَدِ الْبَحْرِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"Whoever says, 'Subhan Allah wa bihamdihi,' one hundred times a day, will be forgiven all his sins even if they were as much as the foam of the sea\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_6932",
+      "cats": [
+        "daily"
+      ],
+      "title": "The Book Pertaining to the Remembrance of Allah, Supplication, Repentance and Seeking Forgiveness ",
+      "ref": "Sahih Muslim 6932",
+      "arabic": "حَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، وَابْنُ، نُمَيْرٍ - وَاللَّفْظُ لاِبْنِ نُمَيْرٍ - قَالاَ حَدَّثَنَا أَبُو أُسَامَةَ وَمُحَمَّدُ بْنُ بِشْرٍ عَنْ زَكَرِيَّاءَ بْنِ أَبِي زَائِدَةَ، عَنْ سَعِيدِ بْنِ أَبِي بُرْدَةَ، عَنْ أَنَسِ بْنِ، مَالِكٍ قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ إِنَّ اللَّهَ لَيَرْضَى عَنِ الْعَبْدِ أَنْ يَأْكُلَ الأَكْلَةَ فَيَحْمَدَهُ عَلَيْهَا أَوْ يَشْرَبَ الشَّرْبَةَ فَيَحْمَدَهُ عَلَيْهَا ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Anas b. Malik reported that Allah's Messenger (ﷺ) said:Allah is pleased with His servant who says: Al-Hamdu lillah while taking a morsel of food and while drinking."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6312",
+      "cats": [
+        "daily"
+      ],
+      "title": "Invocations",
+      "ref": "Sahih al-Bukhari 6312",
+      "arabic": "حَدَّثَنَا قَبِيصَةُ، حَدَّثَنَا سُفْيَانُ، عَنْ عَبْدِ الْمَلِكِ، عَنْ رِبْعِيِّ بْنِ حِرَاشٍ، عَنْ حُذَيْفَةَ، قَالَ كَانَ النَّبِيُّ صلى الله عليه وسلم إِذَا أَوَى إِلَى فِرَاشِهِ قَالَ ‏\"‏ بِاسْمِكَ أَمُوتُ وَأَحْيَا ‏\"‏‏.‏ وَإِذَا قَامَ قَالَ ‏\"‏ الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ ‏\"‏‏.‏ تُنْشِرُهَا: تُخْرِجُهَا",
+      "text": {
+        "en": "Narrated Hudhaifa: When the Prophet (ﷺ) went to bed, he would say: \"Bismika amutu wa ahya.\" and when he got up he would say:\" Al-hamdu li l-lahil-ladhi ahyana ba'da ma amatana wa ilaihin-nushur\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6416",
+      "cats": [
+        "hereafter"
+      ],
+      "title": "To make the Heart Tender (Ar-Riqaq)",
+      "ref": "Sahih al-Bukhari 6416",
+      "arabic": "حَدَّثَنَا عَلِيُّ بْنُ عَبْدِ اللَّهِ، حَدَّثَنَا مُحَمَّدُ بْنُ عَبْدِ الرَّحْمَنِ أَبُو الْمُنْذِرِ الطُّفَاوِيُّ، عَنْ سُلَيْمَانَ الأَعْمَشِ، قَالَ حَدَّثَنِي مُجَاهِدٌ، عَنْ عَبْدِ اللَّهِ بْنِ عُمَرَ ـ رضى الله عنهما ـ قَالَ أَخَذَ رَسُولُ اللَّهِ صلى الله عليه وسلم بِمَنْكِبِي فَقَالَ ‏ \"‏ كُنْ فِي الدُّنْيَا كَأَنَّكَ غَرِيبٌ، أَوْ عَابِرُ سَبِيلٍ ‏\"‏‏.‏ وَكَانَ ابْنُ عُمَرَ يَقُولُ إِذَا أَمْسَيْتَ فَلاَ تَنْتَظِرِ الصَّبَاحَ، وَإِذَا أَصْبَحْتَ فَلاَ تَنْتَظِرِ الْمَسَاءَ، وَخُذْ مِنْ صِحَّتِكَ لِمَرَضِكَ، وَمِنْ حَيَاتِكَ لِمَوْتِكَ‏.‏",
+      "text": {
+        "en": "Narrated Mujahid: `Abdullah bin `Umar said, \"Allah's Messenger (ﷺ) took hold of my shoulder and said, 'Be in this world as if you were a stranger or a traveler.\" The sub-narrator added: Ibn `Umar used to say, \"If you survive till the evening, do not expect to be alive in the morning, and if you survive till the morning, do not expect to be alive in the evening, and take from your health for your sickness, and (take) from your life for your death\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_4223",
+      "cats": [
+        "hereafter"
+      ],
+      "title": "The Book of Wills",
+      "ref": "Sahih Muslim 4223",
+      "arabic": "حَدَّثَنَا يَحْيَى بْنُ أَيُّوبَ، وَقُتَيْبَةُ، - يَعْنِي ابْنَ سَعِيدٍ - وَابْنُ حُجْرٍ قَالُوا حَدَّثَنَا إِسْمَاعِيلُ، - هُوَ ابْنُ جَعْفَرٍ - عَنِ الْعَلاَءِ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ إِذَا مَاتَ الإِنْسَانُ انْقَطَعَ عَنْهُ عَمَلُهُ إِلاَّ مِنْ ثَلاَثَةٍ إِلاَّ مِنْ صَدَقَةٍ جَارِيَةٍ أَوْ عِلْمٍ يُنْتَفَعُ بِهِ أَوْ وَلَدٍ صَالِحٍ يَدْعُو لَهُ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Abu Huraira (Allah be pleased with him) reported Allah's Messenger (ﷺ) as saying:When a man dies, his acts come to an end, but three, recurring charity, or knowledge (by which people) benefit, or a pious son, who prays for him (for the deceased)."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6488",
+      "cats": [
+        "hereafter"
+      ],
+      "title": "To make the Heart Tender (Ar-Riqaq)",
+      "ref": "Sahih al-Bukhari 6488",
+      "arabic": "حَدَّثَنِي مُوسَى بْنُ مَسْعُودٍ، حَدَّثَنَا سُفْيَانُ، عَنْ مَنْصُورٍ، وَالأَعْمَشِ، عَنْ أَبِي وَائِلٍ، عَنْ عَبْدِ اللَّهِ ـ رضى الله عنه ـ قَالَ قَالَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ الْجَنَّةُ أَقْرَبُ إِلَى أَحَدِكُمْ مِنْ شِرَاكِ نَعْلِهِ، وَالنَّارُ مِثْلُ ذَلِكَ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated `Abdullah: The Prophet (ﷺ) said, \"Paradise is nearer to any of you than the Shirak (leather strap) of his shoe, and so is the (Hell) Fire\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_7417",
+      "cats": [
+        "hereafter"
+      ],
+      "title": "The Book of Zuhd and Softening of Hearts ",
+      "ref": "Sahih Muslim 7417",
+      "arabic": "حَدَّثَنَا قُتَيْبَةُ بْنُ سَعِيدٍ، حَدَّثَنَا عَبْدُ الْعَزِيزِ، - يَعْنِي الدَّرَاوَرْدِيَّ - عَنِ الْعَلاَءِ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ الدُّنْيَا سِجْنُ الْمُؤْمِنِ وَجَنَّةُ الْكَافِرِ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Abu Huraira reported Allah's Messenger (ﷺ) as saying:The world is a prison-house for a believer and Paradise for a non-believer."
+      },
+      "from": "hadith-api"
+    }
+  ]
+}

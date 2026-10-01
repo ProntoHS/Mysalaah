@@ -78,8 +78,11 @@ class Passage:
 class Passages:
     """One section read off the disk, and whether its words have been checked."""
 
-    def __init__(self, assets: Path, section: str):
-        self.path = Path(assets) / "content" / "duas" / f"{section}.json"
+    def __init__(self, assets: Path, section: str, folder: str = "duas"):
+        # The folder is separate from the section because content/duas already holds a
+        # hadith.json -- the thirty-eight du'as lifted out of hadith, which is a build
+        # intermediate and not a section of the mat. The sayings have a folder of their own.
+        self.path = Path(assets) / "content" / folder / f"{section}.json"
         self.section = section
         self._items: list[Passage] | None = None
         self._reviewed = True

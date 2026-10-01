@@ -392,8 +392,13 @@ class MosqueScreen(QtWidgets.QWidget):
     chosen = Signal(str)
 
     def __init__(self, assets: Path, clock_font: str = "", folder: str = "mosque",
-                 idle_glow: bool = True):
+                 idle_glow: bool = True, anywhere: bool = False):
         super().__init__()
+        # Whether a touch that lands on no arch counts as a touch on the first one. Off for a
+        # menu, where the arches are the choice and the sky between them means nothing. On for
+        # the front door, which is a way in rather than a choice: Harry asked for the whole
+        # screen, so a finger on a palm tree opens it the same as a finger on the name.
+        self.anywhere = anywhere
         # Which drawing this is. Nothing about the screen is specific to the five prayers: it is
         # a picture, a box for the clock, and a box per arch, so the six kalima get the same
         # front door by pointing this at their own folder.
@@ -836,5 +841,7 @@ class MosqueScreen(QtWidgets.QWidget):
 
     def mousePressEvent(self, event):
         prayer = self.arch_at(event.position().toPoint())
+        if not prayer and self.anywhere and self.arches:
+            prayer = self.arches[0].prayer
         if prayer:
             self.chosen.emit(prayer)

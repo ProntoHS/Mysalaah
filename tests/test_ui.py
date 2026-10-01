@@ -3583,14 +3583,17 @@ class KnowledgeCornerTest(unittest.TestCase):
             self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget(),
                              f"{which} should no longer land on the empty page")
 
-    def test_the_salaah_tile_is_the_way_back_to_the_front_door(self):
+    def test_the_salaah_tile_is_the_way_to_the_prayers(self):
+        """It landed on the front door when the tile was new. Harry moved it on: a square with
+        a prayer mat and the word Salaah should open the prayers, not the screen you came in
+        by, which is one touch further out."""
         w = self.window()
         by_name = {t.name: t for t in w.side.corner.tiles}
         self.assertIn("salaah", by_name, "the Salaah tile is not on the menu")
         self.assertNotIn("kalima", by_name, "the kalima square is still there")
         by_name["salaah"].click()
         APP.processEvents()
-        self.assertIs(w.welcome, w.stack.currentWidget())
+        self.assertIs(w.home, w.stack.currentWidget())
         self.assertFalse(w.reading, "it should leave the Knowledge Corner, not read in it")
 
     def test_a_section_whose_file_is_missing_still_says_so(self):
@@ -6903,7 +6906,7 @@ class SixTileMenuTest(unittest.TestCase):
             self.assertNotIn(ink, seen, f"{name} is the same picture as {seen.get(ink)}")
             seen[ink] = name
 
-    def test_the_three_that_are_filled_in_still_open_what_they_did(self):
+    def test_the_four_that_are_filled_in_still_open_what_they_did(self):
         w = self.window()
         by_name = {t.name: t for t in w.side.corner.tiles}
         by_name["quran"].click()
@@ -6915,20 +6918,28 @@ class SixTileMenuTest(unittest.TestCase):
         self.assertIs(w.dua_menu, w.corner_screen.currentWidget(),
                       "the Du'as tile should open the kinds")
         w.go_home()
-        # The third used to be the kalima. They are behind the du'a menu now, and this square
-        # is Salaah: out to the front door rather than into anything.
+        by_name["hadith"].click()
+        settle()
+        self.assertIs(w.hadith_menu, w.corner_screen.currentWidget(),
+                      "the Hadith tile should open the twelve headings")
+        w.go_home()
+        # The fifth used to be the kalima. They are behind the du'a menu now, and this square
+        # is Salaah: straight to the five prayers rather than into the Knowledge Corner.
         by_name["salaah"].click()
         settle()
-        self.assertIs(w.welcome, w.stack.currentWidget())
+        self.assertIs(w.home, w.stack.currentWidget())
 
-    def test_the_ones_that_are_not_land_on_a_named_empty_screen(self):
-        """Only hadith now. The world used to be here too and has its own screen since -- the
-        turning globe -- which is what WorldScreenTest is about."""
+    def test_a_tile_whose_section_is_missing_lands_on_a_named_empty_screen(self):
+        """Every one of the six leads somewhere now -- hadith was the last that did not, and it
+        has its twelve headings since. What is left to check is the fallback: a mat whose assets
+        were half copied still lands on a screen that SAYS which section is missing, rather than
+        on an empty menu or a blank page."""
         w = self.window()
         by_name = {t.name: t for t in w.side.corner.tiles}
         for name, heading in (("hadith", "Hadith"),):
             w.go_home()
             settle()
+            w.section_lists[name].passages._items = []
             by_name[name].click()
             settle()
             self.assertIs(w.corner_soon, w.corner_screen.currentWidget(), name)
@@ -6939,6 +6950,7 @@ class SixTileMenuTest(unittest.TestCase):
 
     def test_the_empty_screen_carries_the_strip_like_every_other(self):
         w = self.window()
+        w.section_lists["hadith"].passages._items = []
         {t.name: t for t in w.side.corner.tiles}["hadith"].click()
         settle()
         strips = [x for x in w.corner_page.findChildren(QtWidgets.QWidget)
@@ -7034,7 +7046,7 @@ class SettingsFromTheTileTest(unittest.TestCase):
         settle()
         w.chose_on_the_small_screen("hadith")
         settle()
-        self.assertIs(w.corner_soon, w.corner_screen.currentWidget(),
+        self.assertIs(w.hadith_menu, w.corner_screen.currentWidget(),
                       "the readings should still go the way they did")
 
 
@@ -9096,7 +9108,12 @@ class PlainerDuasTest(unittest.TestCase):
 
 
 class HadithHeadingTest(unittest.TestCase):
-    """The Hadith plate sits against the left of the page, as the world screen's does."""
+    """The Hadith plate sits against the left of the page, as the world screen's does.
+
+    Hadith opens its twelve headings now, so the page this is about is reached the way a mat
+    whose assets were half copied reaches it: with the section emptied. That is still a screen
+    the mat can land on, and the plate on it is still the one Harry asked to have moved left.
+    """
 
     def window(self, size=(1024, 600)):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
@@ -9107,6 +9124,7 @@ class HadithHeadingTest(unittest.TestCase):
         w.tick()
         settle()
         self.addCleanup(lambda: shut(w))
+        w.section_lists["hadith"].passages._items = []
         w.open_corner("hadith")
         settle()
         return w
@@ -9481,3 +9499,297 @@ class EveryWayBackTest(unittest.TestCase):
         beside = QtGui.QImage(str(tile.path.with_name("quran.png")))
         self.assertEqual(beside.size(), shot.size(),
                          "it is a different size to the five tiles beside it")
+
+
+class WholeFrontDoorTest(unittest.TestCase):
+    """Harry: the whole of the main page opens the prayers, not just the name across its front.
+
+    The name panel still works and is still what the walk zooms towards; what changed is that
+    the sky, the palm trees and the people walking past count too.
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def touch(screen, point):
+        ev = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress, QtCore.QPointF(point),
+                               Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                               Qt.KeyboardModifier.NoModifier)
+        screen.mousePressEvent(ev)
+        settle()
+
+    def corners(self, front):
+        """Four places on the drawing that are not the name panel, by construction: a box round
+        the panel is worked out and the points are taken outside it."""
+        door = front.arch_centre("enter")
+        self.assertIsNotNone(door)
+        wide, tall = front.width(), front.height()
+        return {
+            "the top left sky": QtCore.QPoint(20, 20),
+            "the top right sky": QtCore.QPoint(wide - 20, 20),
+            "the far left, level with the door": QtCore.QPoint(8, door.y()),
+            "the bottom right": QtCore.QPoint(wide - 8, tall - 8),
+        }
+
+    def test_a_touch_anywhere_on_it_opens_the_prayers(self):
+        w = self.window()
+        front = w.welcome_mosque
+        for where, point in self.corners(front).items():
+            with self.subTest(where):
+                w.stack.setCurrentWidget(w.welcome)
+                settle()
+                self.touch(front, point)
+                self.assertIs(w.home, w.stack.currentWidget(),
+                              f"touching {where} did not open the prayers")
+
+    def test_the_name_across_it_still_works_and_is_still_what_the_walk_aims_at(self):
+        w = self.window()
+        front = w.welcome_mosque
+        door = front.arch_centre("enter")
+        w.stack.setCurrentWidget(w.welcome)
+        settle()
+        self.touch(front, door)
+        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertEqual("enter", front.arch_at(door),
+                         "the name panel is no longer a panel, only a screen")
+
+    def test_the_menus_did_not_become_touchable_all_over(self):
+        """On the five arches and the six, the arch IS the choice. A touch on the sky there
+        would pick a prayer nobody aimed at -- which is the whole reason this is a flag and
+        not a change to every mosque on the mat."""
+        w = self.window()
+        self.assertTrue(w.welcome_mosque.anywhere)
+        for name, screen in [("the prayers", w.mosque)] + \
+                [(f"the {k} menu", m.mosque) for k, m in w.arch_menus.items()]:
+            with self.subTest(name):
+                self.assertFalse(screen.anywhere, f"{name} would open on a touch anywhere")
+        sky = QtCore.QPoint(20, 20)
+        self.assertIsNone(w.mosque.arch_at(sky), "the test aimed at an arch, not at the sky")
+        w.stack.setCurrentWidget(w.home)
+        settle()
+        self.touch(w.mosque, sky)
+        self.assertIs(w.home, w.stack.currentWidget(), "the sky started a prayer")
+
+    def test_the_salaah_tile_lands_on_the_prayers_and_not_on_the_main_page(self):
+        w = self.window()
+        tile = next(t for t in w.side.corner.tiles if t.name == "salaah")
+        tile.click()
+        settle()
+        self.assertIs(w.home, w.stack.currentWidget())
+        self.assertIsNot(w.welcome, w.stack.currentWidget())
+
+    def test_menu_still_means_the_main_page(self):
+        """The Salaah tile moved; the buttons labelled Menu did not."""
+        w = self.window()
+        w.open_corner("quran")
+        settle()
+        w.go_home()
+        settle()
+        self.assertIs(w.welcome, w.stack.currentWidget())
+
+
+class SayingsMenuTest(unittest.TestCase):
+    """The Hadith tile opens Harry's twelve headings, and a heading shows its own sayings."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_the_hadith_tile_no_longer_lands_on_nothing_here_yet(self):
+        w = self.window()
+        w.open_corner("hadith")
+        settle()
+        self.assertIsNotNone(w.hadith_menu, "the menu was not built")
+        self.assertIs(w.hadith_menu, w.corner_screen.currentWidget())
+        self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget())
+
+    def test_twelve_headings_each_with_its_own_picture(self):
+        from salaah.duamenu import SAYINGS
+        w = self.window()
+        tiles = {t.name: t for t in w.hadith_menu.tiles}
+        self.assertEqual(set(SAYINGS), set(tiles))
+        self.assertEqual(12, len(tiles))
+        for name, tile in tiles.items():
+            with self.subTest(name):
+                self.assertEqual(f"{name}.png", tile.path.name)
+                self.assertTrue(tile.path.is_file())
+                self.assertTrue(tile.isEnabled())
+
+    def test_they_are_laid_out_four_across_the_way_the_sheet_was_drawn(self):
+        w = self.window()
+        w.open_corner("hadith")      # shown, or every tile is still sat at the top left
+        settle()
+        rows = {}
+        for tile in w.hadith_menu.tiles:
+            rows.setdefault(tile.geometry().y(), []).append(tile)
+        self.assertEqual(3, len(rows), f"the twelve came out in {len(rows)} rows")
+        for top, row in rows.items():
+            self.assertEqual(4, len(row), f"the row at y {top} has {len(row)}")
+
+    def test_the_duas_menu_is_untouched_and_still_six_across(self):
+        """One widget serves both menus now. If the sharing went wrong it would show here
+        before it showed anywhere else."""
+        w = self.window()
+        w.open_corner("duas")
+        settle()
+        rows = {}
+        for tile in w.dua_menu.tiles:
+            rows.setdefault(tile.geometry().y(), []).append(tile)
+        self.assertEqual(3, len(rows))
+        for row in rows.values():
+            self.assertEqual(6, len(row))
+        self.assertEqual(18, len(w.dua_menu.tiles))
+
+    def test_every_heading_opens_sayings_filed_under_that_heading(self):
+        from salaah.duamenu import SAYINGS
+        w = self.window()
+        for kind in SAYINGS:
+            with self.subTest(kind):
+                w.open_saying_category(kind)
+                settle()
+                self.assertIs(w.hadith_board, w.corner_screen.currentWidget(),
+                              f"{kind} did not open its board")
+                shown = [item for _, item in w.hadith_board.showing]
+                self.assertEqual(2, len(shown), "the board shows two")
+                for item in shown:
+                    self.assertIn(kind, item.cats, f"a saying of another kind is under {kind}")
+
+    def test_the_heading_is_written_across_the_top_in_the_reading_language(self):
+        w = self.window()
+        w.open_saying_category("hereafter")
+        settle()
+        self.assertEqual(w.t("saying.hereafter"), w.hadith_board.title.text())
+        self.assertEqual("namePlate", w.hadith_board.title.objectName())
+
+    def test_backing_out_of_a_saying_returns_to_the_heading_it_came_from(self):
+        w = self.window()
+        w.open_saying_category("charity")
+        settle()
+        index = w.hadith_board.showing[0][0]
+        w.open_passage("hadith", index)
+        settle()
+        self.assertIs(w.section_readers["hadith"], w.corner_screen.currentWidget())
+        w.open_section("hadith")
+        settle()
+        self.assertIs(w.hadith_board, w.corner_screen.currentWidget())
+        self.assertEqual("charity", w.hadith_board.only)
+
+
+class SayingsBoardTest(unittest.TestCase):
+    """The two columns Harry asked for, with the play mark carried over to the translation."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_saying_category("knowledge")
+        settle()
+        return w
+
+    def test_two_cards_side_by_side_with_the_rule_between_them(self):
+        w = self.window()
+        board = w.hadith_board
+        self.assertEqual(2, len(board.cards))
+        left, right = board.cards
+        self.assertLess(left.geometry().right(), right.geometry().left(),
+                        "the two cards are not side by side")
+        self.assertIsNotNone(board.rule, "there is no rule between the columns")
+
+    def test_the_play_mark_sits_with_the_translation_and_not_over_the_arabic(self):
+        w = self.window()
+        for card in w.hadith_board.cards:
+            with self.subTest(card.item.ref):
+                self.assertTrue(card.mark_by_meaning)
+                mark = card.button.mapTo(card, QtCore.QPoint(0, 0)).y()
+                arabic = card.arabic.mapTo(card, QtCore.QPoint(0, 0)).y()
+                self.assertGreater(mark, arabic,
+                                   "the mark is above the Arabic, where a du'a keeps it")
+                beside = card.meaning.mapTo(card, QtCore.QPoint(0, 0)).y()
+                self.assertLess(abs(mark - beside), card.height() * 0.2,
+                                "the mark is not alongside the translation")
+                self.assertLess(card.button.geometry().right(), card.meaning.geometry().left(),
+                                "the mark is not to the left of the words it belongs to")
+
+    def test_it_is_the_same_size_mark_as_the_duas(self):
+        w = self.window()
+        saying = w.hadith_board.cards[0]
+        w.open_dua_category("travel")
+        settle()
+        dua = w.dua_board.cards[0]
+        self.assertEqual(dua.MARK, saying.MARK)
+        self.assertEqual(dua.button.size(), saying.button.size())
+
+    def test_a_duas_mark_stayed_where_it_was_at_the_top(self):
+        w = self.window()
+        w.open_dua_category("travel")
+        settle()
+        for card in w.dua_board.cards:
+            self.assertFalse(card.mark_by_meaning)
+            self.assertLess(card.button.mapTo(card, QtCore.QPoint(0, 0)).y(),
+                            card.arabic.mapTo(card, QtCore.QPoint(0, 0)).y())
+
+    def test_the_card_says_which_hadith_it_is(self):
+        """The heading on a saying is its collection and number. Anybody who wants to check
+        one needs that, and it is the only heading for a hadith that is not a summary of it
+        written by somebody."""
+        w = self.window()
+        for card in w.hadith_board.cards:
+            with self.subTest(card.item.ref):
+                self.assertEqual(card.item.ref, card.name.text())
+                self.assertTrue(card.name.text().startswith(("Sahih al-Bukhari", "Sahih Muslim")))
+
+    def test_even_the_longest_narration_is_drawn_big_enough_to_read(self):
+        """A du'a is a line or two; a narration carries its chain in front of it and runs to six
+        hundred letters. Squeezed into half a screen the longest came out at 26px. They are
+        given the height instead now, and the board scrolls."""
+        from salaah.duamenu import SAYINGS
+        from salaah.duaboard import SAYING_LEAST
+        w = self.window()
+        smallest, worst = 999, ""
+        for kind in SAYINGS:
+            for _ in range(4):         # the pair is drawn fresh each visit, so go round a few
+                w.open_saying_category(kind)
+                settle()
+                for card in w.hadith_board.cards:
+                    size = card.arabic.fitted_size()
+                    if size < smallest:
+                        smallest, worst = size, card.item.ref
+        self.assertGreaterEqual(smallest, int(SAYING_LEAST * w.s),
+                                f"{worst} is drawn at {smallest}px")
+
+    def test_the_duas_did_not_grow_a_scroll_bar_of_their_own(self):
+        """The extra height is for the sayings only. A du'a board fits its screen by
+        construction, and a scroll bar on it would mean a du'a had gone off the bottom."""
+        w = self.window()
+        w.open_dua_category("travel")
+        settle()
+        for card in w.dua_board.cards:
+            self.assertEqual(0, card.arabic.minimumHeight(),
+                             "a du'a card is asking for room it does not need")

@@ -26,7 +26,7 @@ from .compass import CompassScreen
 from .side import SideWindow
 from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
-from .duamenu import DuaMenu
+from .duamenu import DuaMenu, SAYINGS, SAYINGS_ACROSS
 from .duaboard import DuaBoard
 from .recite import Store, WordTimes
 from .call import Adhan, CallBox
@@ -600,6 +600,7 @@ class MainWindow(QtWidgets.QWidget):
         self.word_times = WordTimes(self.assets)
         self.duas = Passages(self.assets, "duas")
         self.kalima = Passages(self.assets, "kalima")
+        self.sayings = Passages(self.assets, "hadith", folder="hadith")
         self.call = Call(volume=settings.volume)   # the call to prayer
         self.adhan = Adhan(self.assets)           # and the words of it, for the screen
         self.call_box = None                       # the TIME TO PRAY notice, while it is up
@@ -1167,7 +1168,7 @@ class MainWindow(QtWidgets.QWidget):
         if not (folder / "mosque.json").is_file():
             return None
         screen = MosqueScreen(self.assets, Fonts.english_family, folder="welcome",
-                              idle_glow=False)
+                              idle_glow=False, anywhere=True)
         if not screen.ready:
             screen.deleteLater()
             return None
@@ -1331,7 +1332,8 @@ class MainWindow(QtWidgets.QWidget):
         # and what the list is headed.
         self.section_lists: dict[str, PassageList] = {}
         self.section_readers: dict[str, PassageReader] = {}
-        for name, source in (("duas", self.duas), ("kalima", self.kalima)):
+        for name, source in (("duas", self.duas), ("kalima", self.kalima),
+                             ("hadith", self.sayings)):
             listing = PassageList(self, source, self.t(f"corner.{name}"))
             listing.chose.connect(lambda i, n=name: self.open_passage(n, i))
             stack.addWidget(listing)
@@ -1356,6 +1358,18 @@ class MainWindow(QtWidgets.QWidget):
             self.dua_menu.deleteLater()
             self.dua_menu = None
 
+        # The sayings are chosen the same way: twelve headings off Harry's drawing, and behind
+        # each one only the hadiths filed under it. Same widget as the du'a menu, four across
+        # instead of six and pointed at its own folder.
+        self.hadith_menu = DuaMenu(self, names=SAYINGS, folder="hadith-menu",
+                                   across=SAYINGS_ACROSS)
+        if self.hadith_menu.ready:
+            self.hadith_menu.chose.connect(self.open_saying_category)
+            stack.addWidget(self.hadith_menu)
+        else:
+            self.hadith_menu.deleteLater()
+            self.hadith_menu = None
+
         self.arch_menus: dict[str, ArchMenu] = {}
         menu = ArchMenu(self, "kalima", Fonts.english_family)
         if menu.ready:
@@ -1370,6 +1384,12 @@ class MainWindow(QtWidgets.QWidget):
         self.dua_board = DuaBoard(self, self.duas)
         self.dua_board.chose.connect(lambda n: self.open_passage("duas", n))
         stack.addWidget(self.dua_board)
+
+        # The same board for the sayings, with the play mark carried down beside the
+        # translation rather than sitting over the Arabic.
+        self.hadith_board = DuaBoard(self, self.sayings, mark_by_meaning=True)
+        self.hadith_board.chose.connect(lambda n: self.open_passage("hadith", n))
+        stack.addWidget(self.hadith_board)
 
         self.corner_soon = self.page_soon()
         stack.addWidget(self.corner_soon)
@@ -1496,9 +1516,11 @@ class MainWindow(QtWidgets.QWidget):
         if self.playing or self.asleep:
             return
         self.stir()
-        # Not a section: the way back to the front door, where the six kalima used to sit.
+        # Not a section: the way to the five prayers, where the six kalima used to sit. Straight
+        # to the arches rather than out to the front door -- a tile with a prayer mat on it and
+        # the word Salaah should land on the prayers, not on the screen you came in by.
         if which == "salaah":
-            return self.go_home()
+            return self.go_to_prayers()
         if which == "quran" and self.quran.there:
             self.open_corner_list()
             return
@@ -1508,6 +1530,10 @@ class MainWindow(QtWidgets.QWidget):
         if (which == "duas" and getattr(self, "dua_menu", None) is not None
                 and self.section_lists["duas"].passages.items):
             self.open_the_kinds_of_dua()
+            return
+        if (which == "hadith" and getattr(self, "hadith_menu", None) is not None
+                and self.section_lists["hadith"].passages.items):
+            self.open_the_kinds_of_saying()
             return
         if which in self.section_lists and self.section_lists[which].passages.items:
             self.open_section(which)
@@ -1540,24 +1566,30 @@ class MainWindow(QtWidgets.QWidget):
         for reader in getattr(self, "section_readers", {}).values():
             if reader.saying:
                 reader.stop_saying()
-        board = getattr(self, "dua_board", None)
-        if board is not None and board.saying:
-            board.stop_saying()
+        for board in self.boards():
+            if board.saying:
+                board.stop_saying()
+
+    def boards(self) -> list:
+        """The two-column screens: the du'as' and the sayings'. Both can be reading aloud."""
+        return [b for b in (getattr(self, "dua_board", None),
+                            getattr(self, "hadith_board", None)) if b is not None]
 
     def saying_a_passage(self) -> bool:
-        """Is a du'a or a kalima being read aloud, anywhere? The board counts: going to sleep
-        over a du'a is as rude as going to sleep over a surah."""
-        board = getattr(self, "dua_board", None)
+        """Is a du'a, a kalima or a saying being read aloud, anywhere? The boards count: going
+        to sleep over a du'a is as rude as going to sleep over a surah."""
         return (any(r.saying for r in getattr(self, "section_readers", {}).values())
-                or (board is not None and board.saying))
+                or any(b.saying for b in self.boards()))
 
     def open_section(self, which: str) -> None:
-        """Back out of a du'a lands on the board it came from; the kalima have their arches."""
-        if which == "duas" and getattr(self, "dua_board", None) is not None \
-                and self.dua_board.only:
-            self.corner_screen.setCurrentWidget(self.dua_board)
-            self.stack.setCurrentWidget(self.corner_page)
-            return
+        """Back out of a du'a or a saying lands on the board it came from; the kalima have
+        their arches."""
+        for name, board in (("duas", getattr(self, "dua_board", None)),
+                            ("hadith", getattr(self, "hadith_board", None))):
+            if which == name and board is not None and board.only:
+                self.corner_screen.setCurrentWidget(board)
+                self.stack.setCurrentWidget(self.corner_page)
+                return
         menu = self.arch_menus.get(which)
         if menu is not None:
             self.corner_screen.setCurrentWidget(menu)
@@ -1598,6 +1630,29 @@ class MainWindow(QtWidgets.QWidget):
         self.dua_board.show_only(cat, named)
         self.dua_board.to_the_top()
         self.corner_screen.setCurrentWidget(self.dua_board)
+        self.stack.setCurrentWidget(self.corner_page)
+
+    def open_the_kinds_of_saying(self) -> None:
+        """The twelve headings. Where the Hadith tile lands."""
+        self.corner_screen.setCurrentWidget(self.hadith_menu)
+        self.stack.setCurrentWidget(self.corner_page)
+
+    def open_saying_category(self, cat: str) -> None:
+        """A heading was touched. The sayings filed under it, two to a row."""
+        if self.playing or self.asleep:
+            return
+        self.stir()
+        listing = self.section_lists.get("hadith")
+        named = self.t(f"saying.{cat}")
+        if listing is None or not any(cat in item.cats for item in listing.passages.items):
+            self.soon_title.setText(named)
+            self.soon_back = self.open_the_kinds_of_saying
+            self.corner_screen.setCurrentWidget(self.corner_soon)
+            self.stack.setCurrentWidget(self.corner_page)
+            return
+        self.hadith_board.show_only(cat, named)
+        self.hadith_board.to_the_top()
+        self.corner_screen.setCurrentWidget(self.hadith_board)
         self.stack.setCurrentWidget(self.corner_page)
 
     def open_passage(self, which: str, index: int) -> None:
@@ -1934,7 +1989,13 @@ class MainWindow(QtWidgets.QWidget):
         old.deleteLater()
         self.stack.setCurrentWidget(w)
 
-    def go_home(self) -> None:
+    def put_it_all_down(self) -> None:
+        """Stop whatever the mat was in the middle of. Shared by the two ways of leaving.
+
+        Not folded into go_home with a flag, because go_home is wired straight to button
+        clicked signals and Qt hands those a bool -- a flag here would be set by any button
+        that happened to be checkable, which is the kind of bug that takes an evening.
+        """
         # Leaving the book stops the recitation. This is also what silences it when a prayer
         # falls due, because the call comes home first before it speaks.
         if hasattr(self, "reader") and self.reader.reciting:
@@ -1945,11 +2006,18 @@ class MainWindow(QtWidgets.QWidget):
             self.veil.stop()        # don't walk into an arch we have just walked back out of
         if hasattr(self, "compass_screen"):
             self.compass_screen.close_screen()
+
+    def go_home(self) -> None:
+        self.put_it_all_down()
         # The front door, not the mosque. It is the main page now -- Harry's word -- and
-        # everything that means "take me back to the start" lands on the same screen: the
-        # Menu button off a prayer's units, Main screen from the Knowledge Corner, and the
-        # Salaah tile on the 7in. From there one touch on MySalaah is the mosque.
+        # everything labelled Menu lands on it: the button off a prayer's units, Main screen
+        # from the Knowledge Corner. From there one touch anywhere is the prayers.
         self.stack.setCurrentWidget(self.welcome if self.welcome is not None else self.home)
+
+    def go_to_prayers(self) -> None:
+        """Straight to the five arches, past the front door. The Salaah tile on the 7in."""
+        self.put_it_all_down()
+        self.stack.setCurrentWidget(self.home)
 
     # The Qibla
 

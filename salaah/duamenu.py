@@ -36,24 +36,38 @@ NOT_A_KIND = ("kalima",)
 ACROSS = 6
 
 
+# The twelve headings on the hadith sheet, in the order Harry drew them: four across, three
+# down. What `cat` says in hadith.json, and the name of each tile's picture.
+SAYINGS = ("faith", "prayer", "purification", "fasting",
+           "charity", "hajj", "knowledge", "character",
+           "family", "community", "daily", "hereafter")
+SAYINGS_ACROSS = 4
+
+
 class DuaMenu(QtWidgets.QWidget):
-    """The eighteen tiles, six across and three down, filling the big screen."""
+    """A sheet of tiles filling the big screen: the du'as' eighteen, or the hadith's twelve."""
 
     chose = Signal(str)
 
-    def __init__(self, window):
+    def __init__(self, window, names=CATEGORIES, folder="duas-menu", across=ACROSS):
+        # The three arguments are what the hadith menu needed: twelve tiles four across, out of
+        # its own drawing. Everything else about the screen -- the grid, the picture cache that
+        # inverts for the dark screen, the empty-kind fallback -- is the same, and a second copy
+        # of it would have been a second place to fix anything found in the first.
         super().__init__()
         self.win = window
+        self.folder = folder
+        self.across = across
         self.setObjectName("duaMenu")
         lay = QtWidgets.QGridLayout(self)
         lay.setContentsMargins(window.px(12), window.px(12), window.px(12), window.px(12))
         lay.setSpacing(window.px(10))
 
         self.tiles: list[Tile] = []
-        for i, name in enumerate(CATEGORIES):
-            tile = Tile(window.images, window.assets / "duas-menu" / f"{name}.png", name)
+        for i, name in enumerate(names):
+            tile = Tile(window.images, window.assets / folder / f"{name}.png", name)
             tile.clicked.connect(lambda _=False, n=name: self.chose.emit(n))
-            lay.addWidget(tile, i // ACROSS, i % ACROSS)
+            lay.addWidget(tile, i // across, i % across)
             self.tiles.append(tile)
 
     @property

@@ -1,4 +1,5 @@
 """Core checks. Run on the Pi or any computer: python3 -m unittest discover -s tests"""
+import json
 import math
 import os
 import unittest
@@ -3391,3 +3392,152 @@ class DuaRecordingTest(unittest.TestCase):
         import json
         raw = json.loads((ASSETS / "content" / "duas" / "duas.json").read_text(encoding="utf-8"))
         self.assertTrue(all(row.get("estimated") for row in raw["items"]))
+
+
+class SayingsContentTest(unittest.TestCase):
+    """The Hadith section's own file. What can be checked without a scholar is checked here;
+    what cannot is why the file says reviewed: false."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.raw = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                             .read_text(encoding="utf-8"))
+        cls.items = cls.raw["items"]
+
+    def test_it_says_out_loud_that_nobody_qualified_has_read_it(self):
+        """The Arabic and the English are both lifted from a corpus, which makes them faithful
+        copies and not checked scripture. Which heading each one sits under is a choice the
+        build made. Until somebody qualified has been through it, the file has to say so."""
+        self.assertFalse(self.raw["reviewed"])
+        self.assertIn("DRAFT", self.raw["source"])
+        self.assertIn("reviewer", self.raw["source"])
+
+    def test_every_saying_comes_from_one_of_the_two_sahih_collections(self):
+        """Harry asked for authentic hadiths. Bukhari and Muslim is the reading of that word
+        which does not require anybody here to grade a narration."""
+        for item in self.items:
+            with self.subTest(item["key"]):
+                self.assertTrue(item["ref"].startswith(("Sahih al-Bukhari ", "Sahih Muslim ")),
+                                f"{item['ref']} is not from one of the two Sahihs")
+                self.assertRegex(item["ref"], r"\d", "no hadith number to check it by")
+
+    def test_each_one_is_arabic_and_an_english_meaning_and_names_where_it_is_from(self):
+        for item in self.items:
+            with self.subTest(item["key"]):
+                self.assertTrue(item["arabic"].strip())
+                self.assertTrue(item["text"]["en"].strip())
+                self.assertEqual("hadith-api", item["from"],
+                                 "a saying that did not come from the corpus")
+
+    def test_the_arabic_is_arabic_and_the_english_is_not(self):
+        """A column swapped somewhere in the build would put the translation in the Arabic
+        box, which reads as a broken screen rather than as a wrong file."""
+        for item in self.items:
+            with self.subTest(item["key"]):
+                arabic = sum(1 for c in item["arabic"] if "؀" <= c <= "ۿ")
+                self.assertGreater(arabic, len(item["arabic"]) * 0.5,
+                                   "the Arabic is not mostly Arabic letters")
+                latin = sum(1 for c in item["text"]["en"] if c.isascii() and c.isalpha())
+                self.assertGreater(latin, len(item["text"]["en"]) * 0.5,
+                                   "the English is not mostly Latin letters")
+
+    def test_every_one_of_the_twelve_headings_has_sayings_behind_it(self):
+        """Harry drew twelve tiles. A tile that lands on 'nothing here yet' is a tile that
+        should not have been drawn, and the board needs two to fill its columns."""
+        from salaah.duamenu import SAYINGS
+        filed = {}
+        for item in self.items:
+            for cat in item["cats"]:
+                filed[cat] = filed.get(cat, 0) + 1
+        for kind in SAYINGS:
+            with self.subTest(kind):
+                self.assertGreaterEqual(filed.get(kind, 0), 2,
+                                        f"{kind} has {filed.get(kind, 0)}, and the board shows two")
+        self.assertEqual(set(SAYINGS), set(filed), "a saying is filed under no drawn heading")
+
+    def test_no_saying_is_in_the_file_twice(self):
+        keys = [item["key"] for item in self.items]
+        self.assertEqual(len(keys), len(set(keys)))
+        arabic = [item["arabic"] for item in self.items]
+        self.assertEqual(len(arabic), len(set(arabic)), "the same narration is in twice")
+
+    def test_the_translations_are_whole_sentences(self):
+        """The dataset strips the final full stop off every entry and often the closing quote
+        with it. The build puts them back; this is the check that it did."""
+        for item in self.items:
+            with self.subTest(item["key"]):
+                said = item["text"]["en"]
+                self.assertTrue(said.endswith((".", '."', ".'", "!", "?", '?"', '!"')),
+                                f"ends {said[-20:]!r}")
+                self.assertEqual(0, said.count('"') % 2, "a quotation mark was left open")
+
+    def test_the_twelve_headings_are_named_in_every_language_the_mat_speaks(self):
+        packs = available_packs(ASSETS)
+        from salaah.duamenu import SAYINGS
+        for lang, pack in packs.items():
+            for kind in SAYINGS:
+                with self.subTest(f"{lang}.{kind}"):
+                    self.assertTrue(pack.ui.get(f"saying.{kind}", "").strip(),
+                                    f"{lang} cannot name {kind}")
+
+
+class SayingsCrossCheckTest(unittest.TestCase):
+    """The build refuses to write a narration the second corpus does not carry. That refusal is
+    the only thing standing between the mat and a line nobody has checked, so it is tested here
+    rather than trusted -- on made-up Arabic, which is exactly what it exists to stop."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Read and run the build script's source, rather than importing it.
+
+        Importing it by path goes through tools/__pycache__, and a stale .pyc there is read in
+        preference to the file on disk. That is not hypothetical: it happened while these tests
+        were being written -- the constant was put back to 12 in the source and the test went on
+        reading 1 out of yesterday's bytecode, so a test measuring the safety bar reported on a
+        bar that was not there. Reading the text leaves nothing to go stale.
+        """
+        import types
+        path = Path(__file__).resolve().parent.parent / "tools" / "build_hadith_section.py"
+        cls.build = types.ModuleType("build_hadith_section")
+        cls.build.__file__ = str(path)      # it works out where the repo is from this
+        exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), cls.build.__dict__)
+
+    def test_it_strips_the_vowel_marks_before_comparing(self):
+        """Two corpora never agree on diacritics. A check made on the raw string fails on a
+        fatha, which is a check that gets switched off within the week."""
+        with_marks = "قَالَ رَسُولُ اللَّهِ صَلَّى اللَّهُ عَلَيْهِ وَسَلَّمَ"
+        without = "قال رسول الله صلى الله عليه وسلم"
+        self.assertEqual(self.build.bare(with_marks), self.build.bare(without))
+        self.assertNotIn("َ", self.build.bare(with_marks))
+
+    def test_it_measures_the_longest_unbroken_run_and_not_the_whole_thing(self):
+        """Which is the point of it: two compilations write the chain of narrators differently
+        and the saying identically. Demanding the whole narration refused fourteen sound ones."""
+        corpus = self.build.bare("زيد عن عمرو قال رسول الله صلى الله عليه وسلم انما الاعمال بالنيات")
+        # Bared before splitting, the way the build does it: the folding of alef-maqsura is
+        # part of the comparison, and a run measured on unfolded words breaks at the first
+        # ya somebody spelt the other way.
+        same_saying = self.build.bare(
+            "بكر عن خالد قال رسول الله صلى الله عليه وسلم انما الاعمال بالنيات").split()
+        self.assertNotIn(" ".join(same_saying), corpus, "the whole thing is not in the corpus")
+        self.assertEqual(10, self.build.longest_run(same_saying, corpus),
+                         "the saying is ten words and all ten are in the corpus")
+
+    def test_a_wording_the_second_corpus_does_not_have_falls_under_the_bar(self):
+        corpus = self.build.bare("قال رسول الله صلى الله عليه وسلم انما الاعمال بالنيات")
+        invented = ("هذا كلام مخترع لم يقله احد قط وليس في اي كتاب من كتب الحديث ابدا "
+                    "ولا رواه راو ولا سمعه سامع").split()
+        run = self.build.longest_run(invented, corpus)
+        self.assertLess(run, self.build.MATCH_WORDS,
+                        f"invented Arabic matched {run} words and would have been written")
+
+    def test_the_bar_is_set_where_a_chain_can_differ_but_a_saying_cannot(self):
+        self.assertGreaterEqual(self.build.MATCH_WORDS, 8)
+        self.assertGreaterEqual(self.build.MATCH_SHARE, 0.3)
+
+    def test_it_mends_the_datasets_missing_full_stop_without_touching_a_word(self):
+        said = self.build.tidy('Narrated Anas:The Prophet said, "None of you will have faith')
+        self.assertEqual('Narrated Anas: The Prophet said, "None of you will have faith".', said)
+        for word in ("Narrated", "Anas", "Prophet", "faith"):
+            self.assertIn(word, said)
+        self.assertEqual("Already whole.", self.build.tidy("Already whole."))
