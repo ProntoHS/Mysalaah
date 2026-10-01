@@ -3729,3 +3729,94 @@ class ItSaysWhyItWouldNotStartTest(unittest.TestCase):
                              f"{Installer.SETTLES}s is long enough to lose an update in")
         self.assertGreaterEqual(Installer.SETTLES, 5,
                                 "too short to notice a release that dies on startup")
+
+
+class WuduContentTest(unittest.TestCase):
+    """The seven steps of wu'du, their drawings and what each one says."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.raw = json.loads((ASSETS / "content" / "wudu" / "wudu.json")
+                             .read_text(encoding="utf-8"))
+        cls.steps = cls.raw["steps"]
+
+    def test_there_are_seven_of_them_numbered_one_to_seven(self):
+        self.assertEqual(7, len(self.steps))
+        self.assertEqual(list(range(1, 8)), [s["number"] for s in self.steps],
+                         "the steps are out of order or misnumbered")
+        self.assertEqual(7, len({s["key"] for s in self.steps}), "two steps share a key")
+
+    def test_every_step_has_a_film_that_is_actually_there(self):
+        for step in self.steps:
+            with self.subTest(step["key"]):
+                self.assertTrue(step["films"], "no drawing for this step")
+                for film in step["films"]:
+                    path = ASSETS / "wudu" / film
+                    self.assertTrue(path.is_file(), f"{path} is missing")
+                    self.assertGreater(path.stat().st_size, 2000, f"{film} is suspiciously empty")
+
+    def test_every_step_has_a_tile_on_the_sheet(self):
+        for step in self.steps:
+            with self.subTest(step["key"]):
+                self.assertTrue((ASSETS / "wudu" / f"step-{step['key']}.png").is_file())
+
+    def test_every_step_says_what_to_do(self):
+        for step in self.steps:
+            with self.subTest(step["key"]):
+                said = step["text"].get("en", "")
+                self.assertGreater(len(said), 60, f"{step['key']} barely says anything")
+                self.assertLess(len(said), 400, f"{step['key']} is too long for the panel")
+                self.assertTrue(said.strip().endswith("."), "not a finished sentence")
+
+    def test_the_first_step_mentions_the_intention_and_the_name(self):
+        """Both sources start there, and a guide that leaves it out is teaching the washing
+        without the thing that makes it wu'du."""
+        first = self.steps[0]["text"]["en"].lower()
+        self.assertIn("intention", first)
+        self.assertIn("bismillah", first)
+
+    def test_the_head_is_the_one_step_wiped_rather_than_washed(self):
+        """Three times for the washings, once for the head and ears. It is the single detail
+        somebody is most likely to get wrong, so the step says it in words."""
+        head = next(s for s in self.steps if s["key"] == "head")
+        self.assertIn("once", head["text"]["en"].lower())
+        self.assertEqual(2, len(head["films"]), "the head and the ears are two drawings")
+
+    def test_it_says_where_the_words_came_from_and_that_nobody_qualified_has_read_them(self):
+        self.assertFalse(self.raw["reviewed"])
+        self.assertIn("DRAFT", self.raw["source"])
+        self.assertIn("myislam.org", self.raw["source"])
+        self.assertIn("Wikipedia", self.raw["source"])
+        self.assertIn("Hanafi", self.raw["source"], "the mat follows a school; say which")
+
+    def test_the_films_are_small_enough_to_put_on_a_mat(self):
+        """They arrived at forty-six megabytes between them -- more than the whole of the rest
+        of the app, on a card with a few hundred megabytes spare. Re-encoded they are under a
+        megabyte. This is the check that nobody drops the originals back in."""
+        films = sorted((ASSETS / "wudu").glob("*.gif"))
+        self.assertEqual(8, len(films))
+        total = sum(f.stat().st_size for f in films)
+        self.assertLess(total, 4_000_000,
+                        f"the wu'du films are {total / 1e6:.0f} MB between them")
+
+    def test_the_drawings_still_have_black_lines_in_them(self):
+        """Cut to four shades by population, the palette went on the paper and the black lines
+        came out grey -- the drawing was still there and no longer looked drawn. Measured on
+        the pixels rather than taken on trust."""
+        from PIL import Image
+        import numpy as np
+        for film in sorted((ASSETS / "wudu").glob("*.gif")):
+            with self.subTest(film.name):
+                with Image.open(film) as opened:
+                    frame = np.asarray(opened.convert("L"))
+                self.assertLess(frame.min(), 40, "nothing in this drawing is actually dark")
+                self.assertGreater(int((frame < 40).sum()), 2000, "barely any ink")
+                self.assertGreater(int((frame > 215).sum()), frame.size * 0.4, "no paper left")
+
+    def test_the_steps_are_named_in_every_language_the_mat_speaks(self):
+        packs = available_packs(ASSETS)
+        for lang, pack in packs.items():
+            for step in self.steps:
+                with self.subTest(f"{lang}.{step['key']}"):
+                    self.assertTrue(pack.ui.get(f"wudu.{step['key']}", "").strip(),
+                                    f"{lang} cannot name {step['key']}")

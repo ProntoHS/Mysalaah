@@ -3543,8 +3543,8 @@ class KnowledgeCornerTest(unittest.TestCase):
     def test_the_small_screen_offers_eight_things_between_prayers(self):
         w = self.window()
         self.assertTrue(w.side.showing_corner, "the 7in should show the corner between prayers")
-        self.assertEqual(["quran", "duas", "salaah", "hadith", "settings", "world",
-                          "wudu", "nasheeds"],
+        self.assertEqual(["quran", "salaah", "hadith", "duas",
+                          "wudu", "nasheeds", "settings", "world"],
                          [t.name for t in w.side.corner.tiles])
 
     def test_the_posture_takes_the_small_screen_back_during_a_prayer(self):
@@ -3577,8 +3577,9 @@ class KnowledgeCornerTest(unittest.TestCase):
         now; its square on this menu is Salaah, and that is a way out rather than something to
         read, so it is tested with the rest of the way out."""
         w = self.window()
-        for i, which in enumerate(("quran", "duas")):
-            w.side.corner.tiles[i].click()
+        by_name = {t.name: t for t in w.side.corner.tiles}
+        for which in ("quran", "duas"):
+            by_name[which].click()
             APP.processEvents()
             self.assertTrue(w.reading, which)
             self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget(),
@@ -6870,8 +6871,8 @@ class SixTileMenuTest(unittest.TestCase):
         self.assertEqual(4, len(rows), f"expected four rows, got {rows}")
         # reading order: across, then down
         order = sorted(tiles, key=lambda t: (t.y(), t.x()))
-        self.assertEqual(["quran", "duas", "salaah", "hadith", "settings", "world",
-                          "wudu", "nasheeds"],
+        self.assertEqual(["quran", "salaah", "hadith", "duas",
+                          "wudu", "nasheeds", "settings", "world"],
                          [t.name for t in order])
 
     def test_the_heading_is_gone_and_the_tiles_take_the_height(self):
@@ -9841,8 +9842,8 @@ class SayingsBoardTest(unittest.TestCase):
 
 
 class TwoNewTilesTest(unittest.TestCase):
-    """Harry redrew the 7in sheet with Wu'du and Nasheeds on the end. Neither has a section
-    behind it yet, so both land on the page that says so -- named, so it says WHICH one."""
+    """Harry redrew the 7in sheet with Wu'du and Nasheeds on it. Wu'du has its seven steps now;
+    Nasheeds is still to come, and lands on the page that says so -- named, so it says which."""
 
     def window(self):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
@@ -9870,7 +9871,7 @@ class TwoNewTilesTest(unittest.TestCase):
     def test_each_lands_on_a_page_that_says_which_one_is_coming(self):
         w = self.window()
         tiles = {t.name: t for t in w.side.corner.tiles}
-        for name in ("wudu", "nasheeds"):
+        for name in ("nasheeds",):
             with self.subTest(name):
                 w.go_home()
                 settle()
@@ -10041,3 +10042,136 @@ class TheTrialEndsTest(unittest.TestCase):
                          "still on trial: the guard would put the previous version back")
         self.assertEqual("9.99", now.get("installed"),
                          "the trial cleared without recording what was installed")
+
+
+class WuduScreensTest(unittest.TestCase):
+    """The Wu'du tile opens the seven steps; a step opens its drawing beside its words."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    KEYS = ("hands", "mouth", "nose", "face", "arms", "head", "feet")
+
+    def test_the_wudu_tile_opens_the_seven_steps(self):
+        w = self.window()
+        w.open_corner("wudu")
+        settle()
+        self.assertIsNotNone(w.wudu_menu, "the seven were never built")
+        self.assertIs(w.wudu_menu, w.corner_screen.currentWidget())
+        self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget(),
+                         "Wu'du still lands on the page that says it is coming")
+        self.assertEqual([f"step-{k}" for k in self.KEYS],
+                         [t.name for t in w.wudu_menu.tiles])
+
+    def test_the_seven_sit_in_one_row_across_the_screen(self):
+        w = self.window()
+        w.open_corner("wudu")
+        settle()
+        tops = {t.geometry().y() for t in w.wudu_menu.tiles}
+        self.assertEqual(1, len(tops), f"the steps came out in {len(tops)} rows")
+        order = sorted(w.wudu_menu.tiles, key=lambda t: t.geometry().x())
+        self.assertEqual([f"step-{k}" for k in self.KEYS], [t.name for t in order],
+                         "the steps are not left to right in order")
+
+    def test_each_step_opens_its_own_drawing_heading_and_words(self):
+        w = self.window()
+        for n, key in enumerate(self.KEYS, start=1):
+            with self.subTest(key):
+                w.open_wudu_step(key)
+                settle(4)
+                step = w.wudu_step
+                self.assertIs(step, w.corner_screen.currentWidget())
+                self.assertEqual(f"{n} - {w.t(f'wudu.{key}')}", step.heading.text())
+                self.assertGreater(len(step.words.text()), 60)
+                self.assertTrue(step.films, "no drawing on this step")
+                for film in step.films:
+                    self.assertTrue(film.film.isValid(), "the drawing will not open")
+                    self.assertGreater(film.film.frameCount(), 1, "it does not move")
+
+    def test_the_drawing_takes_the_full_height_of_the_screen(self):
+        """Harry asked for the left-hand side to use the full vertical space, and it is the
+        whole reason the page is laid out this way round."""
+        w = self.window()
+        w.open_wudu_step("hands")
+        settle(4)
+        step = w.wudu_step
+        drawn = step.films[0].film.currentPixmap().size()
+        self.assertGreater(drawn.height(), step.height() * 0.9,
+                           f"the drawing is {drawn.height()}px tall on a {step.height()}px page")
+        self.assertGreater(drawn.width(), 400, "and it should be wide with it")
+        # Its shape is kept: a stretched boy is worse than a smaller one.
+        shape = step.films[0].shape
+        self.assertAlmostEqual(drawn.width() / drawn.height(),
+                               shape.width() / shape.height(), places=1)
+
+    def test_the_head_shows_both_its_drawings_at_the_same_size(self):
+        """Wiping the head and wiping the ears are one step and two drawings. Side by side,
+        because stacked they each get half the height -- and on tall portraits the height is
+        what decides how big they come out."""
+        w = self.window()
+        # A one-film step first, and then the head with no layout pass in between. The order
+        # matters and it took two goes to find out how: opened on its own, both drawings start
+        # the same size and the row splits evenly whatever the labels ask for, so the test
+        # passed with the fix taken out. Opened straight after another step, the one that had
+        # already been scaled up asks the layout for more and gets it -- 647px beside 381px.
+        w.open_wudu_step("hands")
+        settle(4)
+        w.open_wudu_step("head")
+        settle(4)
+        films = w.wudu_step.films
+        self.assertEqual(2, len(films))
+        left, right = sorted(films, key=lambda f: f.geometry().x())
+        self.assertLess(left.geometry().right(), right.geometry().left() + 2,
+                        "the two drawings are stacked, not side by side")
+        self.assertEqual(left.film.currentPixmap().size(), right.film.currentPixmap().size(),
+                         "one drawing is bigger than the other")
+        self.assertGreater(left.film.currentPixmap().height(), w.wudu_step.height() * 0.7)
+
+    def test_back_is_square_at_the_bottom_right_and_returns_to_the_seven(self):
+        w = self.window()
+        w.open_wudu_step("arms")
+        settle(4)
+        step = w.wudu_step
+        button = step.back_button
+        self.assertEqual("bigBack", button.objectName())
+        self.assertEqual(w.t("corner.back"), button.text())
+        side = button.size()
+        self.assertGreater(side.width(), w.px(80), "not a square: too narrow")
+        self.assertGreater(side.height(), w.px(80), "not a square: too short")
+        here = button.mapTo(step, QtCore.QPoint(0, 0))
+        self.assertGreater(here.x(), step.width() * 0.75, "it is not over on the right")
+        self.assertGreater(here.y(), step.height() * 0.6, "it is not down at the bottom")
+        button.click()
+        settle()
+        self.assertIs(w.wudu_menu, w.corner_screen.currentWidget())
+
+    def test_the_drawings_stop_when_the_screen_is_left(self):
+        """Thirty frames a second of something nobody is looking at, on a mat that is left on
+        all day."""
+        from salaah.qt import QtGui as G
+        w = self.window()
+        w.open_wudu_step("feet")
+        settle(4)
+        step = w.wudu_step
+        self.assertTrue(all(f.film.state() == G.QMovie.MovieState.Running for f in step.films))
+        step.back_button.click()
+        settle()
+        self.assertTrue(all(f.film.state() == G.QMovie.MovieState.NotRunning
+                            for f in step.films), "a drawing is still running off screen")
+
+    def test_the_seven_in_sheet_is_in_the_order_harry_drew_it(self):
+        w = self.window()
+        order = sorted(w.side.corner.tiles, key=lambda t: (t.y(), t.x()))
+        self.assertEqual(["quran", "salaah", "hadith", "duas",
+                          "wudu", "nasheeds", "settings", "world"],
+                         [t.name for t in order])

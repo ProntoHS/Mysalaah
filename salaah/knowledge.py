@@ -31,7 +31,9 @@ from .theme import palette
 # Eight now rather than six: Harry redrew the sheet with Wu'du and Nasheeds on the end and the
 # other six smaller. The two new ones have nothing behind them yet and land on the page that
 # says so, named -- the same thing Hadith and World did until their sections were built.
-TILES = ("quran", "duas", "salaah", "hadith", "settings", "world", "wudu", "nasheeds")
+# Reading order off Harry's sheet, which he has now reordered twice -- so this is read off the
+# drawing rather than remembered. Two across, four down.
+TILES = ("quran", "salaah", "hadith", "duas", "wudu", "nasheeds", "settings", "world")
 ACROSS = 2
 
 

@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "reviewed": false,
+  "source": "The seven steps as Harry drew them, with a plain explanation of each written for this app from two published sources rather than from memory: myislam.org/how-to-do-wudu/ and the Wikipedia article on Wudu, which agree on the order, the boundaries of each washing and the number of times. DRAFT: how many of these are fard and how many sunnah differs between the schools, and the second source says so explicitly. The mat follows the Hanafi school. The wording, and that classification, need a qualified reviewer.",
+  "steps": [
+    {
+      "key": "hands",
+      "number": 1,
+      "films": ["hands.gif"],
+      "text": {
+        "en": "Make the intention in your heart and say Bismillah. Wash both hands up to the wrists, three times, starting with the right. Work the water between your fingers so none of the skin is missed."
+      }
+    },
+    {
+      "key": "mouth",
+      "number": 2,
+      "films": ["mouth.gif"],
+      "text": {
+        "en": "Take water into your mouth with your right hand and rinse it round thoroughly, then spit it out. Three times."
+      }
+    },
+    {
+      "key": "nose",
+      "number": 3,
+      "films": ["nose.gif"],
+      "text": {
+        "en": "Sniff a little water up into your nose with your right hand and blow it out with your left. Three times. Take only a little, so you do not choke."
+      }
+    },
+    {
+      "key": "face",
+      "number": 4,
+      "films": ["face.gif"],
+      "text": {
+        "en": "Wash your whole face three times, from where your hair begins down to your chin, and from one ear to the other. If you have a beard, run your wet fingers through it."
+      }
+    },
+    {
+      "key": "arms",
+      "number": 5,
+      "films": ["arms.gif"],
+      "text": {
+        "en": "Wash your right arm from the fingertips up to and including the elbow, three times, then the left arm the same way. Make sure the water reaches all the way round."
+      }
+    },
+    {
+      "key": "head",
+      "number": 6,
+      "films": ["head.gif", "head-2.gif"],
+      "text": {
+        "en": "With wet hands, wipe over your head once: from the front to the back and then forward again. Then wipe your ears with the same wetness, the inside with your index fingers and behind them with your thumbs. The head and ears are wiped once, not washed three times."
+      }
+    },
+    {
+      "key": "feet",
+      "number": 7,
+      "films": ["feet.gif"],
+      "text": {
+        "en": "Wash your right foot from the toes up to and including the ankle, three times, and then the left foot the same way. Run your little finger between the toes."
+      }
+    }
+  ]
+}

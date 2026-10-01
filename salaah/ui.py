@@ -27,6 +27,7 @@ from .side import SideWindow
 from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .duamenu import DuaMenu, SAYINGS, SAYINGS_ACROSS
+from .wudu import Steps, WuduStep
 from .duaboard import DuaBoard
 from .recite import Store, WordTimes
 from .call import Adhan, CallBox
@@ -601,6 +602,7 @@ class MainWindow(QtWidgets.QWidget):
         self.duas = Passages(self.assets, "duas")
         self.kalima = Passages(self.assets, "kalima")
         self.sayings = Passages(self.assets, "hadith", folder="hadith")
+        self.wudu = Steps(self.assets)
         self.call = Call(volume=settings.volume)   # the call to prayer
         self.adhan = Adhan(self.assets)           # and the words of it, for the screen
         self.call_box = None                       # the TIME TO PRAY notice, while it is up
@@ -1005,6 +1007,13 @@ class MainWindow(QtWidgets.QWidget):
                                    font-weight:bold; padding:{px(12)}px {px(30)}px;
                                    min-height:{px(90)}px; min-width:{px(90)}px; }}
             QPushButton#bigBack:pressed {{ background:#8E342C; }}
+            /* Wu'du. The heading sits on the same white plate the prayer names and the Hadith
+               heading wear, so the three screens read as one mat. */
+            QWidget#wuduStep, QWidget#wuduStage {{ background:{c.paper}; }}
+            QLabel#wuduHeading {{ background:white; color:black; font-size:{px(52)}px;
+                                  font-weight:bold; border-radius:{px(10)}px;
+                                  padding:{px(10)}px {px(26)}px; }}
+            QLabel#wuduWords {{ color:{c.ink}; font-size:{px(38)}px; line-height:150%; }}
             QLabel#prayerNameBig {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                     font-size:{px(64)}px; font-weight:bold; }}
             QWidget#banner {{ background:{c.chip}; }}
@@ -1385,6 +1394,22 @@ class MainWindow(QtWidgets.QWidget):
         self.dua_board.chose.connect(lambda n: self.open_passage("duas", n))
         stack.addWidget(self.dua_board)
 
+        # Wu'du: the seven steps as a row of tall tiles, and one page behind them that the
+        # chosen step is loaded into. One page rather than seven, because each holds a film and
+        # seven films sitting in memory for the six nobody is looking at is a waste of a Pi.
+        self.wudu_menu = DuaMenu(self, names=[f"step-{x['key']}" for x in self.wudu.steps],
+                                 folder="wudu", across=max(1, len(self.wudu.steps)))
+        if self.wudu.steps and self.wudu_menu.ready:
+            self.wudu_menu.chose.connect(lambda n: self.open_wudu_step(n.removeprefix("step-")))
+            stack.addWidget(self.wudu_menu)
+        else:
+            self.wudu_menu.deleteLater()
+            self.wudu_menu = None
+
+        self.wudu_step = WuduStep(self)
+        self.wudu_step.back.connect(self.open_the_wudu_steps)
+        stack.addWidget(self.wudu_step)
+
         # The same board for the sayings, with the play mark carried down beside the
         # translation rather than sitting over the Arabic.
         self.hadith_board = DuaBoard(self, self.sayings, sayings=True)
@@ -1535,6 +1560,9 @@ class MainWindow(QtWidgets.QWidget):
                 and self.section_lists["hadith"].passages.items):
             self.open_the_kinds_of_saying()
             return
+        if which == "wudu" and getattr(self, "wudu_menu", None) is not None:
+            self.open_the_wudu_steps()
+            return
         if which in self.section_lists and self.section_lists[which].passages.items:
             self.open_section(which)
             return
@@ -1653,6 +1681,27 @@ class MainWindow(QtWidgets.QWidget):
         self.hadith_board.show_only(cat, named)
         self.hadith_board.to_the_top()
         self.corner_screen.setCurrentWidget(self.hadith_board)
+        self.stack.setCurrentWidget(self.corner_page)
+
+    def open_the_wudu_steps(self) -> None:
+        """The seven steps. Where the Wu'du tile lands, and where Back on a step returns to."""
+        self.wudu_step.stop()
+        self.corner_screen.setCurrentWidget(self.wudu_menu)
+        self.stack.setCurrentWidget(self.corner_page)
+
+    def open_wudu_step(self, key: str) -> None:
+        """One step: its drawing, its number and name, and what to do."""
+        if self.playing or self.asleep:
+            return
+        self.stir()
+        step = next((x for x in self.wudu.steps if x["key"] == key), None)
+        if step is None:
+            return self.open_the_wudu_steps()
+        named = self.t(f"wudu.{key}")
+        said = step["text"].get(self.settings.quran_lang or "en") or step["text"].get("en", "")
+        self.wudu_step.show_step(step, f"{step['number']} - {named}", said,
+                                 self.t("corner.back"))
+        self.corner_screen.setCurrentWidget(self.wudu_step)
         self.stack.setCurrentWidget(self.corner_page)
 
     def open_passage(self, which: str, index: int) -> None:

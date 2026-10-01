@@ -266,7 +266,14 @@
         "world.active": "Active",
         "world.here": "the mat",
         "world.line": "{place} to Makkah — about {km} km",
-        "world.mine": "This mat"
+        "world.mine": "This mat",
+        "wudu.arms": "Wash Arms",
+        "wudu.face": "Wash Face",
+        "wudu.feet": "Wash Feet",
+        "wudu.hands": "Wash Hands",
+        "wudu.head": "Wipe Head & Ears",
+        "wudu.mouth": "Rinse Mouth",
+        "wudu.nose": "Rinse Nose"
     },
     "transliteration": {},
     "translation": {

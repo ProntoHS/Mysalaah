@@ -268,6 +268,13 @@
         "world.active": "सक्रिय",
         "world.here": "मुसल्ला",
         "world.line": "{place} से मक्का — लगभग {km} कि.मी.",
-        "world.mine": "यह मुसल्ला"
+        "world.mine": "यह मुसल्ला",
+        "wudu.arms": "बाज़ू धोएँ",
+        "wudu.face": "चेहरा धोएँ",
+        "wudu.feet": "पैर धोएँ",
+        "wudu.hands": "हाथ धोएँ",
+        "wudu.head": "सिर और कानों का मसह",
+        "wudu.mouth": "कुल्ली करें",
+        "wudu.nose": "नाक साफ़ करें"
     }
 }

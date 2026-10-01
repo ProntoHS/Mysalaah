@@ -266,7 +266,14 @@
         "world.active": "فعال",
         "world.here": "مصلیٰ",
         "world.line": "{place} سے مکہ — تقریباً {km} کلومیٹر",
-        "world.mine": "یہ مصلیٰ"
+        "world.mine": "یہ مصلیٰ",
+        "wudu.arms": "بازو دھوئیں",
+        "wudu.face": "چہرہ دھوئیں",
+        "wudu.feet": "پاؤں دھوئیں",
+        "wudu.hands": "ہاتھ دھوئیں",
+        "wudu.head": "سر اور کانوں کا مسح",
+        "wudu.mouth": "کلی کریں",
+        "wudu.nose": "ناک صاف کریں"
     },
     "transliteration": {},
     "translation": {}

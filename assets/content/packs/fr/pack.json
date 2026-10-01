@@ -266,7 +266,14 @@
         "world.active": "Actifs",
         "world.here": "le tapis",
         "world.line": "De {place} à La Mecque — environ {km} km",
-        "world.mine": "Ce tapis"
+        "world.mine": "Ce tapis",
+        "wudu.arms": "Laver les bras",
+        "wudu.face": "Laver le visage",
+        "wudu.feet": "Laver les pieds",
+        "wudu.hands": "Laver les mains",
+        "wudu.head": "Essuyer la tête et les oreilles",
+        "wudu.mouth": "Rincer la bouche",
+        "wudu.nose": "Rincer le nez"
     },
     "transliteration": {},
     "translation": {}

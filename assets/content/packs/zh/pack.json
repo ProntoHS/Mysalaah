@@ -268,6 +268,13 @@
         "world.active": "在线",
         "world.here": "拜毯",
         "world.line": "{place} 到麦加 — 约 {km} 公里",
-        "world.mine": "本拜毯"
+        "world.mine": "本拜毯",
+        "wudu.arms": "洗手臂",
+        "wudu.face": "洗脸",
+        "wudu.feet": "洗脚",
+        "wudu.hands": "洗手",
+        "wudu.head": "抹头和耳",
+        "wudu.mouth": "漱口",
+        "wudu.nose": "洗鼻"
     }
 }
