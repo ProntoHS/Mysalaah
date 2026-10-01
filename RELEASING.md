@@ -26,10 +26,35 @@ If you open a new PowerShell window part way through, run the `$v` lines from st
 Clear the staging folder. It is the single most common way the wrong file gets attached:
 
 ```
-Remove-Item -Recurse -Force ..\salaah-release
+Remove-Item -Recurse -Force ..\salaah-release -ErrorAction SilentlyContinue
 ```
 
 Nothing is lost — anything that was in there is already on a release, or is superseded.
+
+The `-ErrorAction SilentlyContinue` is there because the folder is often not there to delete,
+and without it PowerShell answers a successful no-op with six lines of red. Which reads exactly
+like something breaking, at the one point in this page where you most need to be able to tell.
+
+## 0b. Check the changes zip actually makes a working app
+
+Before anything else is done with a changes zip, lay it on top of the release the mat is
+running now and start it:
+
+```
+python tools\check_changes_zip.py --base ..\salaah-1.49.zip --changes "$HOME\Downloads\salaah-1.53-changes.zip"
+```
+
+(`--base` is the zip off the last release the mat actually installed; `--changes` takes several,
+in order, if more than one has gone out since.)
+
+This step exists because versions 1.50, 1.51 and 1.52 all went out broken and none of them had
+to. 1.51 renamed a keyword argument in two files, shipped one of them and not the other. Every
+test passed, because the tests run against a folder where both files had been changed -- which
+proves the working tree is consistent and says nothing at all about whether the files picked out
+of it to be shipped are the complete set. The mat got the half of the change it was sent, died
+on startup, and the guard put the old version back three times over without ever saying why.
+
+Thirty seconds here. It must end with "It starts, and says it is N. The zips are complete."
 
 ## 1. Put the new files in place
 

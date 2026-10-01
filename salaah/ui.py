@@ -1387,7 +1387,7 @@ class MainWindow(QtWidgets.QWidget):
 
         # The same board for the sayings, with the play mark carried down beside the
         # translation rather than sitting over the Arabic.
-        self.hadith_board = DuaBoard(self, self.sayings, mark_by_meaning=True)
+        self.hadith_board = DuaBoard(self, self.sayings, sayings=True)
         self.hadith_board.chose.connect(lambda n: self.open_passage("hadith", n))
         stack.addWidget(self.hadith_board)
 
