@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .filmsheet import draw_themed
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .theme import palette
 
@@ -73,32 +74,40 @@ class Steps:
         return self.steps[index] if 0 <= index < len(self.steps) else None
 
 
-class Film(QtWidgets.QLabel):
-    """One animation, drawn as large as its box allows and no larger.
+class Film(QtWidgets.QWidget):
+    """One animation, drawn as large as its box allows and turned inside out on a dark screen.
 
-    A QMovie scaled by setScaledSize rather than a label scaling its own pixmap: the label would
-    rescale every one of the thirty frames on the way past, which on a Pi is work done sixty
-    times for every second of a drawing nobody is looking at closely.
+    Painted here rather than handed to a QLabel with setMovie. Two reasons, and the second is
+    the one that matters. A QLabel cannot invert what it is given, and Harry's drawings are
+    black lines on white paper: on the night screen they were a slab of white light beside
+    words in the opposite colours. Everything else on the mat -- the tiles, the posture figures,
+    the mosques -- inverts for the dark screen, and these should too, from the one set of files
+    rather than a second set shipped alongside.
+
+    And the old way needed a trick. setScaledSize is only read when a film is STARTED, so a
+    resize meant stopping and restarting it to make the new size take. Painting the frame
+    ourselves, the size is whatever we draw it at, and there is nothing to remember.
     """
 
     def __init__(self, path: Path):
         super().__init__()
         self.setObjectName("wuduFilm")
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                            QtWidgets.QSizePolicy.Policy.Expanding)
-        self.film = QtGui.QMovie(str(path))
         self.shape = QtCore.QSize(512, 768)
+        self.film = QtGui.QMovie(str(path))
         if self.film.isValid():
+            self.film.setParent(self)        # so Qt takes it down with the widget
             self.film.jumpToFrame(0)
             if not self.film.currentPixmap().isNull():
                 self.shape = self.film.currentPixmap().size()
-            self.setMovie(self.film)
-        self._at = QtCore.QSize()
+            # A bound method, not a lambda: a lambda holds the widget through the connection
+            # and neither is ever collected. See the note in filmsheet.py.
+            self.film.frameChanged.connect(self.next_frame)
 
-    # A QLabel showing a film asks for the film's own size, which here is the WRONG question
-    # twice over: it is the box that decides how big the drawing is drawn, not the drawing. Two
-    # films sharing a row with equal stretch came out 647 and 381 wide, because the one that had
+    # A widget showing a film asks for the film's own size, which is the wrong question twice
+    # over: it is the box that decides how big the drawing is drawn, not the drawing. Two films
+    # sharing a row with equal stretch came out 647px beside 381px, because the one that had
     # already been scaled up asked for more and the layout believed it.
     def sizeHint(self):
         return QtCore.QSize(10, 10)
@@ -106,37 +115,33 @@ class Film(QtWidgets.QLabel):
     def minimumSizeHint(self):
         return QtCore.QSize(10, 10)
 
-    def fit(self) -> None:
-        """Scale the film to the box, keeping its shape. Done on resize, not on every frame."""
-        if not self.film.isValid() or self.shape.isEmpty():
-            return
-        room = self.size()
-        if room.width() < 20 or room.height() < 20:
-            return
-        scale = min(room.width() / self.shape.width(), room.height() / self.shape.height())
-        want = QtCore.QSize(max(1, int(self.shape.width() * scale)),
-                            max(1, int(self.shape.height() * scale)))
-        if want != self._at:
-            self._at = want
-            self.film.setScaledSize(want)
-            # And make it take. setScaledSize is only read when the film is started, so on a
-            # film already running the drawing stays at whatever size it was first laid out at
-            # -- which on the mat is the wrong size until the next frame, and in a test is the
-            # wrong size for ever, because no time passes and nothing ticks. jumpToFrame does
-            # NOT do it; only a start does, which was worth finding out before shipping a
-            # screen that looked right solely because something was moving.
-            if self.film.state() != QtGui.QMovie.MovieState.NotRunning:
-                self.film.stop()
-                self.film.start()
+    def next_frame(self, _n: int = 0) -> None:
+        self.update()
 
-    def resizeEvent(self, ev):
-        super().resizeEvent(ev)
-        self.fit()
+    def drawn_size(self) -> QtCore.QSize:
+        """How big the drawing actually comes out, which is what the screen is judged on."""
+        if self.shape.isEmpty() or self.width() < 20 or self.height() < 20:
+            return QtCore.QSize()
+        scale = min(self.width() / self.shape.width(), self.height() / self.shape.height())
+        return QtCore.QSize(max(1, int(self.shape.width() * scale)),
+                            max(1, int(self.shape.height() * scale)))
+
+    def paintEvent(self, _):
+        p = QtGui.QPainter(self)
+        want = self.drawn_size()
+        if want.isEmpty():
+            return
+        where = QtCore.QRect(QtCore.QPoint(0, 0), want)
+        where.moveCenter(self.rect().center())
+        draw_themed(p, self.film, where)
+
+    def follow_theme(self) -> None:
+        self.update()
 
     def start(self) -> None:
         if self.film.isValid():
-            self.fit()
             self.film.start()
+            self.update()
 
     def stop(self) -> None:
         if self.film.isValid():
@@ -146,13 +151,15 @@ class Film(QtWidgets.QLabel):
 class WuduStep(QtWidgets.QWidget):
     """One step: the drawing down the left, the words on the right, Back at the bottom."""
 
-    back = Signal()
+    back = Signal()         # off the first step: out to the seven
+    stepped = Signal(int)   # to another step, by its place in the seven
 
     def __init__(self, window):
         super().__init__()
         self.win = window
         self.setObjectName("wuduStep")
         self.films: list[Film] = []
+        self.place, self.of = 0, 1      # which of the seven is up, and how many there are
 
         across = QtWidgets.QHBoxLayout(self)
         across.setContentsMargins(window.px(24), window.px(14), window.px(24), window.px(18))
@@ -180,19 +187,43 @@ class WuduStep(QtWidgets.QWidget):
         right.addWidget(self.words, 1)
 
         # Bottom right, as asked, and square: the same shape as the big Back on the world and
-        # hadith screens so the mat has one Back rather than a different one per room.
+        # hadith screens so the mat has one of these rather than a different one per room.
+        #
+        # Arrows rather than words. They walk the seven steps in order, which is how wu'du is
+        # done, so the pair of them is the whole way round the section: < from the first step
+        # is the way out to the seven, and > stops at the seventh rather than wrapping round to
+        # the first, because the end of wu'du is not the beginning of it.
         bottom = QtWidgets.QHBoxLayout()
+        bottom.setSpacing(window.px(14))
         bottom.addStretch(1)
-        self.back_button = QtWidgets.QPushButton("")
-        self.back_button.setObjectName("bigBack")
-        self.back_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.back_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.back_button.clicked.connect(self.back.emit)
-        bottom.addWidget(self.back_button)
+        self.back_button = QtWidgets.QPushButton("<")
+        self.on_button = QtWidgets.QPushButton(">")
+        for button, go in ((self.back_button, self.went_back), (self.on_button, self.went_on)):
+            button.setObjectName("bigBack")
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            button.clicked.connect(go)
+            bottom.addWidget(button)
         right.addLayout(bottom)
         across.addLayout(right, 1)
 
-    def show_step(self, step: dict, heading: str, words: str, back: str) -> None:
+    def went_back(self) -> None:
+        if self.place > 0:
+            self.stepped.emit(self.place - 1)
+        else:
+            self.back.emit()
+
+    def went_on(self) -> None:
+        if self.place < self.of - 1:
+            self.stepped.emit(self.place + 1)
+
+    def show_step(self, step: dict, heading: str, words: str,
+                  place: int = 0, of: int = 1) -> None:
+        self.place, self.of = place, of
+        # The last step has nowhere forward to go. Shown but not pressable, rather than taken
+        # away: a button that vanishes moves the other one, and a thumb on a touchscreen learns
+        # where things are.
+        self.on_button.setEnabled(place < of - 1)
         self.stop()
         while self.reel.count():
             old = self.reel.takeAt(0)
@@ -208,7 +239,6 @@ class WuduStep(QtWidgets.QWidget):
             self.films.append(film)
         self.heading.setText(heading)
         self.words.setText(words)
-        self.back_button.setText(back)
         self.room_for_the_films()
         self.start()
 
@@ -227,6 +257,10 @@ class WuduStep(QtWidgets.QWidget):
     def stop(self) -> None:
         for film in self.films:
             film.stop()
+
+    def follow_theme(self) -> None:
+        for film in self.films:
+            film.follow_theme()
 
     def showEvent(self, ev):
         self.start()

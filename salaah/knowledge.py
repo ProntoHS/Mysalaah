@@ -45,11 +45,16 @@ class Tile(QtWidgets.QAbstractButton):
     rather than a rectangle somewhere inside it.
     """
 
-    def __init__(self, pictures, path: Path, name: str):
+    def __init__(self, pictures, path: Path, name: str, quiet: bool = False):
         super().__init__()
         self.pictures = pictures
         self.path = path
         self.name = name
+        # A quiet tile draws nothing but the press. It is the touch target laid over an animated
+        # sheet, where the picture is the film underneath and this is only the part you put your
+        # finger on -- but it still knows its name and its still picture, so the rest of the mat
+        # cannot tell the two kinds apart and the fallback to stills needs no second code path.
+        self.quiet = quiet
         self.setObjectName("tile")
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -63,6 +68,8 @@ class Tile(QtWidgets.QAbstractButton):
         colours = palette()
         if self.isDown():
             p.fillRect(self.rect(), QtGui.QColor(colours.pressed))
+        if self.quiet:
+            return
         # The cache inverts for the dark screen and scales to the box, so the tile is drawn the
         # same way as every other picture in the app rather than by its own rules.
         picture = self.pictures.get(self.path, self.rect().size())
@@ -95,6 +102,19 @@ class KnowledgeScreen(QtWidgets.QWidget):
         lay.setContentsMargins(8, 8, 8, 8)
         lay.setSpacing(8)
 
+        # One moving picture if the folder has one; the eight stills if it does not.
+        from .filmsheet import FilmSheet
+        self.sheet = FilmSheet(window, "knowledge", list(TILES))
+        if self.sheet.ready:
+            self.sheet.chose.connect(self.chose.emit)
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.setSpacing(0)
+            lay.addWidget(self.sheet, 0, 0)
+            self.tiles = self.sheet.tiles
+            return
+        self.sheet.deleteLater()
+        self.sheet = None
+
         self.tiles = []
         for i, name in enumerate(TILES):
             tile = Tile(self.win.images, self.win.assets / "knowledge" / f"{name}.png", name)
@@ -106,6 +126,8 @@ class KnowledgeScreen(QtWidgets.QWidget):
         # as well changed nothing, which was proved by taking them out and measuring.
 
     def follow_theme(self) -> None:
+        if self.sheet is not None:
+            self.sheet.follow_theme()
         for tile in self.tiles:
             tile.update()          # the cache keys on light or dark, so this is all it takes
 

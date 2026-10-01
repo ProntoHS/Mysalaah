@@ -50,6 +50,20 @@ def shut(w):
     settle()
 
 
+
+def rows_of(tiles):
+    """Group tiles into rows. By a band rather than by an exact y, because the boxes of an
+    animated sheet are measured off the drawing and a hand-drawn row is not to the pixel."""
+    tall = min(t.geometry().height() for t in tiles)
+    rows, row = [], []
+    for tile in sorted(tiles, key=lambda t: t.geometry().y()):
+        if row and tile.geometry().y() - row[0].geometry().y() > tall * 0.5:
+            rows.append(row)
+            row = []
+        row.append(tile)
+    rows.append(row)
+    return [sorted(r, key=lambda t: t.geometry().x()) for r in rows]
+
 def settle(rounds=5):
     """Let queued work finish before looking at pixels.
 
@@ -9643,12 +9657,10 @@ class SayingsMenuTest(unittest.TestCase):
         w = self.window()
         w.open_corner("hadith")      # shown, or every tile is still sat at the top left
         settle()
-        rows = {}
-        for tile in w.hadith_menu.tiles:
-            rows.setdefault(tile.geometry().y(), []).append(tile)
+        rows = rows_of(w.hadith_menu.tiles)
         self.assertEqual(3, len(rows), f"the twelve came out in {len(rows)} rows")
-        for top, row in rows.items():
-            self.assertEqual(4, len(row), f"the row at y {top} has {len(row)}")
+        for n, row in enumerate(rows):
+            self.assertEqual(4, len(row), f"row {n + 1} has {len(row)}")
 
     def test_the_duas_menu_is_untouched_and_still_six_across(self):
         """One widget serves both menus now. If the sharing went wrong it would show here
@@ -9656,12 +9668,10 @@ class SayingsMenuTest(unittest.TestCase):
         w = self.window()
         w.open_corner("duas")
         settle()
-        rows = {}
-        for tile in w.dua_menu.tiles:
-            rows.setdefault(tile.geometry().y(), []).append(tile)
-        self.assertEqual(3, len(rows))
-        for row in rows.values():
-            self.assertEqual(6, len(row))
+        rows = rows_of(w.dua_menu.tiles)
+        self.assertEqual(3, len(rows), f"the eighteen came out in {len(rows)} rows")
+        for n, row in enumerate(rows):
+            self.assertEqual(6, len(row), f"row {n + 1} has {len(row)}")
         self.assertEqual(18, len(w.dua_menu.tiles))
 
     def test_every_heading_opens_sayings_filed_under_that_heading(self):
@@ -10105,7 +10115,7 @@ class WuduScreensTest(unittest.TestCase):
         w.open_wudu_step("hands")
         settle(4)
         step = w.wudu_step
-        drawn = step.films[0].film.currentPixmap().size()
+        drawn = step.films[0].drawn_size()
         self.assertGreater(drawn.height(), step.height() * 0.9,
                            f"the drawing is {drawn.height()}px tall on a {step.height()}px page")
         self.assertGreater(drawn.width(), 400, "and it should be wide with it")
@@ -10133,18 +10143,18 @@ class WuduScreensTest(unittest.TestCase):
         left, right = sorted(films, key=lambda f: f.geometry().x())
         self.assertLess(left.geometry().right(), right.geometry().left() + 2,
                         "the two drawings are stacked, not side by side")
-        self.assertEqual(left.film.currentPixmap().size(), right.film.currentPixmap().size(),
+        self.assertEqual(left.drawn_size(), right.drawn_size(),
                          "one drawing is bigger than the other")
-        self.assertGreater(left.film.currentPixmap().height(), w.wudu_step.height() * 0.7)
+        self.assertGreater(left.drawn_size().height(), w.wudu_step.height() * 0.7)
 
     def test_back_is_square_at_the_bottom_right_and_returns_to_the_seven(self):
         w = self.window()
-        w.open_wudu_step("arms")
+        w.open_wudu_step("hands")      # the first step: < is the way out of the section
         settle(4)
         step = w.wudu_step
         button = step.back_button
         self.assertEqual("bigBack", button.objectName())
-        self.assertEqual(w.t("corner.back"), button.text())
+        self.assertEqual("<", button.text())
         side = button.size()
         self.assertGreater(side.width(), w.px(80), "not a square: too narrow")
         self.assertGreater(side.height(), w.px(80), "not a square: too short")
@@ -10160,11 +10170,11 @@ class WuduScreensTest(unittest.TestCase):
         all day."""
         from salaah.qt import QtGui as G
         w = self.window()
-        w.open_wudu_step("feet")
+        w.open_wudu_step("hands")
         settle(4)
         step = w.wudu_step
         self.assertTrue(all(f.film.state() == G.QMovie.MovieState.Running for f in step.films))
-        step.back_button.click()
+        step.back_button.click()       # off the first step: out to the seven
         settle()
         self.assertTrue(all(f.film.state() == G.QMovie.MovieState.NotRunning
                             for f in step.films), "a drawing is still running off screen")
@@ -10175,3 +10185,289 @@ class WuduScreensTest(unittest.TestCase):
         self.assertEqual(["quran", "salaah", "hadith", "duas",
                           "wudu", "nasheeds", "settings", "world"],
                          [t.name for t in order])
+
+
+class StepArrowsTest(unittest.TestCase):
+    """Two square buttons, < and >, walking the seven steps in order.
+
+    < off the first step is the way out to the seven; > stops at the seventh rather than
+    wrapping round, because the end of wu'du is not the beginning of it.
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_wudu_step("hands")
+        settle(4)
+        return w
+
+    def test_they_are_arrows_the_same_size_as_each_other(self):
+        w = self.window()
+        step = w.wudu_step
+        self.assertEqual("<", step.back_button.text())
+        self.assertEqual(">", step.on_button.text())
+        self.assertEqual(step.back_button.size(), step.on_button.size())
+        for button in (step.back_button, step.on_button):
+            self.assertEqual("bigBack", button.objectName(), "not the mat's square button")
+            self.assertGreater(button.width(), w.px(80))
+            self.assertGreater(button.height(), w.px(80))
+
+    def test_both_sit_at_the_bottom_right_with_back_on_the_left_of_the_pair(self):
+        w = self.window()
+        step = w.wudu_step
+        for button in (step.back_button, step.on_button):
+            here = button.mapTo(step, QtCore.QPoint(0, 0))
+            self.assertGreater(here.x(), step.width() * 0.7, "not over on the right")
+            self.assertGreater(here.y(), step.height() * 0.6, "not down at the bottom")
+        self.assertLess(step.back_button.geometry().right(), step.on_button.geometry().left() + 2,
+                        "< should be to the left of >")
+
+    def test_forward_walks_the_seven_in_order_and_stops_at_the_last(self):
+        w = self.window()
+        step = w.wudu_step
+        seen = [step.heading.text()]
+        for _ in range(9):          # more presses than there are steps, on purpose
+            step.on_button.click()
+            settle(3)
+            seen.append(step.heading.text())
+        wanted = [f"{n} - {w.t(f'wudu.{k}')}" for n, k in
+                  enumerate(("hands", "mouth", "nose", "face", "arms", "head", "feet"), start=1)]
+        self.assertEqual(wanted, seen[:7], "forward does not walk them in order")
+        self.assertEqual([wanted[-1]] * 4, seen[6:],
+                         "forward went past the last step, or wrapped round to the first")
+        self.assertIs(step, w.corner_screen.currentWidget(), "it left the section")
+
+    def test_forward_is_dead_on_the_last_step_and_alive_everywhere_else(self):
+        w = self.window()
+        step = w.wudu_step
+        for _ in range(6):
+            self.assertTrue(step.on_button.isEnabled(), step.heading.text())
+            step.on_button.click()
+            settle(3)
+        self.assertEqual("7 - Wash Feet", step.heading.text())
+        self.assertFalse(step.on_button.isEnabled(), "forward is still live on the last step")
+        self.assertTrue(step.on_button.isVisible(),
+                        "it should be there and dead, not gone: a button that vanishes moves "
+                        "the other one, and a thumb learns where things are")
+
+    def test_back_walks_them_the_other_way(self):
+        w = self.window()
+        step = w.wudu_step
+        w.open_wudu_step("feet")
+        settle(3)
+        for wanted in ("6 - Wipe Head & Ears", "5 - Wash Arms", "4 - Wash Face"):
+            step.back_button.click()
+            settle(3)
+            self.assertEqual(wanted, step.heading.text())
+        self.assertIs(step, w.corner_screen.currentWidget())
+
+    def test_back_off_the_first_step_leaves_the_section(self):
+        w = self.window()
+        step = w.wudu_step
+        self.assertEqual("1 - Wash Hands", step.heading.text())
+        step.back_button.click()
+        settle()
+        self.assertIs(w.wudu_menu, w.corner_screen.currentWidget(),
+                      "< on the first step should go out to the seven")
+        self.assertTrue(all(f.film.state() != f.film.MovieState.Running for f in step.films),
+                        "and stop the drawing on the way")
+
+
+class FilmsFollowTheThemeTest(unittest.TestCase):
+    """Harry's drawings are black lines on white paper. On the night screen that was a slab of
+    white light beside words in the opposite colours; everything else on the mat inverts, and
+    these do now too -- in code, off the one set of files, rather than a second set shipped
+    alongside them."""
+
+    def window(self, mode):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def levels(widget):
+        """How light the drawn picture is, measured off the screen rather than off the file."""
+        shot = widget.grab().toImage()
+        light = dark = 0
+        for y in range(0, shot.height(), 3):
+            for x in range(0, shot.width(), 3):
+                c = shot.pixelColor(x, y)
+                level = (c.red() + c.green() + c.blue()) / 3
+                if level > 200:
+                    light += 1
+                elif level < 60:
+                    dark += 1
+        return light, dark
+
+    def test_a_wudu_drawing_is_dark_on_the_night_screen_and_light_by_day(self):
+        for mode, mostly_dark in (("dark", True), ("light", False)):
+            with self.subTest(mode):
+                w = self.window(mode)
+                w.open_wudu_step("hands")
+                settle(6)
+                light, dark = self.levels(w.wudu_step.films[0])
+                if mostly_dark:
+                    self.assertGreater(dark, light * 2,
+                                       "the night screen is showing a slab of white paper")
+                else:
+                    self.assertGreater(light, dark * 2, "the day screen has gone black")
+
+    def test_an_animated_menu_turns_inside_out_the_same_way(self):
+        for mode, mostly_dark in (("dark", True), ("light", False)):
+            with self.subTest(mode):
+                w = self.window(mode)
+                w.open_corner("hadith")
+                settle(6)
+                light, dark = self.levels(w.hadith_menu.sheet)
+                if mostly_dark:
+                    self.assertGreater(dark, light * 2, "the menu is white paper at night")
+                else:
+                    self.assertGreater(light, dark * 2, "the menu is black by day")
+
+    def test_the_drawings_are_shipped_once_not_once_per_theme(self):
+        """There is no inverted copy of anything on disk. If one ever appears it means somebody
+        solved this with files again, and the two sets will drift."""
+        for folder in ("wudu", "duas-menu", "hadith-menu", "knowledge"):
+            for path in (ASSETS / folder).glob("*"):
+                with self.subTest(path.name):
+                    self.assertNotIn("invert", path.name.lower())
+                    self.assertNotIn("-dark", path.name.lower())
+                    self.assertNotIn("_dark", path.name.lower())
+
+
+class AnimatedMenusTest(unittest.TestCase):
+    """The du'a, hadith and 7in menus are one moving picture with the tiles touchable over it,
+    rather than eighteen, twelve and eight separate ones."""
+
+    SHEETS = (("duas-menu", "dua_menu", 18), ("hadith-menu", "hadith_menu", 12))
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def menus(self, w):
+        out = [(name, getattr(w, attr), n) for _, attr, n in self.SHEETS
+               for name in [attr]]
+        return [("duas", w.dua_menu, 18), ("hadith", w.hadith_menu, 12),
+                ("the 7in", w.side.corner, 8)]
+
+    def test_all_three_are_drawn_as_one_film_rather_than_separate_pictures(self):
+        w = self.window()
+        for name, menu, count in self.menus(w):
+            with self.subTest(name):
+                self.assertIsNotNone(menu.sheet, f"{name} fell back to the stills")
+                self.assertTrue(menu.sheet.ready)
+                self.assertTrue(menu.sheet.film.isValid())
+                self.assertGreater(menu.sheet.film.frameCount(), 1, "it does not move")
+                self.assertEqual(count, len(menu.tiles))
+
+    def test_the_touch_targets_sit_on_the_tiles_they_are_named_after(self):
+        """The boxes are found at build time and written into menu.json in the sheet's own
+        pixels; this is the check that they are scaled onto the right part of the screen."""
+        w = self.window()
+        w.open_corner("hadith")
+        settle(6)
+        sheet = w.hadith_menu.sheet
+        drawn, scale = sheet.placement()
+        self.assertGreater(scale, 0.1)
+        seen = []
+        for tile in sheet.tiles:
+            with self.subTest(tile.name):
+                here = tile.geometry()
+                self.assertTrue(drawn.contains(here),
+                                f"{tile.name} at {here} is off the drawing at {drawn}")
+                self.assertGreater(here.width(), 40)
+                self.assertGreater(here.height(), 40)
+                for other in seen:
+                    self.assertFalse(here.intersects(other),
+                                     f"{tile.name} overlaps another tile")
+                seen.append(here)
+
+    def test_pressing_a_target_opens_what_is_drawn_under_it(self):
+        w = self.window()
+        w.open_corner("duas")
+        settle(6)
+        by_name = {t.name: t for t in w.dua_menu.tiles}
+        by_name["travel"].click()
+        settle()
+        self.assertIs(w.dua_board, w.corner_screen.currentWidget())
+        self.assertEqual("travel", w.dua_board.only)
+
+    def test_the_targets_draw_nothing_so_the_film_shows_through(self):
+        w = self.window()
+        for name, menu, _ in self.menus(w):
+            with self.subTest(name):
+                for tile in menu.tiles:
+                    self.assertTrue(tile.quiet, f"{tile.name} is painting over the film")
+
+    def test_a_menu_nobody_is_looking_at_stops_turning(self):
+        w = self.window()
+        w.open_corner("hadith")
+        settle(6)
+        sheet = w.hadith_menu.sheet
+        self.assertEqual(sheet.film.MovieState.Running, sheet.film.state())
+        w.open_corner("duas")
+        settle(6)
+        self.assertEqual(sheet.film.MovieState.NotRunning, sheet.film.state(),
+                         "the hadith menu is still turning behind the du'a menu")
+        self.assertEqual(w.dua_menu.sheet.film.MovieState.Running,
+                         w.dua_menu.sheet.film.state())
+
+    def test_the_films_are_small_enough_to_put_on_a_mat(self):
+        """They arrived at forty-one megabytes between them."""
+        total = 0
+        for folder in ("duas-menu", "hadith-menu", "knowledge"):
+            film = ASSETS / folder / "menu.gif"
+            with self.subTest(folder):
+                self.assertTrue(film.is_file(), f"{folder} has no film")
+                total += film.stat().st_size
+        self.assertLess(total, 6_000_000, f"the three menus are {total / 1e6:.0f} MB")
+
+    def test_every_tile_the_menu_wants_has_a_box_in_the_file(self):
+        """A sheet redrawn with one tile missing would otherwise show the film with a square
+        that does nothing, which reads as the mat being broken rather than the drawing."""
+        import json
+        from salaah.duamenu import CATEGORIES, SAYINGS
+        from salaah.knowledge import TILES
+        for folder, names in (("duas-menu", CATEGORIES), ("hadith-menu", SAYINGS),
+                              ("knowledge", TILES)):
+            with self.subTest(folder):
+                boxes = json.loads((ASSETS / folder / "menu.json")
+                                   .read_text(encoding="utf-8"))["tiles"]
+                self.assertEqual(set(names), set(boxes),
+                                 f"{folder}: the film and the menu disagree about the tiles")
+
+    def test_a_menu_with_no_film_still_falls_back_to_its_pictures(self):
+        """The wu'du steps have no animated sheet, so they are the live proof that the old way
+        still works -- and if Harry draws one tomorrow, it will pick it up with no code change."""
+        w = self.window()
+        self.assertIsNone(w.wudu_menu.sheet, "the wu'du menu found a film it should not have")
+        self.assertEqual(7, len(w.wudu_menu.tiles))
+        for tile in w.wudu_menu.tiles:
+            self.assertFalse(tile.quiet, "a still tile is not drawing itself")
+            self.assertTrue(tile.path.is_file())

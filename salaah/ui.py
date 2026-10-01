@@ -1408,6 +1408,8 @@ class MainWindow(QtWidgets.QWidget):
 
         self.wudu_step = WuduStep(self)
         self.wudu_step.back.connect(self.open_the_wudu_steps)
+        self.wudu_step.stepped.connect(
+            lambda n: self.open_wudu_step(self.wudu.steps[n]["key"]))
         stack.addWidget(self.wudu_step)
 
         # The same board for the sayings, with the play mark carried down beside the
@@ -1700,7 +1702,7 @@ class MainWindow(QtWidgets.QWidget):
         named = self.t(f"wudu.{key}")
         said = step["text"].get(self.settings.quran_lang or "en") or step["text"].get("en", "")
         self.wudu_step.show_step(step, f"{step['number']} - {named}", said,
-                                 self.t("corner.back"))
+                                 place=self.wudu.steps.index(step), of=len(self.wudu.steps))
         self.corner_screen.setCurrentWidget(self.wudu_step)
         self.stack.setCurrentWidget(self.corner_page)
 

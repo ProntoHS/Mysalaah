@@ -18,6 +18,7 @@ tell nobody that the mat is missing most of them.
 from __future__ import annotations
 
 from .qt import QtCore, QtWidgets, Signal
+from .filmsheet import FilmSheet
 from .knowledge import Tile
 
 # In the order they were drawn: six across, three down. The name is the picture's file name,
@@ -63,6 +64,19 @@ class DuaMenu(QtWidgets.QWidget):
         lay.setContentsMargins(window.px(12), window.px(12), window.px(12), window.px(12))
         lay.setSpacing(window.px(10))
 
+        # Drawn as one moving picture if the folder has one, and as the separate stills if it
+        # does not. The sheet keeps the same Tile objects for its touch targets, so everything
+        # downstream -- the names, the pictures, what a press does -- is the same either way.
+        self.sheet = FilmSheet(window, folder, list(names))
+        if self.sheet.ready:
+            self.sheet.chose.connect(self.chose.emit)
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.addWidget(self.sheet, 0, 0)
+            self.tiles: list[Tile] = self.sheet.tiles
+            return
+        self.sheet.deleteLater()
+        self.sheet = None
+
         self.tiles: list[Tile] = []
         for i, name in enumerate(names):
             tile = Tile(window.images, window.assets / folder / f"{name}.png", name)
@@ -77,6 +91,8 @@ class DuaMenu(QtWidgets.QWidget):
         return all(t.path.is_file() for t in self.tiles)
 
     def follow_theme(self) -> None:
+        if self.sheet is not None:
+            self.sheet.follow_theme()
         for tile in self.tiles:
             tile.update()
 
