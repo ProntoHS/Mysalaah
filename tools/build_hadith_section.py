@@ -45,9 +45,15 @@ WHAT THIS DOES NOT DO, and what a qualified reviewer still has to:
     (Muhsin Khan for Bukhari, Abdul Hamid Siddiqui for Muslim); the dataset publishes them
     under the Unlicense and every hadith site uses them, but their standing is not mine to
     assert, and neither is their accuracy.
-  * Decide what belongs in front of a child. I have kept out narrations about punishments,
-    warfare, slavery and marital intimacy, which is a judgement about this mat and not about
-    the hadith. Somebody who knows the family should look at the list.
+  * Decide what belongs in front of a child. The first version of this table kept out
+    narrations about slavery and about marital intimacy. Harry asked for them, which was the
+    right correction: manumission is one of the great charitable acts in Islam and the hadiths
+    on it are mostly about FREEING people and about what is owed to somebody in your charge;
+    the intimacy ones in these two collections are matters of ritual purity, and one of them --
+    Umm Sulaim's question in Bukhari 3328 -- is the standing proof that asking plainly about
+    such things is not shameful. They are in now. What is still kept out is narration whose
+    language is explicit rather than instructive, which remains a judgement about a mat a child
+    uses and not about the hadith; say the word and it comes out.
 
 That is why the file it writes says reviewed: false, and why the app draws the section with
 that flag showing.
@@ -86,72 +92,101 @@ CHOSEN = {
         ("bukhari", "13"),      # till he wishes for his brother what he likes for himself
         ("muslim", "152"),      # Iman has over seventy branches
         ("bukhari", "7453"),    # My Mercy has preceded My Anger
+        ("bukhari", "6309"),    # more pleased than a man who finds his lost camel
+        ("muslim", "6970"),     # My mercy excels My wrath
+        ("muslim", "470"),      # brought out of the Fire and into the Garden
     ],
     "prayer": [
         ("bukhari", "528"),     # a river at your door, bathed in five times a day
         ("muslim", "550"),      # the five prayers are an expiation
         ("muslim", "1478"),     # in congregation, twenty-seven times over
         ("muslim", "256"),      # prayer at its time, and kindness to parents
+        ("muslim", "1755"),     # make Witr the end of the night
+        ("bukhari", "646"),     # in congregation, twenty-five times over
+        ("muslim", "912"),      # he who blesses me once
     ],
     "purification": [
         ("bukhari", "245"),     # the siwak on rising at night
         ("muslim", "578"),      # ablution done well
         ("bukhari", "6954"),    # no prayer until the ablution is made anew
         ("muslim", "543"),      # ablution, then prayer with humility
+        ("bukhari", "248"),     # how he washed after intimacy
+        ("bukhari", "3328"),    # Umm Sulaim asks, and is answered plainly
+        ("muslim", "591"),      # the tooth-stick on coming in
     ],
     "fasting": [
         ("bukhari", "38"),      # whoever fasts Ramadan out of faith and hope
         ("bukhari", "3277"),    # the gates opened, the gates closed
         ("bukhari", "6057"),    # giving up food is not the point if lying is not given up
         ("bukhari", "1957"),    # hasten the breaking of the fast
+        ("bukhari", "2017"),    # look for the Night of Qadr in the odd nights
+        ("muslim", "2550"),     # the meal before dawn
+        ("muslim", "2676"),     # not on the two Eids
     ],
     "charity": [
         ("bukhari", "1417"),    # even half a date
         ("muslim", "6592"),     # charity does not decrease wealth
         ("muslim", "2386"),     # the upper hand, and begin at home
         ("muslim", "2328"),     # every act of goodness is sadaqa
+        ("bukhari", "6715"),    # freeing a slave, limb for limb
+        ("muslim", "2311"),     # of everything you spend, what you spend on your family
+        ("muslim", "6690"),     # meeting your brother with a cheerful face
     ],
     "hajj": [
         ("bukhari", "1521"),    # returns as if born anew
         ("bukhari", "1773"),    # Umra is an expiation; Hajj Mabrur, nothing but Paradise
         ("bukhari", "1549"),    # the Talbiya, with its meaning
         ("bukhari", "5617"),    # Zamzam
+        ("muslim", "3289"),     # the same, as Muslim has it
+        ("bukhari", "1552"),    # the Talbiya once he was mounted
     ],
     "knowledge": [
         ("bukhari", "5028"),    # those who learn the Qur'an and teach it
         ("bukhari", "71"),      # when Allah wants good for someone
         ("bukhari", "106"),     # do not tell a lie against me
         ("bukhari", "5033"),    # commit yourself to the Qur'an
+        ("bukhari", "75"),      # O Allah, teach him the Book
+        ("bukhari", "109"),     # ascribing to me what I did not say
+        ("bukhari", "5040"),    # the last two verses of al-Baqara at night
     ],
     "character": [
         ("bukhari", "6035"),    # the best among you are the best in character
         ("bukhari", "6114"),    # the strong one is the one who holds himself in anger
         ("bukhari", "6136"),    # his neighbour, his guest, and speaking good or keeping silent
         ("bukhari", "7376"),    # no mercy for those who show none
+        ("bukhari", "6094"),    # truthfulness leads to righteousness
+        ("muslim", "4298"),     # he who strikes his slave: the expiation is to free him
+        ("bukhari", "2550"),    # a slave who serves well and worships well: two rewards
     ],
     "family": [
         ("bukhari", "5971"),    # your mother, your mother, your mother, then your father
         ("bukhari", "5200"),    # all of you are guardians
-        ("bukhari", "5979"),    # be good to your mother
         ("bukhari", "5995"),    # daughters, and what they are to their father
+        ("bukhari", "5199"),    # your body, your eyes and your wife each have a right over you
+        ("bukhari", "5192"),    # the optional fast, and her husband at home
+        ("muslim", "3499"),     # freed her, then married her: two rewards
     ],
     "community": [
         ("bukhari", "6951"),    # a Muslim is a brother of another Muslim
         ("bukhari", "6011"),    # the believers, resembling one body
         ("bukhari", "6076"),    # do not hate one another
         ("bukhari", "6064"),    # beware of suspicion
+        ("muslim", "4326"),     # freeing your share of a slave leaves you owing the rest
     ],
     "daily": [
         ("muslim", "5269"),     # say the Name, eat with your right hand, eat what is near you
         ("bukhari", "6405"),    # Subhan Allah wa bihamdihi, a hundred times
         ("muslim", "6932"),     # Alhamdulillah over a mouthful and a drink
         ("bukhari", "6312"),    # lying down, and waking
+        ("bukhari", "7563"),    # two words, light on the tongue and heavy in the balance
+        ("muslim", "5265"),     # the right hand, for eating and for drinking
     ],
     "hereafter": [
         ("bukhari", "6416"),    # be in this world as a stranger or a traveller
         ("muslim", "4223"),     # three things that do not end
         ("bukhari", "6488"),    # nearer to you than your shoelace
         ("muslim", "7417"),     # the world, to a believer
+        ("bukhari", "6479"),    # the one who remembers Allah until his eyes brim over
     ],
 }
 

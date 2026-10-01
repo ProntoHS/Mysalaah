@@ -28,7 +28,10 @@ from .theme import palette
 # "salaah" is not a section of the Knowledge Corner at all: it is the way back to the front
 # door, and it took the square the six kalima had until the du'a menu gave them one of its own.
 # A tile rather than a button because this menu is six squares and always has been.
-TILES = ("quran", "duas", "salaah", "hadith", "settings", "world")
+# Eight now rather than six: Harry redrew the sheet with Wu'du and Nasheeds on the end and the
+# other six smaller. The two new ones have nothing behind them yet and land on the page that
+# says so, named -- the same thing Hadith and World did until their sections were built.
+TILES = ("quran", "duas", "salaah", "hadith", "settings", "world", "wudu", "nasheeds")
 ACROSS = 2
 
 

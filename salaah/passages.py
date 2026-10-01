@@ -407,11 +407,18 @@ class PassageReader(QtWidgets.QWidget):
         for key, b in self.buttons.items():
             b.setChecked(key == lang)
         self.title.setText(f"{item.title} · {item.ref}" if item.ref else item.title)
-        self.arabic.set_lines([item.arabic])
+        # The sayings show no Arabic at all. Harry asked for the translation and the play
+        # button and nothing else, and a reader that still opened on the Arabic would be the
+        # one screen in the section that disagreed with the board in front of it. The Arabic
+        # stays in hadith.json, because it is what the wording was checked against and what any
+        # reviewer will read first; it is simply not on the glass.
+        sayings = self.passages.section == "hadith"
+        self.arabic.set_lines([] if sayings else [item.arabic])
+        self.arabic.setVisible(not sayings)
         # The du'as show no transliteration; the kalima still do. Same reader, different
         # sections, and the du'as are the ones where it appeared on some and not others.
-        self.said.setText("" if self.passages.section == "duas" else item.said)
-        self.said.setVisible(self.passages.section != "duas")
+        self.said.setText("" if self.passages.section in ("duas", "hadith") else item.said)
+        self.said.setVisible(self.passages.section not in ("duas", "hadith"))
         self.meaning.setText(item.meaning(lang))
         rtl = lang in RTL
         self.meaning.setAlignment(Qt.AlignmentFlag.AlignCenter)

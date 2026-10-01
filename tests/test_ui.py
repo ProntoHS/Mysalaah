@@ -3540,10 +3540,11 @@ class KnowledgeCornerTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         return w
 
-    def test_the_small_screen_offers_six_things_between_prayers(self):
+    def test_the_small_screen_offers_eight_things_between_prayers(self):
         w = self.window()
         self.assertTrue(w.side.showing_corner, "the 7in should show the corner between prayers")
-        self.assertEqual(["quran", "duas", "salaah", "hadith", "settings", "world"],
+        self.assertEqual(["quran", "duas", "salaah", "hadith", "settings", "world",
+                          "wudu", "nasheeds"],
                          [t.name for t in w.side.corner.tiles])
 
     def test_the_posture_takes_the_small_screen_back_during_a_prayer(self):
@@ -6858,17 +6859,19 @@ class SixTileMenuTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         return w
 
-    def test_the_tiles_sit_two_across_and_three_down(self):
+    def test_the_tiles_sit_two_across_and_four_down(self):
+        """Three down until Harry redrew the sheet with Wu'du and Nasheeds on the end."""
         w = self.window()
         tiles = w.side.corner.tiles
-        self.assertEqual(6, len(tiles))
+        self.assertEqual(8, len(tiles))
         columns = sorted({t.x() for t in tiles})
         rows = sorted({t.y() for t in tiles})
         self.assertEqual(2, len(columns), f"expected two columns, got {columns}")
-        self.assertEqual(3, len(rows), f"expected three rows, got {rows}")
+        self.assertEqual(4, len(rows), f"expected four rows, got {rows}")
         # reading order: across, then down
         order = sorted(tiles, key=lambda t: (t.y(), t.x()))
-        self.assertEqual(["quran", "duas", "salaah", "hadith", "settings", "world"],
+        self.assertEqual(["quran", "duas", "salaah", "hadith", "settings", "world",
+                          "wudu", "nasheeds"],
                          [t.name for t in order])
 
     def test_the_heading_is_gone_and_the_tiles_take_the_height(self):
@@ -6886,12 +6889,12 @@ class SixTileMenuTest(unittest.TestCase):
         self.assertGreater(bottom, w.side.height() * 0.95, "space wasted below them")
 
     def test_every_tile_has_its_own_picture_and_they_are_all_different(self):
-        """The picture each tile is actually pointed at, not the files on disk. Six correct
+        """The picture each tile is actually pointed at, not the files on disk. Eight correct
         files prove nothing if every tile is wired to the same one -- which is exactly what
         the first version of this missed."""
         w = self.window()
         pointed = {t.name: t.path for t in w.side.corner.tiles}
-        self.assertEqual(6, len(set(pointed.values())), f"tiles share pictures: {pointed}")
+        self.assertEqual(8, len(set(pointed.values())), f"tiles share pictures: {pointed}")
         seen = {}
         for name, path in pointed.items():
             self.assertEqual(f"{name}.png", path.name, f"{name} is pointed at {path.name}")
@@ -6968,7 +6971,7 @@ class SixTileMenuTest(unittest.TestCase):
         import json
         from salaah.knowledge import TILES
         readings = [n for n in TILES if n != "settings"]
-        self.assertEqual(5, len(readings))
+        self.assertEqual(7, len(readings))
         for lang in sorted(available_packs(ASSETS)):
             ui = json.loads((ASSETS / "content" / "packs" / lang / "pack.json")
                             .read_text(encoding="utf-8"))["ui"]
@@ -9722,20 +9725,19 @@ class SayingsBoardTest(unittest.TestCase):
                         "the two cards are not side by side")
         self.assertIsNotNone(board.rule, "there is no rule between the columns")
 
-    def test_the_play_mark_sits_with_the_translation_and_not_over_the_arabic(self):
+    def test_the_play_mark_sits_beside_the_translation(self):
         w = self.window()
         for card in w.hadith_board.cards:
             with self.subTest(card.item.ref):
-                self.assertTrue(card.mark_by_meaning)
+                self.assertTrue(card.sayings)
                 mark = card.button.mapTo(card, QtCore.QPoint(0, 0)).y()
-                arabic = card.arabic.mapTo(card, QtCore.QPoint(0, 0)).y()
-                self.assertGreater(mark, arabic,
-                                   "the mark is above the Arabic, where a du'a keeps it")
-                beside = card.meaning.mapTo(card, QtCore.QPoint(0, 0)).y()
-                self.assertLess(abs(mark - beside), card.height() * 0.2,
+                words = card.english.mapTo(card, QtCore.QPoint(0, 0)).y()
+                self.assertLess(abs(mark - words), card.height() * 0.2,
                                 "the mark is not alongside the translation")
-                self.assertLess(card.button.geometry().right(), card.meaning.geometry().left(),
+                self.assertLess(card.button.geometry().right(), card.english.geometry().left(),
                                 "the mark is not to the left of the words it belongs to")
+                self.assertLess(card.name.geometry().bottom(), card.button.geometry().top(),
+                                "the heading is not above the two of them")
 
     def test_it_is_the_same_size_mark_as_the_duas(self):
         w = self.window()
@@ -9751,7 +9753,7 @@ class SayingsBoardTest(unittest.TestCase):
         w.open_dua_category("travel")
         settle()
         for card in w.dua_board.cards:
-            self.assertFalse(card.mark_by_meaning)
+            self.assertFalse(card.sayings)
             self.assertLess(card.button.mapTo(card, QtCore.QPoint(0, 0)).y(),
                             card.arabic.mapTo(card, QtCore.QPoint(0, 0)).y())
 
@@ -9765,31 +9767,226 @@ class SayingsBoardTest(unittest.TestCase):
                 self.assertEqual(card.item.ref, card.name.text())
                 self.assertTrue(card.name.text().startswith(("Sahih al-Bukhari", "Sahih Muslim")))
 
-    def test_even_the_longest_narration_is_drawn_big_enough_to_read(self):
-        """A du'a is a line or two; a narration carries its chain in front of it and runs to six
-        hundred letters. Squeezed into half a screen the longest came out at 26px. They are
-        given the height instead now, and the board scrolls."""
+    def test_there_is_no_arabic_anywhere_in_the_section(self):
+        """Harry asked for the translation and the play button and nothing else. The Arabic is
+        still in hadith.json -- it is what the wording was checked against -- and this is the
+        check that none of it reaches the glass, on the board or on the reader behind it."""
         from salaah.duamenu import SAYINGS
-        from salaah.duaboard import SAYING_LEAST
         w = self.window()
-        smallest, worst = 999, ""
         for kind in SAYINGS:
-            for _ in range(4):         # the pair is drawn fresh each visit, so go round a few
+            with self.subTest(kind):
                 w.open_saying_category(kind)
                 settle()
                 for card in w.hadith_board.cards:
-                    size = card.arabic.fitted_size()
+                    # Walked rather than asked. The first version of this checked
+                    # card.arabic.isVisible(), which is False for a box that was never put on
+                    # the card at all -- so it would have passed just as happily with the
+                    # Arabic drawn by some other route, and removing the line that hides it
+                    # changed nothing. What is checked now is every widget actually on the
+                    # card and what it is holding.
+                    self.assertIsNone(card.arabic.parentWidget(),
+                                      "the Arabic box is on the card")
+                    for bit in card.findChildren(QtWidgets.QWidget):
+                        if not bit.isVisible():
+                            continue
+                        words = "".join(getattr(bit, "lines", []) or []) \
+                            + (bit.text() if hasattr(bit, "text") else "")
+                        self.assertFalse(any("\u0600" <= c <= "\u06ff" for c in words),
+                                         f"{card.item.ref}: Arabic on a {type(bit).__name__}")
+                    self.assertTrue(card.english.isVisible())
+                    self.assertTrue(card.item.arabic, "the Arabic was dropped from the file too")
+        # And the reader behind the board
+        w.open_saying_category("faith")
+        settle()
+        w.open_passage("hadith", w.hadith_board.showing[0][0])
+        settle()
+        reader = w.section_readers["hadith"]
+        self.assertFalse(reader.arabic.isVisible(), "the reader still opens on the Arabic")
+        self.assertEqual([], reader.arabic.lines)
+
+    def test_the_translation_is_drawn_as_large_as_its_card_allows(self):
+        """With the Arabic gone the translation is the card. A label at a size fixed by the
+        stylesheet would leave a short saying swimming and run a long one off the bottom, so it
+        is drawn in the same fitting box the Arabic used to have."""
+        from salaah.duamenu import SAYINGS
+        from salaah.duaboard import SAYING_FLOOR, SAYING_CAP
+        w = self.window()
+        smallest, biggest, worst = 999, 0, ""
+        for kind in SAYINGS:
+            for _ in range(3):
+                w.open_saying_category(kind)
+                settle()
+                for card in w.hadith_board.cards:
+                    size = card.english.fitted_size()
                     if size < smallest:
                         smallest, worst = size, card.item.ref
-        self.assertGreaterEqual(smallest, int(SAYING_LEAST * w.s),
+                    biggest = max(biggest, size)
+        self.assertGreaterEqual(smallest, int(SAYING_FLOOR * w.s),
                                 f"{worst} is drawn at {smallest}px")
+        self.assertLessEqual(biggest, int(SAYING_CAP * w.s))
+        self.assertGreater(biggest, smallest,
+                           "every saying came out the same size, so nothing is being fitted")
 
-    def test_the_duas_did_not_grow_a_scroll_bar_of_their_own(self):
-        """The extra height is for the sayings only. A du'a board fits its screen by
-        construction, and a scroll bar on it would mean a du'a had gone off the bottom."""
+    def test_the_duas_still_show_their_arabic(self):
+        """The Arabic came off the sayings, not off the du'as -- which are Arabic you say, and
+        a du'a card with only the English on it would be the wrong screen entirely."""
         w = self.window()
         w.open_dua_category("travel")
         settle()
         for card in w.dua_board.cards:
-            self.assertEqual(0, card.arabic.minimumHeight(),
-                             "a du'a card is asking for room it does not need")
+            self.assertTrue(card.arabic.isVisible())
+            self.assertEqual([card.item.arabic], card.arabic.lines)
+            self.assertIsNone(card.english, "a du'a card built itself a translation box")
+            self.assertIs(card.words, card.arabic, "the voice would light the wrong box")
+
+
+class TwoNewTilesTest(unittest.TestCase):
+    """Harry redrew the 7in sheet with Wu'du and Nasheeds on the end. Neither has a section
+    behind it yet, so both land on the page that says so -- named, so it says WHICH one."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_both_of_them_are_drawn_and_touchable(self):
+        w = self.window()
+        tiles = {t.name: t for t in w.side.corner.tiles}
+        for name in ("wudu", "nasheeds"):
+            with self.subTest(name):
+                self.assertIn(name, tiles)
+                self.assertEqual(f"{name}.png", tiles[name].path.name)
+                self.assertTrue(tiles[name].path.is_file())
+                self.assertTrue(tiles[name].isEnabled())
+
+    def test_each_lands_on_a_page_that_says_which_one_is_coming(self):
+        w = self.window()
+        tiles = {t.name: t for t in w.side.corner.tiles}
+        for name in ("wudu", "nasheeds"):
+            with self.subTest(name):
+                w.go_home()
+                settle()
+                tiles[name].click()
+                settle()
+                self.assertIs(w.corner_soon, w.corner_screen.currentWidget())
+                self.assertIs(w.corner_page, w.stack.currentWidget())
+                self.assertEqual(w.t(f"corner.{name}"), w.soon_title.text())
+                self.assertTrue(w.soon_title.text().strip(), "the page is headed with nothing")
+                said = [x.text() for x in w.corner_soon.findChildren(QtWidgets.QLabel)]
+                self.assertIn(w.t("corner.not_yet"), said)
+
+    def test_the_two_of_them_are_named_in_every_language_the_mat_speaks(self):
+        for lang, pack in available_packs(ASSETS).items():
+            for name in ("wudu", "nasheeds"):
+                with self.subTest(f"{lang}.{name}"):
+                    self.assertTrue(pack.ui.get(f"corner.{name}", "").strip(),
+                                    f"{lang} cannot name {name}")
+
+    def test_the_six_that_were_there_before_still_go_where_they_went(self):
+        """Two tiles were added to the end of the sheet. If the cut or the naming slipped, the
+        six already working would be the first thing to break, and quietly."""
+        w = self.window()
+        tiles = {t.name: t for t in w.side.corner.tiles}
+        for name, check in (("quran", lambda: w.surah_list is w.corner_screen.currentWidget()),
+                            ("duas", lambda: w.dua_menu is w.corner_screen.currentWidget()),
+                            ("hadith", lambda: w.hadith_menu is w.corner_screen.currentWidget()),
+                            ("world", lambda: w.world_page is w.corner_screen.currentWidget()),
+                            ("settings", lambda: w.settings_screen is w.stack.currentWidget()),
+                            ("salaah", lambda: w.home is w.stack.currentWidget())):
+            with self.subTest(name):
+                w.go_home()
+                settle()
+                tiles[name].click()
+                settle()
+                self.assertTrue(check(), f"the {name} tile landed somewhere new")
+
+
+class FreshPairTest(unittest.TestCase):
+    """Two at a time, and a different two every time the kind is opened -- on both boards.
+
+    It used to be random.sample, which is not the same thing: two drawn out of four at random
+    come up the same about one visit in six, and nothing promises the other two are ever seen.
+    Each kind keeps a shuffled bag now and two are dealt off the top.
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def visits(self, w, opener, board, kind, times=16):
+        out = []
+        for _ in range(times):
+            opener(kind)
+            settle(2)
+            out.append(frozenset(i for i, _ in board.showing))
+        return out
+
+    BOTH = (("sayings", "hadith_board", "open_saying_category", "character"),
+            ("du'as", "dua_board", "open_dua_category", "worry"))
+
+    def test_never_the_same_two_twice_running(self):
+        w = self.window()
+        for name, board, opener, kind in self.BOTH:
+            with self.subTest(name):
+                seen = self.visits(w, getattr(w, opener), getattr(w, board), kind)
+                for before, after in zip(seen, seen[1:]):
+                    self.assertNotEqual(before, after,
+                                        f"{name}: the same pair came up twice running")
+
+    def test_two_at_a_time_and_only_two(self):
+        w = self.window()
+        for name, board, opener, kind in self.BOTH:
+            with self.subTest(name):
+                for pair in self.visits(w, getattr(w, opener), getattr(w, board), kind, 6):
+                    self.assertEqual(2, len(pair), name)
+                self.assertEqual(2, len(getattr(w, board).cards), name)
+
+    def test_the_whole_kind_comes_round_rather_than_the_same_favourites(self):
+        """The thing random sampling could not promise. With a bag, everything in the kind is
+        dealt before anything comes round again."""
+        w = self.window()
+        for name, board, opener, kind in self.BOTH:
+            with self.subTest(name):
+                held = {i for i, item in enumerate(getattr(w, board).passages.items)
+                        if kind in item.cats}
+                seen = set()
+                for pair in self.visits(w, getattr(w, opener), getattr(w, board), kind,
+                                        len(held)):
+                    seen |= pair
+                self.assertEqual(held, seen,
+                                 f"{name}: {len(held) - len(seen)} of {len(held)} never showed "
+                                 f"in {len(held)} visits")
+
+    def test_a_kind_holding_only_two_shows_both_and_does_not_fall_over(self):
+        w = self.window()
+        board = w.hadith_board
+        board.show_only("hereafter", "The Hereafter")
+        settle()
+        board.passages._items = [x for x in board.passages.items
+                                 if "hereafter" not in x.cats][:0] or board.passages.items
+        # A kind with two in it: faked by asking the board for a pair out of exactly two.
+        held = [(i, x) for i, x in enumerate(board.passages.items) if "hereafter" in x.cats][:2]
+        board.wanted = lambda: held
+        board.bags.clear()
+        for _ in range(4):
+            board.show_only("hereafter", "The Hereafter")
+            settle()
+            self.assertEqual(2, len(board.showing))
+            self.assertEqual({i for i, _ in held}, {i for i, _ in board.showing})

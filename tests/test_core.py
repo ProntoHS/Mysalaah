@@ -3451,8 +3451,12 @@ class SayingsContentTest(unittest.TestCase):
                 filed[cat] = filed.get(cat, 0) + 1
         for kind in SAYINGS:
             with self.subTest(kind):
-                self.assertGreaterEqual(filed.get(kind, 0), 2,
-                                        f"{kind} has {filed.get(kind, 0)}, and the board shows two")
+                # Five, not two. The board deals two off a shuffled bag every visit, so a
+                # heading holding two can only ever show the same two -- which is the thing
+                # Harry asked to have fixed, and a count of two would let it back in.
+                self.assertGreaterEqual(filed.get(kind, 0), 5,
+                                        f"{kind} has {filed.get(kind, 0)}; the board deals two "
+                                        f"a visit and nothing should come round that fast")
         self.assertEqual(set(SAYINGS), set(filed), "a saying is filed under no drawn heading")
 
     def test_no_saying_is_in_the_file_twice(self):
@@ -3541,3 +3545,47 @@ class SayingsCrossCheckTest(unittest.TestCase):
         for word in ("Narrated", "Anas", "Prophet", "faith"):
             self.assertIn(word, said)
         self.assertEqual("Already whole.", self.build.tidy("Already whole."))
+
+
+class SayingsSubjectsTest(unittest.TestCase):
+    """The subjects Harry asked to have put back.
+
+    The first table kept out narrations about slavery and about marital intimacy, which was my
+    judgement and not his. He overruled it, and he was right to: the manumission hadiths in
+    these two collections are overwhelmingly about FREEING people and about what is owed to
+    anybody in your charge, and the intimacy ones are matters of ritual purity -- one of them
+    being the standing proof that asking plainly about such things is not shameful.
+
+    Checked by what the narrations SAY rather than by hadith number, so a reviewer swapping one
+    for a better one of the same subject does not fail this.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                               .read_text(encoding="utf-8"))["items"]
+
+    def saying(self, *words):
+        return [i for i in self.items
+                if any(w in i["text"]["en"].lower() for w in words)]
+
+    def test_the_section_speaks_about_freeing_people(self):
+        found = self.saying("manumit", "emancipat", "set free", "set him free", "freeing")
+        self.assertGreaterEqual(len(found), 3,
+                                "the section says nothing about freeing a slave")
+        self.assertGreater(len({i["cats"][0] for i in found}), 1,
+                           "they are all filed under one heading")
+
+    def test_it_speaks_about_what_is_owed_to_somebody_in_your_charge(self):
+        found = self.saying("slave", "servant")
+        self.assertTrue(any("expiation" in i["text"]["en"].lower()
+                            or "reward" in i["text"]["en"].lower() for i in found),
+                        "nothing on how somebody in your charge is to be treated")
+
+    def test_it_speaks_about_marriage_and_the_washing_that_follows(self):
+        found = self.saying("janaba", "bath", "husband", "wife", "married")
+        self.assertGreaterEqual(len(found), 3, "the section avoids the subject entirely")
+
+    def test_there_are_enough_of_them_that_a_heading_does_not_repeat_within_a_sitting(self):
+        self.assertGreaterEqual(len(self.items), 70,
+                                f"only {len(self.items)} sayings in the whole section")

@@ -32,15 +32,11 @@ ARABIC_FLOOR = 30
 ARABIC_CAP = 110
 RULE = 6               # the line between the columns, in unscaled pixels: thick, as asked
 
-# The smallest the Arabic of a SAYING is allowed to be drawn, which is a different number from
-# the du'as' floor because a hadith is a different length of thing. A du'a is a line or two and
-# always fits; a narration carries its chain of narrators in front of it and runs to five or six
-# hundred letters. Squeezed into half a screen those came out at 26px -- present, and no use to
-# anybody stood on a mat a few feet away. So a card whose Arabic will not fit at this size is
-# made taller instead of smaller, and the board, which has always been inside a scroll area,
-# scrolls to it. Measured rather than picked: at 44 every saying in the section draws between
-# 44 and 73px, where before the longest six came out at 26 to 33.
-SAYING_LEAST = 44
+# The translation of a saying, which is now the only thing on its card. Lower than the Arabic's
+# cap because Latin letters at 110px would give about eight words to a card, and higher than its
+# floor because with the Arabic gone there is a whole card's worth of room for it.
+SAYING_FLOOR = 26
+SAYING_CAP = 64
 
 
 class DuaCard(QtWidgets.QFrame):
@@ -49,15 +45,16 @@ class DuaCard(QtWidgets.QFrame):
     play = Signal(int)
     opened = Signal(int)
 
-    def __init__(self, window, index: int, item, meaning: str, mark_by_meaning: bool = False):
+    def __init__(self, window, index: int, item, meaning: str, sayings: bool = False):
         super().__init__()
         self.win = window
         self.index = index
         self.item = item
-        # Which side of the card the play mark sits on. On a du'a it is up at the top beside
-        # the name, over the Arabic. Harry asked for the sayings to carry it down beside the
-        # translation instead, which is the half of a hadith card you actually read.
-        self.mark_by_meaning = mark_by_meaning
+        # Whether this card is a saying rather than a du'a. Three things follow from it: the
+        # heading is the collection and number instead of a name, the play mark sits beside the
+        # translation instead of over the Arabic, and there is no Arabic at all -- Harry asked
+        # for the translation and the play button and nothing else.
+        self.sayings = sayings
         self.setObjectName("duaCard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         lay = QtWidgets.QVBoxLayout(self)
@@ -74,7 +71,7 @@ class DuaCard(QtWidgets.QFrame):
         self.button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.button.setToolTip(window.t("quran.recite"))
         self.button.clicked.connect(lambda: self.play.emit(self.index))
-        if not mark_by_meaning:
+        if not sayings:
             top.addWidget(self.button, 0, Qt.AlignmentFlag.AlignTop)
 
         # A du'a is headed by its name. A saying is headed by where it comes from -- the
@@ -82,7 +79,7 @@ class DuaCard(QtWidgets.QFrame):
         # not somebody's summary of it, and because it is what anybody wanting to check the
         # thing needs. The first go used the collection's own chapter name and put "Good
         # Manners and Form (Al-Adab)" over both cards on the screen at once.
-        self.name = QtWidgets.QLabel(item.ref if mark_by_meaning else item.title)
+        self.name = QtWidgets.QLabel(item.ref if sayings else item.title)
         self.name.setObjectName("duaCardName")
         self.name.setWordWrap(True)
         top.addWidget(self.name, 1)
@@ -95,7 +92,6 @@ class DuaCard(QtWidgets.QFrame):
                               ARABIC_FLOOR, ARABIC_CAP, rtl=True, by_word=True)
         self.arabic.scale = window.s
         self.arabic.set_lines([item.arabic])
-        lay.addWidget(self.arabic, 1)
 
         # No transliteration here. Ten of the forty-eight du'as had one and thirty-eight did
         # not, so it was a line that appeared on some cards and not others; and now that every
@@ -105,14 +101,30 @@ class DuaCard(QtWidgets.QFrame):
         self.meaning = QtWidgets.QLabel(meaning)
         self.meaning.setObjectName("duaCardMeaning")
         self.meaning.setWordWrap(True)
-        if mark_by_meaning:
+        if sayings:
+            # The translation is the whole card now, so it is drawn in the same box the Arabic
+            # had rather than in a label at a size fixed by the stylesheet: a narration runs
+            # from a hundred letters to five hundred, and one size cannot serve both without
+            # either overflowing the short card or wasting most of the long one.
+            self.english = TextBox(Fonts.english_family, SAYING_FLOOR, SAYING_CAP,
+                                   rtl=False, by_word=True)
+            self.english.scale = window.s
+            self.english.set_lines([meaning])
             under = QtWidgets.QHBoxLayout()
             under.setSpacing(window.px(10))
             under.addWidget(self.button, 0, Qt.AlignmentFlag.AlignTop)
-            under.addWidget(self.meaning, 1)
-            lay.addLayout(under)
+            under.addWidget(self.english, 1)
+            lay.addLayout(under, 1)
+            self.meaning.setVisible(False)
+            self.arabic.setVisible(False)
         else:
+            self.english = None
+            lay.addWidget(self.arabic, 1)
             lay.addWidget(self.meaning)
+        # The box the voice lights word by word as it reads: a du'a's Arabic, a saying's
+        # translation. When Harry records the sayings the timings will be against the English,
+        # which is the text on the screen -- so this is the box either way.
+        self.words = self.english if sayings else self.arabic
         self.draw_mark(False)
 
     # Twice what it was. It is the thing on this screen most likely to be aimed at -- there is
@@ -132,29 +144,6 @@ class DuaCard(QtWidgets.QFrame):
         if self.rect().contains(ev.position().toPoint()):
             self.opened.emit(self.index)
         super().mouseReleaseEvent(ev)
-
-    def resizeEvent(self, ev):
-        super().resizeEvent(ev)
-        self.room_for_the_arabic()
-
-    def room_for_the_arabic(self) -> None:
-        """Give a long saying the height it needs rather than shrinking it to fit.
-
-        Only for the sayings. The du'as fit their half of the screen by construction and asking
-        for extra height there would put a scroll bar on a screen that has never needed one.
-
-        Guarded on the width it was last measured at, because the answer only changes when the
-        column changes width -- and setting a minimum height triggers another resize, which
-        without the guard is a loop that lays the screen out until the mat gives up.
-        """
-        if not self.mark_by_meaning:
-            return
-        wide = self.arabic.width()
-        if wide < 50 or wide == getattr(self, "_measured_at", 0):
-            return
-        self._measured_at = wide
-        want = self.arabic.height_at(int(SAYING_LEAST * self.win.s))
-        self.arabic.setMinimumHeight(int(want / TextBox.SLACK) + self.win.px(8))
 
 
 class Rule(QtWidgets.QWidget):
@@ -181,12 +170,14 @@ class DuaBoard(QtWidgets.QWidget):
     chose = Signal(int)
     play = Signal(int)
 
-    def __init__(self, window, passages, mark_by_meaning: bool = False):
+    def __init__(self, window, passages, sayings: bool = False):
         super().__init__()
         self.win = window
         self.passages = passages
-        self.mark_by_meaning = mark_by_meaning
+        self.sayings = sayings
         self.only = None
+        # A shuffled bag per kind, dealt from two at a time. See pick().
+        self.bags: dict[str | None, list[int]] = {}
         self.setObjectName("duaBoard")
         # Which card is being read aloud, if any, and the clock that follows the words.
         self.said_by: DuaCard | None = None
@@ -251,12 +242,35 @@ class DuaBoard(QtWidgets.QWidget):
                 if self.only is None or self.only in item.cats]
 
     def pick(self) -> list:
-        """The two to show, chosen fresh. Every kind holds at least three, so this is a real
-        choice and not the same pair every time."""
+        """The two to show, dealt off a shuffled bag rather than drawn at random.
+
+        It used to be random.sample, which is not what "it changes every time" means. Drawing
+        two out of four at random gives you the same two about one visit in six, and gives no
+        promise that the other two are ever seen -- Harry pressed it twice and got the same
+        pair, which is exactly the arithmetic working as written.
+
+        So each kind keeps a shuffled bag of its own. Two are dealt off the top each visit and
+        the bag is topped up, in a fresh shuffle, when it runs low: everything in the kind is
+        seen before anything comes round again, and the pair is never the pair just shown. A
+        kind holding only two can of course only show those two.
+        """
         mine = self.wanted()
         if len(mine) <= ON_SCREEN:
             return mine
-        return random.sample(mine, ON_SCREEN)
+        bag = self.bags.get(self.only, [])
+        if len(bag) < ON_SCREEN:
+            fresh = [k for k in range(len(mine)) if k not in bag]
+            random.shuffle(fresh)
+            # Not the pair that is on screen now. Only reachable when the bag ran out exactly
+            # as the last pair was dealt, which on a kind of four is every other visit.
+            just = {i for i, _ in self.showing}
+            for _ in range(20):
+                if not just or not {mine[k][0] for k in (bag + fresh)[:ON_SCREEN]} <= just:
+                    break
+                random.shuffle(fresh)
+            bag = bag + fresh
+        self.bags[self.only] = bag[ON_SCREEN:]
+        return [mine[k] for k in bag[:ON_SCREEN]]
 
     def show_only(self, cat: str | None, heading: str = "") -> None:
         """Open a kind. This is where the pair is drawn -- not in fill(), which runs again
@@ -291,7 +305,7 @@ class DuaBoard(QtWidgets.QWidget):
         lang = self.language()
         for place, (index, item) in enumerate(self.showing):
             card = DuaCard(self.win, index, item, item.meaning(lang),
-                           mark_by_meaning=self.mark_by_meaning)
+                           sayings=self.sayings)
             card.opened.connect(self.chose.emit)
             # Straight to the board's own player, with the card's place bound rather than the
             # du'a's number in the file: the board reads it here, so it is the board's business.
@@ -364,7 +378,7 @@ class DuaBoard(QtWidgets.QWidget):
             return
         self.follow.stop()
         self.win.recitation.stop()
-        self.said_by.arabic.set_highlight(None)
+        self.said_by.words.set_highlight(None)
         self.said_by.draw_mark(False)
         self.said_by = None
 
@@ -382,4 +396,4 @@ class DuaBoard(QtWidgets.QWidget):
         if position is None:
             return
         word = self.said_by.item.word_at(position)
-        self.said_by.arabic.set_highlight(None if word is None else (0, word))
+        self.said_by.words.set_highlight(None if word is None else (0, word))
