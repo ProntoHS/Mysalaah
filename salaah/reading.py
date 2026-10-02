@@ -47,11 +47,16 @@ STOP = "\u25a0"
 NUMBER_BOX = 64          # the square's side, before scaling
 NUMBER_LINE = 4          # and how thick its outline is drawn
 
-# The slider down the side of the lists. Three times the 14px a desktop gives it: this is a
+# The slider down the side of the lists. Four times the 14px a desktop gives it: this is a
 # touchscreen, and 14px is a target for a mouse pointer, not for the side of a thumb. The lists
 # resize to whatever the slider leaves, so the rows give up the width rather than the slider
 # sitting on top of them.
-LIST_BAR = 42
+#
+# 42 at first, which was already three times a desktop's, and Harry asked for it thicker again
+# after using it. He is the one dragging it on glass: 56px is about a centimetre on the mat's
+# screen, which is the width of the thumb doing the dragging rather than the width of the line
+# somebody thought looked right.
+LIST_BAR = 56
 
 
 class SurahList(QtWidgets.QWidget):

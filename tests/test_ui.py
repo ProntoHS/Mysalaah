@@ -2785,6 +2785,59 @@ class MenusAreDrawnInEveryLanguageTest(unittest.TestCase):
                     self.assertLess(moved, 12, f"{name} has moved {moved}px in {lang}")
 
 
+class ListSliderIsThickEnoughForAThumbTest(unittest.TestCase):
+    """The slider down the side of the surah list, and the other lists that share it.
+
+    A desktop draws this 14px wide, which is a target for a mouse pointer. It went to 42 when
+    the lists were built and Harry asked for it thicker again after dragging it on glass, so
+    it is 56 -- about a centimetre on the mat's screen, which is the width of the thumb doing
+    the dragging rather than the width of a line somebody thought looked right.
+    """
+
+    def window(self, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_the_surah_list_slider_is_drawn_at_the_width_asked_for(self):
+        from salaah.reading import LIST_BAR
+        w = self.window()
+        w.open_corner("quran")
+        settle(8)
+        bar = w.surah_list.scroll.verticalScrollBar()
+        self.assertTrue(bar.isVisible(), "there is no slider on a list of 114")
+        self.assertGreaterEqual(bar.width(), int(LIST_BAR * w.s) - 2,
+                                f"the slider came out {bar.width()}px")
+
+    def test_it_is_thicker_than_it_was_and_far_thicker_than_a_desktops(self):
+        """Measured against the two numbers that mean something: 14px is what Qt gives a
+        mouse, and 42 is where this was before Harry used it."""
+        from salaah.reading import LIST_BAR
+        self.assertGreater(LIST_BAR, 42, "no thicker than it already was")
+        self.assertGreater(LIST_BAR, 14 * 3)
+        self.assertLess(LIST_BAR, 90, "a slider, not a column")
+
+    def test_the_list_gives_up_the_width_rather_than_being_sat_on(self):
+        """A fatter slider must take its room out of the rows, not cover them. The rows are
+        what somebody is aiming at, and a surah with its last word under the slider is worse
+        than a thin slider."""
+        w = self.window()
+        w.open_corner("quran")
+        settle(8)
+        bar = w.surah_list.scroll.verticalScrollBar()
+        inner = w.surah_list.scroll.widget()
+        self.assertLessEqual(inner.width(), w.surah_list.scroll.width() - bar.width() + 2,
+                             "the rows run underneath the slider")
+
+
 class WuduFollowsTheLanguageTest(unittest.TestCase):
     """The wu'du section in the language the mat is set to -- the drawings and the words.
 
@@ -2817,6 +2870,32 @@ class WuduFollowsTheLanguageTest(unittest.TestCase):
                     name = f"step-{key}.png" if lang == "en" else f"step-{key}.{lang}.png"
                     path = ASSETS / "wudu" / name
                     self.assertTrue(path.is_file(), f"{name} is missing")
+
+    def test_no_two_steps_in_a_language_are_the_same_picture(self):
+        """The failure a mis-cut sheet actually produces: the same slice written under two
+        names, or a step left holding its neighbour's drawing.
+
+        WHAT THIS DOES NOT CHECK, and why there is no test that does: that each picture shows
+        the step it is named after. The sheets are cut by arithmetic from a fixed grid, and
+        getting that arithmetic backwards is a real risk -- the Arabic and Urdu sheets read
+        right to left, so their slices are handed to the steps in reverse. Four ways of
+        checking it by pixels were tried and all four were too weak to rely on: the tiles are
+        nine tenths white paper, steps 1 and 4 are both a boy at a sink, and the numeral in
+        the circle comes out of a crop that also catches Devanagari and Han headings. A test
+        tuned until it passed would have proved nothing. The mapping was checked by eye
+        instead, on a contact sheet of all fourteen captions in key order -- 1 غسل اليدين
+        through 7 غسل القدمين and the Urdu beside it -- which is the right instrument for
+        "does this picture say one and show hands".
+        """
+        for lang in WRITTEN_IN + (ARABIC_ONLY,):
+            seen = {}
+            for key in self.KEYS:
+                name = f"step-{key}.png" if lang == "en" else f"step-{key}.{lang}.png"
+                raw = (ASSETS / "wudu" / name).read_bytes()
+                with self.subTest(f"{lang}.{key}"):
+                    self.assertNotIn(raw, seen,
+                                     f"{name} is the same picture as {seen.get(raw)}")
+                seen[raw] = name
 
     def test_the_tiles_loaded_are_the_ones_for_that_language(self):
         for lang in ("fr", "ur", "zh", ARABIC_ONLY):
@@ -6166,6 +6245,42 @@ class AzaanScreenTest(unittest.TestCase):
             missing = [lang for lang in langs if not line.get("text", {}).get(lang, "").strip()]
             self.assertEqual([], missing, f"{line['key']} has no meaning in {missing}")
 
+    def test_the_call_covers_the_whole_screen(self):
+        """It was 88% by 92% -- a box on top of the mat with prayer times showing round the
+        edge. The call is not a message about something else happening; it is what the mat is
+        doing, so it takes the screen."""
+        w = self.window()
+        b = self.box(w)
+        self.assertEqual(w.size(), b.size(),
+                         "the call is still a box in the middle of the screen")
+        self.assertEqual(w.pos(), b.pos())
+
+    def test_stop_is_a_big_square_in_the_top_corner(self):
+        """Harry asked for it moved off the bottom. On a full screen the bottom edge is a long
+        way from a thumb, and this is the one thing on the screen to press -- at the one moment
+        somebody wants it, which is when the mat has started calling out in a quiet house."""
+        w = self.window()
+        b = self.box(w)
+        stop = b.stop_button
+        self.assertTrue(stop.isVisible())
+        self.assertEqual(stop.width(), stop.height(), f"not square: {stop.size()}")
+        self.assertGreaterEqual(stop.width(), 90, "too small to aim at in a hurry")
+        # Top right of the box, not the bottom.
+        middle = stop.mapTo(b, stop.rect().center())
+        self.assertLess(middle.y(), b.height() * 0.25, "it is not at the top")
+        self.assertGreater(middle.x(), b.width() * 0.75, "it is not on the right")
+
+    def test_stop_is_square_in_every_language_it_is_labelled_in(self):
+        """The word is Arrêter in French and رک جائیں in Urdu, so a size written into the
+        stylesheet would clip the long ones. It is measured against the screen instead."""
+        for lang in ("en", "fr", "ur", "zh"):
+            with self.subTest(lang):
+                w = self.window(lang=lang)
+                stop = self.box(w).stop_button
+                self.assertEqual(stop.width(), stop.height(), f"{lang}: {stop.size()}")
+                self.assertGreaterEqual(stop.width(), stop.sizeHint().width() * 0.5,
+                                        "the label will not fit in it")
+
     def test_fajr_carries_the_line_the_other_four_do_not(self):
         w = self.window()
         ordinary = w.adhan.shown("azaan.mp3")
@@ -6348,13 +6463,22 @@ class AzaanScreenTest(unittest.TestCase):
         self.assertIsNone(w.call_box, "the box should be let go of when it closes")
         self.assertFalse(w.call.playing)
 
-    def test_the_box_never_covers_the_whole_screen(self):
-        """It is a box on top of the mat, not another screen: the mosque shows round the edge."""
+    def test_it_has_no_border_or_rounded_corners_now_it_fills_the_screen(self):
+        """This test used to say the opposite, and said it for a reason: the box was 88% of
+        the screen, so the mosque showing round the edge was what made it read as a notice on
+        top of the mat rather than a new screen.
+
+        Harry has asked for the full screen, which settles it the other way -- and takes the
+        border and the rounded corners with it. They were the edge of a box; on a screen that
+        reaches the bezel there is no edge for them to sit on, and a white line down the side
+        of a full screen is a white line.
+        """
         w = self.window()
         box = self.box(w)
-        self.assertLess(box.width(), w.width())
-        self.assertLess(box.height(), w.height())
-        self.assertGreater(box.width(), w.width() * 0.6, "and big enough to read across a room")
+        style = box.styleSheet()
+        self.assertNotIn("border-radius", style.split("QDialog#callBox QPushButton")[0],
+                         "the box still has rounded corners")
+        self.assertNotIn("solid #FFFFFF", style, "the box still has a white border round it")
 
     def test_the_words_are_marked_as_not_yet_read_over_by_a_reader_of_arabic(self):
         """Drafted, not checked. The flag is what says so; when Harry has read the lines on the
@@ -6530,9 +6654,15 @@ class TouchableSliderTest(unittest.TestCase):
         settle()
         return w.section_lists["duas"]
 
-    def test_the_list_slider_is_three_times_the_one_in_settings(self):
+    def test_the_list_slider_is_far_wider_than_the_one_in_settings(self):
         """Settings is read sitting still and its slider is the ordinary 14px. The lists are
-        scrolled through with a thumb while standing over the mat."""
+        scrolled through with a thumb while standing over the mat.
+
+        Measured against LIST_BAR rather than a multiple written in here. It was exactly three
+        times the settings one until Harry used it and asked for more, at which point a test
+        saying "three times" failed on a change that was the point of the exercise.
+        """
+        from salaah.reading import LIST_BAR
         w = self.window()
         w.open_settings()
         settle()
@@ -6540,7 +6670,8 @@ class TouchableSliderTest(unittest.TestCase):
         self.assertEqual(14, thin, "the settings slider was the one measured against")
         for name, listing in (("surahs", self.surahs(w)), ("du'as", self.duas(w))):
             wide = listing.scroll.verticalScrollBar().width()
-            self.assertEqual(thin * 3, wide, f"the {name} slider is {wide}px, not three times {thin}")
+            self.assertEqual(w.px(LIST_BAR), wide, f"the {name} slider is {wide}px")
+            self.assertGreaterEqual(wide, thin * 3, "no wider than a mouse's slider")
 
     def test_settings_keeps_its_thin_one(self):
         """Only the lists changed. Widening every slider in the app would have eaten the
@@ -6609,9 +6740,10 @@ class TouchableSliderTest(unittest.TestCase):
         # until it is asked for. Turned on, it should be the same wide one as the others.
         listing.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         settle()
+        from salaah.reading import LIST_BAR
         bar = listing.scroll.verticalScrollBar()
         self.assertTrue(bar.isVisible())
-        self.assertEqual(w.px(42), bar.width())
+        self.assertEqual(w.px(LIST_BAR), bar.width())
 
 
 class MuezzinPictureTest(unittest.TestCase):
@@ -9029,13 +9161,15 @@ class CalledWordsTest(unittest.TestCase):
             self.assertLess(above, below,
                             f"{keys[i]}: {above}px under its line, {below}px above the next")
 
-    def test_the_box_leaves_some_of_the_mat_showing(self):
-        """It is a notice on top of the mat, not the mat. Bigger words are not worth the box
-        becoming the whole screen."""
+    def test_it_fills_a_small_screen_too(self):
+        """The second place that said the call must leave the mat showing round the edge, and
+        it meant it: bigger words were not thought worth the box becoming the whole screen.
+        Harry has decided the other way, so the only thing left to check here is that a small
+        screen gets the same treatment as the mat's own -- the sizing is a fraction of the
+        parent, and a fraction is the kind of thing that works at one size and not another."""
         b = self.box(1024, 600)
-        self.assertLess(b.width(), 1024, "the box fills the screen edge to edge")
-        self.assertLess(b.height(), 600)
-        self.assertGreater(b.width() * b.height(), 1024 * 600 * 0.5, "the box has gone small")
+        self.assertEqual(1024, b.width())
+        self.assertEqual(600, b.height())
 
 
 class WorldScreenTest(unittest.TestCase):

@@ -105,19 +105,15 @@ class DuaMenu(QtWidgets.QWidget):
         self.sheet.deleteLater()
         self.sheet = None
 
-        # The tiles go left to right in the order they were drawn, whatever direction the rest
-        # of the mat is laid out in.
+        # The grid follows the app's layout direction, so in Urdu and Arabic the first tile is
+        # the RIGHTMOST one and the row reads right to left.
         #
-        # A grid follows the app's layout direction, so in Urdu and Arabic this put step 7 on
-        # the left and step 1 on the right -- Harry's sheet shown back to front. He drew the
-        # Urdu and Arabic sheets with 1 on the LEFT, like the others, and these tiles are cut
-        # from those sheets in that order; mirroring them is the app disagreeing with the
-        # drawing. It would also have disagreed with the mat: the du'a and hadith menus are a
-        # single picture with buttons laid over it, so they cannot mirror and do not, and the
-        # wu'du page flipping while they stayed put is the sort of thing that reads as a bug.
-        # The numbers are drawn into the tiles, so the order is never in doubt either way.
-        self.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
-
+        # 1.59 pinned this to left-to-right. That was mine and it was wrong. The reasoning was
+        # that Harry had drawn the Urdu and Arabic sheets with step 1 on the left like the
+        # others, so mirroring them showed his drawing back to front -- true at the time, and
+        # the wrong conclusion: the right fix was the drawing, not the layout. He has redrawn
+        # both sheets with step 1 on the right, which is how somebody reading Urdu or Arabic
+        # comes to a row of seven things, and they are cut to match. The pin has gone with it.
         self.tiles: list[Tile] = []
         for i, name in enumerate(names):
             tile = Tile(window.images, drawn_in(window.assets / folder, name,
