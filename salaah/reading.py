@@ -419,21 +419,18 @@ class Reader(QtWidgets.QWidget):
         bar.addWidget(self.title)
         bar.addStretch(1)
 
-        # Which meaning to set beside the Arabic, chosen here rather than buried in Settings:
-        # it is the thing most likely to be changed while reading.
-        self.tongues = QtWidgets.QHBoxLayout()
-        self.tongues.setSpacing(self.win.px(6))
+        # There was a row of language buttons here -- "Arabic only", "English", "Français" and
+        # the rest -- for setting the meaning beside the Arabic while reading. It has gone.
+        #
+        # It was a third place to answer a question the mat now asks once. Settings had a
+        # language, Settings had a translation, and this bar had its own buttons, and all three
+        # wrote to different places: the surah could be in French while the menu that opened it
+        # was in Urdu. The page follows the mat's language now, and nothing has to be set to
+        # make that happen -- which is also what makes "Arabic only" in Settings reach this
+        # screen, where it opens the Arabic across both pages.
+        #
+        # The room it leaves goes to the title, which was being squeezed by seven buttons.
         self.buttons: dict[str, QtWidgets.QPushButton] = {}
-        for lang in ("",) + self.quran.languages():
-            b = QtWidgets.QPushButton(self.win.t("quran.arabic_only") if not lang
-                                      else self.win.pack_name(lang))
-            b.setObjectName("tongue")
-            b.setCheckable(True)
-            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            b.clicked.connect(lambda _=False, l=lang: self.set_language(l))
-            self.buttons[lang] = b
-            self.tongues.addWidget(b)
-        bar.addLayout(self.tongues)
         bar.addStretch(1)
 
         # No volume slider here: the banner directly above this row has one, and two of them
@@ -480,19 +477,24 @@ class Reader(QtWidgets.QWidget):
             self.title.setText(f"{surah.number}. {surah.name} · {surah.arabic}")
         self.reload()
 
+    def meaning_language(self) -> str:
+        """Which meaning to set beside the Arabic: the mat's own language, or none.
+
+        "" means no meaning, and the spread then opens the Arabic across BOTH pages instead of
+        putting the meaning on the left -- which is what "Arabic only" in Settings comes down
+        to by the time it reaches this screen. The Qur'an has no Arabic translation of itself,
+        so asking for the meaning in Arabic is asking for no meaning.
+        """
+        from .ui import ARABIC_ONLY
+        lang = self.win.settings.lang
+        if lang == ARABIC_ONLY or lang not in self.quran.languages():
+            return ""
+        return lang
+
     def reload(self) -> None:
-        lang = self.win.settings.quran_lang
-        if lang and lang not in self.quran.languages():
-            lang = ""
-        for key, b in self.buttons.items():
-            b.setChecked(key == lang)
+        lang = self.meaning_language()
         self.spread.show_surah(self.quran.verses(self.number, lang), rtl_meaning=(lang in RTL))
         self.say_where()
-
-    def set_language(self, lang: str) -> None:
-        self.win.settings.quran_lang = lang
-        self.win.persist()
-        self.reload()
 
     def match_buttons(self) -> None:
         """Make the play button the same size as Back beside it.

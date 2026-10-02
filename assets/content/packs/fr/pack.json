@@ -111,7 +111,6 @@
     "qibla.title": "Face à la Qibla",
     "qibla.turn_left": "Tournez à gauche de {degrees}°",
     "qibla.turn_right": "Tournez à droite de {degrees}°",
-    "quran.arabic_only": "Arabe seul",
     "quran.cannot_recite": "Récitation indisponible",
     "quran.recite": "Réciter",
     "quran.stop_reciting": "Arrêter",
@@ -216,8 +215,6 @@
     "settings.theme_light": "Clair : noir sur blanc",
     "settings.timings_estimated": "Les temps des mots sont calculés d'après la longueur du texte, non relevés à l'oreille : le rouge dérivera. Corrigez-les avec tools/tap_timings.py.",
     "settings.title": "Réglages",
-    "settings.translation": "Traduction à côté de l'arabe",
-    "settings.translation_none": "Arabe seul",
     "settings.version": "Version {number}",
     "timing.again": "Reprendre celui-ci",
     "timing.count": "{n} sur {total}",
@@ -277,7 +274,8 @@
     "wudu.head": "Essuyer la tête et les oreilles",
     "wudu.mouth": "Rincer la bouche",
     "wudu.nose": "Rincer le nez",
-    "settings.restarting": "Redémarrage pour appliquer le changement…"
+    "settings.restarting": "Redémarrage pour appliquer le changement…",
+    "settings.arabic_only": "Arabe seulement"
   },
   "transliteration": {},
   "translation": {}

@@ -60,6 +60,20 @@ VEIL_MOST = 60          # never darker than this: the postures still have to be 
 NIGHT = "#0B0C0D"
 NIGHT_TEXT = "#E6E7E3"
 
+# The seventh row of the language picker: Arabic, and nothing beside it.
+#
+# It is a language rather than a switch because that is what it is to the person using the mat.
+# The six others say "show me the mat in this"; this one says "show me the Arabic and let me
+# read it", which is the same kind of answer. Putting it anywhere else would have meant a
+# second control saying "...and no meaning, thanks", which is the control that was just taken
+# out for asking the same question twice.
+#
+# What it does: Harry's Arabic menus, the Qur'an across both pages instead of one with the
+# meaning beside it, and no translation under anything. Words the mat has no Arabic for -- the
+# Settings screen, the update messages -- fall back to English through the pack fallback that
+# has always been there, so nothing goes blank.
+ARABIC_ONLY = "ar"
+
 NEXT_KEYS = {
     Qt.Key.Key_VolumeUp, Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space, Qt.Key.Key_Right,
     Qt.Key.Key_PageDown, Qt.Key.Key_MediaNext, Qt.Key.Key_MediaPlay, Qt.Key.Key_MediaTogglePlayPause,
@@ -1700,9 +1714,11 @@ class MainWindow(QtWidgets.QWidget):
         if step is None:
             return self.open_the_wudu_steps()
         named = self.t(f"wudu.{key}")
-        # The same fallback the du'a board and the passage reader make: the app's language
-        # rather than English, so the wu'du steps are read in the language the mat is set to.
-        chosen = self.settings.quran_lang or self.settings.lang or "en"
+        # The same choice the du'a board and the passage reader make, from the same place.
+        # Arabic only still gets the English here: the steps are instructions written for this
+        # mat, not scripture, and there is no Arabic of them to show instead -- a wu'du step
+        # with its explanation taken away is a drawing and a number.
+        chosen = self.settings.lang or "en"
         said = step["text"].get(chosen) or step["text"].get("en", "")
         self.wudu_step.show_step(step, f"{step['number']} - {named}", said,
                                  place=self.wudu.steps.index(step), of=len(self.wudu.steps))
@@ -2304,13 +2320,27 @@ class MainWindow(QtWidgets.QWidget):
 
     @property
     def translation(self):
-        """The translation shown beside the Arabic, or None for Arabic only."""
-        return self.content.translations.get(self.settings.translation or "")
+        """The meaning shown beside the Arabic during a prayer, or None for Arabic only.
 
-    def set_translation(self, lang: str) -> None:
-        """Takes effect from the next prayer started."""
-        self.settings.translation = "" if lang == "none" else lang
-        self.persist()
+        It used to be a setting of its own -- "Translation beside Arabic", a second dropdown
+        next to the language one. Harry had it taken out: the mat asks which language you read
+        in, and then asking again which language you would like the meaning in is the same
+        question wearing a hat. One choice now drives the menus, the du'as, the sayings, the
+        wu'du steps, the Qur'an and this.
+
+        A PERSONAL translation of the chosen language wins over the public one. That is what
+        the old dropdown was really for on this mat: the licensed Clear Qur'an text is keyed
+        en-clear, not en, so with the dropdown gone it would have become unreachable on the
+        machine of the one person who has a copy. Installing the file is now the whole of
+        choosing it.
+        """
+        if self.settings.lang == ARABIC_ONLY:
+            return None
+        got = self.content.translations
+        wanted = self.settings.lang
+        personal = next((t for key, t in sorted(got.items())
+                         if getattr(t, "personal", False) and key.split("-")[0] == wanted), None)
+        return personal or got.get(wanted)
 
     @property
     def playing(self) -> bool:
@@ -2845,19 +2875,14 @@ class MainWindow(QtWidgets.QWidget):
             [(sid, self.t(f"school.{sid}")) for sid in sorted(self.content.schools)],
             self.school.id, self.set_school))
 
+        # One language picker, and no second one under it. "Translation beside Arabic" used to
+        # live here and it has gone: it asked the same question as this row, so the mat could
+        # sit there with Urdu menus and an English meaning under the Arabic and both settings
+        # would have been obeyed. This row now decides every word on the mat.
         section(left, "settings.language")
-        self.language_picker = self.dropdown(
-            [(p.lang, p.native_name) for p in sorted(self.packs.values(), key=lambda x: x.lang)],
-            self.pack.lang, self.set_lang)
+        self.language_picker = self.dropdown(self.language_choices(),
+                                             self.settings.lang, self.set_lang)
         left.addWidget(self.language_picker)
-
-        if self.content.translations:
-            section(left, "settings.translation")
-            self.translation_picker = self.dropdown(
-                [("none", self.t("settings.translation_none"))]
-                + [(lang, tr.native_name) for lang, tr in sorted(self.content.translations.items())],
-                self.settings.translation or "none", self.set_translation)
-            left.addWidget(self.translation_picker)
 
         if len(self.content.figures) > 1:
             section(left, "settings.figure")
@@ -3409,6 +3434,19 @@ class MainWindow(QtWidgets.QWidget):
         self.settings.school = sid
         self.persist()
         self.say_and_start_again("settings.school")
+
+    def language_choices(self) -> list[tuple[str, str]]:
+        """The rows of the language picker: the packs, and Arabic on the end.
+
+        Arabic last rather than in its alphabetical place. The six above it are the languages
+        the mat is written in; this one is the mat with the writing taken away, which is a
+        different kind of choice and reads better at the bottom of the list than buried
+        between Chinese and English.
+        """
+        rows = [(p.lang, p.native_name)
+                for p in sorted(self.packs.values(), key=lambda x: x.lang)
+                if p.lang != ARABIC_ONLY]
+        return rows + [(ARABIC_ONLY, self.t("settings.arabic_only"))]
 
     def set_lang(self, lang: str) -> None:
         if lang == self.settings.lang:

@@ -113,7 +113,6 @@
     "qibla.title": "朝向天房",
     "qibla.turn_left": "向左转{degrees}°",
     "qibla.turn_right": "向右转{degrees}°",
-    "quran.arabic_only": "仅阿拉伯文",
     "quran.cannot_recite": "无法诵读",
     "quran.recite": "诵读",
     "quran.stop_reciting": "停止",
@@ -218,8 +217,6 @@
     "settings.theme_light": "浅色：白底黑字",
     "settings.timings_estimated": "词的时间点是按文本长度推算的，并非听录而来，因此红色会有偏差。请用 tools/tap_timings.py 校正。",
     "settings.title": "设置",
-    "settings.translation": "阿拉伯文旁的译文",
-    "settings.translation_none": "仅阿拉伯文",
     "settings.version": "版本 {number}",
     "timing.again": "重录这一条",
     "timing.count": "{n} / {total}",
@@ -279,6 +276,7 @@
     "wudu.head": "抹头和耳",
     "wudu.mouth": "漱口",
     "wudu.nose": "洗鼻",
-    "settings.restarting": "正在重新启动以套用变更…"
+    "settings.restarting": "正在重新启动以套用变更…",
+    "settings.arabic_only": "仅阿拉伯语"
   }
 }

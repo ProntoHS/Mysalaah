@@ -111,7 +111,6 @@
     "qibla.title": "Face the Qibla",
     "qibla.turn_left": "Turn left {degrees}°",
     "qibla.turn_right": "Turn right {degrees}°",
-    "quran.arabic_only": "Arabic only",
     "quran.cannot_recite": "No recitation available",
     "quran.recite": "Recite",
     "quran.stop_reciting": "Stop",
@@ -216,8 +215,6 @@
     "settings.theme_light": "Light: black on white",
     "settings.timings_estimated": "The word timings are worked out from the length of the text, not taken by ear, so the red will drift. Fix them with tools/tap_timings.py.",
     "settings.title": "Settings",
-    "settings.translation": "Translation beside the Arabic",
-    "settings.translation_none": "Arabic only",
     "settings.version": "Version {number}",
     "timing.again": "Tap this one",
     "timing.count": "{n} of {total}",
@@ -277,7 +274,8 @@
     "wudu.head": "Wipe Head & Ears",
     "wudu.mouth": "Rinse Mouth",
     "wudu.nose": "Rinse Nose",
-    "settings.restarting": "Starting again so the change takes effect…"
+    "settings.restarting": "Starting again so the change takes effect…",
+    "settings.arabic_only": "Arabic only"
   },
   "transliteration": {},
   "translation": {

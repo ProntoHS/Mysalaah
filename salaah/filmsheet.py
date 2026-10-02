@@ -82,7 +82,7 @@ class FilmSheet(QtWidgets.QWidget):
         if any(name not in self.boxes for name in names):
             self.boxes = {}
             return
-        film = QtGui.QMovie(str(where / described.get("film", "menu.gif")))
+        film = QtGui.QMovie(str(where / self.sheet_for(described, window.settings.lang)))
         if not film.isValid() or film.frameCount() < 2:
             self.boxes = {}
             return
@@ -105,6 +105,26 @@ class FilmSheet(QtWidgets.QWidget):
             tile.setParent(self)
             tile.clicked.connect(lambda _=False, n=name: self.chose.emit(n))
             self.tiles.append(tile)
+
+    @staticmethod
+    def sheet_for(described: dict, lang: str) -> str:
+        """Which drawing of this menu to show, for the language the mat is set to.
+
+        Harry drew every menu again in each language the mat speaks, so the words on the tiles
+        are part of the picture rather than text laid over it -- which is why there is a film
+        per language rather than one film and a label.
+
+        The BOXES are not per language. Every sheet was drawn to the same grid, and the tiles
+        come out within seven pixels of the English across all six: a fiftieth of a tile, and
+        a tile is a finger wide. One set of boxes is therefore the truth for all of them, and
+        a second copy per language would be six more things to keep in step for no gain.
+        There is a test that measures that drift rather than taking my word for it.
+
+        An unknown language, or one with no sheet drawn yet, falls back to the English one --
+        a menu in the wrong language still works; a menu that is not there does not.
+        """
+        films = described.get("films") or {}
+        return films.get(lang) or films.get("en") or described.get("film", "menu.gif")
 
     def next_frame(self, _n: int = 0) -> None:
         self.update()

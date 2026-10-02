@@ -283,10 +283,11 @@ class PassageReader(QtWidgets.QWidget):
         bar.addWidget(self.title)
         bar.addStretch(1)
 
-        self.tongues = QtWidgets.QHBoxLayout()
-        self.tongues.setSpacing(self.win.px(6))
+        # The language buttons that sat here have gone, with the matching row on the Qur'an
+        # screen. See the note on ReadingScreen: the mat asks for a language once, in Settings,
+        # and three places to answer it meant a du'a could be read in a language the menu that
+        # opened it was not written in.
         self.buttons: dict[str, QtWidgets.QPushButton] = {}
-        bar.addLayout(self.tongues)
 
         self.earlier = QtWidgets.QPushButton("‹")
         self.later = QtWidgets.QPushButton("›")
@@ -369,34 +370,25 @@ class PassageReader(QtWidgets.QWidget):
         word = item.word_at(position) if item else None
         self.arabic.set_highlight(None if word is None else (0, word))
 
-    def build_tongues(self) -> None:
-        """The language buttons, made once the section's languages are known."""
-        if self.buttons:
-            return
-        for lang in self.passages.languages():
-            b = QtWidgets.QPushButton(self.win.pack_name(lang))
-            b.setObjectName("tongue")
-            b.setCheckable(True)
-            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            b.clicked.connect(lambda _=False, l=lang: self.set_language(l))
-            self.buttons[lang] = b
-            self.tongues.addWidget(b)
-
     def open(self, index: int) -> None:
         if getattr(self, "saying", False):
             self.stop_saying()
-        self.build_tongues()
         self.at = max(0, min(index, len(self.passages.items) - 1))
         self.reload()
 
     def language(self) -> str:
-        """Which meaning to show. The reading language if this section has it, else English.
+        """Which meaning to show: the mat's language, English if this section has not got it,
+        and "" -- no meaning at all -- when the mat is set to Arabic only.
 
-        Falls back to the app's own language rather than to English -- see the note on
-        DuaBoard.language(), which makes the same choice so a du'a reads the same on the
-        board and on the page it opens.
+        One setting decides it. There were three until 1.58: the language, a separate
+        "translation beside Arabic", and a row of buttons on this very bar, all written to
+        different places. See the note on DuaBoard.language(), which makes the same choice so
+        a du'a reads the same on the board and on the page it opens.
         """
-        wanted = self.win.settings.quran_lang or self.win.settings.lang or "en"
+        from .ui import ARABIC_ONLY
+        wanted = self.win.settings.lang or "en"
+        if wanted == ARABIC_ONLY:
+            return ""
         return wanted if wanted in self.passages.languages() else "en"
 
     def reload(self) -> None:
@@ -409,32 +401,31 @@ class PassageReader(QtWidgets.QWidget):
             self.say_where()
             return
         lang = self.language()
-        for key, b in self.buttons.items():
-            b.setChecked(key == lang)
         self.title.setText(f"{item.title} · {item.ref}" if item.ref else item.title)
         # The sayings show no Arabic at all. Harry asked for the translation and the play
         # button and nothing else, and a reader that still opened on the Arabic would be the
         # one screen in the section that disagreed with the board in front of it. The Arabic
         # stays in hadith.json, because it is what the wording was checked against and what any
         # reviewer will read first; it is simply not on the glass.
-        sayings = self.passages.section == "hadith"
+        #
+        # UNLESS the mat is set to Arabic only, where the translation is the thing not shown.
+        # Hiding both would leave the hadith reader as an empty screen with a play button on
+        # it -- the one place where "no Arabic" and "no meaning" meet, and the Arabic is what
+        # that reader came for.
+        sayings = self.passages.section == "hadith" and lang != ""
         self.arabic.set_lines([] if sayings else [item.arabic])
         self.arabic.setVisible(not sayings)
         # The du'as show no transliteration; the kalima still do. Same reader, different
         # sections, and the du'as are the ones where it appeared on some and not others.
         self.said.setText("" if self.passages.section in ("duas", "hadith") else item.said)
         self.said.setVisible(self.passages.section not in ("duas", "hadith"))
-        self.meaning.setText(item.meaning(lang))
+        self.meaning.setText(item.meaning(lang) if lang else "")
+        self.meaning.setVisible(bool(lang))
         rtl = lang in RTL
         self.meaning.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.meaning.setLayoutDirection(Qt.LayoutDirection.RightToLeft if rtl
                                         else Qt.LayoutDirection.LeftToRight)
         self.say_where()
-
-    def set_language(self, lang: str) -> None:
-        self.win.settings.quran_lang = lang
-        self.win.persist()
-        self.reload()
 
     def turn(self, forward: bool) -> bool:
         """The next or previous passage. The ring button turns these as it turns pages."""

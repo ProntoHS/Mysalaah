@@ -10,7 +10,9 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from salaah.content import available_packs, load  # noqa: E402
+from dataclasses import replace  # noqa: E402
+from salaah.content import Translation, available_packs, load  # noqa: E402
+from salaah.filmsheet import FilmSheet  # noqa: E402
 from salaah.qt import API, QtCore, QtGui, QtWidgets, Qt  # noqa: E402
 from salaah.render import MIN_ARABIC_PX  # noqa: E402
 from salaah.settings import Settings  # noqa: E402
@@ -31,6 +33,16 @@ SHOTS = Path("/tmp/salaah-shots") / API
 APP = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 CONTENT = load(ASSETS)
 CONTENT_ARABIC = CONTENT.arabic
+
+# "Arabic only" is a pack so that the mat can reach Harry's Arabic menu drawings and lay itself
+# out right to left, but it is a deliberately partial one -- the menu headings and nothing else.
+# See the note in test_core.py. "Every language the mat speaks" means the six it is WRITTEN in.
+WRITTEN_IN = ("en", "fr", "es", "ur", "hi", "zh")
+ARABIC_ONLY = "ar"
+
+
+def full_packs(packs: dict) -> dict:
+    return {lang: pack for lang, pack in packs.items() if lang != ARABIC_ONLY}
 
 
 def shut(w):
@@ -1183,7 +1195,7 @@ class QiblaScreenTest(unittest.TestCase):
 
     def test_the_note_under_it_stays_on_one_line_in_every_language(self):
         """Two bold lines wrapped under the number and fought with it."""
-        for lang in sorted(available_packs(ASSETS)):
+        for lang in sorted(full_packs(available_packs(ASSETS))):
             w = self.window(lang=lang)
             screen = w.compass_screen
             screen.tick()
@@ -1496,16 +1508,29 @@ class TranslationScreenTest(unittest.TestCase):
         w.refresh()
         APP.processEvents()
 
-    def test_arabic_only_is_the_default(self):
-        w = self.window()
+    def test_arabic_only_is_what_the_arabic_only_setting_gives(self):
+        """It used to be the default, because the meaning was off until you went and turned it
+        on in a second dropdown. The dropdown has gone and the mat comes up in English, so
+        Arabic alone is now something asked for by name rather than what you get by not
+        asking."""
+        w = self.window(lang="ar")
         self.fardh(w)
         self.go(w, "fatiha")
         self.assertTrue(w.slide.arabic.isVisible())
         self.assertFalse(w.slide.parallel.isVisible())
+
+    def test_the_mat_comes_up_with_the_meaning_beside_the_arabic(self):
+        """The other half of that change: a mat nobody has touched shows English under the
+        Arabic rather than nothing, because English is a language and the old default was the
+        absence of one."""
+        w = self.window()
+        self.fardh(w)
+        self.go(w, "fatiha")
+        self.assertTrue(w.slide.parallel.isVisible(), "no meaning on a mat set to English")
         self.assertIn("I intend", w.text_pages[0].arabic[0])
 
     def test_french_sits_beside_the_arabic(self):
-        w = self.window(translation="fr")
+        w = self.window(lang="fr")
         self.fardh(w)
         self.assertTrue(w.text_pages[0].arabic[0].startswith("J'ai l'intention d'accomplir 4 rak'ats fardh"))
         self.assertTrue(w.slide.arabic.isVisible(), "the intention is one sentence, full width")
@@ -1514,7 +1539,14 @@ class TranslationScreenTest(unittest.TestCase):
         self.assertTrue(box.isVisible())
         self.assertFalse(w.slide.arabic.isVisible())
         self.assertEqual(7, len(box.arabic))
-        self.assertIn("Louange à Dieu", box.meaning[1])
+        # "Louange à", not the whole line. Which French this is depends on whether the licensed
+        # Clear Qur'an file is sitting in the folder: the public fr.json has "Louange à Dieu",
+        # Harry's private fr-clair has "Louange à Allah", and with the translation dropdown
+        # gone the app prefers the personal one when it is installed. Asserting either full
+        # line would make this test pass or fail on whether a file that must never be in a
+        # release happens to be present -- which is a test reporting on the checkout rather
+        # than on the code. The rule itself is tested in PersonalTranslationTest.
+        self.assertTrue(box.meaning[1].startswith("Louange à"), box.meaning[1])
         px, rows, total = box.layout()
         self.assertLessEqual(total, box.height())
         self.assertGreaterEqual(box.latin_px(px), 30, "readable from standing")
@@ -1522,7 +1554,7 @@ class TranslationScreenTest(unittest.TestCase):
         w.grab().save(str(SHOTS / "40-french-fatiha.png"))
 
     def test_the_translation_lights_up_with_the_arabic(self):
-        w = self.window(translation="en")
+        w = self.window(lang="en")
         self.fardh(w)
         self.go(w, "fatiha")
         box = w.slide.parallel
@@ -1539,7 +1571,7 @@ class TranslationScreenTest(unittest.TestCase):
         self.assertEqual(range(0), box.lit_meaning(1))
 
     def test_every_arabic_word_lights_some_translation(self):
-        w = self.window(translation="fr")
+        w = self.window(lang="fr")
         self.fardh(w)
         self.go(w, "tashahhud")
         box = w.slide.parallel
@@ -1552,22 +1584,27 @@ class TranslationScreenTest(unittest.TestCase):
                 covered.update(lit)
             self.assertEqual(set(range(len(box.meaning[row].split()))), covered)
 
-    def test_settings_offers_the_translations_in_a_dropdown(self):
+    def test_settings_offers_one_language_picker_and_arabic_only_is_in_it(self):
+        """There were two dropdowns here: a language, and "Translation beside Arabic" under
+        it. They asked the same question and could disagree, so the second has gone and
+        "Arabic only" -- which used to be the top row of it -- has moved into the first.
+
+        One picker fewer is the visible half of the change. The invisible half is that there
+        is now nowhere to set a meaning language that the menus do not follow.
+        """
         w = self.window()
         boxes = w.settings_screen.findChildren(QtWidgets.QComboBox)
-        self.assertEqual(5, len(boxes),
-                         "pickers, not rows of circles: the language, this one, the screen "
-                         "mode, the Arabic lettering and how much edge")
-        picker = w.translation_picker
+        self.assertEqual(4, len(boxes),
+                         "pickers, not rows of circles: the language, the screen mode, the "
+                         "Arabic lettering and how much edge")
+        picker = w.language_picker
         labels = [picker.itemText(i) for i in range(picker.count())]
-        for want in ("Arabic only", "English", "Français", "اردو"):
+        for want in ("English", "Français", "اردو", "Arabic only"):
             self.assertIn(want, labels)
-        self.assertEqual("Arabic only", picker.currentText(), "the setting it is on")
-        self.assertEqual("none", picker.itemData(picker.currentIndex()))
-        w.set_translation("fr")
-        self.assertEqual("fr", w.settings.translation)
-        w.set_translation("none")
-        self.assertEqual("", w.settings.translation)
+        self.assertEqual(len(WRITTEN_IN) + 1, picker.count(),
+                         "the six the mat is written in, and Arabic only")
+        self.assertEqual("Arabic only", labels[-1], "Arabic belongs on the end, not in the middle")
+        self.assertEqual("en", picker.itemData(picker.currentIndex()))
 
 
 @unittest.skipUnless(__import__("salaah.ui", fromlist=["QIBLA"]).QIBLA,
@@ -1678,7 +1715,7 @@ class SettingsFootTest(unittest.TestCase):
 
     def test_every_language_has_the_version_line_and_not_the_old_exit_one(self):
         packs = available_packs(ASSETS)
-        for lang, pack in packs.items():
+        for lang, pack in full_packs(packs).items():
             self.assertIn("{number}", pack.ui.get("settings.version", ""), lang)
             self.assertNotIn("settings.exit", pack.ui, f"{lang} still offers the desktop")
 
@@ -1686,9 +1723,9 @@ class SettingsFootTest(unittest.TestCase):
         """A squeezed row of choices loses the bottom edge of its lettering, which is what the
         scroller is there to prevent. Checked in every language, from the mat's own screen down
         to a small window."""
-        for lang in sorted(available_packs(ASSETS)):
+        for lang in sorted(full_packs(available_packs(ASSETS))):
             for size in ((1920, 1200), (1920, 1080), (1280, 720)):
-                w = self.window(lang=lang, translation="en")
+                w = self.window(lang=lang)
                 w.resize(*size)
                 w.stack.setCurrentWidget(w.settings_screen)
                 APP.processEvents()
@@ -1702,7 +1739,7 @@ class SettingsFootTest(unittest.TestCase):
                         f"of {wanted}")
 
     def test_the_mats_own_screen_needs_no_scrolling(self):
-        w = self.window(translation="en")
+        w = self.window(lang="en")
         w.resize(1920, 1200)
         w.stack.setCurrentWidget(w.settings_screen)
         APP.processEvents()
@@ -1712,14 +1749,14 @@ class SettingsFootTest(unittest.TestCase):
     def test_a_common_monitor_needs_no_scrolling_either(self):
         """1920x1080 used to be 80px short and scrolled; the rows taken out of Settings since
         have bought that back."""
-        w = self.window(translation="en")
+        w = self.window(lang="en")
         w.resize(1920, 1080)
         w.stack.setCurrentWidget(w.settings_screen)
         APP.processEvents()
         self.assertEqual(0, w.settings_scroll.verticalScrollBar().maximum())
 
     def test_a_screen_too_short_for_it_scrolls_instead_of_squeezing(self):
-        w = self.window(translation="en")
+        w = self.window(lang="en")
         w.resize(1280, 720)
         w.stack.setCurrentWidget(w.settings_screen)
         APP.processEvents()
@@ -1747,7 +1784,7 @@ class UrduTest(unittest.TestCase):
 
     def test_it_is_laid_out_right_to_left_in_the_arabic_face(self):
         from salaah.render import Fonts
-        w = self.window(translation="ur")
+        w = self.window(lang="ur")
         entry = [e for e in w.school.prayers["dhuhr"] if e.kind == "farz"][0]
         w.open_prayer("dhuhr")
         w.start("dhuhr", entry)
@@ -1768,7 +1805,7 @@ class UrduTest(unittest.TestCase):
 
     def test_english_stays_left_to_right(self):
         from salaah.render import Fonts
-        w = self.window(translation="en")
+        w = self.window(lang="en")
         entry = [e for e in w.school.prayers["dhuhr"] if e.kind == "farz"][0]
         w.open_prayer("dhuhr")
         w.start("dhuhr", entry)
@@ -1884,7 +1921,7 @@ class SkyAndPolishTest(unittest.TestCase):
         """Black by day and white after dark, like everything else that is drawn."""
         from salaah import theme
         for mode in ("light", "dark"):
-            w = self.window(translation="en", theme=mode)
+            w = self.window(lang="en", theme=mode)
             entry = [e for e in w.school.prayers["dhuhr"] if e.kind == "farz"][0]
             w.open_prayer("dhuhr")
             w.start("dhuhr", entry)
@@ -2363,9 +2400,15 @@ class LineSpacingTest(unittest.TestCase):
         self.assertLess(shares["scheherazade"], 0.85, "Scheherazade has room to spare")
 
     def test_al_fatiha_is_larger_than_it_was(self):
-        """The screen it fills is the seven-line one, where the leading cost the most."""
+        """The screen it fills is the seven-line one, where the leading cost the most.
+
+        Measured with the Arabic across the whole screen, which is what this was about: with a
+        meaning beside it the Arabic has half the width and is drawn at about 39px, and that
+        is the layout working rather than the leading being wrong. Arabic only is how you ask
+        for the full-width page now -- it used to be what a mat gave you by default.
+        """
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme="light", recitation=False), scale=1.0,
+                       Settings(theme="light", recitation=False, lang="ar"), scale=1.0,
                        save_settings=False, aspect=None, side=True)
         w.resize(1920, 1200)
         w.show()
@@ -2386,10 +2429,10 @@ class LineSpacingTest(unittest.TestCase):
         prayer, in every Arabic lettering, with and without the meaning beside it."""
         from salaah.render import lay_out_words
         for key in ("scheherazade", "noto", "amiri"):
-            for translation in ("", "en"):
+            for reading in ("ar", "en"):      # Arabic alone, then with the meaning beside it
                 w = MainWindow(load(ASSETS), available_packs(ASSETS),
                                Settings(theme="light", recitation=False, arabic_font=key,
-                                        translation=translation),
+                                        lang=reading),
                                scale=1.0, save_settings=False, aspect=None, side=True)
                 w.resize(1920, 1200)
                 w.show()
@@ -2404,9 +2447,10 @@ class LineSpacingTest(unittest.TestCase):
                         seen.add(step)
                         w.refresh()
                         APP.processEvents()
-                        box = w.slide.parallel if translation else w.slide.arabic
-                        if box.isVisible() and (box.arabic if translation else box.lines):
-                            self.check(box, translation, f"{key}/{translation or 'arabic'} {step}")
+                        beside = reading != "ar"      # is there a meaning next to the Arabic
+                        box = w.slide.parallel if beside else w.slide.arabic
+                        if box.isVisible() and (box.arabic if beside else box.lines):
+                            self.check(box, beside, f"{key}/{reading} {step}")
                     try:
                         w.session.next()
                     except Exception:
@@ -2448,7 +2492,7 @@ class FullHeightRuleTest(unittest.TestCase):
     def window(self, **settings):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(**{"theme": "light", "recitation": False,
-                                   "translation": "en", **settings}),
+                                   "lang": "en", **settings}),
                        scale=1.0, save_settings=False, aspect=None, side=True)
         w.resize(1920, 1200)
         w.show()
@@ -2622,7 +2666,7 @@ class BannerAndDoneScreenTest(unittest.TestCase):
                      "show_daily", "match_daily_sizes"):
             self.assertFalse(hasattr(w, gone), f"{gone} is still here")
         words = [x.text() for x in w.slide.findChildren(QtWidgets.QLabel) if x.text()]
-        for lang, pack in available_packs(ASSETS).items():
+        for lang, pack in full_packs(available_packs(ASSETS)).items():
             for key in ("daily.hadith", "daily.quran"):
                 said = pack.ui.get(key, "")
                 if said:
@@ -2641,10 +2685,263 @@ class BannerAndDoneScreenTest(unittest.TestCase):
         from salaah import content as content_module
         self.assertFalse(hasattr(content_module, "Daily"), "the Daily class is still here")
         self.assertFalse(hasattr(CONTENT, "daily"), "Content still carries a daily field")
-        for lang, pack in available_packs(ASSETS).items():
+        for lang, pack in full_packs(available_packs(ASSETS)).items():
             left = sorted(k for k in pack.ui if k.startswith("daily."))
             self.assertEqual([], left, f"{lang} still has {left}")
 
+
+
+class MenusAreDrawnInEveryLanguageTest(unittest.TestCase):
+    """Harry drew the du'a, hadith and 7in menus again in each language the mat speaks.
+
+    The words on these tiles are part of the picture, not text laid over it, so following the
+    language means showing a different film -- not relabelling anything. Seven films per menu,
+    twenty-one in all, and one set of touch boxes serving the lot.
+    """
+
+    MENUS = (("hadith-menu", "hadith_menu"), ("duas-menu", "dua_menu"))
+
+    def window(self, lang):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def described(self, folder):
+        return json.loads((ASSETS / folder / "menu.json").read_text(encoding="utf-8"))
+
+    def test_every_language_has_its_own_film_of_every_menu(self):
+        for folder in ("hadith-menu", "duas-menu", "knowledge"):
+            films = self.described(folder).get("films", {})
+            with self.subTest(folder):
+                self.assertEqual(set(WRITTEN_IN) | {ARABIC_ONLY}, set(films))
+                for lang, name in films.items():
+                    path = ASSETS / folder / name
+                    self.assertTrue(path.is_file(), f"{folder}/{name} is missing")
+                    self.assertGreater(path.stat().st_size, 20_000, f"{name} is suspiciously small")
+
+    def test_the_mat_shows_the_film_of_the_language_it_is_set_to(self):
+        for lang in ("fr", "ur", "zh", ARABIC_ONLY, "en"):
+            with self.subTest(lang):
+                for folder, _ in self.MENUS:
+                    chose = FilmSheet.sheet_for(self.described(folder), lang)
+                    want = self.described(folder)["films"][lang]
+                    self.assertEqual(want, chose)
+
+    def test_a_language_with_no_film_drawn_falls_back_to_english(self):
+        """Rather than to nothing. A menu in the wrong language still works; a menu that is
+        not there is a black screen with eighteen invisible buttons on it."""
+        described = self.described("hadith-menu")
+        self.assertEqual(described["films"]["en"], FilmSheet.sheet_for(described, "sw"))
+        self.assertEqual(described["films"]["en"], FilmSheet.sheet_for(described, ""))
+
+    def test_one_set_of_boxes_serves_them_all(self):
+        """The claim that lets there be one menu.json for seven films.
+
+        Every sheet was drawn to the same grid. This measures how far the tiles actually move
+        between the English drawing and each of the others -- it was seven pixels at worst on
+        a 304px tile, a fiftieth of a tile and a fraction of a fingertip. If a redrawn sheet
+        ever shifts its grid, the touch targets would quietly stop matching the pictures and
+        nothing else would notice.
+        """
+        from PIL import Image
+        for folder, attr in self.MENUS:
+            described = self.described(folder)
+            wide, tall = described["size"]
+            for lang, name in described["films"].items():
+                with self.subTest(f"{folder} {lang}"):
+                    with Image.open(ASSETS / folder / name) as film:
+                        self.assertEqual((wide, tall), film.size,
+                                         f"{name} is not the size the boxes were cut at")
+
+    def test_the_tiles_still_open_their_own_sections_in_another_language(self):
+        """A film per language must not mean a menu per language: the same eighteen names,
+        in the same places, whatever is written on them."""
+        from salaah.duamenu import SAYINGS
+        # Opened, not just built: the targets are placed on showEvent, so reading geometry off
+        # a menu that was never shown compares against a widget still sat at the origin. The
+        # first run of this test did exactly that and reported every tile as having moved.
+        base = self.window("en")
+        base.open_corner("hadith")
+        settle()
+        english = {t.name: t.geometry() for t in base.hadith_menu.tiles}
+        for lang in ("ur", ARABIC_ONLY):
+            with self.subTest(lang):
+                w = self.window(lang)
+                w.open_corner("hadith")
+                settle()
+                tiles = {t.name: t.geometry() for t in w.hadith_menu.tiles}
+                self.assertEqual(set(SAYINGS), set(tiles))
+                for name, box in tiles.items():
+                    moved = max(abs(box.x() - english[name].x()),
+                                abs(box.y() - english[name].y()))
+                    self.assertLess(moved, 12, f"{name} has moved {moved}px in {lang}")
+
+
+class ArabicOnlyOnTheScreenTest(unittest.TestCase):
+    """What "Arabic only" actually does once it is more than a row in a dropdown.
+
+    Harry: "in language option add 'arabic only' this will just show arabic only and when
+    playing qur'an it will display 2 pages instead of 1."
+    """
+
+    def window(self, lang="ar"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_the_quran_takes_both_pages_instead_of_one(self):
+        w = self.window()
+        w.open_surah(112)
+        settle()
+        spread = w.reader.spread
+        self.assertFalse(spread.translated, "there is still a meaning on the left page")
+        self.assertTrue(spread.right.lines, "the right page is empty")
+        self.assertTrue(spread.left.lines, "the left page is empty -- this is the one-page look")
+        self.assertFalse(spread.parallel.isVisible())
+
+    def test_a_language_puts_the_meaning_back_on_the_left_page(self):
+        """The other half of it, so the test above cannot pass by the Qur'an being broken."""
+        w = self.window("en")
+        w.open_surah(112)
+        settle()
+        self.assertTrue(w.reader.spread.translated)
+        self.assertTrue(w.reader.spread.parallel.isVisible())
+
+    def test_the_sayings_show_their_arabic_rather_than_nothing(self):
+        """The hadith board shows a translation and no Arabic, by Harry's own instruction in
+        1.51. With the translation gone it would have been a blank card with a play button on
+        it, so the Arabic -- which has been in the file all along -- takes its place."""
+        w = self.window()
+        w.open_saying_category("faith")
+        settle()
+        self.assertEqual("", w.hadith_board.language())
+        for card in w.hadith_board.cards:
+            self.assertTrue(card.arabic.isVisible(), "the card is empty")
+            self.assertFalse(card.english.isVisible(), "the translation is still there")
+            shown = " ".join(card.arabic.lines)
+            arabic = sum(1 for c in shown if "؀" <= c <= "ۿ")
+            self.assertGreater(arabic, 20, f"not Arabic: {shown[:40]!r}")
+
+    def test_a_duas_card_drops_the_line_underneath(self):
+        w = self.window()
+        w.open_dua_category("morning")
+        settle()
+        for card in w.dua_board.cards:
+            self.assertTrue(card.arabic.isVisible())
+            self.assertFalse(card.meaning.isVisible(), "the meaning is still under the Arabic")
+
+    def test_the_prayer_screen_shows_the_arabic_alone(self):
+        w = self.window()
+        self.assertIsNone(w.translation)
+
+    def test_the_call_to_prayer_has_nothing_written_under_it(self):
+        """The call is the one screen where the Arabic is the whole point, so a line of
+        English under each one is exactly what this setting says not to show."""
+        from salaah.call import CallBox
+        for lang, want in (("ar", ""), ("en", "en"), ("fr", "fr")):
+            with self.subTest(lang):
+                w = self.window(lang)
+                box = CallBox(w, "dhuhr", "azaan.mp3", w.adhan)
+                self.addCleanup(box.deleteLater)
+                self.assertEqual(want, box.meaning_language())
+                said = [x for x in box.findChildren(QtWidgets.QLabel)
+                        if x.objectName() == "callMeaning"]
+                self.assertTrue(said, "the call has no meaning labels at all")
+                if lang == "ar":
+                    self.assertTrue(all(not x.text().strip() for x in said),
+                                    "there is still a meaning under the call")
+                else:
+                    self.assertTrue(any(x.text().strip() for x in said))
+
+    def test_the_menus_are_harrys_arabic_drawings(self):
+        w = self.window()
+        described = json.loads((ASSETS / "hadith-menu" / "menu.json").read_text(encoding="utf-8"))
+        self.assertEqual(described["films"]["ar"],
+                         FilmSheet.sheet_for(described, ARABIC_ONLY))
+
+    def test_the_headings_over_the_boards_are_in_arabic(self):
+        """So the board agrees with the tile that opened it."""
+        w = self.window()
+        w.open_saying_category("faith")
+        settle()
+        said = w.hadith_board.title.text()
+        self.assertEqual("الإيمان", said)
+
+    def test_the_words_the_mat_has_no_arabic_for_still_say_something(self):
+        """The pack is partial on purpose, so the fallback is what stops Settings going blank."""
+        w = self.window()
+        self.assertTrue(w.t("settings.school").strip())
+        self.assertNotEqual("settings.school", w.t("settings.school"))
+
+
+class PersonalTranslationTest(unittest.TestCase):
+    """A licensed translation sitting in the folder is the one that gets used.
+
+    The "Translation beside Arabic" dropdown was the only way to reach these. Harry has the
+    Clear Qur'an text under licence for his own mat; it is keyed en-clear rather than en,
+    precisely so it can never be mistaken for the public one and can be kept out of a release
+    by name. Take the dropdown away and that file becomes a thing on the disk that nothing
+    reads -- so installing it now IS choosing it.
+
+    Tested on a made-up set rather than on the folder, because the real folder's answer depends
+    on whether a file that must never ship happens to be there. These assertions hold either
+    way, which is the point.
+    """
+
+    def window(self, translations, lang):
+        content = load(ASSETS)
+        content = replace(content, translations=translations)
+        w = MainWindow(content, available_packs(ASSETS),
+                       Settings(theme="light", recitation=False, lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=False)
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def stub(lang, personal=False):
+        return Translation(lang, lang, lang, False, {}, personal=personal)
+
+    def test_the_public_one_is_used_when_that_is_all_there_is(self):
+        w = self.window({"fr": self.stub("fr")}, "fr")
+        self.assertEqual("fr", w.translation.lang)
+
+    def test_a_personal_one_of_that_language_wins(self):
+        got = {"fr": self.stub("fr"), "fr-clair": self.stub("fr-clair", personal=True)}
+        w = self.window(got, "fr")
+        self.assertEqual("fr-clair", w.translation.lang,
+                         "the licensed file is installed and is not being used")
+
+    def test_a_personal_one_of_another_language_is_left_alone(self):
+        """en-clear must not be served to somebody reading French."""
+        got = {"fr": self.stub("fr"), "en-clear": self.stub("en-clear", personal=True)}
+        w = self.window(got, "fr")
+        self.assertEqual("fr", w.translation.lang)
+
+    def test_arabic_only_takes_no_translation_at_all(self):
+        got = {"fr": self.stub("fr"), "ar": self.stub("ar")}
+        w = self.window(got, "ar")
+        self.assertIsNone(w.translation,
+                          "Arabic only is showing a meaning beside the Arabic")
+
+    def test_a_language_with_no_translation_shows_none(self):
+        w = self.window({"fr": self.stub("fr")}, "zh")
+        self.assertIsNone(w.translation)
 
 
 class ChangingALanguageStartsTheAppAgainTest(unittest.TestCase):
@@ -2772,7 +3069,7 @@ class ChangingALanguageStartsTheAppAgainTest(unittest.TestCase):
         self.wait()
 
     def test_every_language_can_say_it(self):
-        for lang, pack in available_packs(ASSETS).items():
+        for lang, pack in full_packs(available_packs(ASSETS)).items():
             with self.subTest(lang):
                 self.assertTrue(pack.ui.get("settings.restarting", "").strip(),
                                 f"{lang} cannot say the app is starting again")
@@ -2781,7 +3078,7 @@ class ChangingALanguageStartsTheAppAgainTest(unittest.TestCase):
 class TheMeaningFollowsTheLanguageTest(unittest.TestCase):
     """Setting the mat to Urdu puts the du'as and the sayings into Urdu.
 
-    It did not. The boards and the reader asked for settings.quran_lang -- the Qur'an's own
+    It did not. The boards and the reader asked for settings.lang -- the Qur'an's own
     meaning setting, which is "" until somebody presses a language button on a reading page --
     and fell back to English when it was empty. So the whole mat could be in Urdu with every
     du'a still in English, and the only way to change that was a control that says Qur'an on it.
@@ -2853,13 +3150,30 @@ class TheMeaningFollowsTheLanguageTest(unittest.TestCase):
         settle()
         self.assertEqual("ur", w.dua_board.language())
 
-    def test_picking_a_meaning_language_by_hand_still_wins(self):
-        """The language buttons on a reading page write quran_lang. Somebody who presses
-        French there has asked for French more specifically than the menus have."""
-        w = self.window(lang="ur", quran_lang="fr")
+    def test_there_is_only_one_place_left_that_decides_this(self):
+        """This test used to assert the opposite, and it was right to at the time.
+
+        There were three controls: the language in Settings, a "translation beside Arabic"
+        dropdown under it, and a row of language buttons on the reading bar. The buttons and
+        the dropdown wrote to settings the menus did not read, so a mat could be in Urdu with
+        English du'as and nothing was broken -- each control was doing what it said.
+
+        Harry had the lot reduced to one. So the thing worth checking now is that there IS no
+        second place: no setting the boards read other than the language, and no leftover
+        control writing one.
+        """
+        w = self.window(lang="ur")
+        self.assertFalse(hasattr(w.settings, "quran_lang"), "the Qur'an's own language is back")
+        self.assertFalse(hasattr(w.settings, "translation"), "the translation setting is back")
+        self.assertFalse(hasattr(w, "set_translation"))
+        self.assertFalse(hasattr(w, "translation_picker"))
+        reader = w.section_readers["hadith"]
+        self.assertEqual({}, reader.buttons, "the reading bar still has language buttons")
+        self.assertFalse(hasattr(reader, "set_language"))
+        # And the one that is left reaches everything.
         w.open_saying_category("faith")
         settle()
-        self.assertEqual("fr", w.hadith_board.language())
+        self.assertEqual("ur", w.hadith_board.language())
 
     def test_the_board_and_the_page_it_opens_agree(self):
         """Two separate pieces of code choose this, and a du'a that reads one way on the board
@@ -2910,7 +3224,7 @@ class SettingsTidiedTest(unittest.TestCase):
                          "the 'Show the Qibla' button is meant to be gone")
         self.assertTrue(w.side.showing_compass or not w.settings.qibla_start,
                         "and the compass really is on the small screen")
-        for lang, pack in available_packs(ASSETS).items():
+        for lang, pack in full_packs(available_packs(ASSETS)).items():
             self.assertNotIn("settings.qibla_show", pack.ui, f"{lang} still carries the wording")
 
     @unittest.skipUnless(__import__("salaah.ui", fromlist=["QIBLA"]).QIBLA,
@@ -2923,7 +3237,7 @@ class SettingsTidiedTest(unittest.TestCase):
         self.assertTrue([x for x in words if "118" in x], "the bearing should still be shown")
 
     def test_the_recitation_hint_no_longer_points_at_a_button_that_is_gone(self):
-        for lang, pack in available_packs(ASSETS).items():
+        for lang, pack in full_packs(available_packs(ASSETS)).items():
             hint = pack.ui.get("settings.recitation_hint", "")
             self.assertNotIn("ring", hint.lower().replace("during", ""),
                              f"{lang}: the hint still sends you to the tap-timings button")
@@ -2990,8 +3304,7 @@ class EveryInterfaceLanguageTest(unittest.TestCase):
         packs = available_packs(ASSETS)
         content = load(ASSETS)
         w = MainWindow(content, packs,
-                       Settings(theme="light", recitation=False, lang=lang,
-                                translation=lang if lang in content.translations else ""),
+                       Settings(theme="light", recitation=False, lang=lang),
                        scale=1.0, save_settings=False, aspect=None, side=True)
         w.resize(1920, 1200)
         w.show()
@@ -3003,11 +3316,16 @@ class EveryInterfaceLanguageTest(unittest.TestCase):
 
     def test_all_six_are_offered(self):
         packs = available_packs(ASSETS)
-        self.assertEqual({"en", "fr", "ur", "es", "zh", "hi"}, set(packs))
+        self.assertEqual(set(WRITTEN_IN) | {ARABIC_ONLY}, set(packs))
         # Counted against English rather than against a number written in here: a hard-coded
         # count only ever says "someone added a string", which is not a fault.
+        #
+        # Arabic is held out of the key-for-key comparison on purpose -- it is the Arabic-only
+        # setting's pack and carries the menu headings alone, with everything else falling back
+        # to English. What it must carry is checked exactly in ArabicOnlyPackTest, so holding
+        # it out here does not leave it untested.
         english = packs["en"].ui
-        for lang, pack in packs.items():
+        for lang, pack in full_packs(packs).items():
             self.assertEqual(len(english), len(pack.ui),
                              f"{lang} has {len(pack.ui)} strings against English's {len(english)}")
             self.assertEqual(set(english), set(pack.ui), f"{lang} does not match English key for key")
@@ -3019,13 +3337,16 @@ class EveryInterfaceLanguageTest(unittest.TestCase):
         import re
         packs = available_packs(ASSETS)
         for lang, pack in packs.items():
-            for key, english in packs["en"].ui.items():
-                wanted = set(re.findall(r"\{(\w+)\}", english))
-                got = set(re.findall(r"\{(\w+)\}", pack.ui[key]))
+            # Arabic carries only the menu headings, so it is checked on the keys it HAS
+            # rather than on English's whole list. The headings are names and hold no gaps,
+            # but a heading that grew one and lost it would still be caught here.
+            for key, said in pack.ui.items():
+                wanted = set(re.findall(r"\{(\w+)\}", packs["en"].ui.get(key, "")))
+                got = set(re.findall(r"\{(\w+)\}", said))
                 self.assertEqual(wanted, got, f"{lang} {key}: wanted {wanted}, got {got}")
 
     def test_the_menus_are_drawn_in_a_face_that_has_the_letters(self):
-        for lang in sorted(available_packs(ASSETS)):
+        for lang in sorted(full_packs(available_packs(ASSETS))):
             w = self.window(lang)
             face = w.pack_face()
             font = QtGui.QFont(face)
@@ -3061,7 +3382,7 @@ class EveryInterfaceLanguageTest(unittest.TestCase):
         from salaah.render import Fonts
         w = self.window("en")
         picker = w.language_picker
-        self.assertEqual(6, picker.count())
+        self.assertEqual(len(WRITTEN_IN) + 1, picker.count(), "six languages, and Arabic only")
         wanted = {"中文": Fonts.scripts["han"], "हिन्दी": Fonts.scripts["devanagari"],
                   "English": Fonts.english_family, "Español": Fonts.english_family}
         seen = {}
@@ -3916,7 +4237,7 @@ class QuranTest(unittest.TestCase):
         """The invariant that matters: the pages between them hold every verse of the surah,
         each exactly once, in order. A reader that quietly drops a verse would be far worse
         than one that looked wrong."""
-        w.settings.quran_lang = lang
+        w.settings.lang = lang
         w.open_surah(number)
         settle()
         spread = w.reader.spread
@@ -3936,14 +4257,14 @@ class QuranTest(unittest.TestCase):
 
     def test_a_long_surah_takes_more_than_one_page(self):
         w = self.window()
-        w.settings.quran_lang = "en"
+        w.settings.lang = "en"
         w.open_surah(2)
         settle()
         self.assertGreater(w.reader.spread.pages_count, 10, "Al-Baqarah is 286 verses")
 
     def test_a_short_one_fits_on_a_single_page(self):
         w = self.window()
-        w.settings.quran_lang = "en"
+        w.settings.lang = "en"
         w.open_surah(112)
         settle()
         self.assertEqual(1, w.reader.spread.pages_count, "Al-Ikhlas is four verses")
@@ -3957,7 +4278,7 @@ class QuranTest(unittest.TestCase):
         it said 50 when it was 8. Turning to what the reader thinks is the last page and
         finding the forward arrow dead proves the same thing without the label."""
         w = self.window()
-        w.settings.quran_lang = "en"
+        w.settings.lang = "en"
         w.open_surah(23)
         settle()
         r = w.reader
@@ -3989,7 +4310,7 @@ class QuranTest(unittest.TestCase):
 
     def test_turning_forward_and_back_comes_home(self):
         w = self.window()
-        w.settings.quran_lang = "en"
+        w.settings.lang = "en"
         w.open_surah(2)
         settle()
         first = w.reader.spread.pages[0]
@@ -3999,7 +4320,7 @@ class QuranTest(unittest.TestCase):
         self.assertEqual(0, w.reader.spread.at)
 
     def test_with_no_translation_the_arabic_takes_both_pages(self):
-        w = self.window(quran_lang="")
+        w = self.window(lang="")
         w.open_surah(36)
         settle()
         spread = w.reader.spread
@@ -4010,7 +4331,7 @@ class QuranTest(unittest.TestCase):
         self.assertTrue(spread.left.lines, "and the left page carries the rest")
 
     def test_with_a_translation_it_is_the_left_page(self):
-        w = self.window(quran_lang="en")
+        w = self.window(lang="en")
         w.open_surah(36)
         settle()
         spread = w.reader.spread
@@ -4021,30 +4342,38 @@ class QuranTest(unittest.TestCase):
 
     def test_every_language_we_have_is_offered_and_hindi_is_not_pretended(self):
         """The source has no Hindi. Offering it and showing English would be worse than five."""
-        w = self.window()
-        offered = set(w.reader.buttons) - {""}
-        self.assertEqual({"en", "fr", "ur", "es", "zh"}, offered)
-        self.assertNotIn("hi", offered)
+        # The Qur'an carries five of the mat's six languages; there is no Hindi text for it.
+        # Checked on what the reader will actually set beside the Arabic, since the row of
+        # buttons that used to advertise this has gone.
+        self.assertEqual({"en", "fr", "ur", "es", "zh"}, set(self.window().quran.languages()))
+        for lang, want in (("fr", "fr"), ("zh", "zh"), ("hi", ""), ("ar", "")):
+            with self.subTest(lang):
+                w = self.window(lang=lang)
+                w.open_surah(1)
+                settle()
+                self.assertEqual(want, w.reader.meaning_language())
 
-    def test_choosing_a_language_changes_what_is_read_and_is_remembered(self):
-        w = self.window()
+    def test_the_surah_is_read_in_the_mats_language(self):
+        """The row of language buttons on this bar has gone -- see the note in reading.py.
+        Harry asked for them out: the left-hand page should already be in the language the mat
+        is set to, without being told again here."""
+        w = self.window(lang="fr")
         w.open_surah(1)
         settle()
-        w.reader.set_language("fr")
-        settle()
-        self.assertEqual("fr", w.settings.quran_lang)
+        self.assertEqual("fr", w.reader.meaning_language())
+        self.assertEqual({}, w.reader.buttons, "the buttons are back")
         self.assertTrue(any("Allah" in m or "Dieu" in m for m in w.reader.spread.parallel.meaning),
                         w.reader.spread.parallel.meaning[:2])
 
     def test_urdu_is_laid_out_right_to_left(self):
-        w = self.window(quran_lang="ur")
+        w = self.window(lang="ur")
         w.open_surah(1)
         settle()
         self.assertTrue(w.reader.spread.parallel.meaning_rtl, "Urdu reads the other way")
 
     def test_a_swipe_turns_the_page(self):
         from salaah.qt import QtCore, QtGui
-        w = self.window(quran_lang="en")
+        w = self.window(lang="en")
         w.open_surah(2)
         settle()
         spread = w.reader.spread
@@ -4061,7 +4390,7 @@ class QuranTest(unittest.TestCase):
     def test_a_small_wobble_is_not_a_swipe(self):
         """A finger resting on the page, or a tap that drifts, must not turn it."""
         from salaah.qt import QtCore, QtGui
-        w = self.window(quran_lang="en")
+        w = self.window(lang="en")
         w.open_surah(2)
         settle()
         spread = w.reader.spread
@@ -4202,30 +4531,46 @@ class PassageScreenTest(unittest.TestCase):
                 for word in ("waiting", "checked", "pending", "unchecked"):
                     self.assertNotIn(word, said, f"{which} still mentions being {word}")
 
-    def test_the_kalima_offer_english_only_and_the_duas_offer_five(self):
-        w = self.window()
-        w.open_passage("duas", 0)
-        settle()
-        self.assertEqual(["en", "fr", "ur", "es", "zh"],
-                         list(w.section_readers["duas"].buttons))
-        w.open_passage("kalima", 0)
-        settle()
-        self.assertEqual(["en"], list(w.section_readers["kalima"].buttons))
+    def test_what_each_section_has_been_translated_into(self):
+        """The du'as carry five languages and the kalima only English.
 
-    def test_choosing_a_language_changes_the_meaning_shown(self):
+        This used to be read off the row of buttons on the reading bar, which listed what the
+        section had. The bar has no buttons now, so it is read off the section itself -- which
+        is where the answer always came from, and is the thing that decides whether a mat set
+        to Chinese gets Chinese du'as or falls back to English.
+        """
         w = self.window()
-        w.open_passage("duas", 0)
+        self.assertEqual(["en", "fr", "ur", "es", "zh"],
+                         list(w.section_lists["duas"].passages.languages()))
+        self.assertEqual(["en"], list(w.section_lists["kalima"].passages.languages()))
+        for section in ("duas", "kalima"):
+            w.open_passage(section, 0)
+            settle()
+            self.assertEqual({}, w.section_readers[section].buttons,
+                             f"the {section} bar still carries language buttons")
+
+    def test_the_meaning_shown_is_the_mats_language(self):
+        """This used to press a language button on the reader's own bar. The bar has none now
+        -- the mat is asked once, in Settings -- so the same claim is made by opening the same
+        du'a on two mats set to two languages."""
+        english = self.window()
+        english.open_passage("duas", 0)
         settle()
-        reader = w.section_readers["duas"]
-        english = reader.meaning.text()
-        reader.buttons["zh"].click()
+        said = english.section_readers["duas"].meaning.text()
+
+        chinese = self.window(lang="zh")
+        chinese.open_passage("duas", 0)
         settle()
-        self.assertNotEqual(english, reader.meaning.text())
-        self.assertEqual("zh", w.settings.quran_lang)
+        other = chinese.section_readers["duas"].meaning.text()
+
+        self.assertTrue(said.strip() and other.strip())
+        self.assertNotEqual(said, other, "the du'a reads the same in English and Chinese")
+        self.assertEqual({}, chinese.section_readers["duas"].buttons,
+                         "the reader still has language buttons on it")
 
     def test_a_kalima_keeps_english_when_the_reading_language_is_chinese(self):
         """Choosing Chinese for the Qur'an must not leave the kalima screen blank."""
-        w = self.window(quran_lang="zh")
+        w = self.window(lang="zh")
         w.open_passage("kalima", 0)
         settle()
         reader = w.section_readers["kalima"]
@@ -4330,10 +4675,19 @@ class ReciteTest(unittest.TestCase):
     """Reciting a surah on the big screen, with the word going red as it is said."""
 
     def window(self, surah=1, verses=8, **settings):
+        """Set to Arabic only unless a test says otherwise.
+
+        These tests read the spread's right and left pages, which is the layout you get when
+        there is no meaning to put on the left. That used to be what a mat with nothing chosen
+        looked like; the mat now comes up in English and puts the meaning there, so the layout
+        under test has to be asked for by name. The one test that wants a meaning passes its
+        own language.
+        """
         import tempfile
         from salaah.recite import Store
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       Settings(**{"theme": "light", "recitation": False,
+                                   "lang": "ar", **settings}),
                        scale=1.0, save_settings=False)
         w.resize(1920, 1080)
         w.show()
@@ -4636,7 +4990,7 @@ class ReciteTest(unittest.TestCase):
         self.assertTrue(r.saying.text())
 
     def test_reciting_works_with_a_translation_on_the_page_too(self):
-        w = self.window(quran_lang="en")
+        w = self.window(lang="en")
         w.open_surah(1)
         settle()
         r = w.reader
@@ -5248,7 +5602,7 @@ class ReaderBarTest(unittest.TestCase):
         """The row had run out of room, which is why the page readout went. Every language is
         checked, because the words are longer in some of them."""
         for lang in ("", "en", "fr", "ur"):
-            w = self.window(quran_lang=lang)
+            w = self.window(lang=lang)
             w.open_surah(2)
             settle()
             r = w.reader
@@ -5257,7 +5611,7 @@ class ReaderBarTest(unittest.TestCase):
                       ("earlier", r.earlier), ("later", r.later)]
                      + [(f"tongue {k or 'ar'}", b) for k, b in r.buttons.items()]
                      if widget.width() < widget.sizeHint().width()]
-            self.assertEqual([], tight, f"squashed with quran_lang={lang!r}")
+            self.assertEqual([], tight, f"squashed with lang={lang!r}")
             w.close()
             settle()
 
@@ -5679,7 +6033,7 @@ class SettingsScreenTest(unittest.TestCase):
         """Six packs, one screen: if one of them still says the old words the screen changes
         meaning when the language does."""
         import json
-        for lang in sorted(available_packs(ASSETS)):
+        for lang in sorted(full_packs(available_packs(ASSETS))):
             ui = json.loads((ASSETS / "content" / "packs" / lang / "pack.json")
                             .read_text(encoding="utf-8"))["ui"]
             self.assertEqual("MySalaah Ring", ui["settings.buttons"], lang)
@@ -5715,7 +6069,9 @@ class AzaanScreenTest(unittest.TestCase):
     def test_the_call_has_its_words_and_every_language_the_app_speaks(self):
         import json
         raw = json.loads((ASSETS / "content" / "azaan" / "adhan.json").read_text(encoding="utf-8"))
-        langs = set(available_packs(ASSETS))
+        # The six the mat is written in. Arabic only shows the call with nothing under it --
+        # see AdhanScreen.meaning_language -- so there is no Arabic meaning to be missing.
+        langs = set(full_packs(available_packs(ASSETS)))
         for line in raw["lines"]:
             self.assertTrue(line["arabic"].strip(), line["key"])
             missing = [lang for lang in langs if not line.get("text", {}).get(lang, "").strip()]
@@ -7241,7 +7597,7 @@ class SixTileMenuTest(unittest.TestCase):
         from salaah.knowledge import TILES
         readings = [n for n in TILES if n != "settings"]
         self.assertEqual(7, len(readings))
-        for lang in sorted(available_packs(ASSETS)):
+        for lang in sorted(full_packs(available_packs(ASSETS))):
             ui = json.loads((ASSETS / "content" / "packs" / lang / "pack.json")
                             .read_text(encoding="utf-8"))["ui"]
             for name in readings:
@@ -8843,7 +9199,7 @@ class CommunityColumnTest(unittest.TestCase):
 
     def test_it_is_the_name_in_every_language(self):
         """A brand is not translated. Every pack carries it as it is written."""
-        for lang in available_packs(ASSETS):
+        for lang in full_packs(available_packs(ASSETS)):
             with self.subTest(lang):
                 w = MainWindow(load(ASSETS), available_packs(ASSETS),
                                Settings(theme="dark", place="Bury", lang=lang),
@@ -9078,7 +9434,7 @@ class ThumbButtonsTest(unittest.TestCase):
         tall, which is a strip rather than something to aim a thumb at. Measured as the ratio in
         all six languages at all three sizes -- Spanish is the widest at 2.21 and Chinese the
         narrowest at 0.98, against 3.0 for the words it used to carry."""
-        for lang in sorted(available_packs(ASSETS)):
+        for lang in sorted(full_packs(available_packs(ASSETS))):
             for size in self.SIZES:
                 with self.subTest(f"{lang} {size[0]}x{size[1]}"):
                     w = self.window(size, lang=lang)
@@ -10183,7 +10539,7 @@ class TwoNewTilesTest(unittest.TestCase):
                 self.assertIn(w.t("corner.not_yet"), said)
 
     def test_the_two_of_them_are_named_in_every_language_the_mat_speaks(self):
-        for lang, pack in available_packs(ASSETS).items():
+        for lang, pack in full_packs(available_packs(ASSETS)).items():
             for name in ("wudu", "nasheeds"):
                 with self.subTest(f"{lang}.{name}"):
                     self.assertTrue(pack.ui.get(f"corner.{name}", "").strip(),

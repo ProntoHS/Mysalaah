@@ -21,6 +21,25 @@ from salaah.validator import check
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 CONTENT = load(ASSETS)
 
+# "Arabic only" is a pack, because that is how the mat reaches Harry's Arabic menu drawings and
+# gets a right-to-left layout -- but it is a DELIBERATELY PARTIAL one. It carries the menu
+# headings, transcribed off those drawings so the words over a board match the tile that opened
+# it, and nothing else. The rest falls back to English through the fallback LanguagePack.t has
+# always had.
+#
+# That is a decision, not an unfinished job. Filling it would mean writing a couple of hundred
+# interface strings -- Settings rows, update messages, error text -- in a language nobody here
+# can check, to be read by a child, in the one mode whose whole point is that the SCRIPTURE is
+# in Arabic. So the tests that say "every language the mat speaks can name this" mean the six
+# it is written in. What Arabic must carry is checked separately and exactly.
+WRITTEN_IN = ("en", "fr", "es", "ur", "hi", "zh")
+ARABIC_ONLY = "ar"
+
+
+def full_packs(packs: dict) -> dict:
+    """The packs the mat is written in: everything but the partial Arabic one."""
+    return {lang: pack for lang, pack in packs.items() if lang != ARABIC_ONLY}
+
 # Several of these load fonts or build a widget, which needs an application to exist first --
 # loading a font without one segfaults. It used to work by luck: some other test class happened
 # to make one earlier, and unittest runs classes in alphabetical order, so adding a class whose
@@ -2374,7 +2393,7 @@ class DuaCategoriesTest(unittest.TestCase):
         """A category with no word for it would head its screen with a blank."""
         packs = available_packs(self.assets)
         self.assertGreaterEqual(len(packs), 6, "the packs did not load")
-        for lang, pack in packs.items():
+        for lang, pack in full_packs(packs).items():
             for cat in self.kinds:
                 said = pack.ui.get(f"dua.{cat}", "")
                 self.assertTrue(said.strip(), f"{lang} cannot name {cat}")
@@ -2384,7 +2403,7 @@ class DuaCategoriesTest(unittest.TestCase):
         reader nothing. The five other packs must differ from English somewhere."""
         packs = available_packs(self.assets)
         english = packs["en"]
-        for lang, pack in packs.items():
+        for lang, pack in full_packs(packs).items():
             if lang == "en":
                 continue
             same = [c for c in self.cats
@@ -3429,11 +3448,67 @@ class SayingsContentTest(unittest.TestCase):
     def test_every_heading_is_named_in_every_language_the_mat_speaks(self):
         packs = available_packs(ASSETS)
         from salaah.duamenu import SAYINGS
-        for lang, pack in packs.items():
+        for lang, pack in full_packs(packs).items():
             for kind in SAYINGS:
                 with self.subTest(f"{lang}.{kind}"):
                     self.assertTrue(pack.ui.get(f"saying.{kind}", "").strip(),
                                     f"{lang} cannot name {kind}")
+
+
+class ArabicOnlyPackTest(unittest.TestCase):
+    """What the Arabic pack must carry, and what it is right for it not to carry.
+
+    The six other packs are tested with "every language the mat speaks can name this". Arabic
+    is excluded from those, so without this it would be excluded from everything and could rot
+    to an empty file without a single test noticing. This is the other half: it says exactly
+    which strings Arabic must have, and that the ones it has are Arabic.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.packs = available_packs(ASSETS)
+        cls.pack = cls.packs.get(ARABIC_ONLY)
+
+    def test_it_is_there_and_reads_right_to_left(self):
+        self.assertIsNotNone(self.pack, "there is no Arabic pack, so the setting has no row")
+        self.assertTrue(self.pack.rtl, "Arabic laid out left to right")
+        self.assertTrue(self.pack.native_name.strip())
+
+    def test_it_names_every_menu_heading_the_boards_show(self):
+        """These are the headings written over the du'a and hadith boards. They have to be
+        there, because in Arabic only the tile that was just pressed is in Arabic and a board
+        headed in English underneath it is the seam showing."""
+        from salaah.duamenu import CATEGORIES, SAYINGS
+        for key in [f"saying.{k}" for k in SAYINGS] + [f"dua.{k}" for k in CATEGORIES]:
+            with self.subTest(key):
+                said = self.pack.ui.get(key, "")
+                self.assertTrue(said.strip(), f"Arabic cannot name {key}")
+                arabic = sum(1 for c in said if "؀" <= c <= "ۿ")
+                self.assertGreater(arabic, len(said.replace(" ", "")) * 0.8,
+                                   f"{key} is {said!r}, which is not Arabic")
+
+    def test_the_headings_are_the_words_off_harrys_drawings(self):
+        """Spot-checked against the tiles, because these were transcribed from the artwork
+        rather than translated here -- so the heading says what the tile says."""
+        for key, want in (("saying.faith", "الإيمان"), ("saying.prayer", "الصلاة"),
+                          ("saying.dress", "اللباس"), ("dua.morning", "الصباح"),
+                          ("dua.kalima", "الكلمات الست")):
+            self.assertEqual(want, self.pack.ui.get(key), key)
+
+    def test_it_is_partial_on_purpose_and_the_rest_falls_back(self):
+        """The fallback is what makes a partial pack safe, so it is tested rather than assumed:
+        a key Arabic has not got must come back in English, not as the bare key."""
+        english = self.packs["en"]
+        self.assertNotIn("settings.school", self.pack.ui, "the pack has grown past its purpose")
+        self.assertEqual(english.ui["settings.school"],
+                         self.pack.t("settings.school", english))
+        self.assertTrue(self.pack.t("settings.school", english).strip())
+
+    def test_it_says_nobody_has_checked_it(self):
+        raw = json.loads((ASSETS / "content" / "packs" / ARABIC_ONLY / "pack.json")
+                         .read_text(encoding="utf-8"))
+        self.assertIsNone(raw["reviewedBy"])
+        self.assertIn("DRAFT", raw["translationSource"])
 
 
 class SayingsInOtherLanguagesTest(unittest.TestCase):
@@ -4071,7 +4146,7 @@ class WuduContentTest(unittest.TestCase):
 
     def test_the_steps_are_named_in_every_language_the_mat_speaks(self):
         packs = available_packs(ASSETS)
-        for lang, pack in packs.items():
+        for lang, pack in full_packs(packs).items():
             for step in self.steps:
                 with self.subTest(f"{lang}.{step['key']}"):
                     self.assertTrue(pack.ui.get(f"wudu.{step['key']}", "").strip(),

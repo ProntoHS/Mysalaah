@@ -114,5 +114,14 @@
       1944,
       1011
     ]
+  },
+  "films": {
+    "en": "menu.gif",
+    "fr": "menu.fr.gif",
+    "es": "menu.es.gif",
+    "ur": "menu.ur.gif",
+    "hi": "menu.hi.gif",
+    "zh": "menu.zh.gif",
+    "ar": "menu.ar.gif"
   }
 }

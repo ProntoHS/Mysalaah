@@ -111,7 +111,6 @@
     "qibla.title": "قبلہ رخ کریں",
     "qibla.turn_left": "{degrees}° بائیں مڑیں",
     "qibla.turn_right": "{degrees}° دائیں مڑیں",
-    "quran.arabic_only": "صرف عربی",
     "quran.cannot_recite": "تلاوت دستیاب نہیں",
     "quran.recite": "تلاوت",
     "quran.stop_reciting": "روکیں",
@@ -216,8 +215,6 @@
     "settings.theme_light": "روشن: سفید پر سیاہ",
     "settings.timings_estimated": "الفاظ کے اوقات متن کی لمبائی سے اندازاً نکالے گئے ہیں، کان سے نہیں، اس لیے سرخ رنگ بہکے گا۔ tools/tap_timings.py سے درست کریں۔",
     "settings.title": "ترتیبات",
-    "settings.translation": "عربی کے ساتھ ترجمہ",
-    "settings.translation_none": "صرف عربی",
     "settings.version": "ورژن {number}",
     "timing.again": "یہی دوبارہ",
     "timing.count": "{n} از {total}",
@@ -277,7 +274,8 @@
     "wudu.head": "سر اور کانوں کا مسح",
     "wudu.mouth": "کلی کریں",
     "wudu.nose": "ناک صاف کریں",
-    "settings.restarting": "تبدیلی لاگو کرنے کے لیے دوبارہ شروع ہو رہا ہے…"
+    "settings.restarting": "تبدیلی لاگو کرنے کے لیے دوبارہ شروع ہو رہا ہے…",
+    "settings.arabic_only": "صرف عربی"
   },
   "transliteration": {},
   "translation": {}

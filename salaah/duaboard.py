@@ -45,11 +45,19 @@ class DuaCard(QtWidgets.QFrame):
     play = Signal(int)
     opened = Signal(int)
 
-    def __init__(self, window, index: int, item, meaning: str, sayings: bool = False):
+    def __init__(self, window, index: int, item, meaning: str, sayings: bool = False,
+                 arabic_only: bool = False):
         super().__init__()
         self.win = window
         self.index = index
         self.item = item
+        # Arabic only: the mat is set to show the Arabic and no meaning. For a du'a that means
+        # dropping the line underneath. For a SAYING it means the opposite of the usual rule --
+        # the translation is the whole card normally and there is no Arabic on it, so with the
+        # translation gone there would be nothing on the card at all. The Arabic takes its
+        # place, in the Arabic face and running right to left, which is the box that was
+        # already built for it.
+        self.arabic_only = arabic_only
         # Whether this card is a saying rather than a du'a. Three things follow from it: the
         # heading is the collection and number instead of a name, the play mark sits beside the
         # translation instead of over the Arabic, and there is no Arabic at all -- Harry asked
@@ -110,21 +118,26 @@ class DuaCard(QtWidgets.QFrame):
                                    rtl=False, by_word=True)
             self.english.scale = window.s
             self.english.set_lines([meaning])
+            shown = self.arabic if arabic_only else self.english
             under = QtWidgets.QHBoxLayout()
             under.setSpacing(window.px(10))
             under.addWidget(self.button, 0, Qt.AlignmentFlag.AlignTop)
-            under.addWidget(self.english, 1)
+            under.addWidget(shown, 1)
             lay.addLayout(under, 1)
             self.meaning.setVisible(False)
-            self.arabic.setVisible(False)
+            self.arabic.setVisible(arabic_only)
+            self.english.setVisible(not arabic_only)
         else:
             self.english = None
             lay.addWidget(self.arabic, 1)
             lay.addWidget(self.meaning)
+            # Nothing to put under the Arabic, so nothing is put there -- rather than an empty
+            # label holding open a gap the Arabic could have had.
+            self.meaning.setVisible(not arabic_only)
         # The box the voice lights word by word as it reads: a du'a's Arabic, a saying's
         # translation. When Harry records the sayings the timings will be against the English,
         # which is the text on the screen -- so this is the box either way.
-        self.words = self.english if sayings else self.arabic
+        self.words = self.english if (sayings and not arabic_only) else self.arabic
         self.draw_mark(False)
 
     # Twice what it was. It is the thing on this screen most likely to be aimed at -- there is
@@ -230,20 +243,19 @@ class DuaBoard(QtWidgets.QWidget):
         self.filled = None
 
     def language(self) -> str:
-        """Which meaning to show: the reading language if the section has it, else English --
-        the same choice the reader makes, so the board and the reader never disagree.
+        """Which meaning to show: the mat's language if the section has it, else English, and
+        "" -- nothing -- when the mat is set to Arabic only.
 
-        The app's own language is what this falls back to, NOT English. It used to fall back
-        to English, which meant changing the mat to Urdu in Settings left every du'a in
-        English until you went into a du'a and pressed a language button -- and that button
-        writes quran_lang, which is the Qur'an's setting, so the only way to get Urdu du'as
-        was through a control that says it is for something else.
-
-        quran_lang still wins when it is set, because then somebody has asked for a meaning
-        language by hand and that is a more specific answer than the language the menus
-        happen to be in.
+        The mat asks this once, in Settings. It used to ask three times: a language, a
+        "translation beside Arabic" underneath it, and a row of buttons on the reading bar,
+        which all wrote to different settings. So the mat could sit there with Urdu menus and
+        English du'as and every setting would have been obeyed. The reader makes the same
+        choice from the same place, so the board and the page it opens never disagree.
         """
-        wanted = self.win.settings.quran_lang or self.win.settings.lang or "en"
+        from .ui import ARABIC_ONLY
+        wanted = self.win.settings.lang or "en"
+        if wanted == ARABIC_ONLY:
+            return ""
         return wanted if wanted in self.passages.languages() else "en"
 
     def wanted(self) -> list[tuple[int, object]]:
@@ -315,8 +327,8 @@ class DuaBoard(QtWidgets.QWidget):
         self.clear()
         lang = self.language()
         for place, (index, item) in enumerate(self.showing):
-            card = DuaCard(self.win, index, item, item.meaning(lang),
-                           sayings=self.sayings)
+            card = DuaCard(self.win, index, item, item.meaning(lang) if lang else "",
+                           sayings=self.sayings, arabic_only=not lang)
             card.opened.connect(self.chose.emit)
             # Straight to the board's own player, with the card's place bound rather than the
             # du'a's number in the file: the board reads it here, so it is the board's business.

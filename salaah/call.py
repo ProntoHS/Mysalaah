@@ -280,12 +280,15 @@ class CallBox(QtWidgets.QDialog):
             lines.addWidget(arabic, 3)
             self.boxes[key] = arabic
 
-            said = QtWidgets.QLabel(row.get("text", {}).get(lang)
-                                    or row.get("text", {}).get("en", ""))
+            # No meaning at all when the mat is set to Arabic only -- the call is the one
+            # screen where the Arabic is the whole point, and a line of English under each
+            # one is exactly what that setting says not to show.
+            said = QtWidgets.QLabel(row.get("text", {}).get(lang, "") if lang else "")
             said.setObjectName("callMeaning")
+            said.setVisible(bool(lang))
             said.setWordWrap(True)
             said.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            said.setLayoutDirection(Qt.LayoutDirection.RightToLeft if lang in ("ur", "ar")
+            said.setLayoutDirection(Qt.LayoutDirection.RightToLeft if lang == "ur"
                                     else Qt.LayoutDirection.LeftToRight)
             said.setContentsMargins(0, 0, 0, px(8))     # the gap goes below the pair, not inside it
             lines.addWidget(said, 0)
@@ -307,8 +310,12 @@ class CallBox(QtWidgets.QDialog):
             self.follow.start()
 
     def meaning_language(self) -> str:
-        """The interface language if the call has been translated into it, else English."""
+        """The interface language if the call has been translated into it, English if not, and
+        "" -- no meaning under the lines -- when the mat is set to Arabic only."""
+        from .ui import ARABIC_ONLY
         wanted = getattr(self.win.pack, "lang", "en")
+        if wanted == ARABIC_ONLY:
+            return ""
         rows = self.adhan.words.get("lines", [])
         have = all(row.get("text", {}).get(wanted) for row in rows) if rows else False
         return wanted if have else "en"

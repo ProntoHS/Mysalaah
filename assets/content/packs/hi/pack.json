@@ -113,7 +113,6 @@
     "qibla.title": "क़िबले की तरफ़ हों",
     "qibla.turn_left": "बाएँ {degrees}° घूमें",
     "qibla.turn_right": "दाएँ {degrees}° घूमें",
-    "quran.arabic_only": "केवल अरबी",
     "quran.cannot_recite": "तिलावत उपलब्ध नहीं",
     "quran.recite": "तिलावत",
     "quran.stop_reciting": "रोकें",
@@ -218,8 +217,6 @@
     "settings.theme_light": "हल्का: सफ़ेद पर काला",
     "settings.timings_estimated": "अल्फ़ाज़ के अवक़ात मतन की लंबाई से अंदाज़न निकाले गए हैं, कान से नहीं, इसलिए सुर्ख़ रंग बहकेगा। tools/tap_timings.py से दुरुस्त करें।",
     "settings.title": "सेटिंग्स",
-    "settings.translation": "अरबी के साथ तर्जुमा",
-    "settings.translation_none": "सिर्फ़ अरबी",
     "settings.version": "संस्करण {number}",
     "timing.again": "यही दोबारा दर्ज करें",
     "timing.count": "{n} / {total}",
@@ -279,6 +276,7 @@
     "wudu.head": "सिर और कानों का मसह",
     "wudu.mouth": "कुल्ली करें",
     "wudu.nose": "नाक साफ़ करें",
-    "settings.restarting": "बदलाव लागू करने के लिए फिर से शुरू हो रहा है…"
+    "settings.restarting": "बदलाव लागू करने के लिए फिर से शुरू हो रहा है…",
+    "settings.arabic_only": "केवल अरबी"
   }
 }
