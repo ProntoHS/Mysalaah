@@ -17,7 +17,7 @@ tell nobody that the mat is missing most of them.
 """
 from __future__ import annotations
 
-from .qt import QtCore, QtWidgets, Signal
+from .qt import QtCore, QtWidgets, Qt, Signal
 from .filmsheet import FilmSheet
 from .knowledge import Tile
 
@@ -54,6 +54,25 @@ SAYINGS = ("faith", "prayer", "purification", "fasting", "charity", "hajj",
 SAYINGS_ACROSS = 6
 
 
+def drawn_in(folder, name: str, lang: str):
+    """The picture of this tile in that language, or the English one if it was not drawn.
+
+    The still menus have the same problem the animated ones do: the words are part of the
+    drawing, not text laid over it, so following the language means a different FILE. The
+    animated sheets solve it with a films map in menu.json; a grid of stills has no such file,
+    so the language goes on the end of the name -- step-hands.fr.png beside step-hands.png.
+
+    English keeps the bare name. It is the one every other part of the mat falls back to, and
+    renaming it to step-hands.en.png would have meant every folder of stills needing the full
+    set before any of it worked.
+    """
+    if lang and lang != "en":
+        said = folder / f"{name}.{lang}.png"
+        if said.is_file():
+            return said
+    return folder / f"{name}.png"
+
+
 class DuaMenu(QtWidgets.QWidget):
     """A sheet of tiles filling the big screen: eighteen of them, du'as or hadith headings."""
 
@@ -86,9 +105,23 @@ class DuaMenu(QtWidgets.QWidget):
         self.sheet.deleteLater()
         self.sheet = None
 
+        # The tiles go left to right in the order they were drawn, whatever direction the rest
+        # of the mat is laid out in.
+        #
+        # A grid follows the app's layout direction, so in Urdu and Arabic this put step 7 on
+        # the left and step 1 on the right -- Harry's sheet shown back to front. He drew the
+        # Urdu and Arabic sheets with 1 on the LEFT, like the others, and these tiles are cut
+        # from those sheets in that order; mirroring them is the app disagreeing with the
+        # drawing. It would also have disagreed with the mat: the du'a and hadith menus are a
+        # single picture with buttons laid over it, so they cannot mirror and do not, and the
+        # wu'du page flipping while they stayed put is the sort of thing that reads as a bug.
+        # The numbers are drawn into the tiles, so the order is never in doubt either way.
+        self.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+
         self.tiles: list[Tile] = []
         for i, name in enumerate(names):
-            tile = Tile(window.images, window.assets / folder / f"{name}.png", name)
+            tile = Tile(window.images, drawn_in(window.assets / folder, name,
+                                                window.settings.lang), name)
             tile.clicked.connect(lambda _=False, n=name: self.chose.emit(n))
             lay.addWidget(tile, i // across, i % across)
             self.tiles.append(tile)

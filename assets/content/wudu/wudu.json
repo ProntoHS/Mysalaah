@@ -1,62 +1,119 @@
 {
   "schema": 1,
   "reviewed": false,
-  "source": "The seven steps as Harry drew them, with a plain explanation of each written for this app from two published sources rather than from memory: myislam.org/how-to-do-wudu/ and the Wikipedia article on Wudu, which agree on the order, the boundaries of each washing and the number of times. DRAFT: how many of these are fard and how many sunnah differs between the schools, and the second source says so explicitly. The mat follows the Hanafi school. The wording, and that classification, need a qualified reviewer.",
+  "source": "The seven steps as Harry drew them, with a plain explanation of each written for this app from two published sources rather than from memory: myislam.org/how-to-do-wudu/ and the Wikipedia article on Wudu, which agree on the order, the boundaries of each washing and the number of times. The explanations were translated into the mat's other languages here, from the English above; they are instructions written for this app rather than scripture, which is why they could be. DRAFT: how many of these are fard and how many sunnah differs between the schools, and the second source says so explicitly. The mat follows the Hanafi school. The wording, and that classification, need a qualified reviewer.",
   "steps": [
     {
       "key": "hands",
       "number": 1,
-      "films": ["hands.gif"],
+      "films": [
+        "hands.gif"
+      ],
       "text": {
-        "en": "Make the intention in your heart and say Bismillah. Wash both hands up to the wrists, three times, starting with the right. Work the water between your fingers so none of the skin is missed."
+        "en": "Make the intention in your heart and say Bismillah. Wash both hands up to the wrists, three times, starting with the right. Work the water between your fingers so none of the skin is missed.",
+        "fr": "Formez l'intention dans votre cœur et dites Bismillah. Lavez les deux mains jusqu'aux poignets, trois fois, en commençant par la droite. Faites passer l'eau entre vos doigts pour ne laisser aucune partie de la peau au sec.",
+        "es": "Haz la intención en tu corazón y di Bismillah. Lávate las dos manos hasta las muñecas, tres veces, empezando por la derecha. Pasa el agua entre los dedos para que no quede piel sin mojar.",
+        "ur": "دل میں نیت کریں اور بسم اللہ کہیں۔ دونوں ہاتھ کلائیوں تک تین بار دھوئیں، دائیں ہاتھ سے شروع کریں۔ انگلیوں کے درمیان پانی پہنچائیں تاکہ کھال کا کوئی حصہ خشک نہ رہے۔",
+        "hi": "दिल में नीयत करें और बिस्मिल्लाह कहें। दोनों हाथ कलाइयों तक तीन बार धोएँ, दाएँ हाथ से शुरू करें। उँगलियों के बीच पानी पहुँचाएँ ताकि खाल का कोई हिस्सा सूखा न रहे।",
+        "zh": "心中举意，念「奉真主之名」（Bismillah）。双手洗到手腕，洗三次，从右手开始。让水流过指缝，不要漏掉任何一处皮肤。",
+        "ar": "انوِ بقلبك وقل بسم الله. اغسل يديك إلى الرسغين ثلاث مرات، مبتدئًا باليمنى. خلّل بين أصابعك حتى لا يبقى موضع من الجلد دون ماء."
       }
     },
     {
       "key": "mouth",
       "number": 2,
-      "films": ["mouth.gif"],
+      "films": [
+        "mouth.gif"
+      ],
       "text": {
-        "en": "Take water into your mouth with your right hand and rinse it round thoroughly, then spit it out. Three times."
+        "en": "Take water into your mouth with your right hand and rinse it round thoroughly, then spit it out. Three times.",
+        "fr": "Prenez de l'eau dans la bouche avec la main droite et rincez bien, puis recrachez. Trois fois.",
+        "es": "Toma agua en la boca con la mano derecha y enjuágate bien, luego escúpela. Tres veces.",
+        "ur": "دائیں ہاتھ سے منہ میں پانی لیں اور اچھی طرح کلی کریں، پھر تھوک دیں۔ تین بار۔",
+        "hi": "दाएँ हाथ से मुँह में पानी लें और अच्छी तरह कुल्ला करें, फिर थूक दें। तीन बार।",
+        "zh": "用右手取水入口，仔细漱口，然后吐出。三次。",
+        "ar": "خذ الماء بيدك اليمنى إلى فمك ومضمض جيدًا ثم أخرجه. ثلاث مرات."
       }
     },
     {
       "key": "nose",
       "number": 3,
-      "films": ["nose.gif"],
+      "films": [
+        "nose.gif"
+      ],
       "text": {
-        "en": "Sniff a little water up into your nose with your right hand and blow it out with your left. Three times. Take only a little, so you do not choke."
+        "en": "Sniff a little water up into your nose with your right hand and blow it out with your left. Three times. Take only a little, so you do not choke.",
+        "fr": "Aspirez un peu d'eau dans le nez avec la main droite et soufflez-la avec la gauche. Trois fois. Ne prenez qu'un peu d'eau, pour ne pas vous étouffer.",
+        "es": "Aspira un poco de agua por la nariz con la mano derecha y sóplala con la izquierda. Tres veces. Toma solo un poco, para no atragantarte.",
+        "ur": "دائیں ہاتھ سے ناک میں تھوڑا پانی چڑھائیں اور بائیں ہاتھ سے صاف کریں۔ تین بار۔ تھوڑا ہی پانی لیں تاکہ دم نہ گھٹے۔",
+        "hi": "दाएँ हाथ से नाक में थोड़ा पानी चढ़ाएँ और बाएँ हाथ से साफ़ करें। तीन बार। थोड़ा ही पानी लें, ताकि दम न घुटे।",
+        "zh": "用右手将少量水吸入鼻中，再用左手擤出。三次。只取少量水，以免呛到。",
+        "ar": "استنشق قليلًا من الماء بيدك اليمنى وانثره بيدك اليسرى. ثلاث مرات. خذ قليلًا من الماء حتى لا تشرق."
       }
     },
     {
       "key": "face",
       "number": 4,
-      "films": ["face.gif"],
+      "films": [
+        "face.gif"
+      ],
       "text": {
-        "en": "Wash your whole face three times, from where your hair begins down to your chin, and from one ear to the other. If you have a beard, run your wet fingers through it."
+        "en": "Wash your whole face three times, from where your hair begins down to your chin, and from one ear to the other. If you have a beard, run your wet fingers through it.",
+        "fr": "Lavez tout le visage trois fois, de la naissance des cheveux jusqu'au menton, et d'une oreille à l'autre. Si vous portez une barbe, passez-y vos doigts mouillés.",
+        "es": "Lávate toda la cara tres veces, desde donde empieza el pelo hasta la barbilla, y de una oreja a la otra. Si tienes barba, pásate los dedos mojados por ella.",
+        "ur": "پورا چہرہ تین بار دھوئیں، بالوں کی جڑ سے ٹھوڑی تک، اور ایک کان سے دوسرے کان تک۔ اگر داڑھی ہو تو گیلی انگلیوں سے اس کا خلال کریں۔",
+        "hi": "पूरा चेहरा तीन बार धोएँ, बालों की जड़ से ठोड़ी तक, और एक कान से दूसरे कान तक। अगर दाढ़ी हो तो गीली उँगलियाँ उसमें फेरें।",
+        "zh": "将整张脸洗三次，从发际到下巴，从一只耳朵到另一只耳朵。如果留有胡须，用湿手指穿过胡须。",
+        "ar": "اغسل وجهك كله ثلاث مرات، من منبت الشعر إلى الذقن، ومن الأذن إلى الأذن. وإن كانت لك لحية فخلّلها بأصابعك المبللة."
       }
     },
     {
       "key": "arms",
       "number": 5,
-      "films": ["arms.gif"],
+      "films": [
+        "arms.gif"
+      ],
       "text": {
-        "en": "Wash your right arm from the fingertips up to and including the elbow, three times, then the left arm the same way. Make sure the water reaches all the way round."
+        "en": "Wash your right arm from the fingertips up to and including the elbow, three times, then the left arm the same way. Make sure the water reaches all the way round.",
+        "fr": "Lavez le bras droit du bout des doigts jusqu'au coude inclus, trois fois, puis le bras gauche de la même façon. Veillez à ce que l'eau fasse tout le tour du bras.",
+        "es": "Lávate el brazo derecho desde las puntas de los dedos hasta el codo incluido, tres veces, y luego el brazo izquierdo igual. Asegúrate de que el agua llegue a todo el contorno.",
+        "ur": "دایاں بازو انگلیوں کے سروں سے کہنی سمیت تین بار دھوئیں، پھر بایاں بازو اسی طرح۔ خیال رکھیں کہ پانی بازو کے چاروں طرف پہنچے۔",
+        "hi": "दायाँ हाथ उँगलियों के सिरों से कोहनी समेत तीन बार धोएँ, फिर बायाँ हाथ उसी तरह। ध्यान रखें कि पानी चारों ओर पहुँचे।",
+        "zh": "洗右臂，从指尖到肘部（包括肘部），洗三次，然后以同样方式洗左臂。确保水绕手臂一周都洗到。",
+        "ar": "اغسل ذراعك اليمنى من أطراف الأصابع إلى المرفق مع المرفق، ثلاث مرات، ثم اليسرى كذلك. واحرص أن يصل الماء إلى الذراع كلها."
       }
     },
     {
       "key": "head",
       "number": 6,
-      "films": ["head.gif", "head-2.gif"],
+      "films": [
+        "head.gif",
+        "head-2.gif"
+      ],
       "text": {
-        "en": "With wet hands, wipe over your head once: from the front to the back and then forward again. Then wipe your ears with the same wetness, the inside with your index fingers and behind them with your thumbs. The head and ears are wiped once, not washed three times."
+        "en": "With wet hands, wipe over your head once: from the front to the back and then forward again. Then wipe your ears with the same wetness, the inside with your index fingers and behind them with your thumbs. The head and ears are wiped once, not washed three times.",
+        "fr": "Avec les mains mouillées, essuyez la tête une seule fois : de l'avant vers l'arrière, puis de nouveau vers l'avant. Essuyez ensuite les oreilles avec la même humidité, l'intérieur avec les index et l'arrière avec les pouces. La tête et les oreilles s'essuient une fois ; elles ne se lavent pas trois fois.",
+        "es": "Con las manos mojadas, pásalas por la cabeza una sola vez: de delante hacia atrás y otra vez hacia delante. Luego pásate la misma humedad por las orejas, por dentro con los índices y por detrás con los pulgares. La cabeza y las orejas se pasan una vez; no se lavan tres veces.",
+        "ur": "گیلے ہاتھوں سے سر کا ایک بار مسح کریں: آگے سے پیچھے اور پھر پیچھے سے آگے۔ پھر اسی تری سے کانوں کا مسح کریں، اندر شہادت کی انگلیوں سے اور پیچھے انگوٹھوں سے۔ سر اور کانوں کا مسح ایک بار ہوتا ہے، انہیں تین بار دھویا نہیں جاتا۔",
+        "hi": "गीले हाथों से सिर का एक बार मसह करें: आगे से पीछे और फिर पीछे से आगे। फिर उसी गीलेपन से कानों का मसह करें, अंदर तर्जनी से और पीछे अंगूठों से। सिर और कानों का मसह एक बार होता है, उन्हें तीन बार धोया नहीं जाता।",
+        "zh": "用湿手抹头一次：从前往后，再从后往前。然后用同样的湿气抹耳朵，用食指抹内侧，用拇指抹背面。头和耳朵只抹一次，不洗三次。",
+        "ar": "امسح رأسك بيدين مبللتين مرة واحدة: من الأمام إلى الخلف ثم إلى الأمام. ثم امسح أذنيك بالبلل نفسه، باطنهما بالسبابتين وظاهرهما بالإبهامين. الرأس والأذنان يُمسحان مرة واحدة ولا يُغسلان ثلاث مرات."
       }
     },
     {
       "key": "feet",
       "number": 7,
-      "films": ["feet.gif"],
+      "films": [
+        "feet.gif"
+      ],
       "text": {
-        "en": "Wash your right foot from the toes up to and including the ankle, three times, and then the left foot the same way. Run your little finger between the toes."
+        "en": "Wash your right foot from the toes up to and including the ankle, three times, and then the left foot the same way. Run your little finger between the toes.",
+        "fr": "Lavez le pied droit des orteils jusqu'à la cheville incluse, trois fois, puis le pied gauche de la même façon. Passez votre petit doigt entre les orteils.",
+        "es": "Lávate el pie derecho desde los dedos hasta el tobillo incluido, tres veces, y luego el pie izquierdo igual. Pasa el dedo meñique entre los dedos del pie.",
+        "ur": "دایاں پاؤں انگلیوں سے ٹخنے سمیت تین بار دھوئیں، پھر بایاں پاؤں اسی طرح۔ چھوٹی انگلی سے پاؤں کی انگلیوں کا خلال کریں۔",
+        "hi": "दायाँ पैर उँगलियों से टखने समेत तीन बार धोएँ, फिर बायाँ पैर उसी तरह। छोटी उँगली से पैर की उँगलियों के बीच साफ़ करें।",
+        "zh": "洗右脚，从脚趾到脚踝（包括脚踝），洗三次，然后以同样方式洗左脚。用小指清洁脚趾之间。",
+        "ar": "اغسل قدمك اليمنى من الأصابع إلى الكعب مع الكعب، ثلاث مرات، ثم اليسرى كذلك. وخلّل بين أصابع قدميك بخنصرك."
       }
     }
   ]

@@ -1714,10 +1714,12 @@ class MainWindow(QtWidgets.QWidget):
         if step is None:
             return self.open_the_wudu_steps()
         named = self.t(f"wudu.{key}")
-        # The same choice the du'a board and the passage reader make, from the same place.
-        # Arabic only still gets the English here: the steps are instructions written for this
-        # mat, not scripture, and there is no Arabic of them to show instead -- a wu'du step
-        # with its explanation taken away is a drawing and a number.
+        # The same choice the du'a board and the passage reader make, from the same place --
+        # and unlike the du'as and the sayings, the explanation is shown in Arabic rather than
+        # withheld when the mat is set to Arabic only. It is not a translation OF anything:
+        # these are instructions written for this app, so Arabic is simply another language
+        # they were written in, and a wu'du step with its explanation taken away is a drawing
+        # and a number.
         chosen = self.settings.lang or "en"
         said = step["text"].get(chosen) or step["text"].get("en", "")
         self.wudu_step.show_step(step, f"{step['number']} - {named}", said,

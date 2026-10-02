@@ -2785,6 +2785,95 @@ class MenusAreDrawnInEveryLanguageTest(unittest.TestCase):
                     self.assertLess(moved, 12, f"{name} has moved {moved}px in {lang}")
 
 
+class WuduFollowsTheLanguageTest(unittest.TestCase):
+    """The wu'du section in the language the mat is set to -- the drawings and the words.
+
+    Two halves, which failed for two different reasons. The seven tall tiles have their
+    numbers and headings DRAWN INTO them, so following the language means loading a different
+    file; Harry redrew the sheet in each language and they are cut beside the English ones as
+    step-hands.fr.png and so on. The paragraph under a step is text, and it was English
+    whatever the mat was set to, because there was only English in the file.
+    """
+
+    KEYS = ("hands", "mouth", "nose", "face", "arms", "head", "feet")
+
+    def window(self, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_every_language_has_its_own_drawing_of_every_step(self):
+        for lang in WRITTEN_IN + (ARABIC_ONLY,):
+            for key in self.KEYS:
+                with self.subTest(f"{lang}.{key}"):
+                    name = f"step-{key}.png" if lang == "en" else f"step-{key}.{lang}.png"
+                    path = ASSETS / "wudu" / name
+                    self.assertTrue(path.is_file(), f"{name} is missing")
+
+    def test_the_tiles_loaded_are_the_ones_for_that_language(self):
+        for lang in ("fr", "ur", "zh", ARABIC_ONLY):
+            with self.subTest(lang):
+                w = self.window(lang)
+                self.assertIsNotNone(w.wudu_menu, "the wu'du page did not build")
+                for tile in w.wudu_menu.tiles:
+                    self.assertTrue(tile.path.name.endswith(f".{lang}.png"),
+                                    f"{lang} is showing {tile.path.name}")
+                    self.assertTrue(tile.path.is_file())
+
+    def test_english_keeps_the_plain_name(self):
+        """It is what everything else falls back to, so it must not need a suffix of its own."""
+        w = self.window("en")
+        for tile in w.wudu_menu.tiles:
+            self.assertRegex(tile.path.name, r"^step-\w+\.png$", tile.path.name)
+
+    def test_a_language_with_no_drawing_falls_back_to_english(self):
+        from salaah.duamenu import drawn_in
+        folder = ASSETS / "wudu"
+        self.assertEqual("step-hands.png", drawn_in(folder, "step-hands", "sw").name)
+        self.assertEqual("step-hands.png", drawn_in(folder, "step-hands", "").name)
+        self.assertEqual("step-hands.fr.png", drawn_in(folder, "step-hands", "fr").name)
+
+    def test_the_explanation_under_a_step_is_in_that_language(self):
+        """The half that was still English. Checked by script, because a paragraph that is
+        there but in the wrong language is exactly what this looked like before."""
+        def script(said):
+            arabic = sum(1 for c in said if "؀" <= c <= "ۿ")
+            deva = sum(1 for c in said if "ऀ" <= c <= "ॿ")
+            han = sum(1 for c in said if "一" <= c <= "鿿")
+            latin = sum(1 for c in said if c.isascii() and c.isalpha())
+            return max((arabic, "arabic"), (deva, "devanagari"), (han, "han"),
+                       (latin, "latin"))[1]
+
+        for lang, want in (("en", "latin"), ("fr", "latin"), ("ur", "arabic"),
+                           ("hi", "devanagari"), ("zh", "han"), (ARABIC_ONLY, "arabic")):
+            with self.subTest(lang):
+                w = self.window(lang)
+                w.open_wudu_step("hands")
+                settle()
+                said = w.wudu_step.words.text()
+                self.assertTrue(said.strip(), "the step has nothing written under it")
+                self.assertEqual(want, script(said), f"{lang} shows {said[:50]!r}")
+
+    def test_the_heading_and_the_words_under_it_are_the_same_language(self):
+        """They came from different places and only one of them followed the setting, which is
+        how the mat ended up with an Urdu heading over an English paragraph."""
+        w = self.window("ur")
+        w.open_wudu_step("face")
+        settle()
+        for said in (w.wudu_step.heading.text(), w.wudu_step.words.text()):
+            arabic = sum(1 for c in said if "؀" <= c <= "ۿ")
+            latin = sum(1 for c in said if c.isascii() and c.isalpha())
+            self.assertGreater(arabic, latin, f"not Urdu: {said[:60]!r}")
+
+
 class ArabicOnlyOnTheScreenTest(unittest.TestCase):
     """What "Arabic only" actually does once it is more than a row in a dropdown.
 

@@ -4151,3 +4151,71 @@ class WuduContentTest(unittest.TestCase):
                 with self.subTest(f"{lang}.{step['key']}"):
                     self.assertTrue(pack.ui.get(f"wudu.{step['key']}", "").strip(),
                                     f"{lang} cannot name {step['key']}")
+
+    def test_the_explanation_under_each_step_is_in_every_language(self):
+        """The heading followed the language; the paragraph under it did not, so a mat set to
+        Urdu had an Urdu drawing, an Urdu heading and an English explanation beneath.
+
+        These could be translated where the hadith and the du'as could not, and the difference
+        is not squeamishness: a hadith is a narration with a translator's name on it, while
+        these are instructions written for this app out of two published sources. Translating
+        my own prose is translating, not putting words in anybody's mouth. They are still
+        nobody's checked work, which is what reviewed: false says.
+        """
+        for step in self.steps:
+            for lang in WRITTEN_IN + (ARABIC_ONLY,):
+                with self.subTest(f"{lang}.{step['key']}"):
+                    said = step["text"].get(lang, "")
+                    self.assertGreater(len(said.strip()), 20,
+                                       f"{lang} has no explanation of {step['key']}")
+
+    def test_the_counts_survived_being_translated(self):
+        """What a translation of a ritual instruction can get wrong without reading wrong.
+
+        Every one of these is a ruling: the hands, mouth, nose, face, arms and feet are washed
+        THREE times, and the head and ears are wiped ONCE -- the sixth step says so twice over,
+        because it is the one people get wrong. A translation that reads beautifully and says
+        two instead of three teaches a child the wrong wudu, and nothing about the sentence
+        looks broken. So the count is checked in each language against the English rather than
+        taken on trust, and so is right-before-left, which is the other thing the order of
+        these steps turns on.
+        """
+        WORDS = {
+            "three": {"en": ["three"], "fr": ["trois"], "es": ["tres"], "ur": ["تین"],
+                      "hi": ["तीन"], "zh": ["三"], "ar": ["ثلاث"]},
+            "once": {"en": ["once"], "fr": ["une seule", "une fois"],
+                     "es": ["una sola", "una vez"], "ur": ["ایک بار"], "hi": ["एक बार"],
+                     "zh": ["一次"], "ar": ["مرة واحدة"]},
+            "right": {"en": ["right"], "fr": ["droit"], "es": ["derech"],
+                      "ur": ["دائیں", "دایاں"], "hi": ["दाएँ", "दायाँ"], "zh": ["右"],
+                      "ar": ["يمن"]},
+            "left": {"en": ["left"], "fr": ["gauche"], "es": ["izquierd"],
+                     "ur": ["بائیں", "بایاں"], "hi": ["बाएँ", "बायाँ"], "zh": ["左"],
+                     "ar": ["يسر"]},
+        }
+
+        def has(said, words):
+            low = said.lower()
+            return any(w.lower() in low for w in words)
+
+        for step in self.steps:
+            english = step["text"]["en"]
+            for what, table in WORDS.items():
+                wanted = has(english, table["en"])
+                for lang, said in step["text"].items():
+                    with self.subTest(f"{step['key']}.{lang}.{what}"):
+                        self.assertEqual(wanted, has(said, table[lang]),
+                                         f"the English of {step['key']} "
+                                         f"{'says' if wanted else 'does not say'} {what} "
+                                         f"and the {lang} does not match: {said[:70]!r}")
+
+    def test_the_sixth_step_still_says_it_is_not_washed_three_times(self):
+        """The one sentence in here that exists to correct a common mistake. A translator
+        tidying it away would leave the step reading as though three were fine."""
+        head = next(s for s in self.steps if s["key"] == "head")
+        for lang, said in head["text"].items():
+            with self.subTest(lang):
+                three = {"en": "three", "fr": "trois", "es": "tres", "ur": "تین",
+                         "hi": "तीन", "zh": "三", "ar": "ثلاث"}[lang]
+                self.assertIn(three.lower(), said.lower(),
+                              f"{lang} dropped the warning about washing three times")
