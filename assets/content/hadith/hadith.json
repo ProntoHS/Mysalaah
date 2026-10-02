@@ -121,15 +121,15 @@
       "from": "hadith-api"
     },
     {
-      "key": "muslim_1478",
+      "key": "bukhari_723",
       "cats": [
         "prayer"
       ],
-      "title": "The Book of Mosques and Places of Prayer",
-      "ref": "Sahih Muslim 1478",
-      "arabic": "وَحَدَّثَنِي زُهَيْرُ بْنُ حَرْبٍ، وَمُحَمَّدُ بْنُ الْمُثَنَّى، قَالاَ حَدَّثَنَا يَحْيَى، عَنْ عُبَيْدِ اللَّهِ، قَالَ أَخْبَرَنِي نَافِعٌ، عَنِ ابْنِ عُمَرَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ صَلاَةُ الرَّجُلِ فِي الْجَمَاعَةِ تَزِيدُ عَلَى صَلاَتِهِ وَحْدَهُ سَبْعًا وَعِشْرِينَ ‏\"‏ ‏.‏",
+      "title": "Call to Prayers (Adhaan)",
+      "ref": "Sahih al-Bukhari 723",
+      "arabic": "حَدَّثَنَا أَبُو الْوَلِيدِ، قَالَ حَدَّثَنَا شُعْبَةُ، عَنْ قَتَادَةَ، عَنْ أَنَسٍ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ سَوُّوا صُفُوفَكُمْ فَإِنَّ تَسْوِيَةَ الصُّفُوفِ مِنْ إِقَامَةِ الصَّلاَةِ ‏\"‏‏.‏",
       "text": {
-        "en": "Ibn 'Umar reported Allah's Apostle (ﷺ) as saying:The prayer of a person in congregation is twenty-seven times in excess to the prayer said alone."
+        "en": "Narrated Anas bin Malik: The Prophet (ﷺ) said, \"Straighten your rows as the straightening of rows is essential for a perfect and correct prayer\"."
       },
       "from": "hadith-api"
     },
@@ -316,6 +316,20 @@
       "from": "hadith-api"
     },
     {
+      "key": "bukhari_5854",
+      "cats": [
+        "purification",
+        "dress"
+      ],
+      "title": "Dress",
+      "ref": "Sahih al-Bukhari 5854",
+      "arabic": "حَدَّثَنَا حَجَّاجُ بْنُ مِنْهَالٍ، حَدَّثَنَا شُعْبَةُ، قَالَ أَخْبَرَنِي أَشْعَثُ بْنُ سُلَيْمٍ، سَمِعْتُ أَبِي يُحَدِّثُ، عَنْ مَسْرُوقٍ، عَنْ عَائِشَةَ ـ رضى الله عنها ـ قَالَتْ كَانَ النَّبِيُّ صلى الله عليه وسلم يُحِبُّ التَّيَمُّنَ فِي طُهُورِهِ وَتَرَجُّلِهِ وَتَنَعُّلِهِ‏.‏",
+      "text": {
+        "en": "Narrated `Aisha: The Prophet (ﷺ) used to like starting from the right in performing ablution, combing his hair and putting on his shoes."
+      },
+      "from": "hadith-api"
+    },
+    {
       "key": "bukhari_38",
       "cats": [
         "fasting"
@@ -461,7 +475,8 @@
     {
       "key": "muslim_2386",
       "cats": [
-        "charity"
+        "charity",
+        "business"
       ],
       "title": "The Book of Zakat",
       "ref": "Sahih Muslim 2386",
@@ -513,7 +528,8 @@
     {
       "key": "muslim_6690",
       "cats": [
-        "charity"
+        "charity",
+        "greetings"
       ],
       "title": "The Book of Virtue, Enjoining Good Manners, and Joining of the Ties of Kinship",
       "ref": "Sahih Muslim 6690",
@@ -576,15 +592,15 @@
       "from": "hadith-api"
     },
     {
-      "key": "muslim_3289",
+      "key": "bukhari_1597",
       "cats": [
         "hajj"
       ],
-      "title": "The Book of Pilgrimage",
-      "ref": "Sahih Muslim 3289",
-      "arabic": "حَدَّثَنَا يَحْيَى بْنُ يَحْيَى، قَالَ قَرَأْتُ عَلَى مَالِكٍ عَنْ سُمَىٍّ، مَوْلَى أَبِي بَكْرِ بْنِ عَبْدِ الرَّحْمَنِ عَنْ أَبِي صَالِحٍ السَّمَّانِ، عَنْ أَبِي هُرَيْرَةَ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ الْعُمْرَةُ إِلَى الْعُمْرَةِ كَفَّارَةٌ لِمَا بَيْنَهُمَا وَالْحَجُّ الْمَبْرُورُ لَيْسَ لَهُ جَزَاءٌ إِلاَّ الْجَنَّةُ ‏\"‏ ‏.‏",
+      "title": "Hajj (Pilgrimage)",
+      "ref": "Sahih al-Bukhari 1597",
+      "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ كَثِيرٍ، أَخْبَرَنَا سُفْيَانُ، عَنِ الأَعْمَشِ، عَنْ إِبْرَاهِيمَ، عَنْ عَابِسِ بْنِ رَبِيعَةَ، عَنْ عُمَرَ ـ رضى الله عنه ـ أَنَّهُ جَاءَ إِلَى الْحَجَرِ الأَسْوَدِ فَقَبَّلَهُ، فَقَالَ إِنِّي أَعْلَمُ أَنَّكَ حَجَرٌ لاَ تَضُرُّ وَلاَ تَنْفَعُ، وَلَوْلاَ أَنِّي رَأَيْتُ النَّبِيَّ صلى الله عليه وسلم يُقَبِّلُكَ مَا قَبَّلْتُكَ‏.‏",
       "text": {
-        "en": "Abu Huraira (Allah be pleased with him) reported Allah's Messenger (ﷺ) as saying:An Umra is an expiation for the sins committed between it and the next, and Hajj which is accepted will receive no other reward than Paradise."
+        "en": "Narrated `Abis bin Rabi`a: `Umar came near the Black Stone and kissed it and said \"No doubt, I know that you are a stone and can neither benefit anyone nor harm anyone. Had I not seen Allah's Messenger (ﷺ) kissing you I would not have kissed you\"."
       },
       "from": "hadith-api"
     },
@@ -667,15 +683,15 @@
       "from": "hadith-api"
     },
     {
-      "key": "bukhari_109",
+      "key": "bukhari_1409",
       "cats": [
         "knowledge"
       ],
-      "title": "Knowledge",
-      "ref": "Sahih al-Bukhari 109",
-      "arabic": "حَدَّثَنَا مَكِّيُّ بْنُ إِبْرَاهِيمَ، قَالَ حَدَّثَنَا يَزِيدُ بْنُ أَبِي عُبَيْدٍ، عَنْ سَلَمَةَ، قَالَ سَمِعْتُ النَّبِيَّ صلى الله عليه وسلم يَقُولُ ‏ \"‏ مَنْ يَقُلْ عَلَىَّ مَا لَمْ أَقُلْ فَلْيَتَبَوَّأْ مَقْعَدَهُ مِنَ النَّارِ ‏\"‏‏.‏",
+      "title": "Obligatory Charity Tax (Zakat)",
+      "ref": "Sahih al-Bukhari 1409",
+      "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ الْمُثَنَّى، حَدَّثَنَا يَحْيَى، عَنْ إِسْمَاعِيلَ، قَالَ حَدَّثَنِي قَيْسٌ، عَنِ ابْنِ مَسْعُودٍ ـ رضى الله عنه ـ قَالَ سَمِعْتُ النَّبِيَّ صلى الله عليه وسلم يَقُولُ ‏ \"‏ لاَ حَسَدَ إِلاَّ فِي اثْنَتَيْنِ رَجُلٌ آتَاهُ اللَّهُ مَالاً فَسَلَّطَهُ عَلَى هَلَكَتِهِ فِي الْحَقِّ، وَرَجُلٌ آتَاهُ اللَّهُ حِكْمَةً فَهْوَ يَقْضِي بِهَا وَيُعَلِّمُهَا ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Salama: I heard the Prophet (ﷺ) saying, \"Whoever (intentionally) ascribes to me what I have not said then (surely) let him occupy his seat in Hell-fire\"."
+        "en": "Narrated Ibn Mas`ud: I heard the Prophet (ﷺ) saying, \"There is no envy except in two: a person whom Allah has given wealth and he spends it in the right way, and a person whom Allah has given wisdom (i.e. religious knowledge) and he gives his decisions accordingly and teaches it to the others\"."
       },
       "from": "hadith-api"
     },
@@ -721,7 +737,8 @@
     {
       "key": "bukhari_6136",
       "cats": [
-        "character"
+        "character",
+        "greetings"
       ],
       "title": "Good Manners and Form (Al-Adab)",
       "ref": "Sahih al-Bukhari 6136",
@@ -825,7 +842,8 @@
     {
       "key": "bukhari_5199",
       "cats": [
-        "family"
+        "family",
+        "marriage"
       ],
       "title": "Wedlock, Marriage (Nikaah)",
       "ref": "Sahih al-Bukhari 5199",
@@ -851,7 +869,8 @@
     {
       "key": "muslim_3499",
       "cats": [
-        "family"
+        "family",
+        "marriage"
       ],
       "title": "The Book of Marriage",
       "ref": "Sahih Muslim 3499",
@@ -864,7 +883,8 @@
     {
       "key": "muslim_3400",
       "cats": [
-        "family"
+        "family",
+        "marriage"
       ],
       "title": "The Book of Marriage",
       "ref": "Sahih Muslim 3400",
@@ -877,7 +897,8 @@
     {
       "key": "bukhari_3237",
       "cats": [
-        "family"
+        "family",
+        "marriage"
       ],
       "title": "Beginning of Creation",
       "ref": "Sahih al-Bukhari 3237",
@@ -890,7 +911,8 @@
     {
       "key": "muslim_3529",
       "cats": [
-        "family"
+        "family",
+        "marriage"
       ],
       "title": "The Book of Marriage",
       "ref": "Sahih Muslim 3529",
@@ -903,7 +925,8 @@
     {
       "key": "muslim_3561",
       "cats": [
-        "family"
+        "family",
+        "marriage"
       ],
       "title": "The Book of Marriage",
       "ref": "Sahih Muslim 3561",
@@ -916,7 +939,8 @@
     {
       "key": "bukhari_6951",
       "cats": [
-        "community"
+        "community",
+        "justice"
       ],
       "title": "(Statements made under) Coercion",
       "ref": "Sahih al-Bukhari 6951",
@@ -940,22 +964,23 @@
       "from": "hadith-api"
     },
     {
-      "key": "bukhari_6076",
+      "key": "bukhari_481",
       "cats": [
         "community"
       ],
-      "title": "Good Manners and Form (Al-Adab)",
-      "ref": "Sahih al-Bukhari 6076",
-      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنِ ابْنِ شِهَابٍ، عَنْ أَنَسِ بْنِ مَالِكٍ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ لاَ تَبَاغَضُوا، وَلاَ تَحَاسَدُوا، وَلاَ تَدَابَرُوا، وَكُونُوا عِبَادَ اللَّهِ إِخْوَانًا، وَلاَ يَحِلُّ لِمُسْلِمٍ أَنْ يَهْجُرَ أَخَاهُ فَوْقَ ثَلاَثِ لَيَالٍ ‏\"‏‏.‏",
+      "title": "Prayers (Salat)",
+      "ref": "Sahih al-Bukhari 481",
+      "arabic": "حَدَّثَنَا خَلاَّدُ بْنُ يَحْيَى، قَالَ حَدَّثَنَا سُفْيَانُ، عَنْ أَبِي بُرْدَةَ بْنِ عَبْدِ اللَّهِ بْنِ أَبِي بُرْدَةَ، عَنْ جَدِّهِ، عَنْ أَبِي مُوسَى، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ إِنَّ الْمُؤْمِنَ لِلْمُؤْمِنِ كَالْبُنْيَانِ، يَشُدُّ بَعْضُهُ بَعْضًا ‏\"‏‏.‏ وَشَبَّكَ أَصَابِعَهُ‏.‏",
       "text": {
-        "en": "Narrated Anas bin Malik: Allah's Messenger (ﷺ) said, \"Do not hate one another, nor be jealous of one another; and do not desert one another, but O Allah's worshipers! Be Brothers! And it is unlawful for a Muslim to desert his brother Muslim (and not to talk to him) for more than three nights\"."
+        "en": "Narrated Abu Musa: The Prophet (ﷺ) said, \"A faithful believer to a faithful believer is like the bricks of a wall, enforcing each other.\" While (saying that) the Prophet (ﷺ) clasped his hands, by interlacing his fingers."
       },
       "from": "hadith-api"
     },
     {
       "key": "bukhari_6064",
       "cats": [
-        "community"
+        "community",
+        "justice"
       ],
       "title": "Good Manners and Form (Al-Adab)",
       "ref": "Sahih al-Bukhari 6064",
@@ -1118,6 +1143,293 @@
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ بَشَّارٍ، حَدَّثَنَا يَحْيَى، عَنْ عُبَيْدِ اللَّهِ، قَالَ حَدَّثَنِي خُبَيْبُ بْنُ عَبْدِ الرَّحْمَنِ، عَنْ حَفْصِ بْنِ عَاصِمٍ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ سَبْعَةٌ يُظِلُّهُمُ اللَّهُ، رَجُلٌ ذَكَرَ اللَّهَ فَفَاضَتْ عَيْنَاهُ ‏\"‏‏.‏",
       "text": {
         "en": "Narrated Abu Huraira: The Prophet (ﷺ) said Allah will give shade to seven (types of people) under His Shade (on the Day of Resurrection). (one of them will be) a person who remembers Allah and his eyes are then flooded with tears."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6412",
+      "cats": [
+        "hereafter",
+        "health"
+      ],
+      "title": "To make the Heart Tender (Ar-Riqaq)",
+      "ref": "Sahih al-Bukhari 6412",
+      "arabic": "حَدَّثَنَا الْمَكِّيُّ بْنُ إِبْرَاهِيمَ، أَخْبَرَنَا عَبْدُ اللَّهِ بْنُ سَعِيدٍ ـ هُوَ ابْنُ أَبِي هِنْدٍ ـ عَنْ أَبِيهِ، عَنِ ابْنِ عَبَّاسٍ ـ رضى الله عنهما ـ قَالَ قَالَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ نِعْمَتَانِ مَغْبُونٌ فِيهِمَا كَثِيرٌ مِنَ النَّاسِ، الصِّحَّةُ وَالْفَرَاغُ ‏\"‏‏.‏ قَالَ عَبَّاسٌ الْعَنْبَرِيُّ حَدَّثَنَا صَفْوَانُ بْنُ عِيسَى، عَنْ عَبْدِ اللَّهِ بْنِ سَعِيدِ بْنِ أَبِي هِنْدٍ، عَنْ أَبِيهِ، سَمِعْتُ ابْنَ عَبَّاسٍ، عَنِ النَّبِيِّ صلى الله عليه وسلم مِثْلَهُ‏.‏",
+      "text": {
+        "en": "Narrated Ibn `Abbas: The Prophet (ﷺ) said: \"There are two blessings that many people are deceived into losing: health and free time\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5090",
+      "cats": [
+        "marriage"
+      ],
+      "title": "Wedlock, Marriage (Nikaah)",
+      "ref": "Sahih al-Bukhari 5090",
+      "arabic": "حَدَّثَنَا مُسَدَّدٌ، حَدَّثَنَا يَحْيَى، عَنْ عُبَيْدِ اللَّهِ، قَالَ حَدَّثَنِي سَعِيدُ بْنُ أَبِي سَعِيدٍ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ تُنْكَحُ الْمَرْأَةُ لأَرْبَعٍ لِمَالِهَا وَلِحَسَبِهَا وَجَمَالِهَا وَلِدِينِهَا، فَاظْفَرْ بِذَاتِ الدِّينِ تَرِبَتْ يَدَاكَ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"A woman is married for four things, i.e., her wealth, her family status, her beauty and her religion. So you should marry the religious woman (otherwise) you will be a losers\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_3514",
+      "cats": [
+        "marriage"
+      ],
+      "title": "The Book of Marriage",
+      "ref": "Sahih Muslim 3514",
+      "arabic": "وَحَدَّثَنِي إِسْحَاقُ بْنُ مَنْصُورٍ، حَدَّثَنِي عِيسَى بْنُ الْمُنْذِرِ، حَدَّثَنَا بَقِيَّةُ، حَدَّثَنَا الزُّبَيْدِيُّ، عَنْ نَافِعٍ، عَنِ ابْنِ عُمَرَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ دُعِيَ إِلَى عُرْسٍ أَوْ نَحْوِهِ فَلْيُجِبْ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Ibn 'Umar (Allah be pleated with them) reported Allah's Messenger (ﷺ) having said:He who is invited to a wedding feast or like it, he should accept it."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_2076",
+      "cats": [
+        "business"
+      ],
+      "title": "Sales and Trade",
+      "ref": "Sahih al-Bukhari 2076",
+      "arabic": "حَدَّثَنَا عَلِيُّ بْنُ عَيَّاشٍ، حَدَّثَنَا أَبُو غَسَّانَ، مُحَمَّدُ بْنُ مُطَرِّفٍ قَالَ حَدَّثَنِي مُحَمَّدُ بْنُ الْمُنْكَدِرِ، عَنْ جَابِرِ بْنِ عَبْدِ اللَّهِ ـ رضى الله عنهما ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ رَحِمَ اللَّهُ رَجُلاً سَمْحًا إِذَا بَاعَ، وَإِذَا اشْتَرَى، وَإِذَا اقْتَضَى ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Jabir bin `Abdullah: Allah's Messenger (ﷺ) said, \"May Allah's mercy be on him who is lenient in his buying, selling, and in demanding back his money\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_284",
+      "cats": [
+        "business"
+      ],
+      "title": "The Book of Faith",
+      "ref": "Sahih Muslim 284",
+      "arabic": "وَحَدَّثَنِي يَحْيَى بْنُ أَيُّوبَ، وَقُتَيْبَةُ، وَابْنُ، حُجْرٍ جَمِيعًا عَنْ إِسْمَاعِيلَ بْنِ جَعْفَرٍ، - قَالَ ابْنُ أَيُّوبَ حَدَّثَنَا إِسْمَاعِيلُ، - قَالَ أَخْبَرَنِي الْعَلاَءُ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، ‏.‏ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم مَرَّ عَلَى صُبْرَةِ طَعَامٍ فَأَدْخَلَ يَدَهُ فِيهَا فَنَالَتْ أَصَابِعُهُ بَلَلاً فَقَالَ ‏\"‏ مَا هَذَا يَا صَاحِبَ الطَّعَامِ ‏\"‏ ‏.‏ قَالَ أَصَابَتْهُ السَّمَاءُ يَا رَسُولَ اللَّهِ ‏.‏ قَالَ ‏\"‏ أَفَلاَ جَعَلْتَهُ فَوْقَ الطَّعَامِ كَىْ يَرَاهُ النَّاسُ مَنْ غَشَّ فَلَيْسَ مِنِّي ‏\"‏ ‏.‏",
+      "text": {
+        "en": "It is narrated on the authority of Abu Huraira that the Messenger of Allah (ﷺ) happened to pass by a heap of eatables (corn). He thrust his hand in that (heap) and his fingers were moistened. He said to the owner of that heap of eatables (corn):What is this? He replied: Messenger of Allah, these have been drenched by rainfall. He (the Holy Prophet) remarked: Why did you not place this (the drenched part of the heap) over other eatables so that the people could see it? He who deceives is not of me (is not my follower)."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_2111",
+      "cats": [
+        "business"
+      ],
+      "title": "Sales and Trade",
+      "ref": "Sahih al-Bukhari 2111",
+      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنْ نَافِعٍ، عَنْ عَبْدِ اللَّهِ بْنِ عُمَرَ ـ رضى الله عنهما ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ الْمُتَبَايِعَانِ كُلُّ وَاحِدٍ مِنْهُمَا بِالْخِيَارِ عَلَى صَاحِبِهِ مَا لَمْ يَتَفَرَّقَا، إِلاَّ بَيْعَ الْخِيَارِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated `Abdullah bin `Umar: Allah's Messenger (ﷺ) said, \"Both the buyer and the seller have the option of canceling or confirming a bargain unless they separate, or the sale is optional.\" (See Hadith No)."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_2072",
+      "cats": [
+        "business"
+      ],
+      "title": "Sales and Trade",
+      "ref": "Sahih al-Bukhari 2072",
+      "arabic": "حَدَّثَنَا إِبْرَاهِيمُ بْنُ مُوسَى، أَخْبَرَنَا عِيسَى، عَنْ ثَوْرٍ، عَنْ خَالِدِ بْنِ مَعْدَانَ، عَنِ الْمِقْدَامِ ـ رضى الله عنه ـ عَنْ رَسُولِ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ مَا أَكَلَ أَحَدٌ طَعَامًا قَطُّ خَيْرًا مِنْ أَنْ يَأْكُلَ مِنْ عَمَلِ يَدِهِ، وَإِنَّ نَبِيَّ اللَّهِ دَاوُدَ ـ عَلَيْهِ السَّلاَمُ ـ كَانَ يَأْكُلُ مِنْ عَمَلِ يَدِهِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Al-Miqdam: The Prophet (ﷺ) said, \"Nobody has ever eaten a better meal than that which one has earned by working with one's own hands. The Prophet of Allah, David (ﷺ) used to eat from the earnings of his manual labor\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_2444",
+      "cats": [
+        "justice"
+      ],
+      "title": "Oppressions",
+      "ref": "Sahih al-Bukhari 2444",
+      "arabic": "حَدَّثَنَا مُسَدَّدٌ، حَدَّثَنَا مُعْتَمِرٌ، عَنْ حُمَيْدٍ، عَنْ أَنَسٍ ـ رضى الله عنه ـ قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏\"‏ انْصُرْ أَخَاكَ ظَالِمًا أَوْ مَظْلُومًا ‏\"‏‏.‏ قَالُوا يَا رَسُولَ اللَّهِ هَذَا نَنْصُرُهُ مَظْلُومًا، فَكَيْفَ نَنْصُرُهُ ظَالِمًا قَالَ ‏\"‏ تَأْخُذُ فَوْقَ يَدَيْهِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Anas: Allah's Messenger (ﷺ) said, \"Help your brother, whether he is an oppressor or he is an oppressed one. People asked, \"O Allah's Messenger (ﷺ)! It is all right to help him if he is oppressed, but how should we help him if he is an oppressor?\" The Prophet (ﷺ) said, \"By preventing him from oppressing others."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6871",
+      "cats": [
+        "justice"
+      ],
+      "title": "Blood Money (Ad-Diyat)",
+      "ref": "Sahih al-Bukhari 6871",
+      "arabic": "حَدَّثَنَا إِسْحَاقُ بْنُ مَنْصُورٍ، حَدَّثَنَا عَبْدُ الصَّمَدِ، حَدَّثَنَا شُعْبَةُ، حَدَّثَنَا عُبَيْدُ اللَّهِ بْنُ أَبِي بَكْرٍ، سَمِعَ أَنَسًا ـ رضى الله عنه ـ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏\"‏ الْكَبَائِرُ ‏\"‏‏.‏ وَحَدَّثَنَا عَمْرٌو حَدَّثَنَا شُعْبَةُ عَنِ ابْنِ أَبِي بَكْرٍ عَنْ أَنَسِ بْنِ مَالِكٍ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏\"‏ أَكْبَرُ الْكَبَائِرِ الإِشْرَاكُ بِاللَّهِ وَقَتْلُ النَّفْسِ، وَعُقُوقُ الْوَالِدَيْنِ، وَقَوْلُ الزُّورِ ‏\"‏‏.‏ أَوْ قَالَ ‏\"‏ وَشَهَادَةُ الزُّورِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Anas bin Malik: The Prophet (ﷺ) said, \"The biggest of Al-Ka`ba'ir (the great sins) are (1) to join others as partners in worship with Allah, (2) to murder a human being, (3) to be undutiful to one's parents (4) and to make a false statement,\" or said, \"to give a false witness\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6534",
+      "cats": [
+        "justice"
+      ],
+      "title": "To make the Heart Tender (Ar-Riqaq)",
+      "ref": "Sahih al-Bukhari 6534",
+      "arabic": "حَدَّثَنَا إِسْمَاعِيلُ، قَالَ حَدَّثَنِي مَالِكٌ، عَنْ سَعِيدٍ الْمَقْبُرِيِّ، عَنْ أَبِي هُرَيْرَةَ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ مَنْ كَانَتْ عِنْدَهُ مَظْلَمَةٌ لأَخِيهِ فَلْيَتَحَلَّلْهُ مِنْهَا، فَإِنَّهُ لَيْسَ ثَمَّ دِينَارٌ وَلاَ دِرْهَمٌ مِنْ قَبْلِ أَنْ يُؤْخَذَ لأَخِيهِ مِنْ حَسَنَاتِهِ، فَإِنْ لَمْ يَكُنْ لَهُ حَسَنَاتٌ أُخِذَ مِنْ سَيِّئَاتِ أَخِيهِ، فَطُرِحَتْ عَلَيْهِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"Whoever has wronged his brother, should ask for his pardon (before his death), as (in the Hereafter) there will be neither a Dinar nor a Dirham. (He should secure pardon in this life) before some of his good deeds are taken and paid to his brother, or, if he has done no good deeds, some of the bad deeds of his brother are taken to be loaded on him (in the Hereafter)\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_6231",
+      "cats": [
+        "greetings"
+      ],
+      "title": "Asking Permission",
+      "ref": "Sahih al-Bukhari 6231",
+      "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ مُقَاتِلٍ أَبُو الْحَسَنِ، أَخْبَرَنَا عَبْدُ اللَّهِ، أَخْبَرَنَا مَعْمَرٌ، عَنْ هَمَّامِ بْنِ مُنَبِّهٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ يُسَلِّمُ الصَّغِيرُ عَلَى الْكَبِيرِ، وَالْمَارُّ عَلَى الْقَاعِدِ، وَالْقَلِيلُ عَلَى الْكَثِيرِ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"The young should greet the old, the passer by should greet the sitting one, and the small group of persons should greet the large group of persons\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_194",
+      "cats": [
+        "greetings"
+      ],
+      "title": "The Book of Faith",
+      "ref": "Sahih Muslim 194",
+      "arabic": "حَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا أَبُو مُعَاوِيَةَ، وَوَكِيعٌ، عَنِ الأَعْمَشِ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ لاَ تَدْخُلُونَ الْجَنَّةَ حَتَّى تُؤْمِنُوا وَلاَ تُؤْمِنُوا حَتَّى تَحَابُّوا ‏.‏ أَوَلاَ أَدُلُّكُمْ عَلَى شَىْءٍ إِذَا فَعَلْتُمُوهُ تَحَابَبْتُمْ أَفْشُوا السَّلاَمَ بَيْنَكُمْ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Abu Huraira reported:The Messenger of Allah (may peace and blessing be upon him) observed: You shall not enter Paradise so long as you do not affirm belief (in all those things which are the articles of faith) and you will not believe as long as you do not love one another. Should I not direct you to a thing which, if you do, will foster love amongst you: (i. e.) give currency to (the practice of paying salutation to one another by saying) as-salamu alaikum."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_1216",
+      "cats": [
+        "greetings"
+      ],
+      "title": "Actions while Praying",
+      "ref": "Sahih al-Bukhari 1216",
+      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا ابْنُ فُضَيْلٍ، عَنِ الأَعْمَشِ، عَنْ إِبْرَاهِيمَ، عَنْ عَلْقَمَةَ، عَنْ عَبْدِ اللَّهِ، قَالَ كُنْتُ أُسَلِّمُ عَلَى النَّبِيِّ صلى الله عليه وسلم وَهُوَ فِي الصَّلاَةِ فَيَرُدُّ عَلَىَّ، فَلَمَّا رَجَعْنَا سَلَّمْتُ عَلَيْهِ فَلَمْ يَرُدَّ عَلَىَّ وَقَالَ ‏ \"‏ إِنَّ فِي الصَّلاَةِ شُغْلاً ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated `Abdullah: I used to greet the Prophet (ﷺ) while he was in prayer and he would return my greeting, but when we returned (from Ethiopia) I greeted the Prophet (while he was praying) but he did not return the greeting, and (after finishing the prayer) he said, \"In the prayer one is occupied (with a more serious matter)\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5783",
+      "cats": [
+        "dress"
+      ],
+      "title": "Dress",
+      "ref": "Sahih al-Bukhari 5783",
+      "arabic": "حَدَّثَنَا إِسْمَاعِيلُ، قَالَ حَدَّثَنِي مَالِكٌ، عَنْ نَافِعٍ، وَعَبْدِ اللَّهِ بْنِ دِينَارٍ، وَزَيْدِ بْنِ أَسْلَمَ، يُخْبِرُونَهُ عَنِ ابْنِ عُمَرَ ـ رضى الله عنهما ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ لاَ يَنْظُرُ اللَّهُ إِلَى مَنْ جَرَّ ثَوْبَهُ خُيَلاَءَ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated `Abdullah bin `Umar: Allah's Messenger (ﷺ) said, 'Allah will not look at the person who drags his garment (behind him) out of conceit."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5813",
+      "cats": [
+        "dress"
+      ],
+      "title": "Dress",
+      "ref": "Sahih al-Bukhari 5813",
+      "arabic": "حَدَّثَنِي عَبْدُ اللَّهِ بْنُ أَبِي الأَسْوَدِ، حَدَّثَنَا مُعَاذٌ، قَالَ حَدَّثَنِي أَبِي، عَنْ قَتَادَةَ، عَنْ أَنَسِ بْنِ مَالِكٍ، رضى الله عنه ـ قَالَ كَانَ أَحَبُّ الثِّيَابِ إِلَى النَّبِيِّ صلى الله عليه وسلم أَنْ يَلْبَسَهَا الْحِبَرَةَ‏.‏",
+      "text": {
+        "en": "Narrated Anas bin Malik: The most beloved garment to the Prophet (ﷺ) to wear was the Hibra (a kind of Yemenese cloth)."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5855",
+      "cats": [
+        "dress"
+      ],
+      "title": "Dress",
+      "ref": "Sahih al-Bukhari 5855",
+      "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ مَسْلَمَةَ، عَنْ مَالِكٍ، عَنْ أَبِي الزِّنَادِ، عَنِ الأَعْرَجِ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ إِذَا انْتَعَلَ أَحَدُكُمْ فَلْيَبْدَأْ بِالْيَمِينِ وَإِذَا نَزَعَ فَلْيَبْدَأْ بِالشِّمَالِ، لِتَكُنِ الْيُمْنَى أَوَّلَهُمَا تُنْعَلُ وَآخِرَهُمَا تُنْزَعُ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"If you want to put on your shoes, put on the right shoe first; and if you want to take them off, take the left one first. Let the right shoe be the first to be put on and the last to be taken off\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_3249",
+      "cats": [
+        "dress"
+      ],
+      "title": "Beginning of Creation",
+      "ref": "Sahih al-Bukhari 3249",
+      "arabic": "حَدَّثَنَا مُسَدَّدٌ، حَدَّثَنَا يَحْيَى بْنُ سَعِيدٍ، عَنْ سُفْيَانَ، قَالَ حَدَّثَنِي أَبُو إِسْحَاقَ، قَالَ سَمِعْتُ الْبَرَاءَ بْنَ عَازِبٍ ـ رضى الله عنهما ـ قَالَ أُتِيَ رَسُولُ اللَّهِ صلى الله عليه وسلم بِثَوْبٍ مِنْ حَرِيرٍ، فَجَعَلُوا يَعْجَبُونَ مِنْ حُسْنِهِ وَلِينِهِ، فَقَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ لَمَنَادِيلُ سَعْدِ بْنِ مُعَاذٍ فِي الْجَنَّةِ أَفْضَلُ مِنْ هَذَا ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Al-Bara bin Azib: Allah's Messenger (ﷺ) was given a silken garment, and its beauty and delicacy astonished the people. On that, Allah's Messenger (ﷺ) said, \"No doubt, the handkerchiefs of Sa`d bin Mu`adh in Paradise are better than this\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_5422",
+      "cats": [
+        "dress"
+      ],
+      "title": "The Book of Clothes and Adornment",
+      "ref": "Sahih Muslim 5422",
+      "arabic": "وَحَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، وَأَبُو كُرَيْبٍ وَزُهَيْرُ بْنُ حَرْبٍ - وَاللَّفْظُ لِزُهَيْرٍ - قَالَ أَبُو كُرَيْبٍ أَخْبَرَنَا وَقَالَ الآخَرَانِ، حَدَّثَنَا وَكِيعٌ، عَنْ مِسْعَرٍ، عَنْ أَبِي عَوْنٍ الثَّقَفِيِّ، عَنْ أَبِي صَالِحٍ الْحَنَفِيِّ، عَنْ عَلِيٍّ، أَنَّ أُكَيْدِرَ، دُومَةَ أَهْدَى إِلَى النَّبِيِّ صلى الله عليه وسلم ثَوْبَ حَرِيرٍ فَأَعْطَاهُ عَلِيًّا فَقَالَ ‏\"‏ شَقِّقْهُ خُمُرًا بَيْنَ الْفَوَاطِمِ ‏\"‏ ‏.‏ وَقَالَ أَبُو بَكْرٍ وَأَبُو كُرَيْبٍ ‏\"‏ بَيْنَ النِّسْوَةِ ‏\"‏ ‏.‏",
+      "text": {
+        "en": "Ali reported that Ukaidir of Duma presented to Allah's Apostle (ﷺ) a silk garment, and he presented it to 'Ali. and said:Tear it to make head covering for Fitimas out of it. This tradition is transmitted on the authority of Abu Bakr, and Abu Kuraib said: Among the women."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "muslim_5766",
+      "cats": [
+        "health"
+      ],
+      "title": "The Book of Greetings",
+      "ref": "Sahih Muslim 5766",
+      "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ رُمْحِ بْنِ الْمُهَاجِرِ، أَخْبَرَنَا اللَّيْثُ، عَنْ عُقَيْلٍ، عَنِ ابْنِ شِهَابٍ، أَخْبَرَنِي أَبُو سَلَمَةَ بْنُ عَبْدِ الرَّحْمَنِ، وَسَعِيدُ بْنُ الْمُسَيَّبِ، أَنَّ أَبَا هُرَيْرَةَ، أَخْبَرَهُمَا أَنَّهُ، سَمِعَ رَسُولَ اللَّهِ صلى الله عليه وسلم يَقُولُ ‏ \"‏ إِنَّ فِي الْحَبَّةِ السَّوْدَاءِ شِفَاءً مِنْ كُلِّ دَاءٍ إِلاَّ السَّامَ ‏\"‏ ‏.‏ وَالسَّامُ الْمَوْتُ ‏.‏ وَالْحَبَّةُ السَّوْدَاءُ الشُّونِيزُ ‏.‏",
+      "text": {
+        "en": "Abu Huraira reported that he heard Allah's Messenger (ﷺ) as saying:Nigella seed is a remedy for every disease except death."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5682",
+      "cats": [
+        "health"
+      ],
+      "title": "Medicine",
+      "ref": "Sahih al-Bukhari 5682",
+      "arabic": "حَدَّثَنَا عَلِيُّ بْنُ عَبْدِ اللَّهِ، حَدَّثَنَا أَبُو أُسَامَةَ، قَالَ أَخْبَرَنِي هِشَامٌ، عَنْ أَبِيهِ، عَنْ عَائِشَةَ ـ رضى الله عنها ـ قَالَتْ كَانَ النَّبِيُّ صلى الله عليه وسلم يُعْجِبُهُ الْحَلْوَاءُ وَالْعَسَلُ‏.‏",
+      "text": {
+        "en": "Narrated `Aisha: The Prophet (ﷺ) used to like sweet edible things and honey."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_5732",
+      "cats": [
+        "health"
+      ],
+      "title": "Medicine",
+      "ref": "Sahih al-Bukhari 5732",
+      "arabic": "حَدَّثَنَا مُوسَى بْنُ إِسْمَاعِيلَ، حَدَّثَنَا عَبْدُ الْوَاحِدِ، حَدَّثَنَا عَاصِمٌ، حَدَّثَتْنِي حَفْصَةُ بِنْتُ سِيرِينَ، قَالَتْ قَالَ لِي أَنَسُ بْنُ مَالِكٍ ـ رضى الله عنه ـ يَحْيَى بِمَا مَاتَ قُلْتُ مِنَ الطَّاعُونِ‏.‏ قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ الطَّاعُونُ شَهَادَةٌ لِكُلِّ مُسْلِمٍ ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Anas bin Malik: Allah's Messenger (ﷺ) said, \"(Death from) plague is martyrdom for every Muslim\"."
+      },
+      "from": "hadith-api"
+    },
+    {
+      "key": "bukhari_3616",
+      "cats": [
+        "health"
+      ],
+      "title": "Virtues and Merits of the Prophet (pbuh) and his Companions",
+      "ref": "Sahih al-Bukhari 3616",
+      "arabic": "حَدَّثَنَا مُعَلَّى بْنُ أَسَدٍ، حَدَّثَنَا عَبْدُ الْعَزِيزِ بْنُ مُخْتَارٍ، حَدَّثَنَا خَالِدٌ، عَنْ عِكْرِمَةَ، عَنِ ابْنِ عَبَّاسٍ ـ رضى الله عنهما ـ أَنَّ النَّبِيَّ صلى الله عليه وسلم دَخَلَ عَلَى أَعْرَابِيٍّ ـ يَعُودُهُ ـ قَالَ وَكَانَ النَّبِيُّ صلى الله عليه وسلم إِذَا دَخَلَ عَلَى مَرِيضٍ يَعُودُهُ قَالَ لاَ بَأْسَ طَهُورٌ إِنْ شَاءَ اللَّهُ‏.‏ فَقَالَ لَهُ ‏\"‏ لاَ بَأْسَ طَهُورٌ إِنْ شَاءَ اللَّهُ ‏\"‏‏.‏ قَالَ قُلْتَ طَهُورٌ كَلاَّ بَلْ هِيَ حُمَّى تَفُورُ ـ أَوْ تَثُورُ ـ عَلَى شَيْخٍ كَبِيرٍ، تُزِيرُهُ الْقُبُورَ‏.‏ فَقَالَ النَّبِيُّ صلى الله عليه وسلم ‏\"‏ فَنَعَمْ إِذًا ‏\"‏‏.‏",
+      "text": {
+        "en": "Narrated Ibn `Abbas: The Prophet (ﷺ) paid a visit to a sick bedouin. The Prophet (ﷺ) when visiting a patient used to say, \"No harm will befall you! May Allah cure you! May Allah cure you!\" So the Prophet (ﷺ) said to the bedouin. \"No harm will befall you. May Allah cure you!\" The bedouin said, \"You say, may Allah cure me? No, for it is a fever which boils in (the body of) an old man, and will lead him to the grave.\" The Prophet (ﷺ) said, \"Yes, then may it be as you say\"."
       },
       "from": "hadith-api"
     }

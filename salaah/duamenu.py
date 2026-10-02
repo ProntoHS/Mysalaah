@@ -37,16 +37,25 @@ NOT_A_KIND = ("kalima",)
 ACROSS = 6
 
 
-# The twelve headings on the hadith sheet, in the order Harry drew them: four across, three
-# down. What `cat` says in hadith.json, and the name of each tile's picture.
-SAYINGS = ("faith", "prayer", "purification", "fasting",
-           "charity", "hajj", "knowledge", "character",
-           "family", "community", "daily", "hereafter")
-SAYINGS_ACROSS = 4
+# The eighteen headings on the hadith sheet, in the order Harry drew them: six across, three
+# down. What `cats` says in hadith.json, and the name of each tile's picture.
+#
+# Twelve when the section was built, four across. Harry redrew the sheet with six more on a
+# third row -- marriage, business, justice, greetings, dress, health -- and the first twelve
+# smaller to make room. Read off the drawing rather than remembered: the order here is the
+# order the tiles appear in, and the boxes come out of menu.json, cut from that same sheet.
+#
+# A narration can be filed under several of these at once. `cats` is a list and the board asks
+# whether a heading is in it, which is how the du'as have always worked, so nothing here had to
+# change for it.
+SAYINGS = ("faith", "prayer", "purification", "fasting", "charity", "hajj",
+           "knowledge", "character", "family", "community", "daily", "hereafter",
+           "marriage", "business", "justice", "greetings", "dress", "health")
+SAYINGS_ACROSS = 6
 
 
 class DuaMenu(QtWidgets.QWidget):
-    """A sheet of tiles filling the big screen: the du'as' eighteen, or the hadith's twelve."""
+    """A sheet of tiles filling the big screen: eighteen of them, du'as or hadith headings."""
 
     chose = Signal(str)
 

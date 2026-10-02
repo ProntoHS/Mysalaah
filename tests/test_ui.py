@@ -9641,26 +9641,34 @@ class SayingsMenuTest(unittest.TestCase):
         self.assertIs(w.hadith_menu, w.corner_screen.currentWidget())
         self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget())
 
-    def test_twelve_headings_each_with_its_own_picture(self):
+    def test_every_heading_has_its_own_picture(self):
         from salaah.duamenu import SAYINGS
         w = self.window()
         tiles = {t.name: t for t in w.hadith_menu.tiles}
         self.assertEqual(set(SAYINGS), set(tiles))
-        self.assertEqual(12, len(tiles))
+        self.assertEqual(18, len(tiles))
         for name, tile in tiles.items():
             with self.subTest(name):
                 self.assertEqual(f"{name}.png", tile.path.name)
                 self.assertTrue(tile.path.is_file())
                 self.assertTrue(tile.isEnabled())
 
-    def test_they_are_laid_out_four_across_the_way_the_sheet_was_drawn(self):
+    def test_they_are_laid_out_six_across_the_way_the_sheet_was_drawn(self):
+        """Eighteen now, in three rows of six -- Harry redrew it from twelve.
+
+        Read off the sheet rather than off a constant, because the boxes come out of
+        menu.json and a menu.json cut from the wrong drawing is the failure this catches.
+        No check that the tiles are all one size: the six new ones on the bottom row were
+        drawn 360x344 against 366x350 above them, and a test demanding they match would be
+        testing my tidiness rather than Harry's drawing.
+        """
         w = self.window()
         w.open_corner("hadith")      # shown, or every tile is still sat at the top left
         settle()
         rows = rows_of(w.hadith_menu.tiles)
-        self.assertEqual(3, len(rows), f"the twelve came out in {len(rows)} rows")
+        self.assertEqual(3, len(rows), f"the eighteen came out in {len(rows)} rows")
         for n, row in enumerate(rows):
-            self.assertEqual(4, len(row), f"row {n + 1} has {len(row)}")
+            self.assertEqual(6, len(row), f"row {n + 1} has {len(row)}")
 
     def test_the_duas_menu_is_untouched_and_still_six_across(self):
         """One widget serves both menus now. If the sharing went wrong it would show here
@@ -9687,6 +9695,32 @@ class SayingsMenuTest(unittest.TestCase):
                 self.assertEqual(2, len(shown), "the board shows two")
                 for item in shown:
                     self.assertIn(kind, item.cats, f"a saying of another kind is under {kind}")
+
+    def test_a_saying_under_two_headings_can_be_reached_from_both(self):
+        """Harry: "some hadiths will fall under multiple categories, which is fine."
+
+        Checked on the board rather than in the file, because what matters is that the same
+        narration comes up under either tile. The bag is shuffled, so it is dealt until the
+        one being looked for appears rather than opened once and hoped for -- and the loop is
+        bounded by the size of the heading, since the bag deals everything before repeating.
+        """
+        w = self.window()
+        shared = [i for i in w.hadith_board.passages.items if len(i.cats) > 1]
+        self.assertTrue(shared, "nothing is filed under two headings")
+        for item in shared[:4]:
+            for heading in item.cats:
+                with self.subTest(f"{item.ref} under {heading}"):
+                    held = sum(1 for p in w.hadith_board.passages.items
+                               if heading in p.cats)
+                    found = False
+                    for _ in range(held + 2):
+                        w.open_saying_category(heading)
+                        settle(2)
+                        if any(p.ref == item.ref for _, p in w.hadith_board.showing):
+                            found = True
+                            break
+                    self.assertTrue(found, f"{item.ref} never came up under {heading} "
+                                           f"in {held + 2} visits to a heading of {held}")
 
     def test_the_heading_is_written_across_the_top_in_the_reading_language(self):
         w = self.window()
@@ -10353,9 +10387,7 @@ class FilmsFollowTheThemeTest(unittest.TestCase):
 
 class AnimatedMenusTest(unittest.TestCase):
     """The du'a, hadith and 7in menus are one moving picture with the tiles touchable over it,
-    rather than eighteen, twelve and eight separate ones."""
-
-    SHEETS = (("duas-menu", "dua_menu", 18), ("hadith-menu", "hadith_menu", 12))
+    rather than eighteen, eighteen and eight separate ones."""
 
     def window(self):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
@@ -10371,20 +10403,38 @@ class AnimatedMenusTest(unittest.TestCase):
         return w
 
     def menus(self, w):
-        out = [(name, getattr(w, attr), n) for _, attr, n in self.SHEETS
-               for name in [attr]]
-        return [("duas", w.dua_menu, 18), ("hadith", w.hadith_menu, 12),
-                ("the 7in", w.side.corner, 8)]
+        """Each menu, and how many tiles it ought to have.
+
+        The count comes from the tuple of names the app builds the menu from, not from a
+        number written here. It used to be written here -- and in a SHEETS constant above as
+        well, which this method built a list out of and then threw away in favour of the
+        hard-coded one. Harry redrew the hadith sheet from twelve headings to eighteen and
+        this was the one test that failed on it, saying 12 != 18 about a menu that was
+        perfectly correct. A number copied into a test is a number that has to be found and
+        changed every time the drawing changes, which is how a suite starts getting edited to
+        agree with whatever it was given.
+
+        What is still being checked: that the names the app asks for and the tiles it ends up
+        with are the same set. A sheet cut with a tile missing makes FilmSheet refuse its
+        boxes and fall back to the stills, which the assertions above this catch.
+        """
+        from salaah.duamenu import CATEGORIES, SAYINGS
+        from salaah.knowledge import TILES
+        return [("duas", w.dua_menu, CATEGORIES),
+                ("hadith", w.hadith_menu, SAYINGS),
+                ("the 7in", w.side.corner, TILES)]
 
     def test_all_three_are_drawn_as_one_film_rather_than_separate_pictures(self):
         w = self.window()
-        for name, menu, count in self.menus(w):
+        for name, menu, names in self.menus(w):
             with self.subTest(name):
                 self.assertIsNotNone(menu.sheet, f"{name} fell back to the stills")
                 self.assertTrue(menu.sheet.ready)
                 self.assertTrue(menu.sheet.film.isValid())
                 self.assertGreater(menu.sheet.film.frameCount(), 1, "it does not move")
-                self.assertEqual(count, len(menu.tiles))
+                self.assertEqual(len(names), len(menu.tiles))
+                self.assertEqual(set(names), {t.name for t in menu.tiles},
+                                 f"{name} shows tiles the app did not ask for")
 
     def test_the_touch_targets_sit_on_the_tiles_they_are_named_after(self):
         """The boxes are found at build time and written into menu.json in the sheet's own

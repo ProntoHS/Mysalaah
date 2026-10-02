@@ -1,7 +1,9 @@
 """Core checks. Run on the Pi or any computer: python3 -m unittest discover -s tests"""
+import itertools
 import json
 import math
 import os
+import re
 import sys
 import unittest
 from unittest import mock
@@ -3442,9 +3444,12 @@ class SayingsContentTest(unittest.TestCase):
                 self.assertGreater(latin, len(item["text"]["en"]) * 0.5,
                                    "the English is not mostly Latin letters")
 
-    def test_every_one_of_the_twelve_headings_has_sayings_behind_it(self):
-        """Harry drew twelve tiles. A tile that lands on 'nothing here yet' is a tile that
-        should not have been drawn, and the board needs two to fill its columns."""
+    def test_every_drawn_heading_has_sayings_behind_it(self):
+        """Harry drew eighteen tiles. A tile that lands on 'nothing here yet' is a tile that
+        should not have been drawn, and the board needs two to fill its columns.
+
+        Counted against SAYINGS rather than a number written here, so redrawing the sheet
+        again moves the goalposts in one place instead of two."""
         from salaah.duamenu import SAYINGS
         filed = {}
         for item in self.items:
@@ -3476,7 +3481,7 @@ class SayingsContentTest(unittest.TestCase):
                                 f"ends {said[-20:]!r}")
                 self.assertEqual(0, said.count('"') % 2, "a quotation mark was left open")
 
-    def test_the_twelve_headings_are_named_in_every_language_the_mat_speaks(self):
+    def test_every_heading_is_named_in_every_language_the_mat_speaks(self):
         packs = available_packs(ASSETS)
         from salaah.duamenu import SAYINGS
         for lang, pack in packs.items():
@@ -3484,6 +3489,203 @@ class SayingsContentTest(unittest.TestCase):
                 with self.subTest(f"{lang}.{kind}"):
                     self.assertTrue(pack.ui.get(f"saying.{kind}", "").strip(),
                                     f"{lang} cannot name {kind}")
+
+
+class SayingsUnderSeveralHeadingsTest(unittest.TestCase):
+    """A narration belonging to more than one heading is written once and carries them all.
+
+    Harry: "some hadiths will fall under multiple categories, which is fine." The other way to
+    do it is to copy the narration once per heading under a made-up key, which is how a file
+    ends up with the same saying in it three times and the no-duplicates check starts failing
+    for a reason that is not a mistake.
+
+    The app needed nothing for this. `cats` has been a list since the du'as -- passages.py
+    reads `tuple(row.get("cats"))` and the board asks `self.only in item.cats` -- so a second
+    heading on an existing row is a thing the reader already understood. That is worth a test
+    precisely BECAUSE no code changed: nothing would have broken loudly if it had not been
+    true, the mat would just have shown a short heading.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                               .read_text(encoding="utf-8"))["items"]
+
+    def test_some_sayings_are_filed_under_more_than_one_heading(self):
+        several = [i for i in self.items if len(i["cats"]) > 1]
+        self.assertGreaterEqual(len(several), 8,
+                                f"only {len(several)} of {len(self.items)} sit under two "
+                                f"headings; the table is choosing one where it has two")
+        for item in several:
+            with self.subTest(item["ref"]):
+                self.assertEqual(len(item["cats"]), len(set(item["cats"])),
+                                 "a heading is on the same saying twice")
+
+    def test_a_saying_under_two_headings_is_in_the_file_once(self):
+        """The failure this guards against: the same narration copied per heading."""
+        for field in ("key", "ref", "arabic"):
+            seen = [i[field] for i in self.items]
+            with self.subTest(field):
+                self.assertEqual(len(seen), len(set(seen)),
+                                 f"two rows share a {field}")
+
+    def test_the_reader_finds_it_under_every_heading_it_claims(self):
+        """Read through Passages rather than off the JSON, because the list the board filters
+        is the one Passages built, and a `cats` that arrived as a string rather than a list
+        would still look right in the file and match nothing here."""
+        from salaah.passages import Passages
+        listing = Passages(ASSETS, "hadith", folder="hadith")
+        by_ref = {i.ref: i for i in listing.items}
+        self.assertEqual(len(self.items), len(listing.items))
+        for row in self.items:
+            if len(row["cats"]) < 2:
+                continue
+            with self.subTest(row["ref"]):
+                read = by_ref[row["ref"]]
+                for heading in row["cats"]:
+                    self.assertIn(heading, read.cats,
+                                  f"{row['ref']} is filed under {heading} and the reader "
+                                  f"has it under {read.cats}")
+
+    def test_no_saying_is_filed_under_a_heading_nobody_drew(self):
+        from salaah.duamenu import SAYINGS
+        for item in self.items:
+            for heading in item["cats"]:
+                with self.subTest(item["ref"]):
+                    self.assertIn(heading, SAYINGS,
+                                  f"{item['ref']} is under {heading}, which is not a tile")
+
+
+class NewHeadingsSpeakToTheirSubjectTest(unittest.TestCase):
+    """The six headings Harry added when he redrew the sheet from twelve to eighteen.
+
+    A heading passes the count check with any five narrations at all, so the count says
+    nothing about whether Business holds anything about buying and selling. This reads what
+    the sayings actually say, by words that would survive a reviewer swapping one narration
+    for a better one on the same subject.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                               .read_text(encoding="utf-8"))["items"]
+
+    # The six, and a word each that a saying on that subject would be odd not to use.
+    SUBJECTS = {
+        "marriage": ("marri", "wedding", "wife", "husband", "divorc"),
+        "business": ("buying", "selling", "seller", "buyer", "bargain", "earned", "sadaqa"),
+        "justice": ("oppress", "wronged", "suspicion", "jealous", "sins"),
+        "greetings": ("greet", "salaam", "meet your", "smiling"),
+        "dress": ("garment", "izar", "silk", "shoe", "robe"),
+        "health": ("health", "remedy", "disease", "sick", "plague", "honey"),
+    }
+
+    def test_each_new_heading_holds_sayings_about_its_own_subject(self):
+        for heading, words in self.SUBJECTS.items():
+            group = [i for i in self.items if heading in i["cats"]]
+            on_subject = [i for i in group
+                          if any(w in i["text"]["en"].lower() for w in words)]
+            with self.subTest(heading):
+                self.assertGreaterEqual(
+                    len(on_subject), 3,
+                    f"{heading} has {len(group)} sayings and only {len(on_subject)} "
+                    f"mention any of {words}")
+
+    def test_the_six_new_headings_are_all_actually_there(self):
+        from salaah.duamenu import SAYINGS
+        for heading in self.SUBJECTS:
+            self.assertIn(heading, SAYINGS, f"{heading} is not one of the drawn tiles")
+        self.assertEqual(18, len(SAYINGS))
+
+
+class NoHeadingIsPaddedTest(unittest.TestCase):
+    """No heading is filled out with the same saying wearing a different chain of narrators.
+
+    This is the check none of the others were. Going from twelve headings to eighteen, the
+    table padded three of them and said so in its own comments:
+
+      * dress held Bukhari 5783, 5788 and 3665, all three on dragging a garment out of
+        conceit, pairwise 0.69 to 0.77 alike by the measure below;
+      * hajj held Bukhari 1773 and Muslim 3289, which are one narration from one narrator
+        printed in both collections;
+      * prayer held Muslim 1478 and Bukhari 646 -- congregation twenty-seven times over and
+        twenty-five times over. Not a repeat: a board that deals two at a time can deal
+        exactly that pair and put a contradiction in front of a seven-year-old with nothing
+        to reconcile it.
+
+    Every existing check passed all three. The hadith numbers differ, the Arabic differs, so
+    no-duplicates was satisfied; each heading had its five, so the count was satisfied. What
+    was wrong was not catchable by identity, only by similarity, so similarity is what this
+    measures.
+
+    The narrator line is cut off before comparing -- "Narrated Abu Huraira:" is shared by a
+    quarter of the collection and is not part of what the saying says. The bar is the share of
+    the SHORTER saying's words that the longer one also has, because a one-line narration
+    inside a long one is still the same narration twice.
+    """
+
+    SAME = 0.55      # above what is shipped (0.50), well below the 0.77 that was
+
+    # And the number does not do the whole job, which is worth writing down rather than
+    # leaving for somebody to discover. Everything from about 0.40 up was read on a rendered
+    # screen this release, because that is where the measure stops being able to tell apart:
+    #
+    #   caught by eye, removed       Bukhari 106/109 at 0.54, one ruling from two narrators
+    #                                Muslim 5646 / Bukhari 6231 at 0.42, one etiquette twice
+    #                                Bukhari 6076 inside 6064 at 0.40, nearly word for word
+    #   caught by eye, kept          Muslim 3499/3529 at 0.42 -- freeing and marrying a slave
+    #                                woman, against a ruling on remarriage. Different subjects
+    #                                that share the word "married".
+    #   the top of the file now      Bukhari 528 / Muslim 912 at 0.50, a river at your door
+    #                                against blessings returned tenfold. Nothing in common but
+    #                                "Allah's Messenger said" and a short text to divide by.
+    #
+    # So the bar below is a floor on gross duplication, and the band under it is a prompt to
+    # go and look, not a pass.
+    STOP = frozenset("the a an of and to in is was that for he his on at it be as with "
+                     "said not i you they".split())
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                               .read_text(encoding="utf-8"))["items"]
+
+    def meat(self, said: str) -> set:
+        """The words of the saying, without the chain or the little joining words."""
+        said = re.sub(r"^[^:]{0,60}:", "", said)
+        return {w for w in re.findall(r"[a-z']+", said.lower())
+                if w not in self.STOP and len(w) > 2}
+
+    def test_no_two_sayings_under_one_heading_say_the_same_thing(self):
+        from salaah.duamenu import SAYINGS
+        under = {kind: [i for i in self.items if kind in i["cats"]] for kind in SAYINGS}
+        for kind, group in under.items():
+            for one, two in itertools.combinations(group, 2):
+                a, b = self.meat(one["text"]["en"]), self.meat(two["text"]["en"])
+                if not a or not b:
+                    continue
+                alike = len(a & b) / min(len(a), len(b))
+                with self.subTest(f"{kind}: {one['ref']} / {two['ref']}"):
+                    self.assertLess(alike, self.SAME,
+                                    f"{kind} shows {one['ref']} and {two['ref']} "
+                                    f"{alike:.0%} alike; the heading is padded")
+
+    def test_the_measure_would_catch_a_heading_padded_with_one_saying_twice(self):
+        """The bar is only worth having if it bites, and this is the narration it was set on:
+        Bukhari 5788 beside 5783, which is what the file used to carry."""
+        pair = ('Narrated `Abdullah bin `Umar: Allah\'s Messenger said, "Allah will not look at '
+                'the person who drags his garment behind him out of conceit".',
+                'Narrated Abu Huraira: Allah\'s Messenger, "Allah will not look, on the Day of '
+                'Resurrection, at a person who drags his Izar behind him out of conceit".')
+        a, b = self.meat(pair[0]), self.meat(pair[1])
+        alike = len(a & b) / min(len(a), len(b))
+        self.assertGreaterEqual(alike, self.SAME,
+                                f"the pair this bar exists to catch measures {alike:.0%}")
+        # And the measure has to be able to tell two different sayings apart, or it would
+        # catch everything and the bar above would just be a number that always passes.
+        other = self.meat("Narrated Anas bin Malik: The most beloved garment to the Prophet "
+                          "to wear was the Hibra, a kind of Yemenese cloth.")
+        self.assertLess(len(a & other) / min(len(a), len(other)), self.SAME)
 
 
 class SayingsCrossCheckTest(unittest.TestCase):

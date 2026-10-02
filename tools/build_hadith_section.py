@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds the Hadith section: sayings of the Prophet, filed under the twelve headings Harry drew.
+"""Builds the Hadith section: sayings of the Prophet, filed under the eighteen headings Harry drew.
 
     python3 tools/build_hadith_section.py --editions ~/hadith-api/editions
 
@@ -35,10 +35,27 @@ differed was the head of the chain. So the bar is a run of at least MATCH_WORDS 
 also at least MATCH_SHARE of the narration, which no wording the second corpus lacks can clear,
 and every lift prints the run it found so the number can be read rather than trusted.
 
+A narration may be listed under several headings, and is written once carrying all of them. The
+app already filed du'as this way -- `cats` is a list and the board asks whether a heading is in
+it -- so this needed nothing on the app side. It matters because the alternative is choosing one
+heading for a narration that plainly belongs to two, which is how a heading ends up thin and how
+the same saying gets copied in twice under different keys.
+
+ONE HEADING, ONE SUBJECT, as far as two Sahihs and my reading allow. Reaching eighteen headings
+tempted this table into padding and it gave in three times, and wrote down that it had each
+time: "the same, as Abu Huraira has it", "the same, as Muslim has it". Dress carried three
+narrations on dragging a garment out of conceit, pairwise 0.69-0.77 alike by shared words; hajj
+carried one narration twice out of the two collections; prayer carried the twenty-five and the
+twenty-seven side by side, which is not a repeat but a contradiction in front of a child. None
+of the existing checks caught any of it: separate hadith numbers, separate Arabic, five to a
+heading. The count of five is a floor on how fast a heading comes round, not a licence to fill
+it with one saying wearing different chains. There is now a test that measures the overlap.
+
 WHAT THIS DOES NOT DO, and what a qualified reviewer still has to:
 
-  * Check that each hadith is under the right heading. That is the one editorial act here and
-    it is entirely mine. The numbers are in the table below so every choice can be looked up.
+  * Check that each hadith is under the right heading, and under ALL the headings it belongs to.
+    That is the one editorial act here and it is entirely mine. The numbers are in the table
+    below so every choice can be looked up.
   * Check the numbering against sunnah.com. The dataset's numbers agree with sunnah.com's as
     far as spot checks go, but "as far as spot checks go" is not a citation.
   * Vouch for the translations. They are the ones that circulate with these collections
@@ -101,9 +118,13 @@ CHOSEN = {
     "prayer": [
         ("bukhari", "528"),     # a river at your door, bathed in five times a day
         ("muslim", "550"),      # the five prayers are an expiation
-        ("muslim", "1478"),     # in congregation, twenty-seven times over
+        ("bukhari", "723"),     # straighten the rows; it is part of the prayer being right
         ("muslim", "256"),      # prayer at its time, and kindness to parents
         ("muslim", "1755"),     # make Witr the end of the night
+        # Muslim 1478 was here as well -- congregation twenty-seven times over, against this
+        # one's twenty-five. Both sahih, and the scholars reconcile them; a board dealing two
+        # at a time can deal exactly this pair and ask a seven-year-old which number is right.
+        # That is a worse failure than a repeat, so the heading carries one of them.
         ("bukhari", "646"),     # in congregation, twenty-five times over
         ("muslim", "912"),      # he who blesses me once
     ],
@@ -118,6 +139,7 @@ CHOSEN = {
         ("bukhari", "291"),     # when the washing becomes obligatory
         ("muslim", "776"),      # and on a seminal emission
         ("bukhari", "270"),     # he went round his wives, and was in ihram by morning
+        ("bukhari", "5854"),    # starting from the right -- also under dress
     ],
     "fasting": [
         ("bukhari", "38"),      # whoever fasts Ramadan out of faith and hope
@@ -144,7 +166,9 @@ CHOSEN = {
         ("bukhari", "1773"),    # Umra is an expiation; Hajj Mabrur, nothing but Paradise
         ("bukhari", "1549"),    # the Talbiya, with its meaning
         ("bukhari", "5617"),    # Zamzam
-        ("muslim", "3289"),     # the same, as Muslim has it
+        # Muslim 3289 was here, and the comment against it read "the same, as Muslim has it":
+        # the same narration, the same narrator, out of the other collection. Dropped.
+        ("bukhari", "1597"),    # Umar to the Black Stone: a stone, and he kisses it regardless
         ("bukhari", "1552"),    # the Talbiya once he was mounted
     ],
     "knowledge": [
@@ -153,7 +177,9 @@ CHOSEN = {
         ("bukhari", "106"),     # do not tell a lie against me
         ("bukhari", "5033"),    # commit yourself to the Qur'an
         ("bukhari", "75"),      # O Allah, teach him the Book
-        ("bukhari", "109"),     # ascribing to me what I did not say
+        # 109 was here -- ascribing to the Prophet what he did not say. The same ruling as 106
+        # above it, from a different narrator, and 54% alike by the overlap measure.
+        ("bukhari", "1409"),    # no envy except in two: wealth spent right, wisdom taught on
         ("bukhari", "5040"),    # the last two verses of al-Baqara at night
     ],
     "character": [
@@ -180,7 +206,10 @@ CHOSEN = {
     "community": [
         ("bukhari", "6951"),    # a Muslim is a brother of another Muslim
         ("bukhari", "6011"),    # the believers, resembling one body
-        ("bukhari", "6076"),    # do not hate one another
+        # 6076 was here and under justice -- "do not hate one another, nor be jealous... be
+        # brothers". Nearly all of it is inside 6064 below, which says the same and then adds
+        # suspicion and spying. One narration, not two.
+        ("bukhari", "481"),     # believers to one another like the bricks of a wall
         ("bukhari", "6064"),    # beware of suspicion
         ("muslim", "4326"),     # freeing your share of a slave leaves you owing the rest
     ],
@@ -198,6 +227,72 @@ CHOSEN = {
         ("bukhari", "6488"),    # nearer to you than your shoelace
         ("muslim", "7417"),     # the world, to a believer
         ("bukhari", "6479"),    # the one who remembers Allah until his eyes brim over
+        ("bukhari", "6412"),    # two blessings many are cheated of: health, and time
+    ],
+    # The six Harry added. A narration listed under more than one heading is written under each
+    # of them, and the build folds the repeats into one saying carrying both -- which is the
+    # right way round: a hadith about a wife's right over her husband genuinely belongs under
+    # Family and under Marriage, and filing it twice would put the same words on one screen.
+    "marriage": [
+        ("bukhari", "5090"),    # married for four things; take the one with religion
+        ("muslim", "3514"),     # accept the invitation to a wedding
+        ("muslim", "3400"),     # young men who can support a wife should marry
+        ("muslim", "3529"),     # not until he has tasted her sweetness
+        ("muslim", "3561"),     # 'azl, and he did not forbid it
+        ("bukhari", "3237"),    # when he calls her to his bed
+        ("bukhari", "5199"),    # your wife has a right over you
+        ("muslim", "3499"),     # freed her, then married her: two rewards
+    ],
+    "business": [
+        ("bukhari", "2076"),    # mercy on the man who is easy buying, selling and asking back
+        ("muslim", "284"),      # the wet corn under the dry: he who deceives is not of me
+        ("bukhari", "2111"),    # both may still change their minds until they part
+        ("bukhari", "2072"),    # no better meal than one earned by your own hands
+        ("muslim", "2386"),     # the upper hand, and begin at home
+    ],
+    "justice": [
+        ("bukhari", "2444"),    # help your brother, oppressor or oppressed -- by stopping him
+        ("bukhari", "6871"),    # the great sins, and bearing false witness among them
+        ("bukhari", "6951"),    # neither oppress him nor hand him to an oppressor
+        ("bukhari", "6534"),    # settle what you owe your brother before there is no money left
+        ("bukhari", "6064"),    # beware of suspicion
+    ],
+    "greetings": [
+        ("bukhari", "6231"),    # the young greet the old, the passing greet the sitting
+        # Muslim 5646 was here: the rider greets the one on foot, the pedestrian the seated,
+        # the small group the large. Which is 6231 above, out of the other collection.
+        ("muslim", "194"),      # spread the salaam and it will make you love one another
+        ("muslim", "6690"),     # meeting your brother with a cheerful face
+        ("bukhari", "6136"),    # his neighbour, his guest, and speaking good or keeping silent
+        ("bukhari", "1216"),    # he returned the greeting until prayer took all of him
+    ],
+    # Six, and deliberately six different things. The first cut of this heading was five, of
+    # which THREE were the same narration -- Bukhari 5783, 5788 and 3665, all on dragging a
+    # garment out of conceit, pairwise 0.69 to 0.77 alike by shared words. They are separate
+    # hadith numbers with separate Arabic, so the no-duplicates check passed them and the
+    # count-of-five check passed them, and the comment against 5788 in this very table said
+    # "the same, as Abu Huraira has it". I padded the heading to reach five and wrote down
+    # that I had. A heading dealing two at a time out of five, three of which are
+    # interchangeable, shows a child the same point twice as a matter of course.
+    #
+    # So: one on conceit, not three, and the rest on what he liked to wear, the right shoe
+    # first, and the silk. 5854 is filed under purification as well -- starting from the right
+    # is the same habit the wu'du section teaches, and a narration belonging to two headings is
+    # now something this builder can say.
+    "dress": [
+        ("bukhari", "5783"),    # Allah will not look at the one who drags his garment in pride
+        ("bukhari", "5813"),    # the garment he loved best to wear: the Hibra
+        ("bukhari", "5855"),    # the right shoe on first, and off last
+        ("bukhari", "5854"),    # starting from the right: ablution, combing, shoes
+        ("bukhari", "3249"),    # the silk that astonished them, and what is better than it
+        ("muslim", "5422"),     # the silk given away, and torn up for head coverings
+    ],
+    "health": [
+        ("bukhari", "6412"),    # two blessings many are cheated of: health, and time
+        ("muslim", "5766"),     # nigella seed, a remedy for everything but death
+        ("bukhari", "5682"),    # he liked sweet things, and honey
+        ("bukhari", "5732"),    # dying of the plague
+        ("bukhari", "3616"),    # visiting the sick: no harm will come to you
     ],
 }
 
@@ -311,9 +406,18 @@ def chapter(meta: dict, number: str) -> str:
 def build(where: Path, out: Path = OUT) -> int:
     packs = editions(where)
     other = second_corpus()
-    items, refused = [], []
+    # Which headings each narration was listed under, in the order the headings are drawn.
+    under: dict = {}
     for cat, wanted in CHOSEN.items():
         for book, number in wanted:
+            under.setdefault((book, number), []).append(cat)
+
+    items, refused, written = [], [], set()
+    for cat, wanted in CHOSEN.items():
+        for book, number in wanted:
+            if (book, number) in written:
+                continue            # already written, with all of its headings on it
+            written.add((book, number))
             arabic_by, english_by, meta = packs[book]
             if number not in arabic_by or number not in english_by:
                 refused.append(f"{BOOKS[book]} {number}: not in the dataset")
@@ -328,7 +432,7 @@ def build(where: Path, out: Path = OUT) -> int:
                 continue
             items.append({
                 "key": f"{book}_{number.replace('.', '_')}",
-                "cats": [cat],
+                "cats": under[(book, number)],
                 # The collection's own chapter name, not a title written here. A heading typed
                 # by hand is a summary of a hadith, and summarising one is the reviewer's job.
                 "title": chapter(meta, number),
@@ -337,8 +441,9 @@ def build(where: Path, out: Path = OUT) -> int:
                 "text": {"en": english},
                 "from": "hadith-api",
             })
-            print(f"  {cat:12} {BOOKS[book]:<17}{number:>6}  ar{len(arabic):>4} en{len(english):>4}"
-                  f"  both corpora share {run:>3}/{len(words):<3}  {english[:52]}")
+            print(f"  {','.join(under[(book, number)]):22} {BOOKS[book]:<17}{number:>6}  "
+                  f"ar{len(arabic):>4} en{len(english):>4}  "
+                  f"share {run:>3}/{len(words):<3}  {english[:40]}")
 
     for line in refused:
         print(f"  REFUSED  {line}", file=sys.stderr)
@@ -365,7 +470,8 @@ def build(where: Path, out: Path = OUT) -> int:
 
     kinds = {}
     for item in items:
-        kinds[item["cats"][0]] = kinds.get(item["cats"][0], 0) + 1
+        for cat in item["cats"]:
+            kinds[cat] = kinds.get(cat, 0) + 1
     print(f"\n{len(items)} sayings across {len(kinds)} headings: "
           + ", ".join(f"{k} {n}" for k, n in kinds.items()))
     print(f"-> {out.relative_to(ROOT)}")
