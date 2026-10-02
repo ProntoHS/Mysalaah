@@ -134,20 +134,6 @@ def load_translations(root: Path) -> dict[str, Translation]:
 
 
 @dataclass(frozen=True)
-class Daily:
-    """What is shown when a prayer finishes: a short passage and a saying, one for each day."""
-    passages: list[dict]
-    sayings: list[dict]
-
-    def for_day(self, day) -> tuple[dict | None, dict | None]:
-        """The same pair all day, a different pair tomorrow."""
-        number = day.toordinal()
-        passage = self.passages[number % len(self.passages)] if self.passages else None
-        saying = self.sayings[number % len(self.sayings)] if self.sayings else None
-        return passage, saying
-
-
-@dataclass(frozen=True)
 class Bead:
     """One of the three counted dhikr said after a fardh prayer. [key] names its words in
     core/arabic.json and its recording in assets/audio."""
@@ -179,7 +165,6 @@ class Content:
     schools: dict[str, School]
     arabic: dict[str, list[str]]
     prayer_names: dict[str, str]  # each prayer's name in Arabic
-    daily: Daily
     dhikr: Dhikr
     translations: dict[str, "Translation"] = field(default_factory=dict)
     figures: list[str] = field(default_factory=lambda: [DEFAULT_FIGURE])
@@ -223,13 +208,6 @@ def load(root: Path) -> Content:
                                   d.get("stepOverrides", {}))
     core = _read(c / "core" / "arabic.json")
 
-    def daily(name: str, key: str) -> list[dict]:
-        path = c / "daily" / f"{name}.json"
-        try:
-            return _read(path).get(key, [])
-        except (OSError, ValueError):
-            return []
-
     try:
         after = _read(c / "core" / "dhikr.json")["after_farz"]
         words = core.get("text", {})
@@ -244,7 +222,7 @@ def load(root: Path) -> Content:
         dhikr = Dhikr("", "", [])
 
     return Content(root, steps, units, schools, core.get("text", {}), core.get("prayers", {}),
-                   Daily(daily("quran", "passages"), daily("hadith", "sayings")), dhikr,
+                   dhikr,
                    load_translations(root), available_figures(root))
 
 

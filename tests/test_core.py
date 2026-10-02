@@ -430,61 +430,6 @@ class AudioTest(unittest.TestCase):
         self.assertFalse(player.playing)
 
 
-class DailyTest(unittest.TestCase):
-    def test_every_saying_has_arabic_english_and_a_reference(self):
-        for saying in CONTENT.daily.sayings:
-            self.assertTrue(saying["arabic"].strip(), saying["reference"])
-            self.assertTrue(saying["english"].strip(), saying["reference"])
-            self.assertRegex(saying["reference"], r"^Sahih (al-Bukhari|Muslim) \d+$")
-            self.assertLess(len(saying["arabic"]), 200, "short enough for the screen")
-
-    def test_every_passage_has_arabic_english_and_a_reference(self):
-        for passage in CONTENT.daily.passages:
-            self.assertTrue(passage["arabic"].strip(), passage["reference"])
-            self.assertTrue(passage["english"].strip(), passage["reference"])
-            self.assertRegex(passage["reference"], r"^\d+:\d+$")
-
-    def test_the_pair_changes_by_day_and_holds_all_day(self):
-        from datetime import date, timedelta
-        first = CONTENT.daily.for_day(date(2026, 9, 16))
-        again = CONTENT.daily.for_day(date(2026, 9, 16))
-        tomorrow = CONTENT.daily.for_day(date(2026, 9, 16) + timedelta(days=1))
-        self.assertEqual(first, again)
-        self.assertNotEqual(first, tomorrow)
-
-    @staticmethod
-    def words(arabic: str) -> list[str]:
-        """The Arabic words, with the vowel marks and the recitation marks taken off."""
-        import re
-        import unicodedata
-        marks = {chr(c) for c in range(0x600, 0x900)
-                 if unicodedata.category(chr(c)) == "Mn"} | {chr(0x640)}
-        plain = "".join(c for c in unicodedata.normalize("NFC", arabic) if c not in marks)
-        return re.sub(r"[^ء-ي\s]", " ", plain).split()
-
-    def test_the_english_renders_all_of_the_arabic_beside_it(self):
-        """The two columns are read side by side, so each must say the same thing.
-
-        English takes more words than Arabic to say the same thing -- never fewer. A count well
-        under the Arabic's means the English has rendered an opening clause and left the rest of
-        the line unaccounted for, which is the one fault a reader cannot see for themselves.
-        """
-        both = ([("Qur'an", p) for p in CONTENT.daily.passages]
-                + [("hadith", s) for s in CONTENT.daily.sayings])
-        for kind, item in both:
-            arabic = len(self.words(item["arabic"]))
-            english = len(item["english"].split())
-            self.assertGreaterEqual(
-                english / arabic, 0.95,
-                f"{kind} {item['reference']}: {english} English words for {arabic} Arabic ones, so "
-                f"the English is rendering only part of it: {item['english']!r}")
-
-    def test_the_passages_name_allah_the_way_the_rest_of_the_app_does(self):
-        for item in list(CONTENT.daily.passages) + list(CONTENT.daily.sayings):
-            self.assertNotIn("God", item["english"].split(),
-                             f"{item['reference']} says God where the app says Allah")
-
-
 class DhikrTest(unittest.TestCase):
     """The dhikr counted after a fardh prayer."""
 
@@ -3489,6 +3434,115 @@ class SayingsContentTest(unittest.TestCase):
                 with self.subTest(f"{lang}.{kind}"):
                     self.assertTrue(pack.ui.get(f"saying.{kind}", "").strip(),
                                     f"{lang} cannot name {kind}")
+
+
+class SayingsInOtherLanguagesTest(unittest.TestCase):
+    """The hadith are no longer English-only.
+
+    Changing the mat's language left every saying in English, because the only translations in
+    the file were English ones. The dataset publishes Bukhari and Muslim in French and Urdu as
+    well, so those are lifted by hadith number exactly as the English is -- the same join, the
+    same provenance, somebody else's published translation either way.
+
+    Spanish, Hindi and Chinese are NOT here, and that is deliberate rather than unfinished:
+    there is no Spanish, Hindi or Chinese edition of either collection in this corpus or any
+    other I can reach, and writing one is the single thing the builder's header says never to
+    do. Those three fall back to English on screen. This is tested rather than left as a
+    comment, so the gap is a fact the suite states instead of something to rediscover.
+    """
+
+    MAT = ("en", "fr", "es", "ur", "hi", "zh")
+    LIFTED = ("en", "fr", "ur")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                               .read_text(encoding="utf-8"))["items"]
+
+    def test_every_saying_carries_every_translation_the_dataset_has(self):
+        """Nearly all of them: the dataset has a couple of blanks of its own.
+
+        Sahih Muslim 3499 has no French in it and Bukhari 7563 no Urdu -- the rows are there
+        and empty. Those two fall back to English for that one language, which is why the
+        fallback is per saying rather than per section. The bar is set at a handful so that
+        the two known holes do not fail the suite while a build that quietly dropped half the
+        French still would.
+        """
+        short = {lang: [i["ref"] for i in self.items if not i["text"].get(lang, "").strip()]
+                 for lang in self.LIFTED}
+        self.assertEqual([], short["en"], "English is lifted for every one or not at all")
+        for lang in ("fr", "ur"):
+            with self.subTest(lang):
+                self.assertLessEqual(len(short[lang]), 3,
+                                     f"{len(short[lang])} sayings have no {lang}: "
+                                     f"{short[lang][:5]}")
+
+    def test_a_translation_the_dataset_left_empty_is_left_out_rather_than_faked(self):
+        """The bug this found when it was written.
+
+        tidy() exists to put back the full stop the dataset strips off the end of every
+        narration. Handed an empty string it returned "." -- and the builder's test for "did
+        we get a translation" was made on the tidied text, so "." counted as one. Bukhari 7563
+        went into the file with its entire Urdu being a full stop, and Muslim 3499 its French:
+        a card that would have shown one character where the saying should be. The check is
+        made on the raw text now.
+        """
+        for item in self.items:
+            for lang, said in item["text"].items():
+                with self.subTest(f"{item['ref']} {lang}"):
+                    self.assertGreater(len(said.strip(" .۔")), 10,
+                                       f"{item['ref']} has {said!r} for {lang}")
+
+    def test_the_french_is_french_and_the_urdu_is_urdu(self):
+        """A join made on hadith number cannot put the wrong narration in, but it can put the
+        wrong COLUMN in -- and Urdu in the French slot reads as a broken screen rather than a
+        wrong file. Checked by script, which is what tells these two apart."""
+        for item in self.items:
+            with self.subTest(item["ref"]):
+                french = item["text"].get("fr", "")
+                if french:
+                    latin = sum(1 for c in french if c.isascii() and c.isalpha())
+                    self.assertGreater(latin, len(french) * 0.4,
+                                       f"the French of {item['ref']} is not in Latin letters")
+                urdu = item["text"].get("ur", "")
+                if urdu:
+                    arabic = sum(1 for c in urdu if "؀" <= c <= "ۿ")
+                    self.assertGreater(arabic, len(urdu) * 0.4,
+                                       f"the Urdu of {item['ref']} is not in Arabic script")
+
+    def test_the_translations_are_of_the_same_narration_and_not_a_shifted_row(self):
+        """An off-by-one in the join would give every saying its neighbour's translation, and
+        every test above would still pass. Length is the cheap check that two texts are of the
+        same thing: a one-line narration and a page-long one are not translations of each
+        other, whatever the numbering says."""
+        odd = []
+        for item in self.items:
+            english = len(item["text"]["en"])
+            french = len(item["text"].get("fr", ""))
+            if english < 40 or french < 40:
+                continue
+            if not 0.4 <= french / english <= 2.5:
+                odd.append(f"{item['ref']} en {english} vs fr {french}")
+        # Three, not a tenth. The file as built has NONE: every French text is between 0.4 and
+        # 2.5 times its English, all 108 of them. A tenth would have let eleven through, and a
+        # join shifted by one row only produces sixteen -- so the bar has to sit near zero to
+        # be the difference between a right file and a wrong one rather than a number that
+        # always passes. Three is room for the dataset to carry an unusually terse rendering.
+        self.assertLessEqual(len(odd), 3,
+                             f"{len(odd)} French texts are nothing like their English in "
+                             f"length, which is what a shifted join looks like: {odd[:5]}")
+
+    def test_the_three_the_corpus_has_no_edition_for_are_absent_rather_than_invented(self):
+        missing = [l for l in self.MAT if l not in self.LIFTED]
+        self.assertEqual(["es", "hi", "zh"], missing)
+        for item in self.items:
+            for lang in missing:
+                with self.subTest(f"{item['ref']} {lang}"):
+                    self.assertNotIn(lang, item["text"],
+                                     f"{item['ref']} has a {lang} translation, and there is no "
+                                     f"{lang} edition of these collections to have taken it "
+                                     f"from -- so it was written by somebody who should not "
+                                     f"have written it")
 
 
 class SayingsUnderSeveralHeadingsTest(unittest.TestCase):

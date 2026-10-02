@@ -230,9 +230,20 @@ class DuaBoard(QtWidgets.QWidget):
         self.filled = None
 
     def language(self) -> str:
-        """Which meaning to show: the reading language if the du'as have it, else English --
-        the same choice the reader makes, so the board and the reader never disagree."""
-        wanted = self.win.settings.quran_lang or "en"
+        """Which meaning to show: the reading language if the section has it, else English --
+        the same choice the reader makes, so the board and the reader never disagree.
+
+        The app's own language is what this falls back to, NOT English. It used to fall back
+        to English, which meant changing the mat to Urdu in Settings left every du'a in
+        English until you went into a du'a and pressed a language button -- and that button
+        writes quran_lang, which is the Qur'an's setting, so the only way to get Urdu du'as
+        was through a control that says it is for something else.
+
+        quran_lang still wins when it is set, because then somebody has asked for a meaning
+        language by hand and that is a more specific answer than the language the menus
+        happen to be in.
+        """
+        wanted = self.win.settings.quran_lang or self.win.settings.lang or "en"
         return wanted if wanted in self.passages.languages() else "en"
 
     def wanted(self) -> list[tuple[int, object]]:

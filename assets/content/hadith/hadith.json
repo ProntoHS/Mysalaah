@@ -12,7 +12,9 @@
       "ref": "Sahih al-Bukhari 8",
       "arabic": "حَدَّثَنَا عُبَيْدُ اللَّهِ بْنُ مُوسَى، قَالَ أَخْبَرَنَا حَنْظَلَةُ بْنُ أَبِي سُفْيَانَ، عَنْ عِكْرِمَةَ بْنِ خَالِدٍ، عَنِ ابْنِ عُمَرَ ـ رضى الله عنهما ـ قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ بُنِيَ الإِسْلاَمُ عَلَى خَمْسٍ شَهَادَةِ أَنْ لاَ إِلَهَ إِلاَّ اللَّهُ وَأَنَّ مُحَمَّدًا رَسُولُ اللَّهِ، وَإِقَامِ الصَّلاَةِ، وَإِيتَاءِ الزَّكَاةِ، وَالْحَجِّ، وَصَوْمِ رَمَضَانَ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Ibn 'Umar: Allah's Messenger (ﷺ) said: Islam is based on (the following) five (principles): 1. To testify that none has the right to be worshipped but Allah and Muhammad is Allah's Messenger (ﷺ). 2. To offer the (compulsory congregational) prayers dutifully and perfectly. 3. To pay Zakat (i.e. obligatory charity) . 4. To perform Hajj. (i.e. Pilgrimage to Mecca) 5. To observe fast during the month of Ramadan."
+        "en": "Narrated Ibn 'Umar: Allah's Messenger (ﷺ) said: Islam is based on (the following) five (principles): 1. To testify that none has the right to be worshipped but Allah and Muhammad is Allah's Messenger (ﷺ). 2. To offer the (compulsory congregational) prayers dutifully and perfectly. 3. To pay Zakat (i.e. obligatory charity) . 4. To perform Hajj. (i.e. Pilgrimage to Mecca) 5. To observe fast during the month of Ramadan.",
+        "fr": "Rapporté par Ibn 'Umar : Le Messager d'Allah (ﷺ) a dit : L'islam repose sur cinq principes : 1. Attester qu'il n'y a de dieu qu'Allah et que Muhammad est le Messager d'Allah (ﷺ). 2. Accomplir les prières obligatoires avec sérieux et régularité. 3. Donner la Zakat (l'aumône obligatoire). 4. Faire le Hajj (le pèlerinage à La Mecque). 5. Jeûner pendant le mois de Ramadan.",
+        "ur": "ہم سے عبیداللہ بن موسیٰ نے یہ حدیث بیان کی۔ انہوں نے کہا کہ ہمیں اس کی بابت حنظلہ بن ابی سفیان نے خبر دی۔ انہوں نے عکرمہ بن خالد سے روایت کی انہوں نے عبداللہ بن عمر رضی اللہ عنہما سے روایت کی کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا اسلام کی بنیاد پانچ چیزوں پر قائم کی گئی ہے۔ اول گواہی دینا کہ اللہ کے سوا کوئی معبود نہیں اور بیشک محمد صلی اللہ علیہ وسلم اللہ کے سچے رسول ہیں اور نماز قائم کرنا اور زکوٰۃ ادا کرنا اور حج کرنا اور رمضان کے روزے رکھنا۔."
       },
       "from": "hadith-api"
     },
@@ -25,7 +27,9 @@
       "ref": "Sahih al-Bukhari 13",
       "arabic": "حَدَّثَنَا مُسَدَّدٌ، قَالَ حَدَّثَنَا يَحْيَى، عَنْ شُعْبَةَ، عَنْ قَتَادَةَ، عَنْ أَنَسٍ ـ رضى الله عنه ـ عَنِ النَّبِيِّ صلى الله عليه وسلم‏.‏ وَعَنْ حُسَيْنٍ الْمُعَلِّمِ، قَالَ حَدَّثَنَا قَتَادَةُ، عَنْ أَنَسٍ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ لا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Anas: The Prophet (ﷺ) said, \"None of you will have faith till he wishes for his (Muslim) brother what he likes for himself\"."
+        "en": "Narrated Anas: The Prophet (ﷺ) said, \"None of you will have faith till he wishes for his (Muslim) brother what he likes for himself\".",
+        "fr": "Rapporté par Anas : Le Prophète (ﷺ) a dit : Aucun de vous n'aura vraiment la foi tant qu'il n'aimera pas pour son frère (musulman) ce qu'il aime pour lui-même.",
+        "ur": "ہم سے حدیث بیان کی مسدد نے، ان کو یحییٰ نے، انہوں نے شعبہ سے نقل کیا، انہوں نے قتادہ سے، انہوں نے انس رضی اللہ عنہ خادم رسول اللہ صلی اللہ علیہ وسلم سے، انہوں نے نبی کریم صلی اللہ علیہ وسلم سے روایت کیا۔ اور شعبہ نے حسین معلم سے بھی روایت کیا، انہوں نے قتادہ سے، انہوں نے انس رضی اللہ عنہ سے، انہوں نے نبی کریم صلی اللہ علیہ وسلم سے نقل فرمایا کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا تم میں سے کوئی شخص ایماندار نہ ہو گا جب تک اپنے بھائی کے لیے وہ نہ چاہے جو اپنے نفس کے لیے چاہتا ہے۔."
       },
       "from": "hadith-api"
     },
@@ -38,7 +42,9 @@
       "ref": "Sahih Muslim 152",
       "arabic": "حَدَّثَنَا عُبَيْدُ اللَّهِ بْنُ سَعِيدٍ، وَعَبْدُ بْنُ حُمَيْدٍ، قَالاَ حَدَّثَنَا أَبُو عَامِرٍ الْعَقَدِيُّ، حَدَّثَنَا سُلَيْمَانُ بْنُ بِلاَلٍ، عَنْ عَبْدِ اللَّهِ بْنِ دِينَارٍ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ الإِيمَانُ بِضْعٌ وَسَبْعُونَ شُعْبَةً وَالْحَيَاءُ شُعْبَةٌ مِنَ الإِيمَانِ ‏\"‏ ‏.‏",
       "text": {
-        "en": "It is narrated on the authority of Abu Huraira that the Prophet (ﷺ) said:Iman has over seventy branches, and modesty is a branch of Iman."
+        "en": "It is narrated on the authority of Abu Huraira that the Prophet (ﷺ) said:Iman has over seventy branches, and modesty is a branch of Iman.",
+        "fr": "Rapporté par Abu Huraira رضي الله عنه : Le Prophète ﷺ a dit : « La foi (iman) comporte plus de soixante-dix branches, et la pudeur est une branche de la foi. ».",
+        "ur": "سلیمان بن بلال نے عبد اللہ بن دینار سے ، انہوں ابو صالح سے اور انہوں نے حضرت ابوہریرہ ‌رضی ‌اللہ ‌عنہ ‌ ‌ سے روایت کی کہ نبی اکرمﷺ نے فرمایا : ’’ ایمان کی ستر سے زیادہ شاخیں ہیں اور حیا بھی ایمان کی ایک شاخ ہے ۔ ‘ ‘."
       },
       "from": "hadith-api"
     },
@@ -51,7 +57,9 @@
       "ref": "Sahih al-Bukhari 7453",
       "arabic": "حَدَّثَنَا إِسْمَاعِيلُ، حَدَّثَنِي مَالِكٌ، عَنْ أَبِي الزِّنَادِ، عَنِ الأَعْرَجِ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ لَمَّا قَضَى اللَّهُ الْخَلْقَ كَتَبَ عِنْدَهُ فَوْقَ عَرْشِهِ، إِنَّ رَحْمَتِي سَبَقَتْ غَضَبِي ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"When Allah created the creations, He wrote with Him on His Throne: 'My Mercy has preceded My Anger\"."
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"When Allah created the creations, He wrote with Him on His Throne: 'My Mercy has preceded My Anger\".",
+        "fr": "Rapporté par Abu Huraira : Le Messager d’Allah (ﷺ) a dit : « Quand Allah a créé les créatures, Il a écrit auprès de Lui sur Son Trône : “Ma miséricorde l’emporte sur Ma colère.” ».",
+        "ur": "ہم سے اسماعیل بن ابی اویس نے بیان کیا، کہا ہم سے امام مالک نے بیان کیا، ان سے ابوالزناد نے، ان سے اعرج نے اور ان سے ابوہریرہ رضی اللہ عنہ نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”جب اللہ تعالیٰ مخلوق کو پیدا کر چکا تو عرش کے اوپر اپنے پاس یہ لکھا کہ میری رحمت میرے غصہ سے آگے بڑھ گئی ہے۔."
       },
       "from": "hadith-api"
     },
@@ -64,7 +72,9 @@
       "ref": "Sahih al-Bukhari 6309",
       "arabic": "حَدَّثَنَا إِسْحَاقُ، أَخْبَرَنَا حَبَّانُ، حَدَّثَنَا هَمَّامٌ، حَدَّثَنَا قَتَادَةُ، حَدَّثَنَا أَنَسُ بْنُ مَالِكٍ، عَنِ النَّبِيِّ صلى الله عليه وسلم‏.‏ وَحَدَّثَنَا هُدْبَةُ، حَدَّثَنَا هَمَّامٌ، حَدَّثَنَا قَتَادَةُ، عَنْ أَنَسٍ ـ رضى الله عنه ـ قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ اللَّهُ أَفْرَحُ بِتَوْبَةِ عَبْدِهِ مِنْ أَحَدِكُمْ سَقَطَ عَلَى بَعِيرِهِ، وَقَدْ أَضَلَّهُ فِي أَرْضِ فَلاَةٍ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Anas bin Malik: Allah's Messenger (ﷺ) said, \"Allah is more pleased with the repentance of His slave than anyone of you is pleased with finding his camel which he had lost in the desert\"."
+        "en": "Narrated Anas bin Malik: Allah's Messenger (ﷺ) said, \"Allah is more pleased with the repentance of His slave than anyone of you is pleased with finding his camel which he had lost in the desert\".",
+        "fr": "Rapporté par Anas bin Malik : Le Messager d'Allah (ﷺ) a dit : « Allah est plus heureux du repentir de Son serviteur que l’un de vous ne l’est en retrouvant son chameau qu’il avait perdu dans le désert. ».",
+        "ur": "ہم سے اسحاق بن منصور نے بیان کیا، کہا ہم کو حبان بن ہلال نے خبر دی، کہا ہم سے ہمام بن یحییٰ نے بیان کیا، کہا ہم سے قتادہ نے بیان کیا اور ان سے انس بن مالک رضی اللہ عنہ نے بیان کیا اور ان سے نبی کریم صلی اللہ علیہ وسلم نے (دوسری سند) امام بخاری رحمہ اللہ نے کہا کہ ہم سے ہدبہ نے بیان کیا، کہا ہم سے ہمام نے بیان کیا، کہا ہم سے قتادہ نے بیان کیا، ان سے انس بن مالک رضی اللہ عنہ نے بیان کیا کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”اللہ تعالیٰ اپنے بندے کی توبہ سے تم میں سے اس شخص سے بھی زیادہ خوش ہوتا ہے جس کا اونٹ مایوسی کے بعد اچانک اسے مل گیا ہو حالانکہ وہ ایک چٹیل میدان میں گم ہوا تھا۔“."
       },
       "from": "hadith-api"
     },
@@ -77,7 +87,9 @@
       "ref": "Sahih Muslim 6970",
       "arabic": "حَدَّثَنِي زُهَيْرُ بْنُ حَرْبٍ، حَدَّثَنَا سُفْيَانُ بْنُ عُيَيْنَةَ، عَنْ أَبِي الزِّنَادِ، عَنِ الأَعْرَجِ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم ‏ \"‏ قَالَ اللَّهُ عَزَّ وَجَلَّ سَبَقَتْ رَحْمَتِي غَضَبِي ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Huraira reported Allah's Messenger (ﷺ) as saying:Allah, the Exalted and Glorious, said: My mercy excels My wrath."
+        "en": "Abu Huraira reported Allah's Messenger (ﷺ) as saying:Allah, the Exalted and Glorious, said: My mercy excels My wrath.",
+        "fr": "Rapporté par Abu Huraira : Le Messager d’Allah ﷺ a dit : « Allah, le Très-Haut et le Glorieux, a dit : “Ma miséricorde dépasse Ma colère.” ».",
+        "ur": "سفیان بن عیینہ نے ابوزناد سے ، انہوں نے اعرج سے ، انہوں نے حضرت ابوہریرہ رضی اللہ عنہ سے اور انہوں نے نبی صلی اللہ علیہ وسلم سے روایت کی کہ آپ صلی اللہ علیہ وسلم نے فرمایا : \" اللہ عزوجل نے فرمایا : میری رحمت میرے غضب پر سبقت لے گئی ہے ۔\"."
       },
       "from": "hadith-api"
     },
@@ -90,7 +102,9 @@
       "ref": "Sahih Muslim 470",
       "arabic": "حَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا سُفْيَانُ بْنُ عُيَيْنَةَ، عَنْ عَمْرٍو، سَمِعَ جَابِرًا، يَقُولُ سَمِعَهُ مِنَ النَّبِيِّ، صلى الله عليه وسلم بِأُذُنِهِ يَقُولُ ‏ \"‏ إِنَّ اللَّهَ يُخْرِجُ نَاسًا مِنَ النَّارِ فَيُدْخِلُهُمُ الْجَنَّةَ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Jabir reported that he had heard with his ears the Apostle (ﷺ) saying:Allah will bring out people from the Fire and admit them into Paradise."
+        "en": "Jabir reported that he had heard with his ears the Apostle (ﷺ) saying:Allah will bring out people from the Fire and admit them into Paradise.",
+        "fr": "Rapporté par Jabir : Il a entendu de ses propres oreilles le Prophète ﷺ dire : « Allah fera sortir des gens du Feu et les fera entrer au Paradis. ».",
+        "ur": "سفیان بن عیینہ نے عمر ( بن دینار ) سے روایت کی کہ انہوں نے حضرت جابر ‌رضی ‌اللہ ‌عنہ ‌ ‌ سے سنا ، وہ کہہ رہے تھے : انہوں نے اپنے دونوں کانٔن سے یہ بات نبی ﷺسنی ، آپ فرما رہے تھے : ’’ اللہ تعالیٰ کچھ لوگوں کو آگ سے نکال کر جنت میں داخل کرے گا ۔ ‘ ‘."
       },
       "from": "hadith-api"
     },
@@ -103,7 +117,9 @@
       "ref": "Sahih al-Bukhari 528",
       "arabic": "حَدَّثَنَا إِبْرَاهِيمُ بْنُ حَمْزَةَ، قَالَ حَدَّثَنِي ابْنُ أَبِي حَازِمٍ، وَالدَّرَاوَرْدِيُّ، عَنْ يَزِيدَ، عَنْ مُحَمَّدِ بْنِ إِبْرَاهِيمَ، عَنْ أَبِي سَلَمَةَ بْنِ عَبْدِ الرَّحْمَنِ، عَنْ أَبِي هُرَيْرَةَ، أَنَّهُ سَمِعَ رَسُولَ اللَّهِ صلى الله عليه وسلم يَقُولُ ‏\"‏ أَرَأَيْتُمْ لَوْ أَنَّ نَهَرًا بِبَابِ أَحَدِكُمْ، يَغْتَسِلُ فِيهِ كُلَّ يَوْمٍ خَمْسًا، مَا تَقُولُ ذَلِكَ يُبْقِي مِنْ دَرَنِهِ ‏\"‏‏.‏ قَالُوا لاَ يُبْقِي مِنْ دَرَنِهِ شَيْئًا‏.‏ قَالَ ‏\"‏ فَذَلِكَ مِثْلُ الصَّلَوَاتِ الْخَمْسِ، يَمْحُو اللَّهُ بِهَا الْخَطَايَا ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: I heard Allah's Messenger (ﷺ) saying, \"If there was a river at the door of anyone of you and he took a bath in it five times a day would you notice any dirt on him?\" They said, \"Not a trace of dirt would be left.\" The Prophet (ﷺ) added, \"That is the example of the five prayers with which Allah blots out (annuls) evil deeds\"."
+        "en": "Narrated Abu Huraira: I heard Allah's Messenger (ﷺ) saying, \"If there was a river at the door of anyone of you and he took a bath in it five times a day would you notice any dirt on him?\" They said, \"Not a trace of dirt would be left.\" The Prophet (ﷺ) added, \"That is the example of the five prayers with which Allah blots out (annuls) evil deeds\".",
+        "fr": "Rapporté par Abu Huraira : J’ai entendu Allah's Messager (ﷺ) dire : « Si l’un de vous avait une rivière devant sa porte et s’y baignait cinq fois par jour, resterait-il la moindre trace de saleté sur lui ? » Ils ont répondu : « Il ne resterait aucune trace de saleté. » Le Prophète (ﷺ) a ajouté : « C’est l’exemple des cinq prières, par lesquelles Allah efface les mauvaises actions. ».",
+        "ur": "ہم سے ابراہیم بن حمزہ نے بیان کیا، کہا ہم سے عبدالعزیز بن ابی حازم اور عبدالعزیز بن محمد دراوردی نے یزید بن عبداللہ کی روایت سے، انہوں نے محمد بن ابراہیم تیمی سے، انہوں نے ابوسلمہ بن عبدالرحمٰن بن عوف رضی اللہ عنہ سے، انہوں نے ابوہریرہ رضی اللہ عنہ سے کہ انہوں نے رسول اللہ صلی اللہ علیہ وسلم سے سنا آپ صلی اللہ علیہ وسلم فرماتے تھے کہ اگر کسی شخص کے دروازے پر نہر جاری ہو اور وہ روزانہ اس میں پانچ پانچ دفعہ نہائے تو تمہارا کیا گمان ہے۔ کیا اس کے بدن پر کچھ بھی میل باقی رہ سکتا ہے؟ صحابہ نے عرض کی کہ نہیں یا رسول اللہ! ہرگز نہیں۔ آپ صلی اللہ علیہ وسلم نے فرمایا کہ یہی حال پانچوں وقت کی نمازوں کا ہے کہ اللہ پاک ان کے ذریعہ سے گناہوں کو مٹا دیتا ہے۔."
       },
       "from": "hadith-api"
     },
@@ -116,7 +132,9 @@
       "ref": "Sahih Muslim 550",
       "arabic": "حَدَّثَنَا يَحْيَى بْنُ أَيُّوبَ، وَقُتَيْبَةُ بْنُ سَعِيدٍ، وَعَلِيُّ بْنُ حُجْرٍ، كُلُّهُمْ عَنْ إِسْمَاعِيلَ، - قَالَ ابْنُ أَيُّوبَ حَدَّثَنَا إِسْمَاعِيلُ بْنُ جَعْفَرٍ، - أَخْبَرَنِي الْعَلاَءُ بْنُ عَبْدِ الرَّحْمَنِ بْنِ يَعْقُوبَ، مَوْلَى الْحُرَقَةِ عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ الصَّلاَةُ الْخَمْسُ وَالْجُمُعَةُ إِلَى الْجُمُعَةِ كَفَّارَةٌ لِمَا بَيْنَهُنَّ مَا لَمْ تُغْشَ الْكَبَائِرُ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Huraira reported:The Messenger of Allah (ﷺ) said: Five prayers and from one Friday prayer to (the next) Friday prayer is an expiation (of the sins committed in between their intervals) if major sins are not committed."
+        "en": "Abu Huraira reported:The Messenger of Allah (ﷺ) said: Five prayers and from one Friday prayer to (the next) Friday prayer is an expiation (of the sins committed in between their intervals) if major sins are not committed.",
+        "fr": "Rapporté par Abu Huraira رضي الله عنه : Le Messager d’Allah ﷺ a dit : « Les cinq prières et d’un vendredi à l’autre sont une expiation (des péchés commis entre elles) tant que les grands péchés sont évités. ».",
+        "ur": "علاء نے اپنے والد عبد الرحمن بن یعقوب سے اور انہوں نے حضرت ابو ہریرہ ‌رضی ‌اللہ ‌عنہ ‌ ‌ سے روایت کی کہ رسول اللہ ﷺ نے فرمایا : ’’ پانچوں نمازیں اور ( ہر ) جمعہ ( دوسرے ) جمعہ تک درمیانی مدت کے گناہوں کا کفارہ ( ان کو مٹانے والے ) ہیں جب تک کبیرہ گناہوں کا ارتکاب نہ کیاجائے ۔ ‘ ‘."
       },
       "from": "hadith-api"
     },
@@ -129,7 +147,9 @@
       "ref": "Sahih al-Bukhari 723",
       "arabic": "حَدَّثَنَا أَبُو الْوَلِيدِ، قَالَ حَدَّثَنَا شُعْبَةُ، عَنْ قَتَادَةَ، عَنْ أَنَسٍ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ سَوُّوا صُفُوفَكُمْ فَإِنَّ تَسْوِيَةَ الصُّفُوفِ مِنْ إِقَامَةِ الصَّلاَةِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Anas bin Malik: The Prophet (ﷺ) said, \"Straighten your rows as the straightening of rows is essential for a perfect and correct prayer\"."
+        "en": "Narrated Anas bin Malik: The Prophet (ﷺ) said, \"Straighten your rows as the straightening of rows is essential for a perfect and correct prayer\".",
+        "fr": "Rapporté par Anas bin Malik : Le Prophète (ﷺ) a dit : « Alignez vos rangs, car l’alignement des rangs est essentiel pour une prière correcte et complète. ».",
+        "ur": "ہم سے ابوالولید ہشام بن عبدالملک نے بیان کیا، کہا کہ ہم کو شعبہ نے قتادہ کے واسطہ سے خبر دی، انہوں نے انس رضی اللہ عنہ سے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا کہ صفیں برابر رکھو کیونکہ صفوں کا برابر رکھنا نماز کے قائم کرنے میں داخل ہے۔."
       },
       "from": "hadith-api"
     },
@@ -142,7 +162,9 @@
       "ref": "Sahih Muslim 256",
       "arabic": "حَدَّثَنَا عُثْمَانُ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا جَرِيرٌ، عَنِ الْحَسَنِ بْنِ عُبَيْدِ اللَّهِ، عَنْ أَبِي عَمْرٍو الشَّيْبَانِيِّ، عَنْ عَبْدِ اللَّهِ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ أَفْضَلُ الأَعْمَالِ - أَوِ الْعَمَلِ - الصَّلاَةُ لِوَقْتِهَا وَبِرُّ الْوَالِدَيْنِ ‏\"‏ ‏.‏",
       "text": {
-        "en": "It is reported on the authority of 'Abdullah that the Messenger of Allah observed:The best of' the deeds or deed is the (observance of) prayer at its proper time and kindness to the parents."
+        "en": "It is reported on the authority of 'Abdullah that the Messenger of Allah observed:The best of' the deeds or deed is the (observance of) prayer at its proper time and kindness to the parents.",
+        "fr": "Rapporté par ‘Abdullah : Le Messager d’Allah ﷺ a dit : « La meilleure des actions, ou l’une des meilleures, est de prier à l’heure et d’être bienveillant envers ses parents. ».",
+        "ur": "ابو عمرو شیبانی سے ان کے ایک شاگرد حسن بن عبید اللہ نے یہی روایت بیان کی کہ حضرت عبد اللہ ‌رضی ‌اللہ ‌عنہ ‌ ‌ نے نبی اکرمﷺ سے روایت کی کہ آپ نے فرمایا : ’’سب سے افضل اعمال ( یاعمل ) وقت پر نماز پڑھنا اور والدین سے حسن سلوک کرنا ہیں ۔ ‘ ‘."
       },
       "from": "hadith-api"
     },
@@ -155,7 +177,9 @@
       "ref": "Sahih Muslim 1755",
       "arabic": "وَحَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا أَبُو أُسَامَةَ، ح وَحَدَّثَنَا ابْنُ نُمَيْرٍ، حَدَّثَنَا أَبِي ح، وَحَدَّثَنِي زُهَيْرُ بْنُ حَرْبٍ، وَابْنُ الْمُثَنَّى، قَالاَ حَدَّثَنَا يَحْيَى، كُلُّهُمْ عَنْ عُبَيْدِ اللَّهِ، عَنْ نَافِعٍ، عَنِ ابْنِ عُمَرَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ اجْعَلُوا آخِرَ صَلاَتِكُمْ بِاللَّيْلِ وِتْرًا ‏\"‏ ‏.‏",
       "text": {
-        "en": "Ibn 'Umar reported Allah's Messenger (ﷺ) as saying:Make Witr the end of your night prayer."
+        "en": "Ibn 'Umar reported Allah's Messenger (ﷺ) as saying:Make Witr the end of your night prayer.",
+        "fr": "Rapporté par Ibn 'Umar رضي الله عنه : « Le Messager d’Allah ﷺ a dit : “Terminez votre prière de la nuit par le Witr.” ».",
+        "ur": "عبیداللہ نے نافع سے ، انھوں نے حضرت ابن عمر رضی اللہ تعالیٰ عنہ سے اور ا نھوں نے نبی اکرم صلی اللہ علیہ وسلم سے روایت کی ، آپ نے فرمایا : \" رات کے وقت وتر کو اپنی نماز کا آخری حصہ بناؤ ۔\"."
       },
       "from": "hadith-api"
     },
@@ -168,7 +192,9 @@
       "ref": "Sahih al-Bukhari 646",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا اللَّيْثُ، حَدَّثَنِي ابْنُ الْهَادِ، عَنْ عَبْدِ اللَّهِ بْنِ خَبَّابٍ، عَنْ أَبِي سَعِيدٍ الْخُدْرِيِّ، أَنَّهُ سَمِعَ النَّبِيَّ صلى الله عليه وسلم يَقُولُ ‏ \"‏ صَلاَةُ الْجَمَاعَةِ تَفْضُلُ صَلاَةَ الْفَذِّ بِخَمْسٍ وَعِشْرِينَ دَرَجَةً ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Sa`id Al-Khudri: The Prophet (ﷺ) said, \"The prayer in congregation is twenty five times superior to the prayer offered by a person alone\"."
+        "en": "Narrated Abu Sa`id Al-Khudri: The Prophet (ﷺ) said, \"The prayer in congregation is twenty five times superior to the prayer offered by a person alone\".",
+        "fr": "Rapporté par Abu Sa`id Al-Khudri : Le Prophète (ﷺ) a dit : « La prière en groupe est vingt-cinq fois supérieure à la prière faite seul. ».",
+        "ur": "ہم سے عبداللہ بن یوسف نے بیان کیا، انہوں نے کہا کہ مجھ سے لیث نے بیان کیا، انہوں نے کہا کہ مجھ سے یزید بن ہاد نے بیان کیا، انہوں نے عبداللہ بن خباب سے، انہوں نے ابو سعید خدری رضی اللہ عنہ سے کہ انہوں نے نبی کریم صلی اللہ علیہ وسلم سے سنا آپ صلی اللہ علیہ وسلم فرماتے تھے کہ جماعت سے نماز تنہا نماز پڑھنے سے پچیس درجہ زیادہ فضیلت رکھتی ہے۔."
       },
       "from": "hadith-api"
     },
@@ -181,7 +207,9 @@
       "ref": "Sahih Muslim 912",
       "arabic": "حَدَّثَنَا يَحْيَى بْنُ أَيُّوبَ، وَقُتَيْبَةُ، وَابْنُ، حُجْرٍ قَالُوا حَدَّثَنَا إِسْمَاعِيلُ، - وَهُوَ ابْنُ جَعْفَرٍ - عَنِ الْعَلاَءِ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ مَنْ صَلَّى عَلَىَّ وَاحِدَةً صَلَّى اللَّهُ عَلَيْهِ عَشْرًا ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Huraira reported:The Messenger of Allah (ﷺ) said: He who blesses me once, Allah would bless him ten times."
+        "en": "Abu Huraira reported:The Messenger of Allah (ﷺ) said: He who blesses me once, Allah would bless him ten times.",
+        "fr": "Rapporté par Abu Huraira : Le Messager d’Allah ﷺ a dit : « Celui qui prie sur moi une fois, Allah priera sur lui dix fois. ».",
+        "ur": "۔ حضرت ابو ہریرہ ‌رضی ‌اللہ ‌عنہ ‌ ‌ سے روایت ہے کہ رسول اللہﷺ نےفرمایا : جس نے مجھ پر ایک بار درود بھیجا اللہ تعالیٰ اس پر دس بار رحمت نازل فرمائے گا ۔."
       },
       "from": "hadith-api"
     },
@@ -194,7 +222,9 @@
       "ref": "Sahih al-Bukhari 245",
       "arabic": "حَدَّثَنَا عُثْمَانُ، قَالَ حَدَّثَنَا جَرِيرٌ، عَنْ مَنْصُورٍ، عَنْ أَبِي وَائِلٍ، عَنْ حُذَيْفَةَ، قَالَ كَانَ النَّبِيُّ صلى الله عليه وسلم إِذَا قَامَ مِنَ اللَّيْلِ يَشُوصُ فَاهُ بِالسِّوَاكِ‏.‏",
       "text": {
-        "en": "Narrated Hudhaifa: Whenever the Prophet (ﷺ) got up at night, he used to clean his mouth with Siwak."
+        "en": "Narrated Hudhaifa: Whenever the Prophet (ﷺ) got up at night, he used to clean his mouth with Siwak.",
+        "fr": "Rapporté par Hudhaifa : Chaque fois que le Prophète (ﷺ) se levait la nuit, il se nettoyait la bouche avec un siwak.",
+        "ur": "ہم سے عثمان بن ابی شیبہ نے بیان کیا، کہا ہم سے جریر نے منصور کے واسطے سے، وہ ابووائل سے، وہ حذیفہ سے روایت کرتے ہیں کہ رسول اللہ صلی اللہ علیہ وسلم جب رات کو اٹھتے تو اپنے منہ کو مسواک سے صاف کرتے۔."
       },
       "from": "hadith-api"
     },
@@ -207,7 +237,9 @@
       "ref": "Sahih Muslim 578",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ مَعْمَرِ بْنِ رِبْعِيٍّ الْقَيْسِيُّ، حَدَّثَنَا أَبُو هِشَامٍ الْمَخْزُومِيُّ، عَنْ عَبْدِ الْوَاحِدِ، - وَهُوَ ابْنُ زِيَادٍ - حَدَّثَنَا عُثْمَانُ بْنُ حَكِيمٍ، حَدَّثَنَا مُحَمَّدُ بْنُ الْمُنْكَدِرِ، عَنْ حُمْرَانَ، عَنْ عُثْمَانَ بْنِ عَفَّانَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ تَوَضَّأَ فَأَحْسَنَ الْوُضُوءَ خَرَجَتْ خَطَايَاهُ مِنْ جَسَدِهِ حَتَّى تَخْرُجَ مِنْ تَحْتِ أَظْفَارِهِ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Uthman b. 'Affan reported:The Messenger of Allah (way peace be upon him) said: He who performed ablution well, his sins would come out from his body, even coming out from under his nails."
+        "en": "Uthman b. 'Affan reported:The Messenger of Allah (way peace be upon him) said: He who performed ablution well, his sins would come out from his body, even coming out from under his nails.",
+        "fr": "Rapporté par Uthman b. ‘Affan : Le Messager d’Allah ﷺ a dit : « Celui qui fait bien ses ablutions, ses péchés sortent de son corps, même de sous ses ongles. ».",
+        "ur": "حضرت عثمان بن عفان ‌رضی ‌اللہ ‌عنہ ‌ ‌ سے روایت ہے ، انہوں نے کہا : رسول اللہ ﷺ نے فرمایا : ’’جس نے وضو کیا اور خوب اچھی طرح وضو کیا ، تو اس کے جسم سے اس کےگناہ خارج ہو جاتے ہیں حتی کہ اس کے ناخنوں کےنیچے سے بھی نکل جاتے ہیں ۔ ‘ ‘."
       },
       "from": "hadith-api"
     },
@@ -220,7 +252,9 @@
       "ref": "Sahih al-Bukhari 6954",
       "arabic": "حَدَّثَنِي إِسْحَاقُ، حَدَّثَنَا عَبْدُ الرَّزَّاقِ، عَنْ مَعْمَرٍ، عَنْ هَمَّامٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ لاَ يَقْبَلُ اللَّهُ صَلاَةَ أَحَدِكُمْ إِذَا أَحْدَثَ حَتَّى يَتَوَضَّأَ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Allah does not accept prayer of anyone of you if he does Hadath (passes wind) till he performs the ablution (anew)\"."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Allah does not accept prayer of anyone of you if he does Hadath (passes wind) till he performs the ablution (anew)\".",
+        "fr": "Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : « Allah n’accepte pas la prière de l’un d’entre vous s’il a eu un Hadath (s’il a émis un vent) tant qu’il n’a pas refait ses ablutions. ».",
+        "ur": "مجھ سے اسحاق نے بیان کیا، کہا ہم سے عبدالرزاق نے بیان کیا، ان سے معمر نے، ان سے ہمام نے، ان سے ابوہریرہ رضی اللہ عنہ نے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”اللہ تعالیٰ تم میں سے کسی ایسے شخص کی نماز قبول نہیں کرتا جسے وضو کی ضرورت ہو یہاں تک کہ وہ وضو کر لے۔“."
       },
       "from": "hadith-api"
     },
@@ -233,7 +267,9 @@
       "ref": "Sahih Muslim 543",
       "arabic": "حَدَّثَنَا عَبْدُ بْنُ حُمَيْدٍ، وَحَجَّاجُ بْنُ الشَّاعِرِ، كِلاَهُمَا عَنْ أَبِي الْوَلِيدِ، قَالَ عَبْدٌ حَدَّثَنِي أَبُو الْوَلِيدِ، حَدَّثَنَا إِسْحَاقُ بْنُ سَعِيدِ بْنِ عَمْرِو بْنِ سَعِيدِ بْنِ الْعَاصِ، حَدَّثَنِي أَبِي، عَنْ أَبِيهِ، قَالَ كُنْتُ عِنْدَ عُثْمَانَ فَدَعَا بِطَهُورٍ فَقَالَ سَمِعْتُ رَسُولَ اللَّهِ صلى الله عليه وسلم يَقُولُ ‏ \"‏ مَا مِنِ امْرِئٍ مُسْلِمٍ تَحْضُرُهُ صَلاَةٌ مَكْتُوبَةٌ فَيُحْسِنُ وُضُوءَهَا وَخُشُوعَهَا وَرُكُوعَهَا إِلاَّ كَانَتْ كَفَّارَةً لِمَا قَبْلَهَا مِنَ الذُّنُوبِ مَا لَمْ يُؤْتِ كَبِيرَةً وَذَلِكَ الدَّهْرَ كُلَّهُ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Amr b Sa'id b al-As reported:I was with Uthman, and he called for ablution water and said: I heard Allah's Messenger (ﷺ) say: When the time for a prescribed prayer comes, if any Muslim performs ablution well and offers his prayer with humility and bowing, it will be an expiation for his past sins, so long as he has not committed a major sin; and this applies for all times."
+        "en": "Amr b Sa'id b al-As reported:I was with Uthman, and he called for ablution water and said: I heard Allah's Messenger (ﷺ) say: When the time for a prescribed prayer comes, if any Muslim performs ablution well and offers his prayer with humility and bowing, it will be an expiation for his past sins, so long as he has not committed a major sin; and this applies for all times.",
+        "fr": "Rapporté par ‘Amr b. Sa’id b. al-As رضي الله عنه : J’étais avec ‘Uthman, il a demandé de l’eau pour les ablutions et a dit : « J’ai entendu le Messager d’Allah ﷺ dire : “Quand l’heure d’une prière prescrite arrive, si un musulman fait bien ses ablutions et prie avec humilité et recueillement, cela efface ses péchés passés, tant qu’il n’a pas commis de péché majeur ; et cela vaut pour chaque prière.” ».",
+        "ur": "اسحاق بن سعيد نے عمرو بن سعید بن عاص نے اپنے والد ( سعید بن عمرو ) سے اور انہوں نے اپنے والد ( عمرو بن سعید ) سے روایت کی ، انہو ں نے کہا : میں عثمان ‌رضی ‌اللہ ‌عنہ ‌ ‌ کے پاس تھا ، انہوں نے وضو کاپانی منگایااور کہا : میں نے رسول اللہ ﷺ کو یہ فرماتے ہوئے سنا : ’’کوئی مسلمان نہیں جس کی فرض نماز کا وقت ہو جائے ، پھر وہ اس کے لیے اچھی طرح وضو کرے ، اچھی طرح خشوع سے اسے ادا کرے اور احسن انداز سے رکوع کرے ، مگر وہ نماز اس کے پچھلے گناہوں کا کفارہ ہو گی جب تک وہ کبیرہ گناہ کا ارتکاب نہیں کرتا اور یہ بات ہمیشہ کے لیے کی ۔ ‘ ‘."
       },
       "from": "hadith-api"
     },
@@ -246,7 +282,9 @@
       "ref": "Sahih al-Bukhari 248",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، قَالَ أَخْبَرَنَا مَالِكٌ، عَنْ هِشَامٍ، عَنْ أَبِيهِ، عَنْ عَائِشَةَ، زَوْجِ النَّبِيِّ صلى الله عليه وسلم أَنَّ النَّبِيَّ صلى الله عليه وسلم كَانَ إِذَا اغْتَسَلَ مِنَ الْجَنَابَةِ بَدَأَ فَغَسَلَ يَدَيْهِ، ثُمَّ يَتَوَضَّأُ كَمَا يَتَوَضَّأُ لِلصَّلاَةِ، ثُمَّ يُدْخِلُ أَصَابِعَهُ فِي الْمَاءِ، فَيُخَلِّلُ بِهَا أُصُولَ شَعَرِهِ ثُمَّ يَصُبُّ عَلَى رَأْسِهِ ثَلاَثَ غُرَفٍ بِيَدَيْهِ، ثُمَّ يُفِيضُ الْمَاءَ عَلَى جِلْدِهِ كُلِّهِ‏.‏",
       "text": {
-        "en": "Narrated `Aisha: Whenever the Prophet (ﷺ) took a bath after Janaba he started by washing his hands and then performed ablution like that for the prayer. After that he would put his fingers in water and move the roots of his hair with them, and then pour three handfuls of water over his head and then pour water all over his body."
+        "en": "Narrated `Aisha: Whenever the Prophet (ﷺ) took a bath after Janaba he started by washing his hands and then performed ablution like that for the prayer. After that he would put his fingers in water and move the roots of his hair with them, and then pour three handfuls of water over his head and then pour water all over his body.",
+        "fr": "Rapporté par `Aisha : Chaque fois que le Prophète (ﷺ) prenait un bain après une Janaba, il commençait par se laver les mains puis faisait les ablutions comme pour la prière. Ensuite, il mettait ses doigts dans l’eau et massait les racines de ses cheveux, puis versait trois poignées d’eau sur sa tête et enfin versait de l’eau sur tout son corps.",
+        "ur": "ہم سے عبداللہ بن یوسف نے بیان کیا، انہوں نے کہا ہمیں مالک نے ہشام سے خبر دی، وہ اپنے والد سے، وہ نبی کریم صلی اللہ علیہ وسلم کی زوجہ مطہرہ عائشہ رضی اللہ عنہا سے روایت کرتے ہیں کہ نبی کریم صلی اللہ علیہ وسلم جب غسل فرماتے تو آپ صلی اللہ علیہ وسلم پہلے اپنے دونوں ہاتھ دھوتے پھر اسی طرح وضو کرتے جیسا نماز کے لیے آپ صلی اللہ علیہ وسلم وضو کیا کرتے تھے۔ پھر پانی میں اپنی انگلیاں داخل فرماتے اور ان سے بالوں کی جڑوں کا خلال کرتے۔ پھر اپنے ہاتھوں سے تین چلو سر پر ڈالتے پھر تمام بدن پر پانی بہا لیتے۔."
       },
       "from": "hadith-api"
     },
@@ -259,7 +297,9 @@
       "ref": "Sahih al-Bukhari 3328",
       "arabic": "حَدَّثَنَا مُسَدَّدٌ، حَدَّثَنَا يَحْيَى، عَنْ هِشَامِ بْنِ عُرْوَةَ، عَنْ أَبِيهِ، عَنْ زَيْنَبَ بِنْتِ أَبِي سَلَمَةَ، عَنْ أُمِّ سَلَمَةَ، أَنَّ أُمَّ سُلَيْمٍ، قَالَتْ يَا رَسُولَ اللَّهِ، إِنَّ اللَّهَ لاَ يَسْتَحْيِي مِنَ الْحَقِّ، فَهَلْ عَلَى الْمَرْأَةِ الْغُسْلُ إِذَا احْتَلَمَتْ قَالَ ‏\"‏ نَعَمْ، إِذَا رَأَتِ الْمَاءَ ‏\"‏‏.‏ فَضَحِكَتْ أُمُّ سَلَمَةَ، فَقَالَتْ تَحْتَلِمُ الْمَرْأَةُ فَقَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏\"‏ فَبِمَا يُشْبِهُ الْوَلَدُ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Zainab bint Abi Salama: Um Salama said, \"Um Sulaim said, 'O Allah's Messenger (ﷺ)! Allah does not refrain from saying the truth! Is it obligatory for a woman to take a bath after she gets nocturnal discharge?' He said, 'Yes, if she notices the water (i.e. discharge).' Um Salama smiled and said, 'Does a woman get discharge?' Allah's Apostle said. 'Then why does a child resemble (its mother)?\""
+        "en": "Narrated Zainab bint Abi Salama: Um Salama said, \"Um Sulaim said, 'O Allah's Messenger (ﷺ)! Allah does not refrain from saying the truth! Is it obligatory for a woman to take a bath after she gets nocturnal discharge?' He said, 'Yes, if she notices the water (i.e. discharge).' Um Salama smiled and said, 'Does a woman get discharge?' Allah's Apostle said. 'Then why does a child resemble (its mother)?\"",
+        "fr": "Rapporté par Zainab bint Abi Salama : Um Salama a dit : « Um Sulaim a demandé : “Ô Messager d’Allah (ﷺ) ! Allah ne craint pas de dire la vérité ! Est-ce qu’une femme doit prendre un bain après avoir eu une émission nocturne ?” Il a répondu : “Oui, si elle remarque du liquide (c’est-à-dire une émission).” Um Salama a souri et a dit : “Une femme a-t-elle une émission ?” Le Messager d’Allah a dit : “Alors, pourquoi l’enfant ressemble-t-il à sa mère ?” ».",
+        "ur": "ہم سے مسدد نے بیان کیا، کہا ہم سے یحییٰ قطان نے بیان کیا، ان سے ہشام بن عروہ نے، ان سے ان کے باپ نے، ان سے زینب بنت ابی سلمہ نے، ان سے (ام المؤمنین) ام سلمہ رضی اللہ عنہما نے کہ ام سلیم رضی اللہ عنہا نے عرض کیا، یا رسول اللہ! اللہ تعالیٰ حق بات سے نہیں شرماتا، تو کیا اگر عورت کو احتلام ہو تو اس پر بھی غسل ہو گا؟ آپ صلی اللہ علیہ وسلم نے فرمایا ”ہاں بشرطیکہ وہ تری دیکھ لے۔“ ام المؤمنین ام سلمہ رضی اللہ عنہا کو اس بات پر ہنسی آ گئی اور فرمانے لگیں، کیا عورت کو بھی احتلام ہوتا ہے؟ آپ صلی اللہ علیہ وسلم نے فرمایا ” ( اگر ایسا نہیں ہے ) تو پھر بچے میں ( ماں کی ) مشابہت کہاں سے آتی ہے۔“."
       },
       "from": "hadith-api"
     },
@@ -272,7 +312,9 @@
       "ref": "Sahih Muslim 591",
       "arabic": "وَحَدَّثَنِي أَبُو بَكْرِ بْنُ نَافِعٍ الْعَبْدِيُّ، حَدَّثَنَا عَبْدُ الرَّحْمَنِ، عَنْ سُفْيَانَ، عَنِ الْمِقْدَامِ بْنِ شُرَيْحٍ، عَنْ أَبِيهِ، عَنْ عَائِشَةَ، أَنَّ النَّبِيَّ صلى الله عليه وسلم كَانَ إِذَا دَخَلَ بَيْتَهُ بَدَأَ بِالسِّوَاكِ ‏.‏",
       "text": {
-        "en": "A'isha reported:Whenever Allah's Messenger (ﷺ) entered his house, he used tooth-stick first of all."
+        "en": "A'isha reported:Whenever Allah's Messenger (ﷺ) entered his house, he used tooth-stick first of all.",
+        "fr": "Rapporté par Aïsha رضي الله عنها : Chaque fois que le Messager d’Allah ﷺ entrait chez lui, il utilisait le siwak en premier.",
+        "ur": "سفیان نے مقدام بن شریح سے باقی ماندہ سابقہ سند سے حضرت عائشہ ‎ؓؓؓؓؓؓؓؓؓؓؓؓؓؓسے روایت کی کہ نبی ﷺجب اپنے گھر تشریف لاتے تو مسواک سے آغاز فرماتے ۔."
       },
       "from": "hadith-api"
     },
@@ -285,7 +327,9 @@
       "ref": "Sahih al-Bukhari 291",
       "arabic": "حَدَّثَنَا مُعَاذُ بْنُ فَضَالَةَ، قَالَ حَدَّثَنَا هِشَامٌ، ح وَحَدَّثَنَا أَبُو نُعَيْمٍ، عَنْ هِشَامٍ، عَنْ قَتَادَةَ، عَنِ الْحَسَنِ، عَنْ أَبِي رَافِعٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ إِذَا جَلَسَ بَيْنَ شُعَبِهَا الأَرْبَعِ ثُمَّ جَهَدَهَا، فَقَدْ وَجَبَ الْغَسْلُ ‏\"‏‏.‏ تَابَعَهُ عَمْرُو بْنُ مَرْزُوقٍ عَنْ شُعْبَةَ مِثْلَهُ‏.‏ وَقَالَ مُوسَى حَدَّثَنَا أَبَانُ قَالَ حَدَّثَنَا قَتَادَةُ أَخْبَرَنَا الْحَسَنُ مِثْلَهُ‏.‏",
       "text": {
-        "en": "Narrated Hisham: as the following Hadith 290. Narrated Abu Huraira: The Prophet (ﷺ) said, \"When a man sits in between the four parts of a woman and did the sexual intercourse with her, bath becomes compulsory\"."
+        "en": "Narrated Hisham: as the following Hadith 290. Narrated Abu Huraira: The Prophet (ﷺ) said, \"When a man sits in between the four parts of a woman and did the sexual intercourse with her, bath becomes compulsory\".",
+        "fr": "Rapporté par Hisham : comme dans le hadith précédent. Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : Quand un homme s’assoit entre les quatre membres d’une femme et a un rapport avec elle, le bain rituel devient obligatoire.",
+        "ur": "(دوسری سند سے) امام بخاری رحمہ اللہ نے فرمایا کہ ہم سے ابونعیم نے بیان کیا، وہ ہشام سے، وہ قتادہ سے، وہ امام حسن بصری سے، وہ ابورافع سے، وہ ابوہریرہ رضی اللہ عنہ سے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا کہ جب مرد عورت کے چہار زانو میں بیٹھ گیا اور اس کے ساتھ جماع کے لیے کوشش کی تو غسل واجب ہو گیا، اس حدیث کی متابعت عمرو نے شعبہ کے واسطہ سے کی ہے اور موسیٰ نے کہا کہ ہم سے ابان نے بیان کیا، کہا ہم سے قتادہ نے بیان کیا، کہا ہم سے حسن بصری نے بیان کیا۔ اسی حدیث کی طرح۔ ابوعبداللہ ( امام بخاری رحمہ اللہ ) نے کہا یہ حدیث اس باب کی تمام احادیث میں عمدہ اور بہتر ہے اور ہم نے دوسری حدیث ( عثمان اور ابن ابی کعب کی ) صحابہ کے اختلاف کے پیش نظر بیان کی اور غسل میں اختیاط زیادہ ہے۔."
       },
       "from": "hadith-api"
     },
@@ -298,7 +342,9 @@
       "ref": "Sahih Muslim 776",
       "arabic": "حَدَّثَنَا هَارُونُ بْنُ سَعِيدٍ الأَيْلِيُّ، حَدَّثَنَا ابْنُ وَهْبٍ، أَخْبَرَنِي عَمْرُو بْنُ الْحَارِثِ، عَنِ ابْنِ شِهَابٍ، حَدَّثَهُ أَنَّ أَبَا سَلَمَةَ بْنَ عَبْدِ الرَّحْمَنِ حَدَّثَهُ عَنْ أَبِي سَعِيدٍ الْخُدْرِيِّ، عَنِ النَّبِيِّ صلى الله عليه وسلم أَنَّهُ قَالَ ‏ \"‏ إِنَّمَا الْمَاءُ مِنَ الْمَاءِ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Sa'id al-Khudri reported:The Apostle of Allah (ﷺ) observed: Bathing is obligatory in case of seminal emission."
+        "en": "Abu Sa'id al-Khudri reported:The Apostle of Allah (ﷺ) observed: Bathing is obligatory in case of seminal emission.",
+        "fr": "Rapporté par Abu Sa’id al-Khudri : Le Messager d’Allah ﷺ a dit : « Le bain rituel est obligatoire en cas d’éjaculation. ».",
+        "ur": "ابو سلمہ بن عبد الرحمان نے حضرت ابو سعید خدری ‌رضی ‌اللہ ‌عنہ ‌ ‌ سے حدیث بیان کی ، انہوں نے نبی کریم ﷺ سے روایت کی کہ آپ نے فرمایا : ’’پانی ، بس پانی سے ہے."
       },
       "from": "hadith-api"
     },
@@ -311,7 +357,9 @@
       "ref": "Sahih al-Bukhari 270",
       "arabic": "حَدَّثَنَا أَبُو النُّعْمَانِ، قَالَ حَدَّثَنَا أَبُو عَوَانَةَ، عَنْ إِبْرَاهِيمَ بْنِ مُحَمَّدِ بْنِ الْمُنْتَشِرِ، عَنْ أَبِيهِ، قَالَ سَأَلْتُ عَائِشَةَ فَذَكَرْتُ لَهَا قَوْلَ ابْنِ عُمَرَ مَا أُحِبُّ أَنْ أُصْبِحَ، مُحْرِمًا أَنْضَخُ طِيبًا‏.‏ فَقَالَتْ عَائِشَةُ أَنَا طَيَّبْتُ رَسُولَ اللَّهِ صلى الله عليه وسلم ثُمَّ طَافَ فِي نِسَائِهِ ثُمَّ أَصْبَحَ مُحْرِمًا‏.‏",
       "text": {
-        "en": "Narrated Muhammad bin Al-Muntathir: on the authority of his father that he had asked `Aisha about the saying of Ibn `Umar (i.e. he did not like to be a Muhrim while the smell of scent was still coming from his body). `Aisha said, \"I scented Allah's Messenger (ﷺ) and he went round (had sexual intercourse with) all his wives, and in the morning he was Muhrim (after taking a bath)\"."
+        "en": "Narrated Muhammad bin Al-Muntathir: on the authority of his father that he had asked `Aisha about the saying of Ibn `Umar (i.e. he did not like to be a Muhrim while the smell of scent was still coming from his body). `Aisha said, \"I scented Allah's Messenger (ﷺ) and he went round (had sexual intercourse with) all his wives, and in the morning he was Muhrim (after taking a bath)\".",
+        "fr": "Rapporté par Muhammad bin Al-Muntathir : Selon son père, il avait interrogé `Aisha à propos de la parole d’Ibn `Umar (c’est-à-dire qu’il n’aimait pas être en état de sacralisation alors que l’odeur du parfum était encore sur son corps). `Aisha a dit : « J’ai parfumé le Messager d’Allah (ﷺ) et il a fait le tour (a eu des rapports) avec toutes ses épouses, et le matin il était en état d’Ihram (après avoir pris un bain). ».",
+        "ur": "ہم سے ابوالنعمان نے بیان کیا، کہا ہم سے ابوعوانہ نے ابراہیم بن محمد بن منتشر سے، وہ اپنے والد سے، کہا میں نے عائشہ رضی اللہ عنہا سے پوچھا اور ان سے ابن عمر رضی اللہ عنہما کے اس قول کا ذکر کیا کہ میں اسے گوارا نہیں کر سکتا کہ میں احرام باندھوں اور خوشبو میرے جسم سے مہک رہی ہو۔ تو عائشہ رضی اللہ عنہا نے فرمایا، میں نے خود نبی کریم صلی اللہ علیہ وسلم کو خوشبو لگائی۔ پھر آپ اپنی تمام ازواج کے پاس گئے اور اس کے بعد احرام باندھا۔."
       },
       "from": "hadith-api"
     },
@@ -325,7 +373,9 @@
       "ref": "Sahih al-Bukhari 5854",
       "arabic": "حَدَّثَنَا حَجَّاجُ بْنُ مِنْهَالٍ، حَدَّثَنَا شُعْبَةُ، قَالَ أَخْبَرَنِي أَشْعَثُ بْنُ سُلَيْمٍ، سَمِعْتُ أَبِي يُحَدِّثُ، عَنْ مَسْرُوقٍ، عَنْ عَائِشَةَ ـ رضى الله عنها ـ قَالَتْ كَانَ النَّبِيُّ صلى الله عليه وسلم يُحِبُّ التَّيَمُّنَ فِي طُهُورِهِ وَتَرَجُّلِهِ وَتَنَعُّلِهِ‏.‏",
       "text": {
-        "en": "Narrated `Aisha: The Prophet (ﷺ) used to like starting from the right in performing ablution, combing his hair and putting on his shoes."
+        "en": "Narrated `Aisha: The Prophet (ﷺ) used to like starting from the right in performing ablution, combing his hair and putting on his shoes.",
+        "fr": "Rapporté par `Aisha رضي الله عنها : Le Prophète ﷺ aimait commencer par la droite pour faire ses ablutions, se coiffer et mettre ses chaussures.",
+        "ur": "ہم سے حجاج بن منہال نے بیان کیا، انہوں نے کہا ہم سے شعبہ نے بیان کیا، انہوں نے کہا کہ مجھے اشعث بن سلیم نے خبر دی کہ میں نے اپنے والد سے سنا، وہ مسروق سے بیان کرتے تھے اور ان سے عائشہ رضی اللہ عنہا نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم طہارت میں کنگھا کرنے میں اور جوتا پہننے میں داہنی طرف سے شروع کرنے کو پسند فرماتے تھے۔."
       },
       "from": "hadith-api"
     },
@@ -338,7 +388,9 @@
       "ref": "Sahih al-Bukhari 38",
       "arabic": "حَدَّثَنَا ابْنُ سَلاَمٍ، قَالَ أَخْبَرَنَا مُحَمَّدُ بْنُ فُضَيْلٍ، قَالَ حَدَّثَنَا يَحْيَى بْنُ سَعِيدٍ، عَنْ أَبِي سَلَمَةَ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ صَامَ رَمَضَانَ إِيمَانًا وَاحْتِسَابًا غُفِرَ لَهُ مَا تَقَدَّمَ مِنْ ذَنْبِهِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"Whoever observes fasts during the month of Ramadan out of sincere faith, and hoping to attain Allah's rewards, then all his past sins will be forgiven\"."
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"Whoever observes fasts during the month of Ramadan out of sincere faith, and hoping to attain Allah's rewards, then all his past sins will be forgiven\".",
+        "fr": "Rapporté par Abu Huraira : Le Messager d'Allah (ﷺ) a dit : « Celui qui jeûne pendant le mois de Ramadan avec une foi sincère et dans l’espoir d’obtenir la récompense d’Allah, alors tous ses péchés passés seront pardonnés. ».",
+        "ur": "ہم نے ابن سلام نے بیان کیا، انہوں نے کہا کہ ہمیں محمد بن فضیل نے خبر دی، انہوں نے کہا کہ ہم سے یحییٰ بن سعید نے بیان کیا، انہوں نے ابوسلمہ سے روایت کی، وہ ابوہریرہ رضی اللہ عنہ سے نقل کرتے ہیں کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا جس نے رمضان کے روزے ایمان اور خالص نیت کے ساتھ رکھے اس کے پچھلے گناہ بخش دیئے گئے۔."
       },
       "from": "hadith-api"
     },
@@ -351,7 +403,9 @@
       "ref": "Sahih al-Bukhari 3277",
       "arabic": "حَدَّثَنَا يَحْيَى بْنُ بُكَيْرٍ، حَدَّثَنَا اللَّيْثُ، قَالَ حَدَّثَنِي عُقَيْلٌ، عَنِ ابْنِ شِهَابٍ، قَالَ حَدَّثَنِي ابْنُ أَبِي أَنَسٍ، مَوْلَى التَّيْمِيِّينَ أَنَّ أَبَاهُ، حَدَّثَهُ أَنَّهُ، سَمِعَ أَبَا هُرَيْرَةَ ـ رضى الله عنه ـ يَقُولُ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ إِذَا دَخَلَ رَمَضَانُ فُتِّحَتْ أَبْوَابُ الْجَنَّةِ، وَغُلِّقَتْ أَبْوَابُ جَهَنَّمَ، وَسُلْسِلَتِ الشَّيَاطِينُ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"When the month of Ramadan comes, the gates of Paradise are opened and the gates of the (Hell) Fire are closed, and the devils are chained\"."
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"When the month of Ramadan comes, the gates of Paradise are opened and the gates of the (Hell) Fire are closed, and the devils are chained\".",
+        "fr": "Rapporté par Abu Huraira : Le Messager d'Allah (ﷺ) a dit : « Quand le mois de Ramadan arrive, les portes du Paradis sont ouvertes, les portes du Feu (de l'Enfer) sont fermées et les diables sont enchaînés. ».",
+        "ur": "ہم سے یحییٰ بن بکیر نے بیان کیا، کہا ہم سے لیث نے بیان کیا، ان سے عقیل نے بیان کیا، ان سے ابن شہاب نے، ان سے تیمیین کے مولیٰ ابن ابی انس نے بیان کیا، ان سے ان کے والد نے بیان کیا کہ ابوہریرہ رضی اللہ عنہ کو یہ کہتے سنا تھا کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”جب رمضان کا مہینہ آتا ہے تو جنت کے دروازے کھول دئیے جاتے ہیں۔ جہنم کے دروازے بند کر دئیے جاتے ہیں اور شیاطین کو زنجیروں میں کس دیا جاتا ہے۔“."
       },
       "from": "hadith-api"
     },
@@ -364,7 +418,9 @@
       "ref": "Sahih al-Bukhari 6057",
       "arabic": "حَدَّثَنَا أَحْمَدُ بْنُ يُونُسَ، حَدَّثَنَا ابْنُ أَبِي ذِئْبٍ، عَنِ الْمَقْبُرِيِّ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ مَنْ لَمْ يَدَعْ قَوْلَ الزُّورِ وَالْعَمَلَ بِهِ وَالْجَهْلَ فَلَيْسَ لِلَّهِ حَاجَةٌ أَنْ يَدَعَ طَعَامَهُ وَشَرَابَهُ ‏\"‏‏.‏ قَالَ أَحْمَدُ أَفْهَمَنِي رَجُلٌ إِسْنَادَهُ‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Whoever does not give up false statements (i.e. telling lies), and evil deeds, and speaking bad words to others, Allah is not in need of his (fasting) leaving his food and drink\"."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Whoever does not give up false statements (i.e. telling lies), and evil deeds, and speaking bad words to others, Allah is not in need of his (fasting) leaving his food and drink\".",
+        "fr": "Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : « Celui qui ne renonce pas aux mensonges, aux mauvaises actions et aux paroles blessantes envers les autres, Allah n’a pas besoin qu’il s’abstienne de manger et de boire pendant le jeûne. ».",
+        "ur": "ہم سے احمد بن یونس نے بیان کیا، کہا ہم سے ابن ابی ذئب نے بیان کیا، ان سے سعید مقبری نے اور ان سے ابوہریرہ رضی اللہ عنہ نے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا کہ جو شخص ( روزہ کی حالت میں ) جھوٹ بات کرنا اور فریب کرنا اور جہالت کی باتوں کو نہ چھوڑے تو اللہ کو اس کی کوئی ضرورت نہیں کہ وہ اپنا کھانا پینا چھوڑے۔ احمد بن یونس نے کہا یہ حدیث میں نے سنی تو تھی مگر میں اس کی سند بھول گیا تھا جو مجھ کو ایک شخص ( ابن ابی ذئب ) نے بتلا دی۔."
       },
       "from": "hadith-api"
     },
@@ -377,7 +433,9 @@
       "ref": "Sahih al-Bukhari 1957",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنْ أَبِي حَازِمٍ، عَنْ سَهْلِ بْنِ سَعْدٍ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ لاَ يَزَالُ النَّاسُ بِخَيْرٍ مَا عَجَّلُوا الْفِطْرَ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Sahl bin Sa`d: Allah's Messenger (ﷺ) said, \"The people will remain on the right path as long as they hasten the breaking of the fast\"."
+        "en": "Narrated Sahl bin Sa`d: Allah's Messenger (ﷺ) said, \"The people will remain on the right path as long as they hasten the breaking of the fast\".",
+        "fr": "Rapporté par Sahl ibn Sa`d : Le Messager d’Allah ﷺ a dit : « Les gens resteront sur la bonne voie tant qu’ils se dépêcheront de rompre le jeûne. ».",
+        "ur": "ہم سے عبداللہ بن یوسف تنیسی نے بیان کیا، کہا ہمیں امام مالک نے خبر دی، انہیں ابوحازم سلمہ بن دینار نے، انہیں سہل بن سعد رضی اللہ عنہ نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا، میری امت کے لوگوں میں اس وقت تک خیر باقی رہے گی، جب تک وہ افطار میں جلدی کرتے رہیں گے۔."
       },
       "from": "hadith-api"
     },
@@ -390,7 +448,9 @@
       "ref": "Sahih al-Bukhari 2017",
       "arabic": "حَدَّثَنَا قُتَيْبَةُ بْنُ سَعِيدٍ، حَدَّثَنَا إِسْمَاعِيلُ بْنُ جَعْفَرٍ، حَدَّثَنَا أَبُو سُهَيْلٍ، عَنْ أَبِيهِ، عَنْ عَائِشَةَ ـ رضى الله عنها ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ تَحَرَّوْا لَيْلَةَ الْقَدْرِ فِي الْوِتْرِ مِنَ الْعَشْرِ الأَوَاخِرِ مِنْ رَمَضَانَ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Aisha: Allah's Messenger (ﷺ) said, \"Search for the Night of Qadr in the odd nights of the last ten days of Ramadan\"."
+        "en": "Narrated `Aisha: Allah's Messenger (ﷺ) said, \"Search for the Night of Qadr in the odd nights of the last ten days of Ramadan\".",
+        "fr": "Rapporté par `Aisha : Le Messager d’Allah (ﷺ) a dit : « Cherchez la nuit du Qadr dans les nuits impaires des dix derniers jours de Ramadan. ».",
+        "ur": "ہم سے قتیبہ بن سعید نے بیان کیا، کہا ہم سے اسماعیل بن جعفر نے بیان کیا، کہا کہ ہم سے ابوسہیل نے بیان کیا، ان سے ان کے باپ مالک بن عامر نے اور ان سے عائشہ رضی اللہ عنہا نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا، شب قدر کو رمضان کے آخری عشرہ کی طاق راتوں میں ڈھونڈو۔."
       },
       "from": "hadith-api"
     },
@@ -403,7 +463,9 @@
       "ref": "Sahih Muslim 2550",
       "arabic": "حَدَّثَنَا قُتَيْبَةُ بْنُ سَعِيدٍ، حَدَّثَنَا لَيْثٌ، عَنْ مُوسَى بْنِ عُلَىٍّ، عَنْ أَبِيهِ، عَنْ أَبِي قَيْسٍ، مَوْلَى عَمْرِو بْنِ الْعَاصِ عَنْ عَمْرِو بْنِ الْعَاصِ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ فَصْلُ مَا بَيْنَ صِيَامِنَا وَصِيَامِ أَهْلِ الْكِتَابِ أَكْلَةُ السَّحَرِ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Amr b. al-'As reported Allah's Messenger (ﷺ) as saying:The difference between our fasting and that of the people of the Book is eating shortly before dawn."
+        "en": "Amr b. al-'As reported Allah's Messenger (ﷺ) as saying:The difference between our fasting and that of the people of the Book is eating shortly before dawn.",
+        "fr": "Rapporté par ‘Amr b. al-‘As : Le Messager d’Allah ﷺ a dit : « La différence entre notre jeûne et celui des gens du Livre, c’est le repas pris peu avant l’aube. ».",
+        "ur": "لیث ، موسیٰ بن علی ، ابی قیس ، مولی عمرو بن عاص ، حضرت عمر بن العاص رضی اللہ تعالیٰ عنہ سے روایت ہے کہ رسول اللہ صلی اللہ علیہ وسلم نے ارشاد فرمایا ہمارےروزے اور اہل کتاب کے روزے کے درمیان سحری کھانے کافرق ہے ۔."
       },
       "from": "hadith-api"
     },
@@ -416,7 +478,9 @@
       "ref": "Sahih Muslim 2676",
       "arabic": "وَحَدَّثَنَا ابْنُ نُمَيْرٍ، حَدَّثَنَا أَبِي، حَدَّثَنَا سَعْدُ بْنُ سَعِيدٍ، أَخْبَرَتْنِي عَمْرَةُ، عَنْ عَائِشَةَ، - رضى الله عنها - قَالَتْ نَهَى رَسُولُ اللَّهِ صلى الله عليه وسلم عَنْ صَوْمَيْنِ يَوْمِ الْفِطْرِ وَيَوْمِ الأَضْحَى ‏.‏",
       "text": {
-        "en": "A'isha (Allah be pleased with her) said that the Prophet (ﷺ) forbade to observe fast on two days-the day of Fitr and the day of Adha."
+        "en": "A'isha (Allah be pleased with her) said that the Prophet (ﷺ) forbade to observe fast on two days-the day of Fitr and the day of Adha.",
+        "fr": "Rapporté par Aïsha رضي الله عنها : Le Prophète ﷺ a interdit de jeûner deux jours : le jour du Fitr et le jour de l’Adha.",
+        "ur": "حضرت عائشہ رضی اللہ تعالیٰ عنہا سے روایت ہے ، کہا : رسول اللہ صلی اللہ علیہ وسلم نے دو روزوں ، فطر کے دن اورقربانی کے دن ( کے روزوں ) سے منع فرمایا ہے ۔."
       },
       "from": "hadith-api"
     },
@@ -429,7 +493,9 @@
       "ref": "Sahih Muslim 2585",
       "arabic": "وَحَدَّثَنَا مُحَمَّدُ بْنُ بَشَّارٍ، حَدَّثَنَا عَبْدُ الرَّحْمَنِ، حَدَّثَنَا سُفْيَانُ، عَنْ أَبِي الزِّنَادِ، عَنْ عَلِيِّ بْنِ الْحُسَيْنِ، عَنْ عَائِشَةَ، رضى الله عنها أَنَّ النَّبِيَّ صلى الله عليه وسلم كَانَ يُقَبِّلُ وَهُوَ صَائِمٌ ‏.‏",
       "text": {
-        "en": "A'isha (Allah be pleased with her) reported that Allah's Apostle (peace be upon him) kissed (his wives) while fasting."
+        "en": "A'isha (Allah be pleased with her) reported that Allah's Apostle (peace be upon him) kissed (his wives) while fasting.",
+        "fr": "Rapporté par Aïcha رضي الله عنها : Le Messager d’Allah ﷺ embrassait ses épouses alors qu’il jeûnait.",
+        "ur": "۔ محمد بن بشار ، عبدالرحمٰن ، سفیان ، ابی زناد ، علی بن حسین ، سیدہ عائشہ صدیقہ رضی اللہ تعالیٰ عنہا سے روایت ہے کہ نبی کریم صلی اللہ علیہ وسلم اپنی زوجہ مطہرہ کا روزہ کی حالت میں بوسہ لے لیا کرتے تھے ۔."
       },
       "from": "hadith-api"
     },
@@ -442,7 +508,9 @@
       "ref": "Sahih al-Bukhari 1930",
       "arabic": "حَدَّثَنَا أَحْمَدُ بْنُ صَالِحٍ، حَدَّثَنَا ابْنُ وَهْبٍ، حَدَّثَنَا يُونُسُ، عَنِ ابْنِ شِهَابٍ، عَنْ عُرْوَةَ، وَأَبِي، بَكْرٍ قَالَتْ عَائِشَةُ ـ رضى الله عنها ـ كَانَ النَّبِيُّ صلى الله عليه وسلم يُدْرِكُهُ الْفَجْرُ ‏{‏جُنُبًا‏}‏ فِي رَمَضَانَ، مِنْ غَيْرِ حُلُمٍ فَيَغْتَسِلُ وَيَصُومُ‏.‏",
       "text": {
-        "en": "Narrated `Aisha: (At times) in Ramadan the Prophet (ﷺ) used to take a bath in the morning not because of a wet dream and would continue his fast."
+        "en": "Narrated `Aisha: (At times) in Ramadan the Prophet (ﷺ) used to take a bath in the morning not because of a wet dream and would continue his fast.",
+        "fr": "Rapporté par `Aisha : (Parfois) pendant le Ramadan, le Prophète (ﷺ) prenait un bain rituel le matin, pas à cause d’un rêve, et continuait son jeûne.",
+        "ur": "ہم سے احمد بن صالح نے بیان کیا، کہا ہم سے عبداللہ بن وہب نے بیان کیا، ان سے یونس نے بیان کیا، ان سے ابن شہاب نے، ان سے عروہ اور ابوبکر نے کہ عائشہ رضی اللہ عنہا نے کہا رمضان میں فجر کے وقت نبی کریم صلی اللہ علیہ وسلم احتلام سے نہیں ( بلکہ اپنی ازواج کے ساتھ صحبت کرنے کی وجہ سے ) غسل کرتے اور روزہ رکھتے تھے۔ ( معلوم ہوا کہ غسل جنابت روزہ دار فجر کے بعد کر سکتا ہے ) ۔."
       },
       "from": "hadith-api"
     },
@@ -455,7 +523,9 @@
       "ref": "Sahih al-Bukhari 1417",
       "arabic": "حَدَّثَنَا سُلَيْمَانُ بْنُ حَرْبٍ، حَدَّثَنَا شُعْبَةُ، عَنْ أَبِي إِسْحَاقَ، قَالَ سَمِعْتُ عَبْدَ اللَّهِ بْنَ مَعْقِلٍ، قَالَ سَمِعْتُ عَدِيَّ بْنَ حَاتِمٍ ـ رضى الله عنه ـ قَالَ سَمِعْتُ رَسُولَ اللَّهِ صلى الله عليه وسلم يَقُولُ ‏ \"‏ اتَّقُوا النَّارَ وَلَوْ بِشِقِّ تَمْرَةٍ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Adi bin Hatim heard the Prophet (ﷺ) saying: \"Save yourself from Hell-fire even by giving half a date-fruit in charity\"."
+        "en": "Narrated `Adi bin Hatim heard the Prophet (ﷺ) saying: \"Save yourself from Hell-fire even by giving half a date-fruit in charity\".",
+        "fr": "Rapporté par `Adi bin Hatim : J'ai entendu le Prophète (ﷺ) dire : « Protégez-vous du Feu de l'Enfer, même en donnant la moitié d'une datte en aumône. ».",
+        "ur": "ہم سے سلیمان بن حرب نے بیان کیا ‘ کہا کہ ہم سے شعبہ نے بیان کیا اور ان سے ابواسحاق عمرو بن عبداللہ سبیعی نے کہا کہ میں نے عبداللہ بن معقل سے سنا ‘ انہوں نے کہا کہ میں نے عدی بن حاتم رضی اللہ عنہ سے سنا ‘ انہوں نے کہا کہ میں نے رسول اللہ صلی اللہ علیہ وسلم کو یہ کہتے سنا کہ جہنم سے بچو اگرچہ کھجور کا ایک ٹکڑا دے کر ہی سہی ( مگر ضرور صدقہ کر کے دوزخ کی آگ سے بچنے کی کوشش کرو ) ۔."
       },
       "from": "hadith-api"
     },
@@ -468,7 +538,9 @@
       "ref": "Sahih Muslim 6592",
       "arabic": "حَدَّثَنَا يَحْيَى بْنُ أَيُّوبَ، وَقُتَيْبَةُ، وَابْنُ، حُجْرٍ قَالُوا حَدَّثَنَا إِسْمَاعِيلُ، - وَهُوَ ابْنُ جَعْفَرٍ - عَنِ الْعَلاَءِ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، عَنْ رَسُولِ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ مَا نَقَصَتْ صَدَقَةٌ مِنْ مَالٍ وَمَا زَادَ اللَّهُ عَبْدًا بِعَفْوٍ إِلاَّ عِزًّا وَمَا تَوَاضَعَ أَحَدٌ لِلَّهِ إِلاَّ رَفَعَهُ اللَّهُ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Huraira reported Allah's Messenger (ﷺ) as saying:Charity does not decrease wealth, no one forgives another except that Allah increases his honor, and no one humbles himself for the sake of Allah except that Allah raises his status."
+        "en": "Abu Huraira reported Allah's Messenger (ﷺ) as saying:Charity does not decrease wealth, no one forgives another except that Allah increases his honor, and no one humbles himself for the sake of Allah except that Allah raises his status.",
+        "fr": "Rapporté par Abu Huraira : Le Messager d’Allah ﷺ a dit : « L’aumône ne diminue pas la richesse, personne ne pardonne à autrui sans qu’Allah n’augmente son honneur, et personne ne s’humilie pour Allah sans qu’Allah n’élève son rang. ».",
+        "ur": "حضرت ابوہریرہ رضی اللہ عنہ نے رسول اللہ صلی اللہ علیہ وسلم سے روایت کی کہ آپ صلی اللہ علیہ وسلم نے فرمایا : \" صدقے نے مال میں کبھی کوئی کمی نہیں کی اور معاف کرنے سے اللہ تعالیٰ بندے کو عزت ہی میں بڑھاتا ہے اور کوئی شخص ( صرف اور صرف ) اللہ کی خاطر تواضع ( انکسار ) اختیار نہیں کرتا مگر اللہ تعالیٰ اس کا مقام بلند کر دیتا ہے ۔\"."
       },
       "from": "hadith-api"
     },
@@ -482,7 +554,9 @@
       "ref": "Sahih Muslim 2386",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ بَشَّارٍ، وَمُحَمَّدُ بْنُ حَاتِمٍ، وَأَحْمَدُ بْنُ عَبْدَةَ، جَمِيعًا عَنْ يَحْيَى الْقَطَّانِ، - قَالَ ابْنُ بَشَّارٍ حَدَّثَنَا يَحْيَى، - حَدَّثَنَا عَمْرُو بْنُ عُثْمَانَ، قَالَ سَمِعْتُ مُوسَى بْنَ طَلْحَةَ، يُحَدِّثُ أَنَّ حَكِيمَ بْنَ حِزَامٍ، حَدَّثَهُ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ أَفْضَلُ الصَّدَقَةِ - أَوْ خَيْرُ الصَّدَقَةِ - عَنْ ظَهْرِ غِنًى وَالْيَدُ الْعُلْيَا خَيْرٌ مِنَ الْيَدِ السُّفْلَى وَابْدَأْ بِمَنْ تَعُولُ ‏\"‏‏.‏",
       "text": {
-        "en": "Hakim b. Hizam reported Allah's Messenger (ﷺ) having said this:The most excellent Sadaqa or the best of Sadaqa is that after giving which the (giver) remains rich and the upper hand is better than the lower hand, and begin from the members of your household."
+        "en": "Hakim b. Hizam reported Allah's Messenger (ﷺ) having said this:The most excellent Sadaqa or the best of Sadaqa is that after giving which the (giver) remains rich and the upper hand is better than the lower hand, and begin from the members of your household.",
+        "fr": "Rapporté par Hakim ibn Hizam رضي الله عنه : Le Messager d’Allah ﷺ a dit : « La meilleure aumône est celle après laquelle tu restes à l’aise financièrement, et la main qui donne est meilleure que celle qui reçoit. Commence par les membres de ta famille. ».",
+        "ur": "حضرت حکیم بن حزام رضی اللہ تعالیٰ عنہ نے بیان کیا کہ رسول اللہ صلی اللہ علیہ وسلم نے فر ما یا : \" سب سے افضل صدقہ ۔ ۔ ۔ یا سب سے اچھا صدقہ ۔ ۔ وہ ہے جس کے پیچھے ( دل کی ) تو نگری ہو اور اوپر والا ہا تھ نیچے والے ہا تھ سے بہتر ہے اور ( دینے کی ) ابتدا اس سے کرو جس کی تم کفا لت کرتے ہو ۔\"."
       },
       "from": "hadith-api"
     },
@@ -495,7 +569,9 @@
       "ref": "Sahih Muslim 2328",
       "arabic": "حَدَّثَنَا قُتَيْبَةُ بْنُ سَعِيدٍ، حَدَّثَنَا أَبُو عَوَانَةَ، ح وَحَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا عَبَّادُ بْنُ الْعَوَّامِ، كِلاَهُمَا عَنْ أَبِي مَالِكٍ الأَشْجَعِيِّ، عَنْ رِبْعِيِّ بْنِ حِرَاشٍ، عَنْ حُذَيْفَةَ، فِي حَدِيثِ قُتَيْبَةَ قَالَ قَالَ نَبِيُّكُمْ صلى الله عليه وسلم وَقَالَ ابْنُ أَبِي شَيْبَةَ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ كُلُّ مَعْرُوفٍ صَدَقَةٌ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Hudhaifa and Abu Shaiba reported Allah's Messenger (ﷺ) as saying:Every act of goodness is sadaqa."
+        "en": "Hudhaifa and Abu Shaiba reported Allah's Messenger (ﷺ) as saying:Every act of goodness is sadaqa.",
+        "fr": "Rapporté par Hudhayfa et Abu Shaiba رضي الله عنهما : Le Messager d’Allah ﷺ a dit : « Chaque bonne action est une aumône (sadaqa). ».",
+        "ur": "قتیبہ بن سعید اور ابو بکر بن ابی شیبہ نے اپنی اپنی سند کے ساتھ حضرت حذیفہ رضی اللہ تعالیٰ عنہ سے ر وایت کی ۔ قتیبہ کی حدیث میں ہے تمھارے نبی صلی اللہ علیہ وسلم نے فرمایا اور ابن ابی شیبہ نے کہا : نبی کریم صلی اللہ علیہ وسلم سے روایت ہے ۔ ۔ ۔ \" ہر نیکی صدقہ ہے ۔\"."
       },
       "from": "hadith-api"
     },
@@ -508,7 +584,9 @@
       "ref": "Sahih al-Bukhari 6715",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ عَبْدِ الرَّحِيمِ، حَدَّثَنَا دَاوُدُ بْنُ رُشَيْدٍ، حَدَّثَنَا الْوَلِيدُ بْنُ مُسْلِمٍ، عَنْ أَبِي غَسَّانَ، مُحَمَّدِ بْنِ مُطَرِّفٍ عَنْ زَيْدِ بْنِ أَسْلَمَ، عَنْ عَلِيِّ بْنِ حُسَيْنٍ، عَنْ سَعِيدٍ ابْنِ مَرْجَانَةَ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ مَنْ أَعْتَقَ رَقَبَةً مُسْلِمَةً، أَعْتَقَ اللَّهُ بِكُلِّ عُضْوٍ مِنْهُ عُضْوًا مِنَ النَّارِ، حَتَّى فَرْجَهُ بِفَرْجِهِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"If somebody manumits a Muslim slave, Allah will save from the Fire every part of his body for freeing the corresponding parts of the slave's body, even his private parts will be saved from the Fire) because of freeing the slave's private parts\"."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"If somebody manumits a Muslim slave, Allah will save from the Fire every part of his body for freeing the corresponding parts of the slave's body, even his private parts will be saved from the Fire) because of freeing the slave's private parts\".",
+        "fr": "Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : « Si quelqu’un affranchit un esclave musulman, Allah sauvera du Feu chaque partie de son corps en échange de la partie correspondante du corps de l’esclave affranchi, même ses parties intimes seront protégées du Feu grâce à l’affranchissement des parties intimes de l’esclave. ».",
+        "ur": "ہم سے محمد بن عبدالرحیم نے بیان کیا، کہا ہم سے داؤد بن رشید نے بیان کیا، کہا ہم سے ولید بن مسلم نے بیان کیا، ان سے ابوغسان محمد بن مطرف نے، ان سے زید بن اسلم نے، ان سے زین العابدین علی بن حسین نے، ان سے سعید ابن مرجانہ نے اور ان سے ابوہریرہ رضی اللہ عنہ نے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”جس نے کسی مسلمان غلام کو آزاد کیا تو اللہ تعالیٰ اس کے ایک ایک ٹکڑے کے بدلے آزاد کرنے والے کا ایک ایک ٹکڑا جہنم سے آزاد کرے گا۔ یہاں تک کہ غلام کی شرمگاہ کے بدلے آزاد کرنے والے کی شرمگاہ بھی دوزخ سے آزاد ہو جائے گی۔“."
       },
       "from": "hadith-api"
     },
@@ -521,7 +599,9 @@
       "ref": "Sahih Muslim 2311",
       "arabic": "حَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، وَزُهَيْرُ بْنُ حَرْبٍ، وَأَبُو كُرَيْبٍ - وَاللَّفْظُ لأَبِي كُرَيْبٍ - قَالُوا حَدَّثَنَا وَكِيعٌ، عَنْ سُفْيَانَ، عَنْ مُزَاحِمِ بْنِ زُفَرَ، عَنْ مُجَاهِدٍ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ دِينَارٌ أَنْفَقْتَهُ فِي سَبِيلِ اللَّهِ وَدِينَارٌ أَنْفَقْتَهُ فِي رَقَبَةٍ وَدِينَارٌ تَصَدَّقْتَ بِهِ عَلَى مِسْكِينٍ وَدِينَارٌ أَنْفَقْتَهُ عَلَى أَهْلِكَ أَعْظَمُهَا أَجْرًا الَّذِي أَنْفَقْتَهُ عَلَى أَهْلِكَ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Huraira reported Allah's Messenger (ﷺ) as saying:Of the dinar you spend as a contribution in Allah's path, or to set free a slave, or as a sadaqa given to a needy, or to support your family, the one yielding the greatest reward is that which you spent on your family."
+        "en": "Abu Huraira reported Allah's Messenger (ﷺ) as saying:Of the dinar you spend as a contribution in Allah's path, or to set free a slave, or as a sadaqa given to a needy, or to support your family, the one yielding the greatest reward is that which you spent on your family.",
+        "fr": "Rapporté par Abu Huraira رضي الله عنه : Le Messager d’Allah ﷺ a dit : « Parmi les dinars que tu dépenses pour la cause d’Allah, pour affranchir un esclave, pour donner une sadaqa à un nécessiteux, ou pour subvenir aux besoins de ta famille, celui qui rapporte la plus grande récompense est celui que tu dépenses pour ta famille. ».",
+        "ur": "حضرت ابو ہریرہ رضی اللہ تعالیٰ عنہ سے روایت ہے انھوں نے کہا : رسول اللہ صلی اللہ علیہ وسلم نے فر ما یا \" ( جن دیناروں پر اجر ملتا ہے ان میں سے ) ایک دینا وہ ہے جسےتو نے اللہ کی راہ میں خرچ کیا ایک دیناروہ ہے جسے تو نے کسی کی گردن ( کی آزادی ) کے لیے خرچ کیا ایک دینا ر وہ ہے جسے تو نے مسکین پر صدقہ کیا اور ایک دینار وہ ہے جسے تو نے اپنے گھر والوں پر صرف کیا ان میں سب سے عظیم اجر اس دینار کا ہے جسے تو نے اپنے اہل پر خرچ کیا ۔\"."
       },
       "from": "hadith-api"
     },
@@ -535,7 +615,9 @@
       "ref": "Sahih Muslim 6690",
       "arabic": "حَدَّثَنِي أَبُو غَسَّانَ الْمِسْمَعِيُّ، حَدَّثَنَا عُثْمَانُ بْنُ عُمَرَ، حَدَّثَنَا أَبُو عَامِرٍ، - يَعْنِي الْخَزَّازَ - عَنْ أَبِي عِمْرَانَ الْجَوْنِيِّ، عَنْ عَبْدِ اللَّهِ بْنِ الصَّامِتِ، عَنْ أَبِي ذَرٍّ، قَالَ قَالَ لِيَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ لاَ تَحْقِرَنَّ مِنَ الْمَعْرُوفِ شَيْئًا وَلَوْ أَنْ تَلْقَى أَخَاكَ بِوَجْهٍ طَلْقٍ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Dharr reported:Allah's Apostle (ﷺ) said to me: Don't consider anything insignificant out of good things even if it is that you meet your brother with a cheerful countenance."
+        "en": "Abu Dharr reported:Allah's Apostle (ﷺ) said to me: Don't consider anything insignificant out of good things even if it is that you meet your brother with a cheerful countenance.",
+        "fr": "Rapporté par Abu Dharr رضي الله عنه : Le Messager d’Allah ﷺ m’a dit : « Ne considère jamais un acte de bien comme insignifiant, même si c’est simplement de rencontrer ton frère avec le sourire. ».",
+        "ur": "حضرت ابوذر رضی اللہ عنہ سے روایت ہے ، کہا : رسول اللہ صلی اللہ علیہ وسلم نے مجھ سے فرمایا : \" نیکی میں کسی چیز کو حقیر نہ سمجھو ، چاہے یہی ہو کہ تم اپنے ( مسلمان ) بھائی کو کھلتے ہوئے چہرے سے ملو ۔\"."
       },
       "from": "hadith-api"
     },
@@ -548,7 +630,9 @@
       "ref": "Sahih al-Bukhari 1521",
       "arabic": "حَدَّثَنَا آدَمُ، حَدَّثَنَا شُعْبَةُ، حَدَّثَنَا سَيَّارٌ أَبُو الْحَكَمِ، قَالَ سَمِعْتُ أَبَا حَازِمٍ، قَالَ سَمِعْتُ أَبَا هُرَيْرَةَ ـ رضى الله عنه ـ قَالَ سَمِعْتُ النَّبِيَّ صلى الله عليه وسلم يَقُولُ ‏ \"‏ مَنْ حَجَّ لِلَّهِ فَلَمْ يَرْفُثْ وَلَمْ يَفْسُقْ رَجَعَ كَيَوْمِ وَلَدَتْهُ أُمُّهُ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Whoever performs Hajj for Allah's pleasure and does not have sexual relations with his wife, and does not do evil or sins then he will return (after Hajj free from all sins) as if he were born anew\"."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Whoever performs Hajj for Allah's pleasure and does not have sexual relations with his wife, and does not do evil or sins then he will return (after Hajj free from all sins) as if he were born anew\".",
+        "fr": "Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : « Celui qui accomplit le Hajj pour plaire à Allah, sans avoir de relations intimes avec sa femme, sans commettre de mauvaises actions ni de péchés, reviendra (du Hajj pur de tout péché) comme au jour où il est né. ».",
+        "ur": "ہم سے آدم بن ابی ایاس نے بیان کیا، کہا کہ ہم سے شعبہ نے بیان کیا، کہا کہ ہم سے سیارابوالحکم نے بیان کیا، کہا کہ میں نے ابو حزم سے سنا، انہوں نے بیان کیا کہ میں نے ابوہریرہ رضی اللہ عنہ سے سنا اور انہوں نے نبی کریم صلی اللہ علیہ وسلم سے سنا کہ آپ صلی اللہ علیہ وسلم نے فرمایا جس شخص نے اللہ کے لیے اس شان کے ساتھ حج کیا کہ نہ کوئی فحش بات ہوئی اور نہ کوئی گناہ تو وہ اس دن کی طرح واپس ہو گا جیسے اس کی ماں نے اسے جنا تھا۔."
       },
       "from": "hadith-api"
     },
@@ -561,7 +645,9 @@
       "ref": "Sahih al-Bukhari 1773",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنْ سُمَىٍّ، مَوْلَى أَبِي بَكْرِ بْنِ عَبْدِ الرَّحْمَنِ عَنْ أَبِي صَالِحٍ السَّمَّانِ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ الْعُمْرَةُ إِلَى الْعُمْرَةِ كَفَّارَةٌ لِمَا بَيْنَهُمَا، وَالْحَجُّ الْمَبْرُورُ لَيْسَ لَهُ جَزَاءٌ إِلاَّ الْجَنَّةُ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"(The performance of) `Umra is an expiation for the sins committed (between it and the previous one). And the reward of Hajj Mabrur (the one accepted by Allah) is nothing except Paradise\"."
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"(The performance of) `Umra is an expiation for the sins committed (between it and the previous one). And the reward of Hajj Mabrur (the one accepted by Allah) is nothing except Paradise\".",
+        "fr": "Rapporté par Abu Huraira : Le Messager d’Allah (ﷺ) a dit : « La ‘Umra efface les péchés commis entre elle et la précédente. Et la récompense d’un Hajj Mabrur (accepté par Allah) n’est rien d’autre que le Paradis. ».",
+        "ur": "ہم سے عبداللہ بن یوسف نے بیان کیا، انہوں نے کہا کہ ہم کو امام مالک نے خبر دی، انہیں ابوبکر بن عبدالرحمٰن کے غلام سمی نے خبر دی، انہیں ابوصالح سمان نے خبر دی اور انہیں ابوہریرہ رضی اللہ عنہ نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ایک عمرہ کے بعد دوسرا عمرہ دونوں کے درمیان کے گناہوں کا کفارہ ہے اور حج مبرور کی جزا جنت کے سوا اور کچھ نہیں ہے۔."
       },
       "from": "hadith-api"
     },
@@ -574,7 +660,9 @@
       "ref": "Sahih al-Bukhari 1549",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنْ نَافِعٍ، عَنْ عَبْدِ اللَّهِ بْنِ عُمَرَ ـ رضى الله عنهما ـ أَنَّ تَلْبِيَةَ، رَسُولِ اللَّهِ صلى الله عليه وسلم لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لاَ شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لاَ شَرِيكَ لَكَ‏.‏",
       "text": {
-        "en": "Narrated `Abdullah bin `Umar: The Talbiya of Allah's Messenger (ﷺ) was : 'Labbaika Allahumma labbaik, Labbaika la sharika Laka labbaik, Inna-l-hamda wan-ni'mata Laka walmulk, La sharika Laka' (I respond to Your call O Allah, I respond to Your call, and I am obedient to Your orders, You have no partner, I respond to Your call All the praises and blessings are for You, All the sovereignty is for You, And You have no partners with You)."
+        "en": "Narrated `Abdullah bin `Umar: The Talbiya of Allah's Messenger (ﷺ) was : 'Labbaika Allahumma labbaik, Labbaika la sharika Laka labbaik, Inna-l-hamda wan-ni'mata Laka walmulk, La sharika Laka' (I respond to Your call O Allah, I respond to Your call, and I am obedient to Your orders, You have no partner, I respond to Your call All the praises and blessings are for You, All the sovereignty is for You, And You have no partners with You).",
+        "fr": "Rapporté par `Abdullah ibn `Umar : La Talbiya du Messager d'Allah (ﷺ) était : « Labbaika Allahumma labbaik, Labbaika la sharika Laka labbaik, Inna-l-hamda wan-ni'mata Laka walmulk, La sharika Laka » (Je réponds à Ton appel, ô Allah, je réponds à Ton appel, et j'obéis à Tes ordres, Tu n'as pas d'associé, je réponds à Ton appel. Toutes les louanges et les bienfaits sont à Toi, toute la royauté est à Toi, et Tu n'as aucun associé).",
+        "ur": "ہم سے عبداللہ بن یوسف تنیسی نے بیان کیا، انہوں نے کہا کہ ہمیں امام مالک نے خبر دی، انہیں نافع نے اور انہیں عبداللہ بن عمر رضی اللہ عنہما نے کہ رسول اللہ صلی اللہ علیہ وسلم کا تلبیہ یہ تھا «لبيك اللهم لبيك،‏‏‏‏ لبيك لا شريك لك لبيك،‏‏‏‏ إن الحمد والنعمة لك والملك،‏‏‏‏ لا شريك لك‏» ”حاضر ہوں اے اللہ! حاضر ہوں میں، تیرا کوئی شریک نہیں۔ حاضر ہوں، تمام حمد تیرے ہی لیے ہے اور تمام نعمتیں تیری ہی طرف سے ہیں، بادشاہت تیری ہی ہے تیرا کوئی شریک نہیں۔“."
       },
       "from": "hadith-api"
     },
@@ -587,7 +675,9 @@
       "ref": "Sahih al-Bukhari 5617",
       "arabic": "حَدَّثَنَا أَبُو نُعَيْمٍ، حَدَّثَنَا سُفْيَانُ، عَنْ عَاصِمٍ الأَحْوَلِ، عَنِ الشَّعْبِيِّ، عَنِ ابْنِ عَبَّاسٍ، قَالَ شَرِبَ النَّبِيُّ صلى الله عليه وسلم قَائِمًا مِنْ زَمْزَمَ‏.‏",
       "text": {
-        "en": "Narrated Ibn `Abbas: The Prophet (ﷺ) drank Zamzam (water) while standing."
+        "en": "Narrated Ibn `Abbas: The Prophet (ﷺ) drank Zamzam (water) while standing.",
+        "fr": "Rapporté par Ibn `Abbas : Le Prophète ﷺ a bu de l’eau de Zamzam en étant debout.",
+        "ur": "ہم سے ابونعیم نے بیان کیا، کہا ہم سے سفیان نے بیان کیا، ان سے عاصم احول نے، ان سے شعبی نے اور ان سے عبداللہ بن عباس رضی اللہ عنہما نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم نے زمزم کا پانی کھڑے ہو کر پیا۔."
       },
       "from": "hadith-api"
     },
@@ -600,7 +690,9 @@
       "ref": "Sahih al-Bukhari 1597",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ كَثِيرٍ، أَخْبَرَنَا سُفْيَانُ، عَنِ الأَعْمَشِ، عَنْ إِبْرَاهِيمَ، عَنْ عَابِسِ بْنِ رَبِيعَةَ، عَنْ عُمَرَ ـ رضى الله عنه ـ أَنَّهُ جَاءَ إِلَى الْحَجَرِ الأَسْوَدِ فَقَبَّلَهُ، فَقَالَ إِنِّي أَعْلَمُ أَنَّكَ حَجَرٌ لاَ تَضُرُّ وَلاَ تَنْفَعُ، وَلَوْلاَ أَنِّي رَأَيْتُ النَّبِيَّ صلى الله عليه وسلم يُقَبِّلُكَ مَا قَبَّلْتُكَ‏.‏",
       "text": {
-        "en": "Narrated `Abis bin Rabi`a: `Umar came near the Black Stone and kissed it and said \"No doubt, I know that you are a stone and can neither benefit anyone nor harm anyone. Had I not seen Allah's Messenger (ﷺ) kissing you I would not have kissed you\"."
+        "en": "Narrated `Abis bin Rabi`a: `Umar came near the Black Stone and kissed it and said \"No doubt, I know that you are a stone and can neither benefit anyone nor harm anyone. Had I not seen Allah's Messenger (ﷺ) kissing you I would not have kissed you\".",
+        "fr": "Rapporté par `Abis bin Rabi`a : `Umar s’est approché de la Pierre Noire, l’a embrassée et a dit : « Je sais bien que tu n’es qu’une pierre et que tu ne peux ni apporter de bien ni de mal à personne. Si je n’avais pas vu le Messager d’Allah (ﷺ) t’embrasser, je ne t’aurais pas embrassée. ».",
+        "ur": "ہم سے محمد بن کثیر نے بیان کیا، انہوں نے کہا کہ ہمیں سفیان ثوری نے خبر دی، انہیں اعمش نے، انہیں ابراہیم نے، انہیں عابس بن ربیعہ نے کہ عمر رضی اللہ عنہ حجر اسود کے پاس آئے اور اسے بوسہ دیا اور فرمایا ”میں خوب جانتا ہوں کہ تو صرف ایک پتھر ہے، نہ کسی کو نقصان پہنچا سکتا ہے نہ نفع۔ اگر رسول اللہ صلی اللہ علیہ وسلم کو تجھے بوسہ دیتے ہوئے میں نہ دیکھتا تو میں بھی کبھی تجھے بوسہ نہ دیتا۔“."
       },
       "from": "hadith-api"
     },
@@ -613,7 +705,9 @@
       "ref": "Sahih al-Bukhari 1552",
       "arabic": "حَدَّثَنَا أَبُو عَاصِمٍ، أَخْبَرَنَا ابْنُ جُرَيْجٍ، قَالَ أَخْبَرَنِي صَالِحُ بْنُ كَيْسَانَ، عَنْ نَافِعٍ، عَنِ ابْنِ عُمَرَ ـ رضى الله عنهما ـ قَالَ أَهَلَّ النَّبِيُّ صلى الله عليه وسلم حِينَ اسْتَوَتْ بِهِ رَاحِلَتُهُ قَائِمَةً‏.‏",
       "text": {
-        "en": "Narrated Ibn `Umar: The Prophet (ﷺ) recited Talbiya when he had mounted his Mount and was ready to set out."
+        "en": "Narrated Ibn `Umar: The Prophet (ﷺ) recited Talbiya when he had mounted his Mount and was ready to set out.",
+        "fr": "Rapporté par Ibn `Umar : Le Prophète (ﷺ) récitait la Talbiya lorsqu'il montait sur sa monture et se préparait à partir.",
+        "ur": "ہم سے ابوعاصم نے بیان کیا، کہا کہ ہمیں ابن جریج نے خبر دی، کہا کہ مجھے صالح بن کیسان نے خبر دی، انہیں نافع نے اور ان سے ابن عمر رضی اللہ عنہما نے کہ جب رسول اللہ صلی اللہ علیہ وسلم کو لے کر آپ صلی اللہ علیہ وسلم کی سواری پوری طرح کھڑی ہو گئی تھی تو آپ صلی اللہ علیہ وسلم نے اس وقت لبیک پکارا۔."
       },
       "from": "hadith-api"
     },
@@ -626,7 +720,9 @@
       "ref": "Sahih al-Bukhari 5028",
       "arabic": "حَدَّثَنَا أَبُو نُعَيْمٍ، حَدَّثَنَا سُفْيَانُ، عَنْ عَلْقَمَةَ بْنِ مَرْثَدٍ، عَنْ أَبِي عَبْدِ الرَّحْمَنِ السُّلَمِيِّ، عَنْ عُثْمَانَ بْنِ عَفَّانَ، قَالَ قَالَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ إِنَّ أَفْضَلَكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Uthman bin `Affan: The Prophet (ﷺ) said, \"The most superior among you (Muslims) are those who learn the Qur'an and teach it\"."
+        "en": "Narrated `Uthman bin `Affan: The Prophet (ﷺ) said, \"The most superior among you (Muslims) are those who learn the Qur'an and teach it\".",
+        "fr": "Rapporté par `Uthman bin `Affan : Le Prophète (ﷺ) a dit : « Les plus méritants parmi vous sont ceux qui apprennent le Coran et l’enseignent. ».",
+        "ur": "ہم سے ابونعیم نے بیان کیا، کہا ہم سے سفیان بن عیینہ نے بیان کیا، ان سے علقمہ بن مرثد نے، ان سے ابو عبیدالرحمن سلمی نے، ان سے عثمان رضی اللہ عنہ نے بیان کیا کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا کہ تم سب میں بہتر وہ ہے جو قرآن مجید پڑھے اور پڑھائے۔."
       },
       "from": "hadith-api"
     },
@@ -639,7 +735,9 @@
       "ref": "Sahih al-Bukhari 71",
       "arabic": "حَدَّثَنَا سَعِيدُ بْنُ عُفَيْرٍ، قَالَ حَدَّثَنَا ابْنُ وَهْبٍ، عَنْ يُونُسَ، عَنِ ابْنِ شِهَابٍ، قَالَ قَالَ حُمَيْدُ بْنُ عَبْدِ الرَّحْمَنِ سَمِعْتُ مُعَاوِيَةَ، خَطِيبًا يَقُولُ سَمِعْتُ النَّبِيَّ صلى الله عليه وسلم يَقُولُ ‏ \"‏ مَنْ يُرِدِ اللَّهُ بِهِ خَيْرًا يُفَقِّهْهُ فِي الدِّينِ، وَإِنَّمَا أَنَا قَاسِمٌ وَاللَّهُ يُعْطِي، وَلَنْ تَزَالَ هَذِهِ الأُمَّةُ قَائِمَةً عَلَى أَمْرِ اللَّهِ لاَ يَضُرُّهُمْ مَنْ خَالَفَهُمْ حَتَّى يَأْتِيَ أَمْرُ اللَّهِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Muawiya: I heard Allah's Messenger (ﷺ) saying, \"If Allah wants to do good to a person, He makes him comprehend the religion. I am just a distributor, but the grant is from Allah. (And remember) that this nation (true Muslims) will keep on following Allah's teachings strictly and they will not be harmed by any one going on a different path till Allah's order (Day of Judgment) is established\"."
+        "en": "Narrated Muawiya: I heard Allah's Messenger (ﷺ) saying, \"If Allah wants to do good to a person, He makes him comprehend the religion. I am just a distributor, but the grant is from Allah. (And remember) that this nation (true Muslims) will keep on following Allah's teachings strictly and they will not be harmed by any one going on a different path till Allah's order (Day of Judgment) is established\".",
+        "fr": "Rapporté par Muawiya : J’ai entendu le Messager d’Allah (ﷺ) dire : « Si Allah veut du bien à une personne, Il lui fait comprendre la religion. Je ne fais que distribuer, mais le don vient d’Allah. (Et souvenez-vous) que cette communauté (les vrais musulmans) continuera à suivre strictement les enseignements d’Allah et ils ne seront pas blessés par ceux qui prennent un autre chemin jusqu’à ce que l’ordre d’Allah (le Jour du Jugement) soit établi. ».",
+        "ur": "ہم سے سعید بن عفیر نے بیان کیا، ان سے وہب نے یونس کے واسطے سے نقل کیا، وہ ابن شہاب سے نقل کرتے ہیں، ان سے حمید بن عبدالرحمٰن نے کہا کہ میں نے معاویہ سے سنا۔ وہ خطبہ میں فرما رہے تھے کہ میں نے رسول اللہ صلی اللہ علیہ وسلم کو یہ فرماتے ہوئے سنا کہ جس شخص کے ساتھ اللہ تعالیٰ بھلائی کا ارادہ کرے اسے دین کی سمجھ عنایت فرما دیتا ہے اور میں تو محض تقسیم کرنے والا ہوں، دینے والا تو اللہ ہی ہے اور یہ امت ہمیشہ اللہ کے حکم پر قائم رہے گی اور جو شخص ان کی مخالفت کرے گا، انہیں نقصان نہیں پہنچا سکے گا، یہاں تک کہ اللہ کا حکم ( قیامت ) آ جائے ( اور یہ عالم فنا ہو جائے ) ۔."
       },
       "from": "hadith-api"
     },
@@ -652,7 +750,9 @@
       "ref": "Sahih al-Bukhari 106",
       "arabic": "حَدَّثَنَا عَلِيُّ بْنُ الْجَعْدِ، قَالَ أَخْبَرَنَا شُعْبَةُ، قَالَ أَخْبَرَنِي مَنْصُورٌ، قَالَ سَمِعْتُ رِبْعِيَّ بْنَ حِرَاشٍ، يَقُولُ سَمِعْتُ عَلِيًّا، يَقُولُ قَالَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ لاَ تَكْذِبُوا عَلَىَّ، فَإِنَّهُ مَنْ كَذَبَ عَلَىَّ فَلْيَلِجِ النَّارَ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Ali: The Prophet (ﷺ) said, \"Do not tell a lie against me for whoever tells a lie against me (intentionally) then he will surely enter the Hell-fire\"."
+        "en": "Narrated `Ali: The Prophet (ﷺ) said, \"Do not tell a lie against me for whoever tells a lie against me (intentionally) then he will surely enter the Hell-fire\".",
+        "fr": "Rapporté par `Ali : Le Prophète (ﷺ) a dit : « Ne dites pas de mensonge à mon sujet, car celui qui ment intentionnellement sur moi entrera sûrement dans le feu de l’Enfer. ».",
+        "ur": "ہم سے علی بن جعد نے بیان کیا، انہیں شعبہ نے خبر دی، انہیں منصور نے، انہوں نے ربعی بن حراش سے سنا کہ میں نے علی رضی اللہ عنہ کو یہ فرماتے ہوئے سنا کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا کہ مجھ پر جھوٹ مت بولو۔ کیونکہ جو مجھ پر جھوٹ باندھے وہ دوزخ میں داخل ہو۔."
       },
       "from": "hadith-api"
     },
@@ -665,7 +765,9 @@
       "ref": "Sahih al-Bukhari 5033",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ الْعَلاَءِ، حَدَّثَنَا أَبُو أُسَامَةَ، عَنْ بُرَيْدٍ، عَنْ أَبِي بُرْدَةَ، عَنْ أَبِي مُوسَى، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ تَعَاهَدُوا الْقُرْآنَ فَوَالَّذِي نَفْسِي بِيَدِهِ لَهُوَ أَشَدُّ تَفَصِّيًا مِنَ الإِبِلِ فِي عُقُلِهَا ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Musa: The Prophet (ﷺ) said, \"Commit yourself to the Qur'an, for by Him in whose Hand is my soul, it is surely more prone to break away than a camel in its bind\"."
+        "en": "Narrated Abu Musa: The Prophet (ﷺ) said, \"Commit yourself to the Qur'an, for by Him in whose Hand is my soul, it is surely more prone to break away than a camel in its bind\".",
+        "fr": "Rapporté par Abu Musa : Le Prophète (ﷺ) a dit : « Attache-toi au Coran, car par Celui qui tient mon âme dans Sa main, il s’échappe encore plus vite qu’un chameau détaché de sa corde. ».",
+        "ur": "ہم سے محمد بن علاء نے بیان کیا، کہا ہم سے ابواسامہ نے بیان کیا، ان سے برید نے، ان سے ابوبردہ نے اور ان سے ابوموسیٰ رضی اللہ عنہ نے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”قرآن مجید کا پڑھتے رہنا لازم پکڑ لو“ اس ذات کی قسم جس کے ہاتھ میں میری جان ہے وہ اونٹ کے اپنی رسی تڑوا کر بھاگ جانے سے زیادہ تیزی سے بھاگتا ہے۔."
       },
       "from": "hadith-api"
     },
@@ -678,7 +780,9 @@
       "ref": "Sahih al-Bukhari 75",
       "arabic": "حَدَّثَنَا أَبُو مَعْمَرٍ، قَالَ حَدَّثَنَا عَبْدُ الْوَارِثِ، قَالَ حَدَّثَنَا خَالِدٌ، عَنْ عِكْرِمَةَ، عَنِ ابْنِ عَبَّاسٍ، قَالَ ضَمَّنِي رَسُولُ اللَّهِ صلى الله عليه وسلم وَقَالَ ‏ \"‏ اللَّهُمَّ عَلِّمْهُ الْكِتَابَ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Ibn `Abbas: Once the Prophet (ﷺ) embraced me and said, \"O Allah! Bestow on him the knowledge of the Book (Qur'an)\"."
+        "en": "Narrated Ibn `Abbas: Once the Prophet (ﷺ) embraced me and said, \"O Allah! Bestow on him the knowledge of the Book (Qur'an)\".",
+        "fr": "Rapporté par Ibn `Abbas : Un jour, le Prophète (ﷺ) m’a pris dans ses bras et a dit : « Ô Allah ! Accorde-lui la connaissance du Livre (le Coran). ».",
+        "ur": "ہم سے ابومعمر نے بیان کیا، ان سے عبدالوارث نے، ان سے خالد نے عکرمہ کے واسطے سے بیان کیا، وہ ابن عباس رضی اللہ عنہما سے روایت کرتے ہیں۔ انہوں نے فرمایا کہ ( ایک مرتبہ ) رسول اللہ صلی اللہ علیہ وسلم نے مجھے ( سینے سے ) لگا لیا اور دعا دیتے ہوئے فرمایا کہ ”اے اللہ اسے علم کتاب ( قرآن ) عطا فرمائیو“۔."
       },
       "from": "hadith-api"
     },
@@ -691,7 +795,9 @@
       "ref": "Sahih al-Bukhari 1409",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ الْمُثَنَّى، حَدَّثَنَا يَحْيَى، عَنْ إِسْمَاعِيلَ، قَالَ حَدَّثَنِي قَيْسٌ، عَنِ ابْنِ مَسْعُودٍ ـ رضى الله عنه ـ قَالَ سَمِعْتُ النَّبِيَّ صلى الله عليه وسلم يَقُولُ ‏ \"‏ لاَ حَسَدَ إِلاَّ فِي اثْنَتَيْنِ رَجُلٌ آتَاهُ اللَّهُ مَالاً فَسَلَّطَهُ عَلَى هَلَكَتِهِ فِي الْحَقِّ، وَرَجُلٌ آتَاهُ اللَّهُ حِكْمَةً فَهْوَ يَقْضِي بِهَا وَيُعَلِّمُهَا ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Ibn Mas`ud: I heard the Prophet (ﷺ) saying, \"There is no envy except in two: a person whom Allah has given wealth and he spends it in the right way, and a person whom Allah has given wisdom (i.e. religious knowledge) and he gives his decisions accordingly and teaches it to the others\"."
+        "en": "Narrated Ibn Mas`ud: I heard the Prophet (ﷺ) saying, \"There is no envy except in two: a person whom Allah has given wealth and he spends it in the right way, and a person whom Allah has given wisdom (i.e. religious knowledge) and he gives his decisions accordingly and teaches it to the others\".",
+        "fr": "Rapporté par Ibn Mas`ud : J’ai entendu le Prophète (ﷺ) dire : « Il n’y a d’envie que dans deux cas : une personne à qui Allah a donné des richesses et qui les dépense de la bonne manière, et une personne à qui Allah a donné la sagesse (c’est-à-dire la connaissance religieuse) et qui juge selon elle et l’enseigne aux autres. ».",
+        "ur": "ہم سے محمد بن مثنیٰ نے بیان کیا ‘ کہا کہ ہم سے یحییٰ بن سعید نے اسماعیل بن ابی خالد سے بیان کیا، کہا کہ مجھ سے قیس بن ابی حازم نے بیان کیا اور ان سے ابن مسعود رضی اللہ عنہا نے بیان کیا کہ حسد ( رشک ) کرنا صرف دو ہی آدمیوں کے ساتھ جائز ہو سکتا ہے۔ ایک تو اس شخص کے ساتھ جسے اللہ نے مال دیا اور اسے حق اور مناسب جگہوں میں خرچ کرنے کی توفیق دی۔ دوسرے اس شخص کے ساتھ جسے اللہ تعالیٰ نے حکمت ( عقل علم قرآن و حدیث اور معاملہ فہمی ) دی اور وہ اپنی حکمت کے مطابق حق فیصلے کرتا ہے اور لوگوں کو اس کی تعلیم دیتا ہے۔."
       },
       "from": "hadith-api"
     },
@@ -704,7 +810,9 @@
       "ref": "Sahih al-Bukhari 5040",
       "arabic": "حَدَّثَنَا عُمَرُ بْنُ حَفْصٍ، حَدَّثَنَا أَبِي، حَدَّثَنَا الأَعْمَشُ، قَالَ حَدَّثَنِي إِبْرَاهِيمُ، عَنْ عَلْقَمَةَ، وَعَبْدِ الرَّحْمَنِ بْنِ يَزِيدَ، عَنْ أَبِي مَسْعُودٍ الأَنْصَارِيِّ، قَالَ قَالَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ الآيَتَانِ مِنْ آخِرِ سُورَةِ الْبَقَرَةِ مَنْ قَرَأَ بِهِمَا فِي لَيْلَةٍ كَفَتَاهُ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Mas`ud al-Ansari: The Prophet (ﷺ) said, \"If one recites the last two verses of Surat al-Baqarah at night, it is sufficient for him (for that night)\"."
+        "en": "Narrated Abu Mas`ud al-Ansari: The Prophet (ﷺ) said, \"If one recites the last two verses of Surat al-Baqarah at night, it is sufficient for him (for that night)\".",
+        "fr": "Rapporté par Abu Mas`ud al-Ansari : Le Prophète (ﷺ) a dit : « Si quelqu’un récite les deux derniers versets de la sourate al-Baqarah la nuit, cela lui suffit pour cette nuit-là. ».",
+        "ur": "ہم سے عمر بن حفص نے بیان کیا، کہا ہم سے ہمارے والد نے بیان کیا، ان سے اعمش نے بیان کیا، کہا کہ مجھ سے ابراہیم نے بیان کیا، ان سے علقمہ اور عبدالرحمٰن بن یزید نے اور ان سے ابومسعود انصاری رضی اللہ عنہ نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا کہ سورۃ البقرہ کے آخر کی دو آیتوں کو جو شخص رات میں پڑھ لے گا وہ اس کے لیے کافی ہوں گی۔."
       },
       "from": "hadith-api"
     },
@@ -717,7 +825,9 @@
       "ref": "Sahih al-Bukhari 6035",
       "arabic": "حَدَّثَنَا عُمَرُ بْنُ حَفْصٍ، حَدَّثَنَا أَبِي، حَدَّثَنَا الأَعْمَشُ، قَالَ حَدَّثَنِي شَقِيقٌ، عَنْ مَسْرُوقٍ، قَالَ كُنَّا جُلُوسًا مَعَ عَبْدِ اللَّهِ بْنِ عَمْرٍو يُحَدِّثُنَا إِذْ قَالَ لَمْ يَكُنْ رَسُولُ اللَّهِ صلى الله عليه وسلم فَاحِشًا وَلاَ مُتَفَحِّشًا، وَإِنَّهُ كَانَ يَقُولُ ‏ \"‏ إِنَّ خِيَارَكُمْ أَحَاسِنُكُمْ أَخْلاَقًا ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Masruq: We were sitting with `Abdullah bin `Amr who was narrating to us (Hadith): He said, \"Allah's Messenger (ﷺ) was neither a Fahish nor a Mutafahhish, and he used to say, 'The best among you are the best in character (having good manners)\"."
+        "en": "Narrated Masruq: We were sitting with `Abdullah bin `Amr who was narrating to us (Hadith): He said, \"Allah's Messenger (ﷺ) was neither a Fahish nor a Mutafahhish, and he used to say, 'The best among you are the best in character (having good manners)\".",
+        "fr": "Rapporté par Masruq : Nous étions assis avec `Abdullah bin `Amr qui nous racontait un hadith : Il a dit : « Le Messager d’Allah (ﷺ) n’était ni grossier ni vulgaire, et il disait : “Les meilleurs d’entre vous sont ceux qui ont le meilleur comportement.” ».",
+        "ur": "ہم سے عمر بن حفص بن غیاث نے بیان کیا، کہا مجھ سے میرے والد نے بیان کیا، کہا ہم سے اعمش نے بیان کیا، کہا مجھ سے شفیق نے بیان کیا، ان سے مسروق نے بیان کیا کہ ہم عبداللہ بن عمرو کے پاس بیٹھے ہوئے تھے، وہ ہم سے باتیں کر رہے تھے اسی دوران انہوں نے بیان کیا کہ رسول اللہ صلی اللہ علیہ وسلم نہ بدگو تھے نہ بد زبانی کرتے تھے ( کہ منہ سے گالیاں نکالیں ) بلکہ آپ صلی اللہ علیہ وسلم فرمایا کرتے تھے کہ تم میں سب سے زیادہ بہتر وہ ہے جس کے اخلاق سب سے اچھے ہوں۔."
       },
       "from": "hadith-api"
     },
@@ -730,7 +840,9 @@
       "ref": "Sahih al-Bukhari 6114",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنِ ابْنِ شِهَابٍ، عَنْ سَعِيدِ بْنِ الْمُسَيَّبِ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ لَيْسَ الشَّدِيدُ بِالصُّرَعَةِ، إِنَّمَا الشَّدِيدُ الَّذِي يَمْلِكُ نَفْسَهُ عِنْدَ الْغَضَبِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"The strong is not the one who overcomes the people by his strength, but the strong is the one who controls himself while in anger\"."
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"The strong is not the one who overcomes the people by his strength, but the strong is the one who controls himself while in anger\".",
+        "fr": "Rapporté par Abu Huraira : Le Messager d'Allah (ﷺ) a dit : « Le fort n’est pas celui qui l’emporte sur les autres par sa force, mais celui qui sait se maîtriser lorsqu’il est en colère. ».",
+        "ur": "ہم سے عبداللہ بن یوسف نے بیان کیا، انہوں نے کہا ہم کو امام مالک نے خبر دی، انہیں ابن شہاب نے، انہیں سعید بن مسیب نے اور انہیں ابوہریرہ رضی اللہ عنہ نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”پہلوان وہ نہیں ہے جو کشتی لڑنے میں غالب ہو جائے بلکہ اصلی پہلوان تو وہ ہے جو غصہ کی حالت میں اپنے آپ پر قابو پائے بے قابو نہ ہو جائے۔“."
       },
       "from": "hadith-api"
     },
@@ -744,7 +856,9 @@
       "ref": "Sahih al-Bukhari 6136",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ مُحَمَّدٍ، حَدَّثَنَا ابْنُ مَهْدِيٍّ، حَدَّثَنَا سُفْيَانُ، عَنْ أَبِي حَصِينٍ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الآخِرِ فَلاَ يُؤْذِ جَارَهُ، وَمَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الآخِرِ فَلْيُكْرِمْ ضَيْفَهُ، وَمَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الآخِرِ فَلْيَقُلْ خَيْرًا أَوْ لِيَصْمُتْ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Whoever believes in Allah and the Last Day, should not hurt his neighbor and whoever believes in Allah and the Last Day, should serve his guest generously and whoever believes in Allah and the Last Day, should speak what is good or keep silent\"."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Whoever believes in Allah and the Last Day, should not hurt his neighbor and whoever believes in Allah and the Last Day, should serve his guest generously and whoever believes in Allah and the Last Day, should speak what is good or keep silent\".",
+        "fr": "Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : « Celui qui croit en Allah et au Jour Dernier ne doit pas faire de mal à son voisin ; celui qui croit en Allah et au Jour Dernier doit bien accueillir son invité ; et celui qui croit en Allah et au Jour Dernier doit dire ce qui est bien ou se taire. ».",
+        "ur": "ہم سے عبداللہ بن محمد نے بیان کیا، کہا کہ ہم سے ابن مہندی نے بیان کیا، کہا ہم سے سفیان نے بیان کیا، ان سے ابوحصین نے، ان سے ابوصالح نے اور ان سے ابوہریرہ رضی اللہ عنہ نے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”جو شخص اللہ اور آخرت کے دن پر ایمان رکھتا ہو، اس پر لازم ہے کہ اپنے پڑوسی کو تکلیف نہ دے، جو شخص اللہ اور آخرت کے دن پر ایمان رکھتا ہو، اس پر لازم ہے کہ اپنے مہمان کی عزت کرے اور جو شخص اللہ اور آخرت کے دن پر ایمان رکھتا ہو، اس پر لازم ہے کہ بھلی بات کہے ورنہ چپ رہے۔“."
       },
       "from": "hadith-api"
     },
@@ -757,7 +871,9 @@
       "ref": "Sahih al-Bukhari 7376",
       "arabic": "حَدَّثَنَا مُحَمَّدٌ، أَخْبَرَنَا أَبُو مُعَاوِيَةَ، عَنِ الأَعْمَشِ، عَنْ زَيْدِ بْنِ وَهْبٍ، وَأَبِي، ظَبْيَانَ عَنْ جَرِيرِ بْنِ عَبْدِ اللَّهِ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ لاَ يَرْحَمُ اللَّهُ مَنْ لاَ يَرْحَمُ النَّاسَ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Jarir bin `Abdullah: Allah's Messenger (ﷺ) said, \"Allah will not be merciful to those who are not merciful to mankind\"."
+        "en": "Narrated Jarir bin `Abdullah: Allah's Messenger (ﷺ) said, \"Allah will not be merciful to those who are not merciful to mankind\".",
+        "fr": "Rapporté par Jarir bin `Abdullah : Le Messager d’Allah (ﷺ) a dit : « Allah ne fera pas miséricorde à ceux qui ne sont pas miséricordieux envers les gens. ».",
+        "ur": "ہم سے محمد نے بیان کیا، انہوں نے کہا ہم کو ابومعاویہ نے خبر دی، انہیں اعمش نے، انہیں زید بن وہب اور ابوظبیان نے اور ان سے جریر بن عبداللہ رضی اللہ عنہ نے بیان کیا کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”جو لوگوں پر رحم نہیں کھاتا اللہ بھی اس پر رحم نہیں کھاتا۔“."
       },
       "from": "hadith-api"
     },
@@ -770,7 +886,9 @@
       "ref": "Sahih al-Bukhari 6094",
       "arabic": "حَدَّثَنَا عُثْمَانُ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا جَرِيرٌ، عَنْ مَنْصُورٍ، عَنْ أَبِي وَائِلٍ، عَنْ عَبْدِ اللَّهِ ـ رضى الله عنه ـ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ إِنَّ الصِّدْقَ يَهْدِي إِلَى الْبِرِّ، وَإِنَّ الْبِرَّ يَهْدِي إِلَى الْجَنَّةِ، وَإِنَّ الرَّجُلَ لَيَصْدُقُ حَتَّى يَكُونَ صِدِّيقًا، وَإِنَّ الْكَذِبَ يَهْدِي إِلَى الْفُجُورِ، وَإِنَّ الْفُجُورَ يَهْدِي إِلَى النَّارِ، وَإِنَّ الرَّجُلَ لَيَكْذِبُ، حَتَّى يُكْتَبَ عِنْدَ اللَّهِ كَذَّابًا ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Abdullah: The Prophet (ﷺ) said, \"Truthfulness leads to righteousness, and righteousness leads to Paradise. And a man keeps on telling the truth until he becomes a truthful person. Falsehood leads to Al-Fajur (i.e. wickedness, evil-doing), and Al-Fajur (wickedness) leads to the (Hell) Fire, and a man may keep on telling lies till he is written before Allah, a liar\"."
+        "en": "Narrated `Abdullah: The Prophet (ﷺ) said, \"Truthfulness leads to righteousness, and righteousness leads to Paradise. And a man keeps on telling the truth until he becomes a truthful person. Falsehood leads to Al-Fajur (i.e. wickedness, evil-doing), and Al-Fajur (wickedness) leads to the (Hell) Fire, and a man may keep on telling lies till he is written before Allah, a liar\".",
+        "fr": "Rapporté par `Abdullah : Le Prophète (ﷺ) a dit : « La véracité mène à la droiture, et la droiture mène au Paradis. Un homme continue à dire la vérité jusqu’à devenir quelqu’un de véridique. Le mensonge mène à la perversité, et la perversité mène au Feu (de l’Enfer). Un homme continue à mentir jusqu’à être inscrit auprès d’Allah comme menteur. ».",
+        "ur": "ہم سے عثمان بن ابی شیبہ نے بیان کیا، انہوں نے کہا ہم سے جریر نے بیان کیا، ان سے منصور نے بیان کیا، ان سے ابووائل نے بیان کیا اور ان سے عبداللہ بن مسعود رضی اللہ عنہ نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”بلاشبہ سچ آدمی کو نیکی کی طرف بلاتا ہے اور نیکی جنت کی طرف لے جاتی ہے اور ایک شخص سچ بولتا رہتا ہے یہاں تک کہ وہ صدیق کا لقب اور مرتبہ حاصل کر لیتا ہے اور بلاشبہ جھوٹ برائی کی طرف لے جاتا ہے اور برائی جہنم کی طرف اور ایک شخص جھوٹ بولتا رہتا ہے، یہاں تک کہ وہ اللہ کے یہاں بہت جھوٹا لکھ دیا جاتا ہے۔“."
       },
       "from": "hadith-api"
     },
@@ -783,7 +901,9 @@
       "ref": "Sahih Muslim 4298",
       "arabic": "حَدَّثَنِي أَبُو كَامِلٍ، فُضَيْلُ بْنُ حُسَيْنٍ الْجَحْدَرِيُّ حَدَّثَنَا أَبُو عَوَانَةَ، عَنْ فِرَاسٍ، عَنْ ذَكْوَانَ أَبِي صَالِحٍ، عَنْ زَاذَانَ أَبِي عُمَرَ، قَالَ أَتَيْتُ ابْنَ عُمَرَ وَقَدْ أَعْتَقَ مَمْلُوكًا - قَالَ - فَأَخَذَ مِنَ الأَرْضِ عُودًا أَوْ شَيْئًا فَقَالَ مَا فِيهِ مِنَ الأَجْرِ مَا يَسْوَى هَذَا إِلاَّ أَنِّي سَمِعْتُ رَسُولَ اللَّهِ صلى الله عليه وسلم يَقُولُ ‏ \"‏ مَنْ لَطَمَ مَمْلُوكَهُ أَوْ ضَرَبَهُ فَكَفَّارَتُهُ أَنْ يُعْتِقَهُ ‏\"‏",
       "text": {
-        "en": "Zadhan Abl Umar reported:I came to Ibn 'Umar as he had granted freedom to a stave. He (the narrator further) said: He took hold of a wood or something like it from the earth and said: It (freedom of a slave) has not the reward evert equal to it, but the fact that I heard Allah's Messenger (way peace be upon him) say: He who slaps his slave or beats him, the expiation for it is that he should set him free."
+        "en": "Zadhan Abl Umar reported:I came to Ibn 'Umar as he had granted freedom to a stave. He (the narrator further) said: He took hold of a wood or something like it from the earth and said: It (freedom of a slave) has not the reward evert equal to it, but the fact that I heard Allah's Messenger (way peace be upon him) say: He who slaps his slave or beats him, the expiation for it is that he should set him free.",
+        "fr": "Rapporté par Zadhan Abi Umar : Je suis allé voir Ibn ‘Umar alors qu’il venait d’affranchir un esclave. Il a pris un morceau de bois ou quelque chose du sol et a dit : « (L’affranchissement d’un esclave) n’a même pas une récompense équivalente à cela, mais j’ai entendu le Messager d’Allah ﷺ dire : “Celui qui gifle ou frappe son esclave, l’expiation est de l’affranchir.” ».",
+        "ur": "ابوعوانہ نے فراس سے ، انہوں نے ابوصالح ذکوان سے اور انہوں نے ابو عمر زاذان سے روایت کی ، انہوں نے کہا : میں حضرت ابن عمر رضی اللہ عنہ کے ہاں آیا جبکہ انہوں نے ایک غلام کو آزاد کیا تھا ۔ کہا : انہوں نے زمین سے لکڑی یا کوئی چیز پکڑی اور کہا : اس میں اتنا بھی اجر نہیں جو اس کے برابر ہو اس کے سوا کہ میں نے رسول اللہ صلی اللہ علیہ وسلم کو فرماتے ہوئے سنا : \" جس نے اپنے غلام کو تھپڑ مارا یا اسے زد و کوب کیا تو اس کا کفارہ یہ ہے کہ اسے آزاد کرے \" ( اس حکم کو ماننے کا اجر ہو سکتا ہے)."
       },
       "from": "hadith-api"
     },
@@ -796,7 +916,9 @@
       "ref": "Sahih al-Bukhari 2550",
       "arabic": "حَدَّثَنَا مُسَدَّدٌ، حَدَّثَنَا يَحْيَى، عَنْ عُبَيْدِ اللَّهِ، حَدَّثَنِي نَافِعٌ، عَنْ عَبْدِ اللَّهِ ـ رضى الله عنه ـ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ إِذَا نَصَحَ الْعَبْدُ سَيِّدَهُ، وَأَحْسَنَ عِبَادَةَ رَبِّهِ، كَانَ لَهُ أَجْرُهُ مَرَّتَيْنِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Abdullah: The Prophet (ﷺ) said, \"If a slave serves his Saiyid (i.e. master) sincerely and worships his Lord (Allah) perfectly, he will get a double reward\"."
+        "en": "Narrated `Abdullah: The Prophet (ﷺ) said, \"If a slave serves his Saiyid (i.e. master) sincerely and worships his Lord (Allah) perfectly, he will get a double reward\".",
+        "fr": "Rapporté par `Abdullah : Le Prophète (ﷺ) a dit : « Si un esclave sert sincèrement son maître et adore parfaitement son Seigneur (Allah), il recevra une double récompense. ».",
+        "ur": "ہم سے مسدد بن مسرہد نے بیان کیا، کہا ہم سے یحییٰ قطان نے بیان کیا، ان سے عبیداللہ نے، ان سے نافع نے کہا اور ان سے عبداللہ بن عمر رضی اللہ عنہما نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”جب غلام اپنے آقا کی خیر خواہی کرے اور اپنے رب کی عبادت تمام حسن و خوبی کے ساتھ بجا لائے تو اسے دوگنا ثواب ملتا ہے۔“."
       },
       "from": "hadith-api"
     },
@@ -809,7 +931,9 @@
       "ref": "Sahih al-Bukhari 5971",
       "arabic": "حَدَّثَنَا قُتَيْبَةُ بْنُ سَعِيدٍ، حَدَّثَنَا جَرِيرٌ، عَنْ عُمَارَةَ بْنِ الْقَعْقَاعِ بْنِ شُبْرُمَةَ، عَنْ أَبِي زُرْعَةَ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ قَالَ جَاءَ رَجُلٌ إِلَى رَسُولِ اللَّهِ صلى الله عليه وسلم فَقَالَ يَا رَسُولَ اللَّهِ مَنْ أَحَقُّ بِحُسْنِ صَحَابَتِي قَالَ ‏\"‏ أُمُّكَ ‏\"‏‏.‏ قَالَ ثُمَّ مَنْ قَالَ ‏\"‏ أُمُّكَ ‏\"‏‏.‏ قَالَ ثُمَّ مَنْ قَالَ ‏\"‏ أُمُّكَ ‏\"‏‏.‏ قَالَ ثُمَّ مَنْ قَالَ ‏\"‏ ثُمَّ أَبُوكَ ‏\"‏‏.‏ وَقَالَ ابْنُ شُبْرُمَةَ وَيَحْيَى بْنُ أَيُّوبَ حَدَّثَنَا أَبُو زُرْعَةَ مِثْلَهُ‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: A man came to Allah's Messenger (ﷺ) and said, \"O Allah's Messenger (ﷺ)! Who is more entitled to be treated with the best companionship by me?\" The Prophet (ﷺ) said, \"Your mother.\" The man said. \"Who is next?\" The Prophet said, \"Your mother.\" The man further said, \"Who is next?\" The Prophet (ﷺ) said, \"Your mother.\" The man asked for the fourth time, \"Who is next?\" The Prophet (ﷺ) said, \"Your father\"."
+        "en": "Narrated Abu Huraira: A man came to Allah's Messenger (ﷺ) and said, \"O Allah's Messenger (ﷺ)! Who is more entitled to be treated with the best companionship by me?\" The Prophet (ﷺ) said, \"Your mother.\" The man said. \"Who is next?\" The Prophet said, \"Your mother.\" The man further said, \"Who is next?\" The Prophet (ﷺ) said, \"Your mother.\" The man asked for the fourth time, \"Who is next?\" The Prophet (ﷺ) said, \"Your father\".",
+        "fr": "Rapporté par Abu Huraira : Un homme est venu voir le Messager d’Allah (ﷺ) et a dit : « Ô Messager d’Allah (ﷺ) ! Qui mérite le plus que je lui tienne la meilleure compagnie ? » Le Prophète (ﷺ) a répondu : « Ta mère. » L’homme a demandé : « Et ensuite ? » Le Prophète a dit : « Ta mère. » L’homme a insisté : « Et ensuite ? » Le Prophète (ﷺ) a dit : « Ta mère. » L’homme a demandé une quatrième fois : « Et ensuite ? » Le Prophète (ﷺ) a dit : « Ton père. ».",
+        "ur": "ہم سے قتیبہ بن سعید نے بیان کیا، کہا ہم سے جریر نے بیان کیا، ان سے عمارہ بن قعقاع بن شبرمہ نے، ان سے ابوزرعہ نے اور ان سے ابوہریرہ رضی اللہ عنہ نے بیان کیا کہ ایک صحابی رسول اللہ صلی اللہ علیہ وسلم کی خدمت میں حاضر ہوئے اور عرض کیا کہ یا رسول اللہ! میرے اچھے سلوک کا سب سے زیادہ حقدار کون ہے؟ فرمایا کہ تمہاری ماں ہے۔ پوچھا اس کے بعد کون ہے؟ فرمایا کہ تمہاری ماں ہے۔ انہوں نے پھر پوچھا اس کے بعد کون؟ نبی کریم صلی اللہ علیہ وسلم نے فرمایا کہ تمہاری ماں ہے۔ انہوں نے پوچھا اس کے بعد کون ہے؟ نبی کریم صلی اللہ علیہ وسلم نے فرمایا کہ پھر تمہارا باپ ہے۔ ابن شبرمہ اور یحییٰ بن ایوب نے بیان کیا، کہا ہم سے ابوزرعہ نے اسی کے مطابق بیان کیا۔."
       },
       "from": "hadith-api"
     },
@@ -822,7 +946,9 @@
       "ref": "Sahih al-Bukhari 5200",
       "arabic": "حَدَّثَنَا عَبْدَانُ، أَخْبَرَنَا عَبْدُ اللَّهِ، أَخْبَرَنَا مُوسَى بْنُ عُقْبَةَ، عَنْ نَافِعٍ، عَنِ ابْنِ عُمَرَ ـ رضى الله عنهما ـ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ كُلُّكُمْ رَاعٍ، وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ، وَالأَمِيرُ رَاعٍ، وَالرَّجُلُ رَاعٍ عَلَى أَهْلِ بَيْتِهِ، وَالْمَرْأَةُ رَاعِيَةٌ عَلَى بَيْتِ زَوْجِهَا وَوَلَدِهِ، فَكُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Ibn `Umar: The Prophet (ﷺ) said, \"All of you are guardians and are responsible for your wards. The ruler is a guardian and the man is a guardian of his family; the lady is a guardian and is responsible for her husband's house and his offspring; and so all of you are guardians and are responsible for your wards\"."
+        "en": "Narrated Ibn `Umar: The Prophet (ﷺ) said, \"All of you are guardians and are responsible for your wards. The ruler is a guardian and the man is a guardian of his family; the lady is a guardian and is responsible for her husband's house and his offspring; and so all of you are guardians and are responsible for your wards\".",
+        "fr": "Rapporté par Ibn `Umar : Le Prophète (ﷺ) a dit : « Chacun de vous est un gardien et est responsable de ce dont il a la charge. Le dirigeant est un gardien, l’homme est gardien de sa famille, la femme est gardienne de la maison de son mari et de ses enfants ; ainsi, chacun de vous est un gardien et responsable de ce dont il a la charge. ».",
+        "ur": "ہم سے عبدان نے بیان کیا، انہوں نے کہا ہم کو عبداللہ نے خبر دی، انہوں نے کہا ہم کو موسیٰ بن عقبہ نے خبر دی، انہیں نافع نے اور انہیں عبداللہ بن عمر رضی اللہ عنہما نے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا کہ تم میں سے ہر ایک حاکم ہے اور ہر ایک سے اس کی رعیت کے بارے میں سوال ہو گا۔ امیر ( حاکم ) ہے، مرد اپنے گھر والوں پر حاکم ہے۔ عورت اپنے شوہر کے گھر اور اس کے بچوں پر حاکم ہے۔ تم میں سے ہر ایک حاکم ہے اور ہر ایک سے اس کی رعیت کے بارے میں سوال ہو گا۔."
       },
       "from": "hadith-api"
     },
@@ -835,7 +961,9 @@
       "ref": "Sahih al-Bukhari 5995",
       "arabic": "حَدَّثَنَا أَبُو الْيَمَانِ، أَخْبَرَنَا شُعَيْبٌ، عَنِ الزُّهْرِيِّ، قَالَ حَدَّثَنِي عَبْدُ اللَّهِ بْنُ أَبِي بَكْرٍ، أَنَّ عُرْوَةَ بْنَ الزُّبَيْرِ، أَخْبَرَهُ أَنَّ عَائِشَةَ زَوْجَ النَّبِيِّ صلى الله عليه وسلم حَدَّثَتْهُ قَالَتْ جَاءَتْنِي امْرَأَةٌ مَعَهَا ابْنَتَانِ تَسْأَلُنِي، فَلَمْ تَجِدْ عِنْدِي غَيْرَ تَمْرَةٍ وَاحِدَةٍ، فَأَعْطَيْتُهَا، فَقَسَمَتْهَا بَيْنَ ابْنَتَيْهَا، ثُمَّ قَامَتْ فَخَرَجَتْ، فَدَخَلَ النَّبِيُّ صلى الله عليه وسلم فَحَدَّثْتُهُ فَقَالَ ‏ \"‏ مَنْ يَلِي مِنْ هَذِهِ الْبَنَاتِ شَيْئًا فَأَحْسَنَ إِلَيْهِنَّ كُنَّ لَهُ سِتْرًا مِنَ النَّارِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Aisha: (the wife of the Prophet) A lady along with her two daughters came to me asking me (for some alms), but she found nothing with me except one date which I gave to her and she divided it between her two daughters, and then she got up and went away. Then the Prophet (ﷺ) came in and I informed him about this story. He said, \"Whoever is in charge of (put to test by) these daughters and treats them generously, then they will act as a shield for him from the (Hell) Fire\"."
+        "en": "Narrated `Aisha: (the wife of the Prophet) A lady along with her two daughters came to me asking me (for some alms), but she found nothing with me except one date which I gave to her and she divided it between her two daughters, and then she got up and went away. Then the Prophet (ﷺ) came in and I informed him about this story. He said, \"Whoever is in charge of (put to test by) these daughters and treats them generously, then they will act as a shield for him from the (Hell) Fire\".",
+        "fr": "Rapporté par `Aisha (l'épouse du Prophète) : Une femme est venue me voir avec ses deux filles pour demander l'aumône, mais je n'avais rien d'autre qu'une seule datte que je lui ai donnée. Elle l'a partagée entre ses deux filles, puis elle est partie. Ensuite, le Prophète ﷺ est entré et je lui ai raconté ce qui s'était passé. Il a dit : « Celui qui doit s'occuper de ces filles et qui se montre généreux envers elles, alors elles seront pour lui une protection contre le Feu de l'Enfer. ».",
+        "ur": "ہم سے ابوالیمان نے بیان کیا، کہا ہم کو شعیب نے خبر دی، ان سے زہری نے بیان کیا، کہا مجھ سے عبداللہ بن ابی بکر نے بیان کیا، انہیں عروہ بن زبیر نے خبر دی اور ان سے نبی کریم صلی اللہ علیہ وسلم کی زوجہ مطہرہ عائشہ رضی اللہ عنہا نے بیان کیا کہ میرے یہاں ایک عورت ( اور ) اس کے ساتھ دو بچیاں تھیں، وہ مانگنے آئی تھی۔ میرے پاس سے سوا ایک کھجور کے اسے اور کچھ نہ ملا۔ میں نے اسے وہ کھجور دے دی اور اس نے وہ کھجور اپنی دونوں لڑکیوں کو تقسیم کر دی۔ پھر اٹھ کر چلی گئی اس کے بعد نبی کریم صلی اللہ علیہ وسلم تشریف لائے تو میں نے آپ سے اس کا ذکر کیا تو آپ صلی اللہ علیہ وسلم نے فرمایا کہ جو شخص بھی اس طرح کی لڑکیوں کی پرورش کرے گا اور ان کے ساتھ اچھا معاملہ کرے گا تو یہ اس کے لیے جہنم سے پردہ بن جائیں گی۔."
       },
       "from": "hadith-api"
     },
@@ -849,7 +977,9 @@
       "ref": "Sahih al-Bukhari 5199",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ مُقَاتِلٍ، أَخْبَرَنَا عَبْدُ اللَّهِ، أَخْبَرَنَا الأَوْزَاعِيُّ، قَالَ حَدَّثَنِي يَحْيَى بْنُ أَبِي كَثِيرٍ، قَالَ حَدَّثَنِي أَبُو سَلَمَةَ بْنُ عَبْدِ الرَّحْمَنِ، قَالَ حَدَّثَنِي عَبْدُ اللَّهِ بْنُ عَمْرِو بْنِ الْعَاصِ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏\"‏ يَا عَبْدَ اللَّهِ أَلَمْ أُخْبَرْ أَنَّكَ تَصُومُ النَّهَارَ وَتَقُومُ اللَّيْلَ ‏\"‏‏.‏ قُلْتُ بَلَى يَا رَسُولَ اللَّهِ‏.‏ قَالَ ‏\"‏ فَلاَ تَفْعَلْ، صُمْ وَأَفْطِرْ، وَقُمْ وَنَمْ، فَإِنَّ لِجَسَدِكَ عَلَيْكَ حَقًّا، وَإِنَّ لِعَيْنِكَ عَلَيْكَ حَقًّا، وَإِنَّ لِزَوْجِكَ عَلَيْكَ حَقًّا ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Abdullah bin `Amr bin Al-`As: Allah's Messenger (ﷺ) said, \"O `Abdullah! Have I not been formed that you fast all the day and stand in prayer all night?\" I said, \"Yes, O Allah's Messenger (ﷺ)!\" He said, \"Do not do that! Observe the fast sometimes and also leave them (the fast) at other times; stand up for the prayer at night and also sleep at night. Your body has a right over you, your eyes have a right over you and your wife has a right over you\"."
+        "en": "Narrated `Abdullah bin `Amr bin Al-`As: Allah's Messenger (ﷺ) said, \"O `Abdullah! Have I not been formed that you fast all the day and stand in prayer all night?\" I said, \"Yes, O Allah's Messenger (ﷺ)!\" He said, \"Do not do that! Observe the fast sometimes and also leave them (the fast) at other times; stand up for the prayer at night and also sleep at night. Your body has a right over you, your eyes have a right over you and your wife has a right over you\".",
+        "fr": "Rapporté par `Abdullah bin `Amr bin Al-`As : Le Messager d’Allah (ﷺ) a dit : « Ô `Abdullah ! N’ai-je pas appris que tu jeûnes toute la journée et que tu pries toute la nuit ? » J’ai répondu : « Oui, ô Messager d’Allah (ﷺ) ! » Il a dit : « Ne fais pas cela ! Jeûne certains jours et arrête-toi d’autres jours ; prie une partie de la nuit et dors aussi. Ton corps a des droits sur toi, tes yeux ont des droits sur toi, et ta femme a des droits sur toi. ».",
+        "ur": "ہم سے محمد بن مقاتل نے بیان کیا، کہا ہم کو اوزاعی نے خبر دی، کہا کہ مجھ سے یحییٰ ابن ابی کثیر نے بیان کیا، کہا کہ مجھ سے ابوسلمہ بن عبدالرحمٰن نے بیان کیا، کہا کہ مجھ سے عبداللہ بن عمرو بن العاص رضی اللہ عنہما نے بیان کیا، انہوں نے بیان کیا کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا کہ عبداللہ! کیا میری یہ اطلاع صحیح ہے کہ تم ( روزانہ ) دن میں روزے رکھتے ہو اور رات بھر عبادت کرتے ہو؟ میں نے عرض کیا: جی ہاں یا رسول اللہ! نبی کریم صلی اللہ علیہ وسلم نے فرمایا کہ ایسا نہ کرو، روزے بھی رکھو اور بغیر روزے بھی رہو۔ رات میں عبادت بھی کرو اور سوؤ بھی۔ کیونکہ تمہارے بدن کا بھی تم پر حق ہے، تمہاری آنکھ کا بھی تم پر حق ہے اور تمہاری بیوی کا بھی تم پر حق ہے۔."
       },
       "from": "hadith-api"
     },
@@ -862,7 +992,9 @@
       "ref": "Sahih al-Bukhari 5192",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ مُقَاتِلٍ، أَخْبَرَنَا عَبْدُ اللَّهِ، أَخْبَرَنَا مَعْمَرٌ، عَنْ هَمَّامِ بْنِ مُنَبِّهٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم ‏ \"‏ لاَ تَصُومُ الْمَرْأَةُ وَبَعْلُهَا شَاهِدٌ إِلاَّ بِإِذْنِهِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"A woman should not fast (optional fasts) except with her husband's permission if he is at home (staying with her)\"."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"A woman should not fast (optional fasts) except with her husband's permission if he is at home (staying with her)\".",
+        "fr": "Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : « Une femme ne doit pas jeûner (jeûnes surérogatoires) sans la permission de son mari s’il est présent à la maison. ».",
+        "ur": "ہم سے محمد بن مقاتل نے بیان کیا، کہا ہم کو عبداللہ نے خبر دی، کہا ہم کو معمر نے خبر دی، انہیں ہمام بن منبہ نے اور ان سے ابوہریرہ رضی اللہ عنہ نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا کہ اگر شوہر گھر پر موجود ہے تو کوئی عورت اس کی اجازت کے بغیر ( نفلی ) روزہ نہ رکھے۔."
       },
       "from": "hadith-api"
     },
@@ -876,7 +1008,8 @@
       "ref": "Sahih Muslim 3499",
       "arabic": "وَحَدَّثَنَا يَحْيَى بْنُ يَحْيَى، أَخْبَرَنَا خَالِدُ بْنُ عَبْدِ اللَّهِ، عَنْ مُطَرِّفٍ، عَنْ عَامِرٍ، عَنْ أَبِي بُرْدَةَ، عَنْ أَبِي مُوسَى، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم فِي الَّذِي يُعْتِقُ جَارِيَتَهُ ثُمَّ يَتَزَوَّجُهَا ‏ \"‏ لَهُ أَجْرَانِ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Musa reported that Allah's Messenger (ﷺ) said about one who emancipated a slave woman, and then married her, that for him there are two rewards."
+        "en": "Abu Musa reported that Allah's Messenger (ﷺ) said about one who emancipated a slave woman, and then married her, that for him there are two rewards.",
+        "ur": "حضرت ابوموسیٰ رضی اللہ عنہ سے روایت ہے ، انہوں نے کہا : رسول اللہ صلی اللہ علیہ وسلم نے اس شخص کے بارے میں ، جو اپنی لونڈی کو آزاد کرتا ہے ، پھر اس سے شادی کرتا ہے ، فرمایا : \" اس کے لیے دو اجر ہیں ۔ \" ( آزاد کرنے کا اجر اور اس کے بعد شادی کے ذریعے اسے عزت کا مقام دینے کا اجر)."
       },
       "from": "hadith-api"
     },
@@ -890,7 +1023,9 @@
       "ref": "Sahih Muslim 3400",
       "arabic": "حَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، وَأَبُو كُرَيْبٍ قَالاَ حَدَّثَنَا أَبُو مُعَاوِيَةَ، عَنِ الأَعْمَشِ، عَنْ عُمَارَةَ بْنِ عُمَيْرٍ، عَنْ عَبْدِ الرَّحْمَنِ بْنِ يَزِيدَ، عَنْ عَبْدِ اللَّهِ، قَالَ قَالَ لَنَا رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ يَا مَعْشَرَ الشَّبَابِ مَنِ اسْتَطَاعَ مِنْكُمُ الْبَاءَةَ فَلْيَتَزَوَّجْ فَإِنَّهُ أَغَضُّ لِلْبَصَرِ وَأَحْصَنُ لِلْفَرْجِ وَمَنْ لَمْ يَسْتَطِعْ فَعَلَيْهِ بِالصَّوْمِ فَإِنَّهُ لَهُ وِجَاءٌ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abdullah (b. Mas'ud) (Allah be pleased with him) reported that Allah's Messenger (ﷺ) said to us:0 young men, those among you who can support a wife should marry, for it restrains eyes (from casting evil glances) and preserves one from immorality; but he who cannot afford It should observe fast for it is a means of controlling the sexual desire."
+        "en": "Abdullah (b. Mas'ud) (Allah be pleased with him) reported that Allah's Messenger (ﷺ) said to us:0 young men, those among you who can support a wife should marry, for it restrains eyes (from casting evil glances) and preserves one from immorality; but he who cannot afford It should observe fast for it is a means of controlling the sexual desire.",
+        "fr": "Rapporté par Abdullah b. Mas’ud رضي الله عنه : Le Messager d’Allah ﷺ nous a dit : « Ô jeunes gens, que celui d’entre vous qui en a les moyens se marie, car cela aide à détourner le regard et à préserver la chasteté. Mais celui qui ne peut pas doit jeûner, car cela aide à maîtriser le désir. ».",
+        "ur": "ابومعاویہ نے ہمیں اعمش سے حدیث سنائی ، انہوں نے عمارہ بن عمیر سے ، انہوں نے عبدالرحمٰن بن یزید سے ، انہوں نے حضرت عبداللہ ( بن مسعود ) رضی اللہ عنہ سے روایت کی ، کہا : رسول اللہ صلی اللہ علیہ وسلم نے ہم سے فرمایا : \" اے جوانوں کی جماعت! تم میں سے جو شادی کرنے کی استطاعت رکھتا ہو وہ شادی کر لے ، یہ نگاہوں کو جھکانے اور شرمنگاہ کی حفاظت کرنے میں ( دوسری چیزوں کی نسبت ) بڑھ کر ہے ، اور جو استطاعت نہ پائے ، وہ خود پر روزے کو لازم کر لے ، یہ اس کے لیے اس کی خواہش کو قطع کرنے والا ہے\"."
       },
       "from": "hadith-api"
     },
@@ -904,7 +1039,9 @@
       "ref": "Sahih al-Bukhari 3237",
       "arabic": "حَدَّثَنَا مُسَدَّدٌ، حَدَّثَنَا أَبُو عَوَانَةَ، عَنِ الأَعْمَشِ، عَنْ أَبِي حَازِمٍ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ إِذَا دَعَا الرَّجُلُ امْرَأَتَهُ إِلَى فِرَاشِهِ فَأَبَتْ، فَبَاتَ غَضْبَانَ عَلَيْهَا، لَعَنَتْهَا الْمَلاَئِكَةُ حَتَّى تُصْبِحَ ‏\"‏‏.‏ تَابَعَهُ شُعْبَةُ وَأَبُو حَمْزَةَ وَابْنُ دَاوُدَ وَأَبُو مُعَاوِيَةَ عَنِ الأَعْمَشِ‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"If a husband calls his wife to his bed (i.e. to have sexual relation) and she refuses and causes him to sleep in anger, the angels will curse her till morning\"."
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"If a husband calls his wife to his bed (i.e. to have sexual relation) and she refuses and causes him to sleep in anger, the angels will curse her till morning\".",
+        "fr": "Rapporté par Abu Huraira : Le Messager d’Allah ﷺ a dit : « Si un mari appelle sa femme à son lit (pour avoir une relation) et qu’elle refuse, le laissant passer la nuit en colère, les anges la maudiront jusqu’au matin. ».",
+        "ur": "ہم سے مسدد نے بیان کیا، کہا ہم سے ابوعوانہ نے بیان کیا، ان سے اعمش نے، ان سے ابوحازم نے اور ان سے ابوہریرہ رضی اللہ عنہ نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”اگر کسی مرد نے اپنی بیوی کو اپنے بستر پر بلایا، لیکن اس نے آنے سے انکار کر دیا اور مرد اس پر غصہ ہو کر سو گیا، تو صبح تک فرشتے اس عورت پر لعنت کرتے رہتے ہیں۔“ اس روایت کی متابعت، ابوحمزہ، ابن داود اور ابومعاویہ نے اعمش کے واسطہ سے کی ہے۔."
       },
       "from": "hadith-api"
     },
@@ -918,7 +1055,9 @@
       "ref": "Sahih Muslim 3529",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ الْعَلاَءِ الْهَمْدَانِيُّ، حَدَّثَنَا أَبُو أُسَامَةَ، عَنْ هِشَامٍ، عَنْ أَبِيهِ، عَنْ عَائِشَةَ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم سُئِلَ عَنِ الْمَرْأَةِ يَتَزَوَّجُهَا الرَّجُلُ فَيُطَلِّقُهَا فَتَتَزَوَّجُ رَجُلاً فَيُطَلِّقُهَا قَبْلَ أَنْ يَدْخُلَ بِهَا أَتَحِلُّ لِزَوْجِهَا الأَوَّلِ قَالَ ‏ \"‏ لاَ حَتَّى يَذُوقَ عُسَيْلَتَهَا ‏\"‏‏.‏",
       "text": {
-        "en": "A'isha (Allah be pleased with her) reported that Allah's Messenger (ﷺ) was asked about a woman whom a man married and then divorced her, and then she married (another) person, and she was divorced before sexual intercourse with her, whether it was lawful for her first husband (to marry her in this state). He (the Holy Prophet) said:No, until he has tasted her sweetness."
+        "en": "A'isha (Allah be pleased with her) reported that Allah's Messenger (ﷺ) was asked about a woman whom a man married and then divorced her, and then she married (another) person, and she was divorced before sexual intercourse with her, whether it was lawful for her first husband (to marry her in this state). He (the Holy Prophet) said:No, until he has tasted her sweetness.",
+        "fr": "Rapporté par Aishah (la mère des croyants) رضي الله عنها : Le Messager d’Allah ﷺ a été interrogé au sujet d’une femme qui a été épousée puis divorcée par un homme, puis qui s’est remariée avec un autre, et qui a été divorcée avant qu’il n’y ait eu de rapport intime : est-ce que son premier mari peut la reprendre dans ce cas ? Le Prophète ﷺ a répondu : « Non, pas avant qu’il n’ait goûté sa douceur. ».",
+        "ur": "ابواسامہ نے ہمیں ہشام سے حدیث بیان کی ، انہوں نے اپنے والد ( عروہ بن زبیر ) سے اور انہوں نے حضرت عائشہ رضی اللہ عنہا سے روایت کی کہ رسول اللہ صلی اللہ علیہ وسلم سے اس عورت کے بارے میں سوال کیا گیا جس سے کوئی آدمی نکاح کرے ، پھر وہ اسے طلاق دے دے ، اس کے بعد وہ کسی اور آدمی سے نکاح کر لے اور وہ اس کے ساتھ مباشرت کرنے سے پہلے اسے طلاق دے دے تو کیا وہ عورت اپنے پہلے شوہر کے لیے حلال ( ہو جاتی ) ہے؟ آپ صلی اللہ علیہ وسلم نے فرمایا : \" نہیں ، حتیٰ کہ وہ ( دوسرا خاوند ) اس کی لذت چکھ لے\"."
       },
       "from": "hadith-api"
     },
@@ -932,7 +1071,9 @@
       "ref": "Sahih Muslim 3561",
       "arabic": "وَحَدَّثَنِي أَبُو غَسَّانَ الْمِسْمَعِيُّ، حَدَّثَنَا مُعَاذٌ، - يَعْنِي ابْنَ هِشَامٍ - حَدَّثَنِي أَبِي، عَنْ أَبِي الزُّبَيْرِ، عَنْ جَابِرٍ، قَالَ كُنَّا نَعْزِلُ عَلَى عَهْدِ رَسُولِ اللَّهِ صلى الله عليه وسلم فَبَلَغَ ذَلِكَ نَبِيَّ اللَّهِ صلى الله عليه وسلم فَلَمْ يَنْهَنَا ‏.‏",
       "text": {
-        "en": "Jabir (Allah be pleased with him) reported:We used to practise 'azl during the lifetime of Allah's Messenger (ﷺ). This (the news of this practise) reached Allah's Apostle (ﷺ), and he did not forbid us."
+        "en": "Jabir (Allah be pleased with him) reported:We used to practise 'azl during the lifetime of Allah's Messenger (ﷺ). This (the news of this practise) reached Allah's Apostle (ﷺ), and he did not forbid us.",
+        "fr": "Rapporté par Jabir رضي الله عنه : Nous pratiquions l’azl du vivant du Messager d’Allah ﷺ. Cette pratique est parvenue au Messager d’Allah ﷺ, et il ne nous l’a pas interdite.",
+        "ur": "ابوزبیر نے حضرت جابر رضی اللہ عنہ سے روایت کی ، انہوں نے کہا : ہم رسول اللہ صلی اللہ علیہ وسلم کے زمانے میں عزل کرتے تھے ۔ یہ بات اللہ کے نبی صلی اللہ علیہ وسلم کو پہنچی تو آپ نے ہمیں منع نہیں فرمایا."
       },
       "from": "hadith-api"
     },
@@ -946,7 +1087,9 @@
       "ref": "Sahih al-Bukhari 6951",
       "arabic": "حَدَّثَنَا يَحْيَى بْنُ بُكَيْرِ، حَدَّثَنَا اللَّيْثُ، عَنْ عُقَيْلٍ، عَنِ ابْنِ شِهَابٍ، أَنَّ سَالِمًا، أَخْبَرَهُ أَنَّ عَبْدَ اللَّهِ بْنَ عُمَرَ ـ رضى الله عنهما ـ أَخْبَرَهُ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ الْمُسْلِمُ أَخُو الْمُسْلِمِ، لاَ يَظْلِمُهُ، وَلاَ يُسْلِمُهُ، وَمَنْ كَانَ فِي حَاجَةِ أَخِيهِ، كَانَ اللَّهُ فِي حَاجَتِهِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Abdullah bin `Umar: Allah's Messenger (ﷺ) said, \"A Muslim is a brother of another Muslim. So he should neither oppress him nor hand him over to an oppressor. And whoever fulfilled the needs of his brother, Allah will fulfill his needs\"."
+        "en": "Narrated `Abdullah bin `Umar: Allah's Messenger (ﷺ) said, \"A Muslim is a brother of another Muslim. So he should neither oppress him nor hand him over to an oppressor. And whoever fulfilled the needs of his brother, Allah will fulfill his needs\".",
+        "fr": "Rapporté par `Abdullah bin `Umar : Le Messager d’Allah (ﷺ) a dit : « Un musulman est le frère d’un autre musulman. Il ne doit donc ni lui faire de tort, ni le livrer à un oppresseur. Et celui qui répond aux besoins de son frère, Allah répondra à ses besoins. ».",
+        "ur": "ہم سے یحییٰ بن بکیر نے بیان کیا، کہا ہم سے لیث بن سعد نے بیان کیا، ان سے عقیل نے، ان سے ابن شہاب نے، انہیں سالم نے خبر دی اور انہیں عبداللہ بن عمر رضی اللہ عنہما نے خبر دی کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”مسلمان مسلمان کا بھائی ہے نہ اس پر ظلم کرے اور نہ اسے ( کسی ظالم کے ) سپرد کرے اور جو شخص اپنے کسی بھائی کی ضرورت پوری کرنے میں لگا ہو گا اللہ تعالیٰ اس کی ضرورت اور حاجت پوری کرے گا۔“."
       },
       "from": "hadith-api"
     },
@@ -959,7 +1102,9 @@
       "ref": "Sahih al-Bukhari 6011",
       "arabic": "حَدَّثَنَا أَبُو نُعَيْمٍ، حَدَّثَنَا زَكَرِيَّاءُ، عَنْ عَامِرٍ، قَالَ سَمِعْتُهُ يَقُولُ سَمِعْتُ النُّعْمَانَ بْنَ بَشِيرٍ، يَقُولُ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ تَرَى الْمُؤْمِنِينَ فِي تَرَاحُمِهِمْ وَتَوَادِّهِمْ وَتَعَاطُفِهِمْ كَمَثَلِ الْجَسَدِ إِذَا اشْتَكَى عُضْوًا تَدَاعَى لَهُ سَائِرُ جَسَدِهِ بِالسَّهَرِ وَالْحُمَّى ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated An-Nu`man bin Bashir: Allah's Messenger (ﷺ) said, \"You see the believers as regards their being merciful among themselves and showing love among themselves and being kind, resembling one body, so that, if any part of the body is not well then the whole body shares the sleeplessness (insomnia) and fever with it\"."
+        "en": "Narrated An-Nu`man bin Bashir: Allah's Messenger (ﷺ) said, \"You see the believers as regards their being merciful among themselves and showing love among themselves and being kind, resembling one body, so that, if any part of the body is not well then the whole body shares the sleeplessness (insomnia) and fever with it\".",
+        "fr": "Rapporté par An-Nu`man bin Bashir : Le Messager d’Allah (ﷺ) a dit : « Vous voyez les croyants, dans leur compassion, leur amour et leur gentillesse les uns envers les autres, comme un seul corps : si un membre souffre, tout le corps partage l’insomnie et la fièvre avec lui. ».",
+        "ur": "ہم سے ابونعیم نے بیان کیا، کہا ہم سے زکریا نے بیان کیا، ان سے عامر نے کہا کہ میں نے انہیں یہ کہتے سنا ہے کہ میں نے نعمان بن بشیر سے سنا، وہ بیان کرتے تھے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”تم مومنوں کو آپس میں ایک دوسرے کے ساتھ رحمت و محبت کا معاملہ کرنے اور ایک دوسرے کے ساتھ لطف و نرم خوئی میں ایک جسم جیسا پاؤ گے کہ جب اس کا کوئی ٹکڑا بھی تکلیف میں ہوتا ہے، تو سارا جسم تکلیف میں ہوتا ہے ایسا کہ نیند اڑ جاتی ہے اور جسم بخار میں مبتلا ہو جاتا ہے۔“."
       },
       "from": "hadith-api"
     },
@@ -972,7 +1117,9 @@
       "ref": "Sahih al-Bukhari 481",
       "arabic": "حَدَّثَنَا خَلاَّدُ بْنُ يَحْيَى، قَالَ حَدَّثَنَا سُفْيَانُ، عَنْ أَبِي بُرْدَةَ بْنِ عَبْدِ اللَّهِ بْنِ أَبِي بُرْدَةَ، عَنْ جَدِّهِ، عَنْ أَبِي مُوسَى، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ إِنَّ الْمُؤْمِنَ لِلْمُؤْمِنِ كَالْبُنْيَانِ، يَشُدُّ بَعْضُهُ بَعْضًا ‏\"‏‏.‏ وَشَبَّكَ أَصَابِعَهُ‏.‏",
       "text": {
-        "en": "Narrated Abu Musa: The Prophet (ﷺ) said, \"A faithful believer to a faithful believer is like the bricks of a wall, enforcing each other.\" While (saying that) the Prophet (ﷺ) clasped his hands, by interlacing his fingers."
+        "en": "Narrated Abu Musa: The Prophet (ﷺ) said, \"A faithful believer to a faithful believer is like the bricks of a wall, enforcing each other.\" While (saying that) the Prophet (ﷺ) clasped his hands, by interlacing his fingers.",
+        "fr": "Rapporté par Abu Musa : Le Prophète (ﷺ) a dit : « Un croyant envers un autre croyant est comme les briques d’un mur, elles se soutiennent mutuellement. » En disant cela, le Prophète (ﷺ) a joint ses mains en entrelaçant ses doigts.",
+        "ur": "ہم سے خلاد بن یحییٰ نے بیان کیا، کہا ہم سے سفیان ثوری نے ابی بردہ بن عبداللہ بن ابی بردہ سے، انہوں نے اپنے دادا (ابوبردہ) سے، انہوں نے ابوموسیٰ اشعری رضی اللہ عنہ سے۔ انہوں نے نبی کریم صلی اللہ علیہ وسلم سے کہ آپ صلی اللہ علیہ وسلم نے فرمایا ایک مومن دوسرے مومن کے لیے عمارت کی طرح ہے کہ اس کا ایک حصہ دوسرے حصہ کو قوت پہنچاتا ہے۔ اور آپ صلی اللہ علیہ وسلم نے ایک ہاتھ کی انگلیوں کو دوسرے ہاتھ کی انگلیوں میں داخل کیا۔."
       },
       "from": "hadith-api"
     },
@@ -986,7 +1133,9 @@
       "ref": "Sahih al-Bukhari 6064",
       "arabic": "حَدَّثَنَا بِشْرُ بْنُ مُحَمَّدٍ، أَخْبَرَنَا عَبْدُ اللَّهِ، أَخْبَرَنَا مَعْمَرٌ، عَنْ هَمَّامِ بْنِ مُنَبِّهٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ إِيَّاكُمْ وَالظَّنَّ، فَإِنَّ الظَّنَّ أَكْذَبُ الْحَدِيثِ، وَلاَ تَحَسَّسُوا، وَلاَ تَجَسَّسُوا، وَلاَ تَحَاسَدُوا، وَلاَ تَدَابَرُوا، وَلاَ تَبَاغَضُوا، وَكُونُوا عِبَادَ اللَّهِ إِخْوَانًا ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Beware of suspicion, for suspicion is the worst of false tales; and do not look for the others' faults and do not spy, and do not be jealous of one another, and do not desert (cut your relation with) one another, and do not hate one another; and O Allah's worshipers! Be brothers (as Allah has ordered you)\"."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"Beware of suspicion, for suspicion is the worst of false tales; and do not look for the others' faults and do not spy, and do not be jealous of one another, and do not desert (cut your relation with) one another, and do not hate one another; and O Allah's worshipers! Be brothers (as Allah has ordered you)\".",
+        "fr": "Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : « Méfiez-vous des soupçons, car le soupçon est le pire des mensonges. Ne cherchez pas les défauts des autres, ne vous espionnez pas, ne soyez pas jaloux les uns des autres, ne vous coupez pas les uns des autres, ne vous détestez pas. Ô serviteurs d’Allah ! Soyez frères comme Allah vous l’a ordonné. ».",
+        "ur": "ہم سے بشر بن محمد نے بیان کیا، کہا ہم کو عبداللہ بن مبارک نے خبر دی، کہا ہم کو معمر نے خبر دی، انہیں ہمام بن منبہ نے خبر دی اور انہیں ابوہریرہ رضی اللہ عنہ نے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”بدگمانی سے بچتے رہو کیونکہ بدگمانی کی باتیں اکثر جھوٹی ہوتی ہیں، لوگوں کے عیوب تلاش کرنے کے پیچھے نہ پڑو، آپس میں حسد نہ کرو، کسی کی پیٹھ پیچھے برائی نہ کرو، بغض نہ رکھو، بلکہ سب اللہ کے بندے آپس میں بھائی بھائی بن کر رہو۔“."
       },
       "from": "hadith-api"
     },
@@ -999,7 +1148,9 @@
       "ref": "Sahih Muslim 4326",
       "arabic": "حَدَّثَنَا ابْنُ نُمَيْرٍ، حَدَّثَنَا أَبِي، حَدَّثَنَا عُبَيْدُ اللَّهِ، عَنْ نَافِعٍ، عَنِ ابْنِ عُمَرَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ أَعْتَقَ شِرْكًا لَهُ مِنْ مَمْلُوكٍ فَعَلَيْهِ عِتْقُهُ كُلُّهُ إِنْ كَانَ لَهُ مَالٌ يَبْلُغُ ثَمَنَهُ فَإِنْ لَمْ يَكُنْ لَهُ مَالٌ عَتَقَ مِنْهُ مَا عَتَقَ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Ibn 'Umar reported Allah's Messenger (ﷺ) as saying:He who emancipates his share in the slave, it is his responsibility to secure full freedom for him provided he (the slave) has enough money to pay the (remaining) price, but it he has not so much money he would be emancipated to the extent that the first man emancipated."
+        "en": "Ibn 'Umar reported Allah's Messenger (ﷺ) as saying:He who emancipates his share in the slave, it is his responsibility to secure full freedom for him provided he (the slave) has enough money to pay the (remaining) price, but it he has not so much money he would be emancipated to the extent that the first man emancipated.",
+        "fr": "Rapporté par Ibn 'Umar : Le Messager d’Allah ﷺ a dit : « Celui qui affranchit sa part d’un esclave doit assurer la liberté totale de l’esclave, à condition que l’esclave ait assez d’argent pour payer le reste du prix. Sinon, il sera affranchi à hauteur de la part libérée. ».",
+        "ur": "عبیداللہ نے نافع سے ، انہوں نے حضرت ابن عمر رضی اللہ عنہ سے روایت کی ، انہوں نے کہا : رسول اللہ صلی اللہ علیہ وسلم نے فرمایا : \" جس نے کسی غلام ( کی ملکیت میں ) سے اپنا حصہ آزاد کیا ، اگر اس کے پاس اتنا مال ہے جو اس کی قیمت کو پہنچتا ہے تو اس کی پوری آزادی اس پر ( لازم ) ہے ۔ اور اگر اس کے پاس مال نہیں ہے تو وہ جتنا آزاد ہو چکا تھا اتنا ہی آزاد رہے گا\"."
       },
       "from": "hadith-api"
     },
@@ -1012,7 +1163,9 @@
       "ref": "Sahih Muslim 5269",
       "arabic": "حَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، وَابْنُ أَبِي عُمَرَ، جَمِيعًا عَنْ سُفْيَانَ، قَالَ أَبُو بَكْرٍ حَدَّثَنَا سُفْيَانُ بْنُ عُيَيْنَةَ، عَنِ الْوَلِيدِ بْنِ كَثِيرٍ، عَنْ وَهْبِ بْنِ كَيْسَانَ، سَمِعَهُ مِنْ، عُمَرَ بْنِ أَبِي سَلَمَةَ قَالَ كُنْتُ فِي حَجْرِ رَسُولِ اللَّهِ صلى الله عليه وسلم وَكَانَتْ يَدِي تَطِيشُ فِي الصَّحْفَةِ فَقَالَ لِي ‏ \"‏ يَا غُلاَمُ سَمِّ اللَّهَ وَكُلْ بِيَمِينِكَ وَكُلْ مِمَّا يَلِيكَ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Umar b. Abu Salama reported:I was under the care of Allah's Messenger (way peace be upon him), and as my hand used to roam about in the dish he said to me: Boy, mention the name of Allah, and eat with your right hand and eat from what is near to you."
+        "en": "Umar b. Abu Salama reported:I was under the care of Allah's Messenger (way peace be upon him), and as my hand used to roam about in the dish he said to me: Boy, mention the name of Allah, and eat with your right hand and eat from what is near to you.",
+        "fr": "Rapporté par ‘Umar ibn Abu Salama رضي الله عنه : J’étais sous la garde du Messager d’Allah ﷺ, et comme ma main se promenait dans le plat, il m’a dit : « Mon garçon, mentionne le nom d’Allah, mange avec ta main droite et mange ce qui est devant toi. ».",
+        "ur": "ولید بن کثیر نے وہب بن کیسان سے روایت کی ، انھوں نے حضرت عمر بن ابی سلمہ رضی اللہ تعالیٰ عنہ سے سنا ، انھوں نے کہا : میں رسول اللہ صلی اللہ علیہ وسلم کی گود میں تھا ( آپ صلی اللہ علیہ وسلم کے گھر میں پرورش پارہا تھا ) اور میرا ہاتھ پیالے میں سب طرف گھوم رہا تھا تو آپ صلی اللہ علیہ وسلم نے فرمایا کہ اے لڑکے : بسم اللہ پڑھ کر داہنے ہاتھ سے کھا اور جو پاس ہو ادھر سے کھا ۔."
       },
       "from": "hadith-api"
     },
@@ -1025,7 +1178,9 @@
       "ref": "Sahih al-Bukhari 6405",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ مَسْلَمَةَ، عَنْ مَالِكٍ، عَنْ سُمَىٍّ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ مَنْ قَالَ سُبْحَانَ اللَّهِ وَبِحَمْدِهِ‏.‏ فِي يَوْمٍ مِائَةَ مَرَّةٍ حُطَّتْ خَطَايَاهُ، وَإِنْ كَانَتْ مِثْلَ زَبَدِ الْبَحْرِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"Whoever says, 'Subhan Allah wa bihamdihi,' one hundred times a day, will be forgiven all his sins even if they were as much as the foam of the sea\"."
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"Whoever says, 'Subhan Allah wa bihamdihi,' one hundred times a day, will be forgiven all his sins even if they were as much as the foam of the sea\".",
+        "fr": "Rapporté par Abu Huraira : Le Messager d’Allah ﷺ a dit : « Celui qui dit ‘Subhan Allah wa bihamdihi’ cent fois par jour verra tous ses péchés pardonnés, même s’ils étaient aussi nombreux que l’écume de la mer. ».",
+        "ur": "ہم سے عبداللہ بن مسلمہ نے بیان کیا، ان سے امام مالک نے بیان کیا، ان سے سمی نے بیان کیا، ان سے ابوصالح نے بیان کیا اور ان سے ابوہریرہ رضی اللہ عنہ نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”جس نے «سبحان الله وبحمده‏.‏» دن میں سو مرتبہ کہا، اس کے گناہ معاف کر دئیے جاتے ہیں، خواہ سمندر کی جھاگ کے برابر ہی کیوں نہ ہوں۔“."
       },
       "from": "hadith-api"
     },
@@ -1038,7 +1193,9 @@
       "ref": "Sahih Muslim 6932",
       "arabic": "حَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، وَابْنُ، نُمَيْرٍ - وَاللَّفْظُ لاِبْنِ نُمَيْرٍ - قَالاَ حَدَّثَنَا أَبُو أُسَامَةَ وَمُحَمَّدُ بْنُ بِشْرٍ عَنْ زَكَرِيَّاءَ بْنِ أَبِي زَائِدَةَ، عَنْ سَعِيدِ بْنِ أَبِي بُرْدَةَ، عَنْ أَنَسِ بْنِ، مَالِكٍ قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ إِنَّ اللَّهَ لَيَرْضَى عَنِ الْعَبْدِ أَنْ يَأْكُلَ الأَكْلَةَ فَيَحْمَدَهُ عَلَيْهَا أَوْ يَشْرَبَ الشَّرْبَةَ فَيَحْمَدَهُ عَلَيْهَا ‏\"‏ ‏.‏",
       "text": {
-        "en": "Anas b. Malik reported that Allah's Messenger (ﷺ) said:Allah is pleased with His servant who says: Al-Hamdu lillah while taking a morsel of food and while drinking."
+        "en": "Anas b. Malik reported that Allah's Messenger (ﷺ) said:Allah is pleased with His servant who says: Al-Hamdu lillah while taking a morsel of food and while drinking.",
+        "fr": "Rapporté par Anas b. Malik رضي الله عنه : Le Messager d’Allah ﷺ a dit : « Allah est satisfait de Son serviteur qui dit : “Al-Hamdu lillah” en mangeant une bouchée de nourriture ou en buvant. ».",
+        "ur": "ابواسامہ اور محمد بن بشر نے زکریا بن ابی زائدہ سے ، انہوں نے سعید بن ابی بُردہ سے اور انہوں نے حضرت انس بن مالک رضی اللہ عنہ سے روایت کی ، کہا : رسول اللہ صلی اللہ علیہ وسلم نے فرمایا : اللہ تعالیٰ اس بات پر ( اپنے ) بندے سے راضی ہوتا ہے کہ وہ ایک کھانا کھائے اور اس پر اللہ کی حمد کرے یا پینے کی کوئی چیز ( پانی ، دودھ وغیرہ ) پیے اور اس پر اللہ کی حمد کرے ۔."
       },
       "from": "hadith-api"
     },
@@ -1051,7 +1208,9 @@
       "ref": "Sahih al-Bukhari 6312",
       "arabic": "حَدَّثَنَا قَبِيصَةُ، حَدَّثَنَا سُفْيَانُ، عَنْ عَبْدِ الْمَلِكِ، عَنْ رِبْعِيِّ بْنِ حِرَاشٍ، عَنْ حُذَيْفَةَ، قَالَ كَانَ النَّبِيُّ صلى الله عليه وسلم إِذَا أَوَى إِلَى فِرَاشِهِ قَالَ ‏\"‏ بِاسْمِكَ أَمُوتُ وَأَحْيَا ‏\"‏‏.‏ وَإِذَا قَامَ قَالَ ‏\"‏ الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ ‏\"‏‏.‏ تُنْشِرُهَا: تُخْرِجُهَا",
       "text": {
-        "en": "Narrated Hudhaifa: When the Prophet (ﷺ) went to bed, he would say: \"Bismika amutu wa ahya.\" and when he got up he would say:\" Al-hamdu li l-lahil-ladhi ahyana ba'da ma amatana wa ilaihin-nushur\"."
+        "en": "Narrated Hudhaifa: When the Prophet (ﷺ) went to bed, he would say: \"Bismika amutu wa ahya.\" and when he got up he would say:\" Al-hamdu li l-lahil-ladhi ahyana ba'da ma amatana wa ilaihin-nushur\".",
+        "fr": "Rapporté par Hudhaifa : Quand le Prophète (ﷺ) allait se coucher, il disait : « Bismika amutu wa ahya. » Et quand il se réveillait, il disait : « Al-hamdu li l-lahil-ladhi ahyana ba'da ma amatana wa ilaihin-nushur. ».",
+        "ur": "ہم سے قبیصہ بن عقبہ نے بیان کیا، کہا ہم سے سفیان ثوری نے بیان کیا، ان سے عبدالملک بن عمیر نے، ان سے ربعی بن حراش نے اور ان سے حذیفہ بن یمان رضی اللہ عنہ نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم جب اپنے بستر پر لیٹتے تو یہ کہتے «باسمك أموت وأحيا» ”تیرے ہی نام کے ساتھ میں مردہ اور زندہ رہتا ہوں“ اور جب بیدار ہوتے تو کہتے «الحمد لله الذي أحيانا بعد ما أماتنا وإليه النشور» ”اسی اللہ کے لیے تمام تعریفیں ہیں جس نے ہمیں زندہ کیا۔ اس کے بعد کہ اس نے موت طاری کر دی تھی اور اسی کی طرف لوٹنا ہے۔“ قرآن شریف میں جو لفظ «ننشرها» ہے اس کا بھی یہی معنی ہے کہ ہم اس کو نکال کر اٹھاتے ہیں۔."
       },
       "from": "hadith-api"
     },
@@ -1064,7 +1223,8 @@
       "ref": "Sahih al-Bukhari 7563",
       "arabic": "حَدَّثَنِي أَحْمَدُ بْنُ إِشْكَابٍ، حَدَّثَنَا مُحَمَّدُ بْنُ فُضَيْلٍ، عَنْ عُمَارَةَ بْنِ الْقَعْقَاعِ، عَنْ أَبِي زُرْعَةَ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ قَالَ قَالَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ كَلِمَتَانِ حَبِيبَتَانِ إِلَى الرَّحْمَنِ، خَفِيفَتَانِ عَلَى اللِّسَانِ، ثَقِيلَتَانِ فِي الْمِيزَانِ سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"(There are) two words which are dear to the Beneficent (Allah) and very light (easy) for the tongue (to say), but very heavy in weight in the balance. They are: ''Subhan Allah wa-bi hamdihi'' and ''Subhan Allah Al-`Azim.\" (see Hadith)."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"(There are) two words which are dear to the Beneficent (Allah) and very light (easy) for the tongue (to say), but very heavy in weight in the balance. They are: ''Subhan Allah wa-bi hamdihi'' and ''Subhan Allah Al-`Azim.\" (see Hadith).",
+        "fr": "Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : « Il y a deux paroles qui sont chères au Tout Miséricordieux (Allah), très légères à prononcer, mais très lourdes dans la balance : “Subhan Allah wa-bi hamdihi” et “Subhan Allah Al-`Azim.” »."
       },
       "from": "hadith-api"
     },
@@ -1077,7 +1237,9 @@
       "ref": "Sahih Muslim 5265",
       "arabic": "حَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، وَمُحَمَّدُ بْنُ عَبْدِ اللَّهِ بْنِ نُمَيْرٍ، وَزُهَيْرُ بْنُ حَرْبٍ، وَابْنُ، أَبِي عُمَرَ - وَاللَّفْظُ لاِبْنِ نُمَيْرٍ - قَالُوا حَدَّثَنَا سُفْيَانُ، عَنِ الزُّهْرِيِّ، عَنْ أَبِي بَكْرِ بْنِ عُبَيْدِ، اللَّهِ بْنِ عَبْدِ اللَّهِ بْنِ عُمَرَ عَنْ جَدِّهِ ابْنِ عُمَرَ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ إِذَا أَكَلَ أَحَدُكُمْ فَلْيَأْكُلْ بِيَمِينِهِ وَإِذَا شَرِبَ فَلْيَشْرَبْ بِيَمِينِهِ فَإِنَّ الشَّيْطَانَ يَأْكُلُ بِشِمَالِهِ وَيَشْرَبُ بِشِمَالِهِ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Ibn 'Umar reported Allah's Messenger (ﷺ) as saying:When any one of you intends to eat (meal), he should eat with his right hand. and when he (intends) to drink he should drink with his right hand, for the Satan eats with his left hand and drinks with his left hand."
+        "en": "Ibn 'Umar reported Allah's Messenger (ﷺ) as saying:When any one of you intends to eat (meal), he should eat with his right hand. and when he (intends) to drink he should drink with his right hand, for the Satan eats with his left hand and drinks with his left hand.",
+        "fr": "Rapporté par Ibn ‘Umar رضي الله عنه : Le Messager d’Allah ﷺ a dit : « Quand l’un de vous veut manger, qu’il mange avec sa main droite. Et quand il veut boire, qu’il boive avec sa main droite, car le diable mange et boit avec sa main gauche. ».",
+        "ur": "سفیان نے زہری سے ، انھوں نے ابو بکر بن عبیداللہ بن عبداللہ بن عمر سے ، انھوں نے اپنے دادا حضرت ابن عمر رضی اللہ تعالیٰ عنہ سے روایت کی کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا : \" جب تم میں سے کوئی شخص کھاناکھائے تواپنے دائیں ہاتھ سے کھائے اور جب تم میں سے کوئی شخص پیےتواپنے دائیں ہاتھ سے پیے کیونکہ شیطان بائیں ہاتھ سے کھاتاہے اوربائیں ہاتھ سے پیتا ہے ۔\"."
       },
       "from": "hadith-api"
     },
@@ -1090,7 +1252,9 @@
       "ref": "Sahih al-Bukhari 6416",
       "arabic": "حَدَّثَنَا عَلِيُّ بْنُ عَبْدِ اللَّهِ، حَدَّثَنَا مُحَمَّدُ بْنُ عَبْدِ الرَّحْمَنِ أَبُو الْمُنْذِرِ الطُّفَاوِيُّ، عَنْ سُلَيْمَانَ الأَعْمَشِ، قَالَ حَدَّثَنِي مُجَاهِدٌ، عَنْ عَبْدِ اللَّهِ بْنِ عُمَرَ ـ رضى الله عنهما ـ قَالَ أَخَذَ رَسُولُ اللَّهِ صلى الله عليه وسلم بِمَنْكِبِي فَقَالَ ‏ \"‏ كُنْ فِي الدُّنْيَا كَأَنَّكَ غَرِيبٌ، أَوْ عَابِرُ سَبِيلٍ ‏\"‏‏.‏ وَكَانَ ابْنُ عُمَرَ يَقُولُ إِذَا أَمْسَيْتَ فَلاَ تَنْتَظِرِ الصَّبَاحَ، وَإِذَا أَصْبَحْتَ فَلاَ تَنْتَظِرِ الْمَسَاءَ، وَخُذْ مِنْ صِحَّتِكَ لِمَرَضِكَ، وَمِنْ حَيَاتِكَ لِمَوْتِكَ‏.‏",
       "text": {
-        "en": "Narrated Mujahid: `Abdullah bin `Umar said, \"Allah's Messenger (ﷺ) took hold of my shoulder and said, 'Be in this world as if you were a stranger or a traveler.\" The sub-narrator added: Ibn `Umar used to say, \"If you survive till the evening, do not expect to be alive in the morning, and if you survive till the morning, do not expect to be alive in the evening, and take from your health for your sickness, and (take) from your life for your death\"."
+        "en": "Narrated Mujahid: `Abdullah bin `Umar said, \"Allah's Messenger (ﷺ) took hold of my shoulder and said, 'Be in this world as if you were a stranger or a traveler.\" The sub-narrator added: Ibn `Umar used to say, \"If you survive till the evening, do not expect to be alive in the morning, and if you survive till the morning, do not expect to be alive in the evening, and take from your health for your sickness, and (take) from your life for your death\".",
+        "fr": "Rapporté par Mujahid : `Abdullah bin `Umar a dit : Le Messager d’Allah (ﷺ) m’a pris par l’épaule et a dit : « Sois dans ce monde comme un étranger ou un voyageur. » Le rapporteur a ajouté : Ibn `Umar disait : « Si tu survis jusqu’au soir, ne t’attends pas à vivre jusqu’au matin, et si tu survis jusqu’au matin, ne t’attends pas à vivre jusqu’au soir. Tire profit de ta santé avant la maladie, et de ta vie avant la mort. ».",
+        "ur": "ہم سے علی بن عبداللہ نے بیان کیا، انہوں نے کہا ہم سے محمد بن عبدالرحمٰن ابومنذر طفاوی نے بیان کیا، انہوں نے کہا ہم سے سلیمان اعمش نے بیان کیا، انہوں نے کہا مجھ سے مجاہد نے بیان کیا، انہوں نے کہا ہم سے عبداللہ بن عمر رضی اللہ عنہما نے بیان کیا کہ رسول اللہ صلی اللہ علیہ وسلم نے میرا شانہ پکڑ کر فرمایا ”دنیا میں اس طرح ہو جا جیسے تو مسافر یا راستہ چلنے والا ہو۔“ عبداللہ بن عمر رضی اللہ عنہما فرمایا کرتے تھے شام ہو جائے تو صبح کے منتظر نہ رہو اور صبح کے وقت شام کے منتظر نہ رہو، اپنی صحت کو مرض سے پہلے غنیمت جانو اور زندگی کو موت سے پہلے۔."
       },
       "from": "hadith-api"
     },
@@ -1103,7 +1267,9 @@
       "ref": "Sahih Muslim 4223",
       "arabic": "حَدَّثَنَا يَحْيَى بْنُ أَيُّوبَ، وَقُتَيْبَةُ، - يَعْنِي ابْنَ سَعِيدٍ - وَابْنُ حُجْرٍ قَالُوا حَدَّثَنَا إِسْمَاعِيلُ، - هُوَ ابْنُ جَعْفَرٍ - عَنِ الْعَلاَءِ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ إِذَا مَاتَ الإِنْسَانُ انْقَطَعَ عَنْهُ عَمَلُهُ إِلاَّ مِنْ ثَلاَثَةٍ إِلاَّ مِنْ صَدَقَةٍ جَارِيَةٍ أَوْ عِلْمٍ يُنْتَفَعُ بِهِ أَوْ وَلَدٍ صَالِحٍ يَدْعُو لَهُ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Huraira (Allah be pleased with him) reported Allah's Messenger (ﷺ) as saying:When a man dies, his acts come to an end, but three, recurring charity, or knowledge (by which people) benefit, or a pious son, who prays for him (for the deceased)."
+        "en": "Abu Huraira (Allah be pleased with him) reported Allah's Messenger (ﷺ) as saying:When a man dies, his acts come to an end, but three, recurring charity, or knowledge (by which people) benefit, or a pious son, who prays for him (for the deceased).",
+        "fr": "Rapporté par Abu Huraira رضي الله عنه : Le Messager d’Allah ﷺ a dit : « Quand une personne meurt, ses actions s’arrêtent, sauf pour trois choses : une aumône continue, un savoir dont les gens profitent, ou un enfant pieux qui prie pour lui (le défunt). ».",
+        "ur": "حضرت ابوہریرہ رضی اللہ عنہ سے روایت ہے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا : \" جب انسان فوت ہو جائے تو اس کا عمل منقطع ہو جاتا ہے سوائے تین اعمال کے ( وہ منقطع نہیں ہوتے ) : صدقہ جاریہ یا ایسا علم جس سے فائدہ اٹھایا جائے یا نیک بیٹا جو اس کے لیے دعا کرے\"."
       },
       "from": "hadith-api"
     },
@@ -1116,7 +1282,9 @@
       "ref": "Sahih al-Bukhari 6488",
       "arabic": "حَدَّثَنِي مُوسَى بْنُ مَسْعُودٍ، حَدَّثَنَا سُفْيَانُ، عَنْ مَنْصُورٍ، وَالأَعْمَشِ، عَنْ أَبِي وَائِلٍ، عَنْ عَبْدِ اللَّهِ ـ رضى الله عنه ـ قَالَ قَالَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ الْجَنَّةُ أَقْرَبُ إِلَى أَحَدِكُمْ مِنْ شِرَاكِ نَعْلِهِ، وَالنَّارُ مِثْلُ ذَلِكَ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Abdullah: The Prophet (ﷺ) said, \"Paradise is nearer to any of you than the Shirak (leather strap) of his shoe, and so is the (Hell) Fire\"."
+        "en": "Narrated `Abdullah: The Prophet (ﷺ) said, \"Paradise is nearer to any of you than the Shirak (leather strap) of his shoe, and so is the (Hell) Fire\".",
+        "fr": "Rapporté par `Abdullah : Le Prophète (ﷺ) a dit : « Le Paradis est plus proche de chacun de vous que la lanière de sa chaussure, et il en est de même pour le Feu (de l’Enfer). ».",
+        "ur": "ہم سے موسیٰ بن مسعود نے بیان کیا، انہوں نے کہا ہم سے سفیان نے بیان کیا، انہوں نے کہا ہم سے منصور اور اعمش نے بیان کیا، ان سے ابووائل نے بیان کیا اور ان سے عبداللہ رضی اللہ عنہ نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”جنت تمہارے جوتے کے تسمے سے بھی زیادہ تمہارے قریب ہے اور اسی طرح دوزخ بھی۔“."
       },
       "from": "hadith-api"
     },
@@ -1129,7 +1297,9 @@
       "ref": "Sahih Muslim 7417",
       "arabic": "حَدَّثَنَا قُتَيْبَةُ بْنُ سَعِيدٍ، حَدَّثَنَا عَبْدُ الْعَزِيزِ، - يَعْنِي الدَّرَاوَرْدِيَّ - عَنِ الْعَلاَءِ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ الدُّنْيَا سِجْنُ الْمُؤْمِنِ وَجَنَّةُ الْكَافِرِ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Huraira reported Allah's Messenger (ﷺ) as saying:The world is a prison-house for a believer and Paradise for a non-believer."
+        "en": "Abu Huraira reported Allah's Messenger (ﷺ) as saying:The world is a prison-house for a believer and Paradise for a non-believer.",
+        "fr": "Rapporté par Abu Huraira رضي الله عنه : Le Messager d’Allah ﷺ a dit : « La vie d’ici-bas est une prison pour le croyant et un paradis pour le non-croyant. ».",
+        "ur": "حضرت ابو ہریرۃ رضی اللہ تعالیٰ عنہ سے روایت ہے ، کہا : رسول اللہ صلی اللہ علیہ وسلم نے فرمایا : \" دنیا مومن کا قید خانہ اور کافر کی جنت ہے ۔\"."
       },
       "from": "hadith-api"
     },
@@ -1142,7 +1312,9 @@
       "ref": "Sahih al-Bukhari 6479",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ بَشَّارٍ، حَدَّثَنَا يَحْيَى، عَنْ عُبَيْدِ اللَّهِ، قَالَ حَدَّثَنِي خُبَيْبُ بْنُ عَبْدِ الرَّحْمَنِ، عَنْ حَفْصِ بْنِ عَاصِمٍ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ سَبْعَةٌ يُظِلُّهُمُ اللَّهُ، رَجُلٌ ذَكَرَ اللَّهَ فَفَاضَتْ عَيْنَاهُ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said Allah will give shade to seven (types of people) under His Shade (on the Day of Resurrection). (one of them will be) a person who remembers Allah and his eyes are then flooded with tears."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said Allah will give shade to seven (types of people) under His Shade (on the Day of Resurrection). (one of them will be) a person who remembers Allah and his eyes are then flooded with tears.",
+        "fr": "Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : Allah offrira Son ombre à sept catégories de personnes sous Son Ombre le Jour de la Résurrection. (L’une d’elles sera) une personne qui se souvient d’Allah et dont les yeux se remplissent alors de larmes.",
+        "ur": "ہم سے محمد بن بشار نے بیان کیا، کہا ہم سے یحییٰ قطان نے بیان کیا، ان سے عبیداللہ نے بیان کیا، کہا کہ مجھ سے خبیب بن عبدالرحمٰن نے بیان کیا، ان سے حفص بن عاصم نے اور ان سے ابوہریرہ رضی اللہ عنہ نے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”سات طرح کے لوگ وہ ہیں جنہیں اللہ تعالیٰ اپنے سایہ میں پناہ دے گا۔ ( ان میں ) ایک وہ شخص بھی ہے جس نے تنہائی میں اللہ کو یاد کیا تو اس کی آنکھوں سے آنسو جاری ہو گئے۔“."
       },
       "from": "hadith-api"
     },
@@ -1156,7 +1328,9 @@
       "ref": "Sahih al-Bukhari 6412",
       "arabic": "حَدَّثَنَا الْمَكِّيُّ بْنُ إِبْرَاهِيمَ، أَخْبَرَنَا عَبْدُ اللَّهِ بْنُ سَعِيدٍ ـ هُوَ ابْنُ أَبِي هِنْدٍ ـ عَنْ أَبِيهِ، عَنِ ابْنِ عَبَّاسٍ ـ رضى الله عنهما ـ قَالَ قَالَ النَّبِيُّ صلى الله عليه وسلم ‏ \"‏ نِعْمَتَانِ مَغْبُونٌ فِيهِمَا كَثِيرٌ مِنَ النَّاسِ، الصِّحَّةُ وَالْفَرَاغُ ‏\"‏‏.‏ قَالَ عَبَّاسٌ الْعَنْبَرِيُّ حَدَّثَنَا صَفْوَانُ بْنُ عِيسَى، عَنْ عَبْدِ اللَّهِ بْنِ سَعِيدِ بْنِ أَبِي هِنْدٍ، عَنْ أَبِيهِ، سَمِعْتُ ابْنَ عَبَّاسٍ، عَنِ النَّبِيِّ صلى الله عليه وسلم مِثْلَهُ‏.‏",
       "text": {
-        "en": "Narrated Ibn `Abbas: The Prophet (ﷺ) said: \"There are two blessings that many people are deceived into losing: health and free time\"."
+        "en": "Narrated Ibn `Abbas: The Prophet (ﷺ) said: \"There are two blessings that many people are deceived into losing: health and free time\".",
+        "fr": "Rapporté par Ibn `Abbas : Le Prophète (ﷺ) a dit : « Il y a deux bienfaits dont beaucoup de gens se laissent tromper : la santé et le temps libre. ».",
+        "ur": "ہم سے مکی بن ابراہیم نے بیان کیا، انہوں نے کہا ہم کو عبداللہ بن سعید نے خبر دی، وہ ابوہند کے صاحب زادے ہیں، انہیں ان کے والد نے اور ان سے عبداللہ بن عباس رضی اللہ عنہما نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”دو نعمتیں ایسی ہیں کہ اکثر لوگ ان کی قدر نہیں کرتے، صحت اور فراغت۔“ عباس عنبری نے بیان کیا کہ ہم سے صفوان بن عیسیٰ نے بیان کیا، ان سے عبداللہ بن ابی ہند نے، ان سے ان کے والد نے کہ میں نے عبداللہ بن عباس رضی اللہ عنہما سے سنا، انہوں نے نبی کریم صلی اللہ علیہ وسلم سے اسی حدیث کی طرح۔."
       },
       "from": "hadith-api"
     },
@@ -1169,7 +1343,9 @@
       "ref": "Sahih al-Bukhari 5090",
       "arabic": "حَدَّثَنَا مُسَدَّدٌ، حَدَّثَنَا يَحْيَى، عَنْ عُبَيْدِ اللَّهِ، قَالَ حَدَّثَنِي سَعِيدُ بْنُ أَبِي سَعِيدٍ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ تُنْكَحُ الْمَرْأَةُ لأَرْبَعٍ لِمَالِهَا وَلِحَسَبِهَا وَجَمَالِهَا وَلِدِينِهَا، فَاظْفَرْ بِذَاتِ الدِّينِ تَرِبَتْ يَدَاكَ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"A woman is married for four things, i.e., her wealth, her family status, her beauty and her religion. So you should marry the religious woman (otherwise) you will be a losers\"."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"A woman is married for four things, i.e., her wealth, her family status, her beauty and her religion. So you should marry the religious woman (otherwise) you will be a losers\".",
+        "fr": "Rapporté par Abou Hourayra : Le Prophète (ﷺ) a dit : « On épouse une femme pour quatre raisons : sa richesse, sa famille, sa beauté et sa religion. Choisis la femme pieuse, sinon tu seras perdant. ».",
+        "ur": "ہم سے مسدد بن مسرہد نے بیان کیا، کہا ہم سے یحییٰ بن سعید قطان نے، ان سے عبیداللہ عموی نے، کہ مجھ سے سعید بن ابی سعید نے، ان سے ان کے والد نے اور ان سے ابوہریرہ رضی اللہ عنہ نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا کہ عورت سے نکاح چار چیزوں کی بنیاد پر کیا جاتا ہے اس کے مال کی وجہ سے اور اس کے خاندانی شرف کی وجہ سے اور اس کی خوبصورتی کی وجہ سے اور اس کے دین کی وجہ سے اور تو دیندار عورت سے نکاح کر کے کامیابی حاصل کر، اگر ایسا نہ کرے تو تیرے ہاتھوں کو مٹی لگے گی ( یعنی اخیر میں تجھ کو ندامت ہو گی ) ۔."
       },
       "from": "hadith-api"
     },
@@ -1182,7 +1358,9 @@
       "ref": "Sahih Muslim 3514",
       "arabic": "وَحَدَّثَنِي إِسْحَاقُ بْنُ مَنْصُورٍ، حَدَّثَنِي عِيسَى بْنُ الْمُنْذِرِ، حَدَّثَنَا بَقِيَّةُ، حَدَّثَنَا الزُّبَيْدِيُّ، عَنْ نَافِعٍ، عَنِ ابْنِ عُمَرَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ دُعِيَ إِلَى عُرْسٍ أَوْ نَحْوِهِ فَلْيُجِبْ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Ibn 'Umar (Allah be pleated with them) reported Allah's Messenger (ﷺ) having said:He who is invited to a wedding feast or like it, he should accept it."
+        "en": "Ibn 'Umar (Allah be pleated with them) reported Allah's Messenger (ﷺ) having said:He who is invited to a wedding feast or like it, he should accept it.",
+        "fr": "Rapporté par Ibn Omar رضي الله عنه : Le Messager d’Allah ﷺ a dit : « Celui qui est invité à un repas de noces ou à un festin similaire doit l’accepter. ».",
+        "ur": "زُبیدی نے ہمیں نافع سے حدیث بیان کی ، انہوں نے ابن عمر رضی اللہ عنہ سے روایت کی ، انہوں نے کہا : رسول اللہ صلی اللہ علیہ وسلم نے فرمایا : \" جس شخص کو شادی یا اس جیسی کسی تقریب میں بلایا جائے تو وہ قبول کرے\"."
       },
       "from": "hadith-api"
     },
@@ -1195,7 +1373,9 @@
       "ref": "Sahih al-Bukhari 2076",
       "arabic": "حَدَّثَنَا عَلِيُّ بْنُ عَيَّاشٍ، حَدَّثَنَا أَبُو غَسَّانَ، مُحَمَّدُ بْنُ مُطَرِّفٍ قَالَ حَدَّثَنِي مُحَمَّدُ بْنُ الْمُنْكَدِرِ، عَنْ جَابِرِ بْنِ عَبْدِ اللَّهِ ـ رضى الله عنهما ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ رَحِمَ اللَّهُ رَجُلاً سَمْحًا إِذَا بَاعَ، وَإِذَا اشْتَرَى، وَإِذَا اقْتَضَى ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Jabir bin `Abdullah: Allah's Messenger (ﷺ) said, \"May Allah's mercy be on him who is lenient in his buying, selling, and in demanding back his money\"."
+        "en": "Narrated Jabir bin `Abdullah: Allah's Messenger (ﷺ) said, \"May Allah's mercy be on him who is lenient in his buying, selling, and in demanding back his money\".",
+        "fr": "Rapporté par Jabir bin `Abdullah : Le Messager d'Allah (ﷺ) a dit : Qu’Allah fasse miséricorde à celui qui est indulgent dans ses achats, ses ventes et quand il réclame son argent.",
+        "ur": "ہم سے علی بن عیاش نے بیان کیا، کہا کہ ہم سے ابوغسان محمد بن مطرف نے بیان کیا، کہا کہ مجھ سے محمد بن منکدر نے بیان کیا، اور ان سے جابر بن عبداللہ انصاری رضی اللہ عنہ نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا اللہ تعالیٰ ایسے شخص پر رحم کرے جو بیچتے وقت اور خریدتے وقت اور تقاضا کرتے وقت فیاضی اور نرمی سے کام لیتا ہے۔."
       },
       "from": "hadith-api"
     },
@@ -1208,7 +1388,9 @@
       "ref": "Sahih Muslim 284",
       "arabic": "وَحَدَّثَنِي يَحْيَى بْنُ أَيُّوبَ، وَقُتَيْبَةُ، وَابْنُ، حُجْرٍ جَمِيعًا عَنْ إِسْمَاعِيلَ بْنِ جَعْفَرٍ، - قَالَ ابْنُ أَيُّوبَ حَدَّثَنَا إِسْمَاعِيلُ، - قَالَ أَخْبَرَنِي الْعَلاَءُ، عَنْ أَبِيهِ، عَنْ أَبِي هُرَيْرَةَ، ‏.‏ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم مَرَّ عَلَى صُبْرَةِ طَعَامٍ فَأَدْخَلَ يَدَهُ فِيهَا فَنَالَتْ أَصَابِعُهُ بَلَلاً فَقَالَ ‏\"‏ مَا هَذَا يَا صَاحِبَ الطَّعَامِ ‏\"‏ ‏.‏ قَالَ أَصَابَتْهُ السَّمَاءُ يَا رَسُولَ اللَّهِ ‏.‏ قَالَ ‏\"‏ أَفَلاَ جَعَلْتَهُ فَوْقَ الطَّعَامِ كَىْ يَرَاهُ النَّاسُ مَنْ غَشَّ فَلَيْسَ مِنِّي ‏\"‏ ‏.‏",
       "text": {
-        "en": "It is narrated on the authority of Abu Huraira that the Messenger of Allah (ﷺ) happened to pass by a heap of eatables (corn). He thrust his hand in that (heap) and his fingers were moistened. He said to the owner of that heap of eatables (corn):What is this? He replied: Messenger of Allah, these have been drenched by rainfall. He (the Holy Prophet) remarked: Why did you not place this (the drenched part of the heap) over other eatables so that the people could see it? He who deceives is not of me (is not my follower)."
+        "en": "It is narrated on the authority of Abu Huraira that the Messenger of Allah (ﷺ) happened to pass by a heap of eatables (corn). He thrust his hand in that (heap) and his fingers were moistened. He said to the owner of that heap of eatables (corn):What is this? He replied: Messenger of Allah, these have been drenched by rainfall. He (the Holy Prophet) remarked: Why did you not place this (the drenched part of the heap) over other eatables so that the people could see it? He who deceives is not of me (is not my follower).",
+        "fr": "Rapporté par Abu Huraira رضي الله عنه : Le Messager d’Allah ﷺ passa devant un tas de nourriture (du maïs). Il y plongea la main et ses doigts furent mouillés. Il demanda au propriétaire de ce tas : « Qu’est-ce que c’est ? » Il répondit : « Messager d’Allah, il a été mouillé par la pluie. » Le Prophète ﷺ dit alors : « Pourquoi n’as-tu pas mis cette partie mouillée au-dessus du reste pour que les gens la voient ? Celui qui trompe n’est pas des miens (n’est pas mon disciple). ».",
+        "ur": "علاء نےاپنے والد عبدالرحمن بن یعقوب سے اور انہوں نے حضرت ابوہریرہ ‌رضی ‌اللہ ‌عنہ ‌ ‌ سے روایت کی کہ رسول اللہ ﷺ غلے کی ایک ڈھیری کے پاس سے گزرے توآپ نے اپنا ہاتھ اس میں داخل کیا ، آپ کی انگلیوں نے نمی محسوس کی تو آپ نے فرمایا : ’’ غلے کے مالک! یہ کیا ہے ؟ ‘ ‘ اس نے عرض کی : اے اللہ کے رسول ! اس پر بارش پڑ گئی تھی ۔ آپ نے فرمایا : ’’ توتم نے اسے ( بھیگے ہوئے غلے ) کو اوپر کیوں نہ رکھا تاکہ لو گ اسے دیکھ لیتے ؟ جس نے دھوکا کیا ، وہ مجھ سے نہیں ۔ ‘ ‘ ( ان لوگوں میں سے نہیں جنہیں میرے ساتھ وابستہ ہونے کا شرف حاصل ہے ۔)."
       },
       "from": "hadith-api"
     },
@@ -1221,7 +1403,9 @@
       "ref": "Sahih al-Bukhari 2111",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ يُوسُفَ، أَخْبَرَنَا مَالِكٌ، عَنْ نَافِعٍ، عَنْ عَبْدِ اللَّهِ بْنِ عُمَرَ ـ رضى الله عنهما ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ الْمُتَبَايِعَانِ كُلُّ وَاحِدٍ مِنْهُمَا بِالْخِيَارِ عَلَى صَاحِبِهِ مَا لَمْ يَتَفَرَّقَا، إِلاَّ بَيْعَ الْخِيَارِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Abdullah bin `Umar: Allah's Messenger (ﷺ) said, \"Both the buyer and the seller have the option of canceling or confirming a bargain unless they separate, or the sale is optional.\" (See Hadith No)."
+        "en": "Narrated `Abdullah bin `Umar: Allah's Messenger (ﷺ) said, \"Both the buyer and the seller have the option of canceling or confirming a bargain unless they separate, or the sale is optional.\" (See Hadith No).",
+        "fr": "Rapporté par `Abdullah bin `Umar : Le Messager d'Allah (ﷺ) a dit : « L'acheteur et le vendeur ont le choix d'annuler ou de confirmer la vente tant qu'ils ne se sont pas séparés, ou si la vente est optionnelle. » (Voir le hadith précédent).",
+        "ur": "ہم سے عبداللہ بن یوسف نے بیان کیا، کہا کہ ہم کو امام مالک نے خبر دی، انہیں نافع نے اور انہیں عبداللہ بن عمر رضی اللہ عنہما نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا، خریدنے اور بیچنے والے دونوں کو اس وقت تک اختیار ہوتا ہے، جب تک وہ ایک دوسرے سے جدا نہ ہوں۔ مگر بیع خیار میں۔."
       },
       "from": "hadith-api"
     },
@@ -1234,7 +1418,9 @@
       "ref": "Sahih al-Bukhari 2072",
       "arabic": "حَدَّثَنَا إِبْرَاهِيمُ بْنُ مُوسَى، أَخْبَرَنَا عِيسَى، عَنْ ثَوْرٍ، عَنْ خَالِدِ بْنِ مَعْدَانَ، عَنِ الْمِقْدَامِ ـ رضى الله عنه ـ عَنْ رَسُولِ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ مَا أَكَلَ أَحَدٌ طَعَامًا قَطُّ خَيْرًا مِنْ أَنْ يَأْكُلَ مِنْ عَمَلِ يَدِهِ، وَإِنَّ نَبِيَّ اللَّهِ دَاوُدَ ـ عَلَيْهِ السَّلاَمُ ـ كَانَ يَأْكُلُ مِنْ عَمَلِ يَدِهِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Al-Miqdam: The Prophet (ﷺ) said, \"Nobody has ever eaten a better meal than that which one has earned by working with one's own hands. The Prophet of Allah, David (ﷺ) used to eat from the earnings of his manual labor\"."
+        "en": "Narrated Al-Miqdam: The Prophet (ﷺ) said, \"Nobody has ever eaten a better meal than that which one has earned by working with one's own hands. The Prophet of Allah, David (ﷺ) used to eat from the earnings of his manual labor\".",
+        "fr": "Rapporté par Al-Miqdam : Le Prophète (ﷺ) a dit : « Personne n’a jamais mangé de meilleure nourriture que celle qu’il a gagnée par le travail de ses propres mains. Le Prophète d’Allah, David, vivait du fruit de son travail manuel. ».",
+        "ur": "ہم سے ابراہیم بن موسیٰ نے بیان کیا، انہوں نے کہا کہ ہم کو عیسیٰ بن یونس نے خبر دی، انہیں ثور نے خبر دی، انہیں خالد بن معدان نے اور انہیں مقدام رضی اللہ عنہ نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا کسی انسان نے اس شخص سے بہتر روزی نہیں کھائی، جو خود اپنے ہاتھوں سے کما کر کھاتا ہے اللہ کے نبی داؤد علیہ السلام بھی اپنے ہاتھ سے کام کر کے روزی کھایا کرتے تھے۔."
       },
       "from": "hadith-api"
     },
@@ -1247,7 +1433,9 @@
       "ref": "Sahih al-Bukhari 2444",
       "arabic": "حَدَّثَنَا مُسَدَّدٌ، حَدَّثَنَا مُعْتَمِرٌ، عَنْ حُمَيْدٍ، عَنْ أَنَسٍ ـ رضى الله عنه ـ قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏\"‏ انْصُرْ أَخَاكَ ظَالِمًا أَوْ مَظْلُومًا ‏\"‏‏.‏ قَالُوا يَا رَسُولَ اللَّهِ هَذَا نَنْصُرُهُ مَظْلُومًا، فَكَيْفَ نَنْصُرُهُ ظَالِمًا قَالَ ‏\"‏ تَأْخُذُ فَوْقَ يَدَيْهِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Anas: Allah's Messenger (ﷺ) said, \"Help your brother, whether he is an oppressor or he is an oppressed one. People asked, \"O Allah's Messenger (ﷺ)! It is all right to help him if he is oppressed, but how should we help him if he is an oppressor?\" The Prophet (ﷺ) said, \"By preventing him from oppressing others."
+        "en": "Narrated Anas: Allah's Messenger (ﷺ) said, \"Help your brother, whether he is an oppressor or he is an oppressed one. People asked, \"O Allah's Messenger (ﷺ)! It is all right to help him if he is oppressed, but how should we help him if he is an oppressor?\" The Prophet (ﷺ) said, \"By preventing him from oppressing others.",
+        "fr": "Rapporté par Anas : Le Messager d’Allah (ﷺ) a dit : « Aide ton frère, qu’il soit injuste ou victime d’injustice. » Les gens ont demandé : « Ô Messager d’Allah (ﷺ) ! Il est normal de l’aider s’il est victime, mais comment l’aider s’il est injuste ? » Le Prophète (ﷺ) a dit : « En l’empêchant de commettre l’injustice. ».",
+        "ur": "ہم سے مسدد نے بیان کیا، کہا ہم سے معتمر نے بیان کیا، ان سے حمید نے اور ان سے انس رضی اللہ عنہ نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا، اپنے بھائی کی مدد کرو خواہ وہ ظالم ہو یا مظلوم۔ صحابہ نے عرض کیا، یا رسول اللہ! ہم مظلوم کی تو مدد کر سکتے ہیں۔ لیکن ظالم کی مدد کس طرح کریں؟ آپ صلی اللہ علیہ وسلم نے فرمایا کہ ظلم سے اس کا ہاتھ پکڑ لو ( یہی اس کی مدد ہے ) ۔."
       },
       "from": "hadith-api"
     },
@@ -1260,7 +1448,9 @@
       "ref": "Sahih al-Bukhari 6871",
       "arabic": "حَدَّثَنَا إِسْحَاقُ بْنُ مَنْصُورٍ، حَدَّثَنَا عَبْدُ الصَّمَدِ، حَدَّثَنَا شُعْبَةُ، حَدَّثَنَا عُبَيْدُ اللَّهِ بْنُ أَبِي بَكْرٍ، سَمِعَ أَنَسًا ـ رضى الله عنه ـ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏\"‏ الْكَبَائِرُ ‏\"‏‏.‏ وَحَدَّثَنَا عَمْرٌو حَدَّثَنَا شُعْبَةُ عَنِ ابْنِ أَبِي بَكْرٍ عَنْ أَنَسِ بْنِ مَالِكٍ عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏\"‏ أَكْبَرُ الْكَبَائِرِ الإِشْرَاكُ بِاللَّهِ وَقَتْلُ النَّفْسِ، وَعُقُوقُ الْوَالِدَيْنِ، وَقَوْلُ الزُّورِ ‏\"‏‏.‏ أَوْ قَالَ ‏\"‏ وَشَهَادَةُ الزُّورِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Anas bin Malik: The Prophet (ﷺ) said, \"The biggest of Al-Ka`ba'ir (the great sins) are (1) to join others as partners in worship with Allah, (2) to murder a human being, (3) to be undutiful to one's parents (4) and to make a false statement,\" or said, \"to give a false witness\"."
+        "en": "Narrated Anas bin Malik: The Prophet (ﷺ) said, \"The biggest of Al-Ka`ba'ir (the great sins) are (1) to join others as partners in worship with Allah, (2) to murder a human being, (3) to be undutiful to one's parents (4) and to make a false statement,\" or said, \"to give a false witness\".",
+        "fr": "Rapporté par Anas bin Malik : Le Prophète (ﷺ) a dit : « Les plus grands des grands péchés sont : (1) associer d’autres à Allah dans l’adoration, (2) tuer un être humain, (3) manquer de respect à ses parents, (4) faire une fausse déclaration », ou il a dit : « porter un faux témoignage. ».",
+        "ur": "ہم سے اسحاق بن منصور نے بیان کیا، انہوں نے کہا ہم سے عبدالصمد نے بیان کیا، انہوں نے کہا ہم سے شعبہ نے بیان کیا، انہوں نے کہا ہم سے عبیداللہ بن ابی بکر رضی اللہ عنہما نے بیان کیا، انہوں نے انس بن مالک رضی اللہ عنہ سے سنا کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”گناہ کبیرہ“ اور ہم سے عمرو نے بیان کیا، کہا ہم سے شعبہ نے بیان کیا، ان سے ابوبکر نے اور ان سے انس بن مالک رضی اللہ عنہ نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”سب سے بڑے گناہ اللہ کے ساتھ کسی کو شریک ٹھہرانا، کسی کی ناحق جان لینا، والدین کی نافرمانی کرنا اور جھوٹ بولنا ہیں یا فرمایا کہ جھوٹی گواہی دینا۔."
       },
       "from": "hadith-api"
     },
@@ -1273,7 +1463,9 @@
       "ref": "Sahih al-Bukhari 6534",
       "arabic": "حَدَّثَنَا إِسْمَاعِيلُ، قَالَ حَدَّثَنِي مَالِكٌ، عَنْ سَعِيدٍ الْمَقْبُرِيِّ، عَنْ أَبِي هُرَيْرَةَ، أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ مَنْ كَانَتْ عِنْدَهُ مَظْلَمَةٌ لأَخِيهِ فَلْيَتَحَلَّلْهُ مِنْهَا، فَإِنَّهُ لَيْسَ ثَمَّ دِينَارٌ وَلاَ دِرْهَمٌ مِنْ قَبْلِ أَنْ يُؤْخَذَ لأَخِيهِ مِنْ حَسَنَاتِهِ، فَإِنْ لَمْ يَكُنْ لَهُ حَسَنَاتٌ أُخِذَ مِنْ سَيِّئَاتِ أَخِيهِ، فَطُرِحَتْ عَلَيْهِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"Whoever has wronged his brother, should ask for his pardon (before his death), as (in the Hereafter) there will be neither a Dinar nor a Dirham. (He should secure pardon in this life) before some of his good deeds are taken and paid to his brother, or, if he has done no good deeds, some of the bad deeds of his brother are taken to be loaded on him (in the Hereafter)\"."
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"Whoever has wronged his brother, should ask for his pardon (before his death), as (in the Hereafter) there will be neither a Dinar nor a Dirham. (He should secure pardon in this life) before some of his good deeds are taken and paid to his brother, or, if he has done no good deeds, some of the bad deeds of his brother are taken to be loaded on him (in the Hereafter)\".",
+        "fr": "Rapporté par Abu Huraira : Le Messager d’Allah (ﷺ) a dit : « Celui qui a fait du tort à son frère doit lui demander pardon (avant sa mort), car (dans l’au-delà) il n’y aura ni dinar ni dirham. (Il doit obtenir le pardon dans cette vie) avant que certaines de ses bonnes actions ne soient prises pour être données à son frère, ou, s’il n’a pas de bonnes actions, que certains des péchés de son frère ne lui soient attribués (dans l’au-delà). ».",
+        "ur": "ہم سے اسماعیل بن ابی اویس نے بیان کیا، کہا کہ مجھ سے امام مالک نے بیان کیا، ان سے سعید مقبری نے اور ان سے ابوہریرہ رضی اللہ عنہ نے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”جس نے اپنے کسی بھائی پر ظلم کیا ہو تو اسے چاہئے کہ اس سے ( اس دنیا میں ) معاف کرا لے۔ اس لیے کہ آخرت میں روپے پیسے نہیں ہوں گے۔ اس سے پہلے ( معاف کرا لے ) کہ اس کے بھائی کے لیے اس کی نیکیوں میں سے حق دلایا جائے گا اور اگر اس کے پاس نیکیاں نہ ہوں گی تو اس ( مظلوم ) بھائی کی برائیاں اس پر ڈال دی جائیں گی۔“."
       },
       "from": "hadith-api"
     },
@@ -1286,7 +1478,9 @@
       "ref": "Sahih al-Bukhari 6231",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ مُقَاتِلٍ أَبُو الْحَسَنِ، أَخْبَرَنَا عَبْدُ اللَّهِ، أَخْبَرَنَا مَعْمَرٌ، عَنْ هَمَّامِ بْنِ مُنَبِّهٍ، عَنْ أَبِي هُرَيْرَةَ، عَنِ النَّبِيِّ صلى الله عليه وسلم قَالَ ‏ \"‏ يُسَلِّمُ الصَّغِيرُ عَلَى الْكَبِيرِ، وَالْمَارُّ عَلَى الْقَاعِدِ، وَالْقَلِيلُ عَلَى الْكَثِيرِ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"The young should greet the old, the passer by should greet the sitting one, and the small group of persons should greet the large group of persons\"."
+        "en": "Narrated Abu Huraira: The Prophet (ﷺ) said, \"The young should greet the old, the passer by should greet the sitting one, and the small group of persons should greet the large group of persons\".",
+        "fr": "Rapporté par Abu Huraira : Le Prophète (ﷺ) a dit : « Le plus jeune doit saluer le plus âgé, celui qui passe doit saluer celui qui est assis, et le petit groupe doit saluer le grand groupe. ».",
+        "ur": "ہم سے محمد بن مقاتل ابوالحسن نے بیان کیا، انہوں نے کہا ہم کو عبداللہ نے خبر دی، انہوں نے کہا ہم کو معمر نے خبر دی، انہیں ہمام بن منبہ نے اور انہیں ابوہریرہ رضی اللہ عنہ نے کہ نبی کریم صلی اللہ علیہ وسلم نے فرمایا ”چھوٹا بڑے کو سلام کرے، گزرنے والا بیٹھنے والے کو سلام کرے اور چھوٹی جماعت بڑی جماعت کو پہلے سلام کرے۔“."
       },
       "from": "hadith-api"
     },
@@ -1299,7 +1493,9 @@
       "ref": "Sahih Muslim 194",
       "arabic": "حَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا أَبُو مُعَاوِيَةَ، وَوَكِيعٌ، عَنِ الأَعْمَشِ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ لاَ تَدْخُلُونَ الْجَنَّةَ حَتَّى تُؤْمِنُوا وَلاَ تُؤْمِنُوا حَتَّى تَحَابُّوا ‏.‏ أَوَلاَ أَدُلُّكُمْ عَلَى شَىْءٍ إِذَا فَعَلْتُمُوهُ تَحَابَبْتُمْ أَفْشُوا السَّلاَمَ بَيْنَكُمْ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Abu Huraira reported:The Messenger of Allah (may peace and blessing be upon him) observed: You shall not enter Paradise so long as you do not affirm belief (in all those things which are the articles of faith) and you will not believe as long as you do not love one another. Should I not direct you to a thing which, if you do, will foster love amongst you: (i. e.) give currency to (the practice of paying salutation to one another by saying) as-salamu alaikum."
+        "en": "Abu Huraira reported:The Messenger of Allah (may peace and blessing be upon him) observed: You shall not enter Paradise so long as you do not affirm belief (in all those things which are the articles of faith) and you will not believe as long as you do not love one another. Should I not direct you to a thing which, if you do, will foster love amongst you: (i. e.) give currency to (the practice of paying salutation to one another by saying) as-salamu alaikum.",
+        "fr": "Rapporté par Abu Huraira : Le Messager d’Allah ﷺ a dit : « Vous n’entrerez pas au Paradis tant que vous ne croirez pas, et vous ne croirez pas tant que vous ne vous aimerez pas les uns les autres. Voulez-vous que je vous indique une chose qui, si vous la faites, fera naître l’amour entre vous : répandez la salutation en disant “as-salamu alaikum”. ».",
+        "ur": "ابو معاویہ اور وکیع نے اعمش سے حدیث سنائی ، انہوں نے ابو صالح سے اور انہوں نے حضرت ابو ہریرہ ‌رضی ‌اللہ ‌عنہ ‌ ‌ سے روایت کی ، انہوں نے کہا کہ رسول اللہ ﷺ نے فرمایا : ’’ تم جنت میں داخل نہیں ہو گے یہاں تک کہ تم مومن ہو جاؤ ، اور تم مو من نہیں ہو سکتے یہاں تک کہ ایک دوسرے سے محبت کرو ۔ کیا تمہیں ایسی چیز نہ بتاؤں کہ جب تم اس پر عمل کرو تو ایک دوسرے کے ساتھ محبت کرنے لگو ، آپس میں سلام عام کرو ۔ ‘ ‘."
       },
       "from": "hadith-api"
     },
@@ -1312,7 +1508,9 @@
       "ref": "Sahih al-Bukhari 1216",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ أَبِي شَيْبَةَ، حَدَّثَنَا ابْنُ فُضَيْلٍ، عَنِ الأَعْمَشِ، عَنْ إِبْرَاهِيمَ، عَنْ عَلْقَمَةَ، عَنْ عَبْدِ اللَّهِ، قَالَ كُنْتُ أُسَلِّمُ عَلَى النَّبِيِّ صلى الله عليه وسلم وَهُوَ فِي الصَّلاَةِ فَيَرُدُّ عَلَىَّ، فَلَمَّا رَجَعْنَا سَلَّمْتُ عَلَيْهِ فَلَمْ يَرُدَّ عَلَىَّ وَقَالَ ‏ \"‏ إِنَّ فِي الصَّلاَةِ شُغْلاً ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Abdullah: I used to greet the Prophet (ﷺ) while he was in prayer and he would return my greeting, but when we returned (from Ethiopia) I greeted the Prophet (while he was praying) but he did not return the greeting, and (after finishing the prayer) he said, \"In the prayer one is occupied (with a more serious matter)\"."
+        "en": "Narrated `Abdullah: I used to greet the Prophet (ﷺ) while he was in prayer and he would return my greeting, but when we returned (from Ethiopia) I greeted the Prophet (while he was praying) but he did not return the greeting, and (after finishing the prayer) he said, \"In the prayer one is occupied (with a more serious matter)\".",
+        "fr": "Rapporté par `Abdullah : J’avais l’habitude de saluer le Prophète (ﷺ) pendant qu’il priait et il me rendait le salut. Mais quand nous sommes revenus d’Éthiopie, je l’ai salué alors qu’il priait, mais il ne m’a pas répondu. Après avoir terminé la prière, il a dit : « Pendant la prière, on est occupé par quelque chose de plus important. ».",
+        "ur": "ہم سے عبداللہ بن ابی شیبہ نے بیان کیا، کہا کہ ہم سے ابن فضیل نے بیان کیا، ان سے اعمش نے، ان سے ابراہیم نے، ان سے علقمہ نے اور ان سے عبداللہ بن مسعود رضی اللہ عنہ نے کہا کہ ( ابتداء اسلام میں ) نبی کریم صلی اللہ علیہ وسلم جب نماز میں ہوتے تو میں آپ صلی اللہ علیہ وسلم کو سلام کرتا تو آپ صلی اللہ علیہ وسلم جواب دیتے تھے۔ مگر جب ہم ( حبشہ سے جہاں ہجرت کی تھی ) واپس آئے تو میں نے ( پہلے کی طرح نماز میں ) سلام کیا۔ مگر آپ صلی اللہ علیہ وسلم نے کوئی جواب نہیں دیا ( کیونکہ اب نماز میں بات چیت وغیرہ کی ممانعت نازل ہو گئی تھی ) اور فرمایا کہ نماز میں اس سے مشغولیت ہوتی ہے۔."
       },
       "from": "hadith-api"
     },
@@ -1325,7 +1523,9 @@
       "ref": "Sahih al-Bukhari 5783",
       "arabic": "حَدَّثَنَا إِسْمَاعِيلُ، قَالَ حَدَّثَنِي مَالِكٌ، عَنْ نَافِعٍ، وَعَبْدِ اللَّهِ بْنِ دِينَارٍ، وَزَيْدِ بْنِ أَسْلَمَ، يُخْبِرُونَهُ عَنِ ابْنِ عُمَرَ ـ رضى الله عنهما ـ أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ لاَ يَنْظُرُ اللَّهُ إِلَى مَنْ جَرَّ ثَوْبَهُ خُيَلاَءَ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated `Abdullah bin `Umar: Allah's Messenger (ﷺ) said, 'Allah will not look at the person who drags his garment (behind him) out of conceit."
+        "en": "Narrated `Abdullah bin `Umar: Allah's Messenger (ﷺ) said, 'Allah will not look at the person who drags his garment (behind him) out of conceit.",
+        "fr": "Rapporté par `Abdullah bin `Umar : Le Messager d’Allah (ﷺ) a dit : « Allah ne regardera pas la personne qui traîne son vêtement derrière elle par orgueil. ».",
+        "ur": "ہم سے اسماعیل بن ابی اویس نے بیان کیا، کہا مجھ سے امام مالک نے، انہوں نے نافع اور عبداللہ بن دینار اور زید بن اسلم سے، انہوں نے عبداللہ بن عمر رضی اللہ عنہما سے کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا ”اللہ تعالیٰ اس کی طرف قیامت کے دن نظر رحمت نہیں کرے گا جو اپنا کپڑا تکبر و غرور سے زمین پر گھسیٹ کر چلتا ہے۔“."
       },
       "from": "hadith-api"
     },
@@ -1338,7 +1538,9 @@
       "ref": "Sahih al-Bukhari 5813",
       "arabic": "حَدَّثَنِي عَبْدُ اللَّهِ بْنُ أَبِي الأَسْوَدِ، حَدَّثَنَا مُعَاذٌ، قَالَ حَدَّثَنِي أَبِي، عَنْ قَتَادَةَ، عَنْ أَنَسِ بْنِ مَالِكٍ، رضى الله عنه ـ قَالَ كَانَ أَحَبُّ الثِّيَابِ إِلَى النَّبِيِّ صلى الله عليه وسلم أَنْ يَلْبَسَهَا الْحِبَرَةَ‏.‏",
       "text": {
-        "en": "Narrated Anas bin Malik: The most beloved garment to the Prophet (ﷺ) to wear was the Hibra (a kind of Yemenese cloth)."
+        "en": "Narrated Anas bin Malik: The most beloved garment to the Prophet (ﷺ) to wear was the Hibra (a kind of Yemenese cloth).",
+        "fr": "Rapporté par Anas bin Malik : Le vêtement que le Prophète (ﷺ) préférait porter était le hibra (un tissu du Yémen).",
+        "ur": "مجھ سے عبداللہ بن ابی الاسود نے بیان کیا، انہوں نے کہا ہم سے معاذ دستوائی نے بیان کیا، انہوں نے کہا کہ مجھ سے میرے والد نے بیان کیا، ان سے قتادہ نے اور ان سے انس بن مالک رضی اللہ عنہ نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم کو تمام کپڑوں میں یمنی سبز چادر پہننا بہت پسند تھی۔."
       },
       "from": "hadith-api"
     },
@@ -1351,7 +1553,9 @@
       "ref": "Sahih al-Bukhari 5855",
       "arabic": "حَدَّثَنَا عَبْدُ اللَّهِ بْنُ مَسْلَمَةَ، عَنْ مَالِكٍ، عَنْ أَبِي الزِّنَادِ، عَنِ الأَعْرَجِ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه أَنَّ رَسُولَ اللَّهِ صلى الله عليه وسلم قَالَ ‏ \"‏ إِذَا انْتَعَلَ أَحَدُكُمْ فَلْيَبْدَأْ بِالْيَمِينِ وَإِذَا نَزَعَ فَلْيَبْدَأْ بِالشِّمَالِ، لِتَكُنِ الْيُمْنَى أَوَّلَهُمَا تُنْعَلُ وَآخِرَهُمَا تُنْزَعُ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"If you want to put on your shoes, put on the right shoe first; and if you want to take them off, take the left one first. Let the right shoe be the first to be put on and the last to be taken off\"."
+        "en": "Narrated Abu Huraira: Allah's Messenger (ﷺ) said, \"If you want to put on your shoes, put on the right shoe first; and if you want to take them off, take the left one first. Let the right shoe be the first to be put on and the last to be taken off\".",
+        "fr": "Rapporté par Abu Huraira : Le Messager d'Allah (ﷺ) a dit : « Quand vous voulez mettre vos chaussures, commencez par le pied droit ; et quand vous voulez les enlever, commencez par le pied gauche. Que la chaussure droite soit la première à être mise et la dernière à être enlevée. ».",
+        "ur": "ہم سے عبداللہ بن مسلمہ نے بیان کیا، ان سے امام مالک نے، ان سے ابوالزناد نے، ان سے اعرج نے اور ان سے ابوہریرہ رضی اللہ عنہ نے بیان کیا کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا کہ جب تم میں سے کوئی شخص جوتا پہنے تو دائیں طرف سے شروع کرے اور جب اتارے تو بائیں طرف سے اتارے تاکہ داہنی جانب پہننے میں اول ہو اور اتارنے میں آخر ہو۔."
       },
       "from": "hadith-api"
     },
@@ -1364,7 +1568,9 @@
       "ref": "Sahih al-Bukhari 3249",
       "arabic": "حَدَّثَنَا مُسَدَّدٌ، حَدَّثَنَا يَحْيَى بْنُ سَعِيدٍ، عَنْ سُفْيَانَ، قَالَ حَدَّثَنِي أَبُو إِسْحَاقَ، قَالَ سَمِعْتُ الْبَرَاءَ بْنَ عَازِبٍ ـ رضى الله عنهما ـ قَالَ أُتِيَ رَسُولُ اللَّهِ صلى الله عليه وسلم بِثَوْبٍ مِنْ حَرِيرٍ، فَجَعَلُوا يَعْجَبُونَ مِنْ حُسْنِهِ وَلِينِهِ، فَقَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ لَمَنَادِيلُ سَعْدِ بْنِ مُعَاذٍ فِي الْجَنَّةِ أَفْضَلُ مِنْ هَذَا ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Al-Bara bin Azib: Allah's Messenger (ﷺ) was given a silken garment, and its beauty and delicacy astonished the people. On that, Allah's Messenger (ﷺ) said, \"No doubt, the handkerchiefs of Sa`d bin Mu`adh in Paradise are better than this\"."
+        "en": "Narrated Al-Bara bin Azib: Allah's Messenger (ﷺ) was given a silken garment, and its beauty and delicacy astonished the people. On that, Allah's Messenger (ﷺ) said, \"No doubt, the handkerchiefs of Sa`d bin Mu`adh in Paradise are better than this\".",
+        "fr": "Rapporté par Al-Bara bin Azib : Le Messager d’Allah ﷺ a reçu un vêtement de soie, et sa beauté et sa finesse ont étonné les gens. À cela, le Messager d’Allah ﷺ a dit : « Les mouchoirs de Sa`d bin Mu`adh au Paradis sont sans aucun doute meilleurs que cela. ».",
+        "ur": "ہم سے مسدد نے بیان کیا، انہوں نے کہا ہم سے یحییٰ بن سعید نے بیان کیا، ان سے سفیان نے بیان کیا، انہوں نے کہا کہ مجھ سے ابواسحاق نے بیان کیا، کہا کہ میں نے براء بن عازب رضی اللہ عنہما سے سنا، آپ نے بیان کیا کہ رسول اللہ صلی اللہ علیہ وسلم کی خدمت میں ریشم کا ایک کپڑا پیش کیا گیا اس کی خوبصورتی اور نزاکت نے لوگوں کو حیرت میں ڈال دیا۔ آپ صلی اللہ علیہ وسلم نے فرمایا کہ جنت میں سعد بن معاذ کے رومال اس سے بہتر اور افضل ہیں۔."
       },
       "from": "hadith-api"
     },
@@ -1377,7 +1583,9 @@
       "ref": "Sahih Muslim 5422",
       "arabic": "وَحَدَّثَنَا أَبُو بَكْرِ بْنُ أَبِي شَيْبَةَ، وَأَبُو كُرَيْبٍ وَزُهَيْرُ بْنُ حَرْبٍ - وَاللَّفْظُ لِزُهَيْرٍ - قَالَ أَبُو كُرَيْبٍ أَخْبَرَنَا وَقَالَ الآخَرَانِ، حَدَّثَنَا وَكِيعٌ، عَنْ مِسْعَرٍ، عَنْ أَبِي عَوْنٍ الثَّقَفِيِّ، عَنْ أَبِي صَالِحٍ الْحَنَفِيِّ، عَنْ عَلِيٍّ، أَنَّ أُكَيْدِرَ، دُومَةَ أَهْدَى إِلَى النَّبِيِّ صلى الله عليه وسلم ثَوْبَ حَرِيرٍ فَأَعْطَاهُ عَلِيًّا فَقَالَ ‏\"‏ شَقِّقْهُ خُمُرًا بَيْنَ الْفَوَاطِمِ ‏\"‏ ‏.‏ وَقَالَ أَبُو بَكْرٍ وَأَبُو كُرَيْبٍ ‏\"‏ بَيْنَ النِّسْوَةِ ‏\"‏ ‏.‏",
       "text": {
-        "en": "Ali reported that Ukaidir of Duma presented to Allah's Apostle (ﷺ) a silk garment, and he presented it to 'Ali. and said:Tear it to make head covering for Fitimas out of it. This tradition is transmitted on the authority of Abu Bakr, and Abu Kuraib said: Among the women."
+        "en": "Ali reported that Ukaidir of Duma presented to Allah's Apostle (ﷺ) a silk garment, and he presented it to 'Ali. and said:Tear it to make head covering for Fitimas out of it. This tradition is transmitted on the authority of Abu Bakr, and Abu Kuraib said: Among the women.",
+        "fr": "Rapporté par Ali : Ukaidir de Duma offrit au Messager d’Allah ﷺ un vêtement en soie, et il le donna à Ali en disant : « Déchire-le pour en faire des couvre-chefs pour Fatima. » Ce récit est transmis par Abu Bakr, et Abu Kuraib ajouta : « Parmi les femmes. ».",
+        "ur": "ابو بکر بن ابی شیبہ ، ابو کریب اور زہیر بن حرب نے ہمیں حدیث بیان کی ۔ الفاظ زہیر کے ہیں ۔ کہا : ہیں وکیع نے مسعر سے حدیث بیان کی ، انھوں نے ابو عون ثقفی سے ، انھوں نے ابو صالح حنفی سے ، انھوں نے حضرت علی رضی اللہ تعالیٰ عنہ سے روایت کی کہ دومۃ الجندل کے ( حکمران ) اکیدر نے نبی کریم صلی اللہ علیہ وسلم کی خدمت میں ریشم کا ایک کپڑا ہدیہ بھیجا ، آپ نے وہ کپڑاحضرت علی رضی اللہ تعالیٰ عنہ کو دیا اور فرمایا : \"\" اس کو کاٹ کر ( تینوں ) فاطماؤں ( فاطمہ بنت رسول اللہ صلی اللہ علیہ وسلم ، فاطمہ بنت اسد ، یعنی حضرت علی رضی اللہ تعالیٰ عنہ کی والدہ ، اور فاطمہ بنت حمزہ رضی اللہ عنھن میں اوڑھنیاں بانٹ دو ۔ \"\" ابو بکر اور ابو کریب نے ( \"\" فاطماؤں کے مابین \"\" کے بجائے ) \"\" عورتوں کے مابین \"\" کہا ۔."
       },
       "from": "hadith-api"
     },
@@ -1390,7 +1598,9 @@
       "ref": "Sahih Muslim 5766",
       "arabic": "حَدَّثَنَا مُحَمَّدُ بْنُ رُمْحِ بْنِ الْمُهَاجِرِ، أَخْبَرَنَا اللَّيْثُ، عَنْ عُقَيْلٍ، عَنِ ابْنِ شِهَابٍ، أَخْبَرَنِي أَبُو سَلَمَةَ بْنُ عَبْدِ الرَّحْمَنِ، وَسَعِيدُ بْنُ الْمُسَيَّبِ، أَنَّ أَبَا هُرَيْرَةَ، أَخْبَرَهُمَا أَنَّهُ، سَمِعَ رَسُولَ اللَّهِ صلى الله عليه وسلم يَقُولُ ‏ \"‏ إِنَّ فِي الْحَبَّةِ السَّوْدَاءِ شِفَاءً مِنْ كُلِّ دَاءٍ إِلاَّ السَّامَ ‏\"‏ ‏.‏ وَالسَّامُ الْمَوْتُ ‏.‏ وَالْحَبَّةُ السَّوْدَاءُ الشُّونِيزُ ‏.‏",
       "text": {
-        "en": "Abu Huraira reported that he heard Allah's Messenger (ﷺ) as saying:Nigella seed is a remedy for every disease except death."
+        "en": "Abu Huraira reported that he heard Allah's Messenger (ﷺ) as saying:Nigella seed is a remedy for every disease except death.",
+        "fr": "Rapporté par Abu Huraira رضي الله عنه : Il a entendu le Messager d’Allah ﷺ dire : « La graine de nigelle est un remède contre toutes les maladies, sauf la mort. ».",
+        "ur": "عقیل نے ابن شہاب سے روایت کی ، کہا : مجھے ابو سلمہ بن عبد الرحمٰن اور سعید بن مسیب نے بتا یا کہ حضرت ابو ہریرہ رضی اللہ تعالیٰ عنہ نے ان دونوں کو خبرد ی کہ انھوں نے رسول اللہ صلی اللہ علیہ وسلم کو یہ فرما تے ہو ئے سنا ، \" شونیز سام ( موت ) کے علاوہ ہر بیماری سے شفا ہے ۔ \" \" سام : موت ہے اور حبہ سودا ( سے مراد ) شونیز ( زیرسیاہ ) ہے ۔\"."
       },
       "from": "hadith-api"
     },
@@ -1403,7 +1613,9 @@
       "ref": "Sahih al-Bukhari 5682",
       "arabic": "حَدَّثَنَا عَلِيُّ بْنُ عَبْدِ اللَّهِ، حَدَّثَنَا أَبُو أُسَامَةَ، قَالَ أَخْبَرَنِي هِشَامٌ، عَنْ أَبِيهِ، عَنْ عَائِشَةَ ـ رضى الله عنها ـ قَالَتْ كَانَ النَّبِيُّ صلى الله عليه وسلم يُعْجِبُهُ الْحَلْوَاءُ وَالْعَسَلُ‏.‏",
       "text": {
-        "en": "Narrated `Aisha: The Prophet (ﷺ) used to like sweet edible things and honey."
+        "en": "Narrated `Aisha: The Prophet (ﷺ) used to like sweet edible things and honey.",
+        "fr": "Rapporté par `Aisha رضي الله عنها : Le Prophète (ﷺ) aimait les choses sucrées et le miel.",
+        "ur": "ہم سے علی بن عبداللہ نے بیان کیا، کہا ہم سے ابواسامہ نے بیان کیا، کہا کہ مجھے ہشام نے خبر دی، انہیں ان کے والد نے اور ان سے عائشہ رضی اللہ عنہا نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم کو شیرینی اور شہد پسند تھا۔."
       },
       "from": "hadith-api"
     },
@@ -1416,7 +1628,9 @@
       "ref": "Sahih al-Bukhari 5732",
       "arabic": "حَدَّثَنَا مُوسَى بْنُ إِسْمَاعِيلَ، حَدَّثَنَا عَبْدُ الْوَاحِدِ، حَدَّثَنَا عَاصِمٌ، حَدَّثَتْنِي حَفْصَةُ بِنْتُ سِيرِينَ، قَالَتْ قَالَ لِي أَنَسُ بْنُ مَالِكٍ ـ رضى الله عنه ـ يَحْيَى بِمَا مَاتَ قُلْتُ مِنَ الطَّاعُونِ‏.‏ قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ الطَّاعُونُ شَهَادَةٌ لِكُلِّ مُسْلِمٍ ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Anas bin Malik: Allah's Messenger (ﷺ) said, \"(Death from) plague is martyrdom for every Muslim\"."
+        "en": "Narrated Anas bin Malik: Allah's Messenger (ﷺ) said, \"(Death from) plague is martyrdom for every Muslim\".",
+        "fr": "Rapporté par Anas bin Malik : Le Messager d’Allah (ﷺ) a dit : « Mourir de la peste est un martyr pour chaque musulman. ».",
+        "ur": "ہم سے موسیٰ بن اسماعیل نے بیان کیا، کہا ہم سے عبدالواحد نے بیان کیا، کہا ہم سے عاصم نے بیان کیا، کہا مجھ سے حفصہ بنت سیرین نے بیان کیا، کہا کہ مجھ سے انس بن مالک رضی اللہ عنہ نے پوچھا کہ یحییٰ بن سیرین کا کس بیماری میں انتقال ہوا تھا۔ میں نے کہا کہ طاعون میں، بیان کیا کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا کہ طاعون ہر مسلمان کے لیے شہادت ہے۔."
       },
       "from": "hadith-api"
     },
@@ -1429,7 +1643,9 @@
       "ref": "Sahih al-Bukhari 3616",
       "arabic": "حَدَّثَنَا مُعَلَّى بْنُ أَسَدٍ، حَدَّثَنَا عَبْدُ الْعَزِيزِ بْنُ مُخْتَارٍ، حَدَّثَنَا خَالِدٌ، عَنْ عِكْرِمَةَ، عَنِ ابْنِ عَبَّاسٍ ـ رضى الله عنهما ـ أَنَّ النَّبِيَّ صلى الله عليه وسلم دَخَلَ عَلَى أَعْرَابِيٍّ ـ يَعُودُهُ ـ قَالَ وَكَانَ النَّبِيُّ صلى الله عليه وسلم إِذَا دَخَلَ عَلَى مَرِيضٍ يَعُودُهُ قَالَ لاَ بَأْسَ طَهُورٌ إِنْ شَاءَ اللَّهُ‏.‏ فَقَالَ لَهُ ‏\"‏ لاَ بَأْسَ طَهُورٌ إِنْ شَاءَ اللَّهُ ‏\"‏‏.‏ قَالَ قُلْتَ طَهُورٌ كَلاَّ بَلْ هِيَ حُمَّى تَفُورُ ـ أَوْ تَثُورُ ـ عَلَى شَيْخٍ كَبِيرٍ، تُزِيرُهُ الْقُبُورَ‏.‏ فَقَالَ النَّبِيُّ صلى الله عليه وسلم ‏\"‏ فَنَعَمْ إِذًا ‏\"‏‏.‏",
       "text": {
-        "en": "Narrated Ibn `Abbas: The Prophet (ﷺ) paid a visit to a sick bedouin. The Prophet (ﷺ) when visiting a patient used to say, \"No harm will befall you! May Allah cure you! May Allah cure you!\" So the Prophet (ﷺ) said to the bedouin. \"No harm will befall you. May Allah cure you!\" The bedouin said, \"You say, may Allah cure me? No, for it is a fever which boils in (the body of) an old man, and will lead him to the grave.\" The Prophet (ﷺ) said, \"Yes, then may it be as you say\"."
+        "en": "Narrated Ibn `Abbas: The Prophet (ﷺ) paid a visit to a sick bedouin. The Prophet (ﷺ) when visiting a patient used to say, \"No harm will befall you! May Allah cure you! May Allah cure you!\" So the Prophet (ﷺ) said to the bedouin. \"No harm will befall you. May Allah cure you!\" The bedouin said, \"You say, may Allah cure me? No, for it is a fever which boils in (the body of) an old man, and will lead him to the grave.\" The Prophet (ﷺ) said, \"Yes, then may it be as you say\".",
+        "fr": "Rapporté par Ibn `Abbas : Le Prophète (ﷺ) a rendu visite à un bédouin malade. Quand il rendait visite à un malade, le Prophète (ﷺ) disait : « Aucun mal ne t’arrivera ! Qu’Allah te guérisse ! Qu’Allah te guérisse ! » Il a donc dit au bédouin : « Aucun mal ne t’arrivera. Qu’Allah te guérisse ! » Le bédouin a répondu : « Tu dis, qu’Allah me guérisse ? Non, c’est une fièvre qui brûle dans le corps d’un vieil homme et qui le mènera à la tombe. » Le Prophète (ﷺ) a dit : « Oui, alors qu’il en soit ainsi, comme tu le dis. ».",
+        "ur": "ہم سے معلی بن اسد نے بیان کیا، کہا ہم سے عبدالعزیز بن مختار نے بیان کیا، کہا ہم سے خالد نے بیان کیا، ان سے عکرمہ نے اور ان سے عبداللہ بن عباس رضی اللہ عنہما نے بیان کیا کہ نبی کریم صلی اللہ علیہ وسلم ایک اعرابی کی عیادت کے لیے تشریف لے گئے۔ آپ صلی اللہ علیہ وسلم جب بھی کسی مریض کی عیادت کے لیے تشریف لے جاتے تو فرماتے کوئی حرج نہیں، ان شاءاللہ یہ بخار گناہوں کو دھو دے گا۔ آپ صلی اللہ علیہ وسلم نے اس اعرابی سے بھی یہی فرمایا کہ کوئی حرج نہیں ان شاءاللہ ( یہ بخار ) گناہوں کو دھو دے گا۔ اس نے اس پر کہا: آپ کہتے ہیں گناہوں کو دھونے والا ہے۔ ہرگز نہیں۔ یہ تو نہایت شدید قسم کا بخار ہے یا ( راوی نے ) «تثور» کہا ( دونوں کا مفہوم ایک ہی ہے ) کہ بخار ایک بوڑھے کھوسٹ پر جوش مار رہا ہے جو قبر کی زیارت کرائے بغیر نہیں چھوڑے گا۔ آپ صلی اللہ علیہ وسلم نے فرمایا کہ اچھا تو پھر یوں ہی ہو گا۔."
       },
       "from": "hadith-api"
     }

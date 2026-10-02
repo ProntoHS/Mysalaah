@@ -390,8 +390,13 @@ class PassageReader(QtWidgets.QWidget):
         self.reload()
 
     def language(self) -> str:
-        """Which meaning to show. The reading language if this section has it, else English."""
-        wanted = self.win.settings.quran_lang or "en"
+        """Which meaning to show. The reading language if this section has it, else English.
+
+        Falls back to the app's own language rather than to English -- see the note on
+        DuaBoard.language(), which makes the same choice so a du'a reads the same on the
+        board and on the page it opens.
+        """
+        wanted = self.win.settings.quran_lang or self.win.settings.lang or "en"
         return wanted if wanted in self.passages.languages() else "en"
 
     def reload(self) -> None:

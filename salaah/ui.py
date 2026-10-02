@@ -1700,7 +1700,10 @@ class MainWindow(QtWidgets.QWidget):
         if step is None:
             return self.open_the_wudu_steps()
         named = self.t(f"wudu.{key}")
-        said = step["text"].get(self.settings.quran_lang or "en") or step["text"].get("en", "")
+        # The same fallback the du'a board and the passage reader make: the app's language
+        # rather than English, so the wu'du steps are read in the language the mat is set to.
+        chosen = self.settings.quran_lang or self.settings.lang or "en"
+        said = step["text"].get(chosen) or step["text"].get("en", "")
         self.wudu_step.show_step(step, f"{step['number']} - {named}", said,
                                  place=self.wudu.steps.index(step), of=len(self.wudu.steps))
         self.corner_screen.setCurrentWidget(self.wudu_step)
@@ -2987,15 +2990,19 @@ class MainWindow(QtWidgets.QWidget):
         from .update import DEFAULT_URL
         return self.settings.update_url or DEFAULT_URL
 
-    def say(self, message: str) -> None:
+    def say(self, message: str, title: str = "update.title") -> None:
         """Put a message in front of the person, in a box they cannot overlook.
 
         The whole business of updating happens on this thread, so nothing repaints while the
         network is being waited on. Every message therefore has to be painted BEFORE the slow
         thing starts, which is what settle() ends with.
+
+        [title] is a pack key, because this box is no longer only for updates: changing the
+        language restarts the app, and announcing that under the heading "Update" would tell
+        the person something that is not true.
         """
         if self.notice is None:
-            self.notice = Notice(self, self.px, self.t("update.title"))
+            self.notice = Notice(self, self.px, self.t(title))
             self.notice.finished.connect(self.notice_closed)
         self.notice.say(message)
 
@@ -3055,6 +3062,49 @@ class MainWindow(QtWidgets.QWidget):
         """
         from .update import RESTART
         QtWidgets.QApplication.instance().exit(RESTART)
+
+    def start_again(self) -> None:
+        """Start the app over from scratch, in place, after a setting the screens are built from.
+
+        WHY NOT rebuild(). It tears down every screen and builds new ones, and it does not get
+        the memory back: measured on this machine, each language change cost about twenty
+        megabytes that never returned -- 147 MB after the first build, 243 after six changes,
+        347 after twelve. On a Pi with the rest of the mat running, that ends with the kernel
+        killing the app, which looks from the prayer mat like the screen going out and the
+        desktop coming up. Whatever is holding those screens open, a process that starts again
+        does not have it, and chasing the last reference around a dozen widgets would leave the
+        same trap set for the next screen that gets added.
+
+        WHY NOT exit(RESTART). That code means one thing: an update has been installed. run.sh
+        counts those, and the counting is not safe to borrow:
+
+          * a version still on trial that exits before it has settled is taken for a version
+            that died, and the guard puts the PREVIOUS one back. Settling takes ten seconds,
+            so changing the language just after an update would have rolled the update back;
+          * a sixth restart in one run is treated as a failure on purpose, to stop a loop. Six
+            language changes in a sitting is a child playing with a dropdown, not a fault, and
+            it would have reverted the version.
+
+        And run.sh is deliberately never replaced by an update -- it is the guard -- so a new
+        exit code could not have reached a mat that is already out there anyway.
+
+        os.execv replaces this process with a new one. run.sh sees no exit at all: its loop is
+        never re-entered, so nothing is counted, nothing is rolled back, and there is no cap on
+        how often this can happen. The trial goes on being timed by the new process, which
+        settles it as usual.
+        """
+        import os
+        # Let go of the speaker before the process is replaced. execv keeps whatever file
+        # handles were not marked close-on-exec, and a sound card still held open by a process
+        # that no longer exists is the kind of thing that only shows up on the mat.
+        self.hush_passages()
+        self.stop_audio()
+        # The settings file is what the new process reads to find out what changed, so it has
+        # to be on the disk before this process stops existing. persist() has already been
+        # called by the setter; this is the flush of the streams, which execv does not do.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os.execv(sys.executable, [sys.executable, "-m", "salaah"] + sys.argv[1:])
 
     def settled(self) -> None:
         """Called once this version has run long enough to be trusted, so the guard stops
@@ -3348,14 +3398,34 @@ class MainWindow(QtWidgets.QWidget):
         self.slide.parallel.set_family(Fonts.arabic(key))
         self.setStyleSheet(self.stylesheet())   # the banner name uses it too
 
+    # Both of these start the app over rather than rebuilding the screens in place. See
+    # start_again() for why: rebuild() does not give the memory back, and enough changes in one
+    # sitting ended with the mat on the desktop. The setting is written to the disk first, so
+    # the new process comes up with the choice already made.
+
     def set_school(self, sid: str) -> None:
+        if sid == self.settings.school:
+            return
         self.settings.school = sid
         self.persist()
-        self.rebuild()
-        self.open_settings()
+        self.say_and_start_again("settings.school")
 
     def set_lang(self, lang: str) -> None:
+        if lang == self.settings.lang:
+            return
         self.settings.lang = lang
         self.persist()
-        self.rebuild()
-        self.open_settings()
+        # Said in the language being LEFT, not the one arriving. The box is up for under a
+        # second and the person is reading it on their way out of a language they could read
+        # well enough to find this screen with.
+        self.say_and_start_again("settings.language")
+
+    def say_and_start_again(self, title: str) -> None:
+        """Tell the person the app is starting over, then do it.
+
+        A screen that goes black and comes back on its own looks like the mat falling over --
+        which is exactly what it used to be doing. One line, under the name of the setting
+        that changed, and the mat is back before they have finished reading it.
+        """
+        self.say(self.t("settings.restarting"), title=title)
+        QtCore.QTimer.singleShot(700, self.start_again)

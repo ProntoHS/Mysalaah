@@ -350,18 +350,40 @@ def tidy(english: str) -> str:
     return said
 
 
+# The dataset's own translations, by the mat's language code. English is required; the rest are
+# lifted if the folder has them and quietly skipped if it has not, so the build still runs for
+# somebody who only fetched the two the header used to list.
+#
+# These are the ONLY languages being added, because these are the ones the dataset publishes for
+# both collections. The mat also speaks Spanish, Hindi and Chinese, and there is no Spanish,
+# Hindi or Chinese Bukhari or Muslim in this corpus or in any other I can reach. Those three
+# fall back to English on screen, which is the same rule the du'as have always used. Writing
+# them myself is the one thing the top of this file says never to do: a hadith translation is
+# not a phrase to render, it is a published work with a translator's name on it.
+TONGUES = {"eng": "en", "fra": "fr", "urd": "ur"}
+
+
 def editions(where: Path) -> dict:
-    """The four dataset files, as {collection: (arabic by number, english by number, meta)}."""
+    """The dataset files, as {collection: (arabic by number, {lang: by number}, meta)}."""
     out = {}
     for book in BOOKS:
-        got = []
-        for tongue in ("ara", "eng"):
-            path = where / f"{tongue}-{book}.json"
-            if not path.is_file():
-                raise SystemExit(f"missing {path}\nSee the header of this file for how to fetch it.")
-            got.append(json.loads(path.read_text(encoding="utf-8")))
-        by = [{str(h["hadithnumber"]): h for h in side["hadiths"]} for side in got]
-        out[book] = (by[0], by[1], got[1]["metadata"])
+        path = where / f"ara-{book}.json"
+        if not path.is_file():
+            raise SystemExit(f"missing {path}\nSee the header of this file for how to fetch it.")
+        arabic = json.loads(path.read_text(encoding="utf-8"))
+        said, meta = {}, None
+        for tongue, lang in TONGUES.items():
+            side = where / f"{tongue}-{book}.json"
+            if not side.is_file():
+                if lang == "en":
+                    raise SystemExit(f"missing {side}\nSee the header of this file.")
+                print(f"  (no {side.name}; {lang} will fall back to English)", file=sys.stderr)
+                continue
+            got = json.loads(side.read_text(encoding="utf-8"))
+            said[lang] = {str(h["hadithnumber"]): h for h in got["hadiths"]}
+            if lang == "en":
+                meta = got["metadata"]
+        out[book] = ({str(h["hadithnumber"]): h for h in arabic["hadiths"]}, said, meta)
     return out
 
 
@@ -418,12 +440,25 @@ def build(where: Path, out: Path = OUT) -> int:
             if (book, number) in written:
                 continue            # already written, with all of its headings on it
             written.add((book, number))
-            arabic_by, english_by, meta = packs[book]
-            if number not in arabic_by or number not in english_by:
+            arabic_by, said_by, meta = packs[book]
+            if number not in arabic_by or number not in said_by["en"]:
                 refused.append(f"{BOOKS[book]} {number}: not in the dataset")
                 continue
             arabic = arabic_by[number]["text"].strip()
-            english = tidy(english_by[number]["text"])
+            english = tidy(said_by["en"][number]["text"])
+            # Every translation the dataset has for this narration, matched to the English by
+            # hadith number -- the same join the English itself is made with. A translation
+            # the dataset is missing for one narration is left out of that one rather than
+            # failing the build: the screen falls back to English per saying, not per section.
+            # Tested BEFORE tidy(), not after. tidy() mends a narration the dataset cut the
+            # full stop off, so handed an empty string it returns "." -- and "." is not blank,
+            # so an empty translation sailed through as a translation. Bukhari 7563 reached
+            # the file with its whole Urdu being a full stop, and Muslim 3499 its French.
+            said = {}
+            for lang, by in said_by.items():
+                raw = by[number]["text"] if number in by else ""
+                if raw.strip():
+                    said[lang] = tidy(raw)
             words = bare(arabic).split()
             run = longest_run(words, other[book])
             if run < MATCH_WORDS or run < len(words) * MATCH_SHARE:
@@ -438,12 +473,12 @@ def build(where: Path, out: Path = OUT) -> int:
                 "title": chapter(meta, number),
                 "ref": f"{BOOKS[book]} {number}",
                 "arabic": arabic,
-                "text": {"en": english},
+                "text": said,
                 "from": "hadith-api",
             })
             print(f"  {','.join(under[(book, number)]):22} {BOOKS[book]:<17}{number:>6}  "
-                  f"ar{len(arabic):>4} en{len(english):>4}  "
-                  f"share {run:>3}/{len(words):<3}  {english[:40]}")
+                  f"ar{len(arabic):>4} {'+'.join(sorted(said)):>8}  "
+                  f"share {run:>3}/{len(words):<3}  {english[:34]}")
 
     for line in refused:
         print(f"  REFUSED  {line}", file=sys.stderr)

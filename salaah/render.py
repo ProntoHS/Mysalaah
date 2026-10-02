@@ -286,9 +286,9 @@ class TextBox(QtWidgets.QWidget):
         self.highlight_color: str | None = None   # None: the theme's red
         self.lines: list[str] = []
         self.scale = 1.0
-        # Normally the box picks the biggest size its text will fit at. Pinning overrides that, for
-        # when something outside the box has to agree with it -- the daily passages, where the
-        # Arabic and the English underneath are set to one size between them.
+        # Normally the box picks the biggest size its text will fit at. Pinning overrides that,
+        # for when something outside the box has to agree with it: two boxes side by side that
+        # would otherwise be set at different sizes and read as two different voices.
         self.pinned: int | None = None
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
 

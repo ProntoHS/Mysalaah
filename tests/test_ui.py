@@ -1,6 +1,7 @@
 """Drives the real screens without a display and saves screenshots to /tmp/salaah-shots."""
 import json
 import os
+import sys
 import time
 import urllib.request
 import unittest
@@ -2627,6 +2628,259 @@ class BannerAndDoneScreenTest(unittest.TestCase):
                 if said:
                     self.assertNotIn(said, words, f"{lang} still shows {key}")
 
+    def test_what_fed_that_page_was_taken_out_with_it(self):
+        """The page went in 1.49; what it read stayed on the disk until 1.57.
+
+        Two files of scripture nothing opened, three strings in each of six packs, a dataclass,
+        and the loader that filled it -- about forty kilobytes on a card that is 95% full, and
+        more to the point, content carrying its own copies of Qur'an verses and hadith that no
+        reviewer would ever think to check because nothing shows it.
+        """
+        self.assertFalse((ASSETS / "content" / "daily").exists(),
+                         "assets/content/daily is still on the disk")
+        from salaah import content as content_module
+        self.assertFalse(hasattr(content_module, "Daily"), "the Daily class is still here")
+        self.assertFalse(hasattr(CONTENT, "daily"), "Content still carries a daily field")
+        for lang, pack in available_packs(ASSETS).items():
+            left = sorted(k for k in pack.ui if k.startswith("daily."))
+            self.assertEqual([], left, f"{lang} still has {left}")
+
+
+
+class ChangingALanguageStartsTheAppAgainTest(unittest.TestCase):
+    """Changing the language used to rebuild every screen in place, and the mat ended up on
+    the desktop.
+
+    What was happening: rebuild() throws every screen away and builds new ones, and the memory
+    does not come back. Measured on this machine with the hadith menu open -- 147 MB after the
+    first build, 243 MB after six language changes, 347 MB after twelve, about twenty
+    megabytes a time that is never returned. On a Pi running the rest of the mat that ends
+    with the kernel killing the app, which from the prayer mat looks like the screen going out.
+
+    So the setting is written to the disk and the process starts over. These are the tests for
+    the parts of that which can be checked without actually replacing the test runner: that it
+    execs rather than exits, that the command it execs is the right one, and that the setting
+    is on the disk BEFORE it goes. That the command works is checked separately, by running it.
+    """
+
+    def window(self, **over):
+        kw = dict(theme="dark", recitation=False, place="Bury")
+        kw.update(over)
+        w = MainWindow(load(ASSETS), available_packs(ASSETS), Settings(**kw),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def caught(self):
+        """Hold the exec, and record what it was asked to run."""
+        ran = []
+        patch = mock.patch.object(os, "execv", lambda p, a: ran.append((p, a)))
+        patch.start()
+        self.addCleanup(patch.stop)
+        return ran
+
+    @staticmethod
+    def wait(ms=1400):
+        """Really wait. settle() only drains the queue -- it does not let the clock move, so a
+        singleShot(700) never comes round and the restart looks as though it never happened."""
+        end = time.monotonic() + ms / 1000
+        while time.monotonic() < end:
+            APP.processEvents()
+            APP.sendPostedEvents()
+            time.sleep(0.01)
+
+    def test_choosing_a_language_starts_the_app_over(self):
+        w = self.window(lang="en")
+        ran = self.caught()
+        w.set_lang("ur")
+        self.wait()                      # the message is up for 700ms before it goes
+        self.assertEqual(1, len(ran), "the app did not start itself again")
+        path, args = ran[0]
+        self.assertEqual(sys.executable, path)
+        self.assertEqual([sys.executable, "-m", "salaah"], args[:3],
+                         f"it would have run {args}")
+
+    def test_the_choice_is_on_the_disk_before_the_process_goes(self):
+        """execv does not come back. A setting still sitting in memory when it is called is a
+        setting that never happened, and the mat would come up in the old language."""
+        w = self.window(lang="en")
+        written = []
+        w.persist = lambda: written.append(w.settings.lang)
+        ran = self.caught()
+        w.set_lang("fr")
+        self.wait()
+        self.assertEqual(["fr"], written, "the language was not persisted")
+        self.assertEqual(1, len(ran), "it did not start again")
+
+    def test_choosing_the_language_already_in_use_does_nothing(self):
+        """The dropdown fires on every pick, including picking the row already showing. A
+        restart for that is the mat blinking at somebody who changed nothing."""
+        w = self.window(lang="en")
+        ran = self.caught()
+        w.set_lang("en")
+        self.wait()
+        self.assertEqual([], ran, "it restarted for a language that was already set")
+
+    def test_changing_the_school_starts_over_the_same_way(self):
+        """set_school called rebuild() too, so it leaked the same memory the same way."""
+        w = self.window(school="hanafi")
+        ran = self.caught()
+        other = next((s for s in sorted(w.content.schools) if s != "hanafi"), None)
+        if other is None:
+            self.skipTest("only one school is shipped, so there is nothing to change to")
+        w.set_school(other)
+        self.wait()
+        self.assertEqual(1, len(ran))
+
+    def test_it_does_not_stand_down_with_the_update_code(self):
+        """The one thing this must not do.
+
+        Exit code 42 means "an update has been installed". run.sh counts those: a version
+        still on trial that exits before settling is taken for a version that died and the
+        PREVIOUS one is put back, and a sixth restart in a run is treated as a failure on
+        purpose. Changing the language six times is a child with a dropdown, and it would
+        have reverted the mat to the last version.
+        """
+        w = self.window(lang="en")
+        self.caught()
+        stood_down = []
+        app = QtWidgets.QApplication.instance()
+        self.addCleanup(mock.patch.object(type(app), "exit",
+                                          lambda self, code=0: stood_down.append(code)).stop)
+        mock.patch.object(type(app), "exit",
+                          lambda self, code=0: stood_down.append(code)).start()
+        w.set_lang("es")
+        self.wait()
+        self.assertEqual([], stood_down,
+                         f"it exited with {stood_down}; run.sh counts those as updates")
+
+    def test_it_says_what_is_happening_rather_than_going_dark(self):
+        w = self.window(lang="en")
+        self.caught()
+        w.set_lang("fr")
+        settle(4)                       # before the 700ms timer fires
+        self.assertIsNotNone(w.notice, "nothing was said; the screen just goes black")
+        said = w.notice.text.text()
+        self.assertEqual(w.t("settings.restarting"), said)
+        self.assertTrue(said.strip())
+        self.wait()
+
+    def test_every_language_can_say_it(self):
+        for lang, pack in available_packs(ASSETS).items():
+            with self.subTest(lang):
+                self.assertTrue(pack.ui.get("settings.restarting", "").strip(),
+                                f"{lang} cannot say the app is starting again")
+
+
+class TheMeaningFollowsTheLanguageTest(unittest.TestCase):
+    """Setting the mat to Urdu puts the du'as and the sayings into Urdu.
+
+    It did not. The boards and the reader asked for settings.quran_lang -- the Qur'an's own
+    meaning setting, which is "" until somebody presses a language button on a reading page --
+    and fell back to English when it was empty. So the whole mat could be in Urdu with every
+    du'a still in English, and the only way to change that was a control that says Qur'an on it.
+
+    They fall back to the app's language now. quran_lang still wins when it has been set,
+    because that is somebody asking for a meaning language by hand, which is a more specific
+    answer than the language the menus happen to be in.
+    """
+
+    def window(self, **over):
+        kw = dict(theme="dark", recitation=False, place="Bury")
+        kw.update(over)
+        w = MainWindow(load(ASSETS), available_packs(ASSETS), Settings(**kw),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def script(text: str) -> str:
+        arabic = sum(1 for c in text if "؀" <= c <= "ۿ")
+        latin = sum(1 for c in text if c.isascii() and c.isalpha())
+        return "arabic" if arabic > latin else "latin"
+
+    def shown(self, w):
+        """What the hadith board is actually showing, off the cards rather than the file."""
+        return [p.meaning(w.hadith_board.language()) for _, p in w.hadith_board.showing]
+
+    def test_a_mat_set_to_urdu_shows_its_sayings_in_urdu(self):
+        w = self.window(lang="ur")
+        w.open_saying_category("faith")
+        settle()
+        self.assertEqual("ur", w.hadith_board.language())
+        for said in self.shown(w):
+            self.assertEqual("arabic", self.script(said), f"not Urdu: {said[:60]!r}")
+
+    def test_a_mat_set_to_french_shows_its_sayings_in_french(self):
+        w = self.window(lang="fr")
+        w.open_saying_category("prayer")
+        settle()
+        self.assertEqual("fr", w.hadith_board.language())
+        said = " ".join(self.shown(w))
+        self.assertEqual("latin", self.script(said))
+        self.assertNotIn("Narrated", said, "that is the English")
+
+    def test_a_language_the_sayings_have_not_got_falls_back_to_english(self):
+        """Spanish, Hindi and Chinese have no edition of these collections anywhere I can
+        reach. English beats a blank half of the screen, and is what the du'as have always
+        done -- but it has to be ENGLISH, not an empty string or a crash."""
+        for lang in ("es", "hi", "zh"):
+            with self.subTest(lang):
+                w = self.window(lang=lang)
+                w.open_saying_category("charity")
+                settle()
+                self.assertEqual("en", w.hadith_board.language())
+                for said in self.shown(w):
+                    self.assertTrue(said.strip(), "the card is empty")
+                    self.assertEqual("latin", self.script(said))
+
+    def test_the_duas_follow_the_language_too(self):
+        """The du'as have had translations all along -- it was the choosing that was wrong."""
+        w = self.window(lang="ur")
+        w.open_dua_category("forgiveness")
+        settle()
+        self.assertEqual("ur", w.dua_board.language())
+
+    def test_picking_a_meaning_language_by_hand_still_wins(self):
+        """The language buttons on a reading page write quran_lang. Somebody who presses
+        French there has asked for French more specifically than the menus have."""
+        w = self.window(lang="ur", quran_lang="fr")
+        w.open_saying_category("faith")
+        settle()
+        self.assertEqual("fr", w.hadith_board.language())
+
+    def test_the_board_and_the_page_it_opens_agree(self):
+        """Two separate pieces of code choose this, and a du'a that reads one way on the board
+        and another way when you open it is the kind of thing nobody reports and everybody
+        notices."""
+        w = self.window(lang="ur")
+        w.open_saying_category("family")
+        settle()
+        reader = w.section_readers["hadith"]
+        index = w.hadith_board.showing[0][0]
+        w.open_passage("hadith", index)
+        settle()
+        self.assertEqual(w.hadith_board.language(), reader.language())
+
+    def test_the_wudu_steps_follow_it_as_well(self):
+        """Same fallback, same reason -- they were reading quran_lang too."""
+        w = self.window(lang="ur")
+        w.open_wudu_step("hands")
+        settle()
+        self.assertTrue(w.wudu_step.words.text().strip(),
+                        "the step has nothing written under it")
 
 
 class SettingsTidiedTest(unittest.TestCase):
