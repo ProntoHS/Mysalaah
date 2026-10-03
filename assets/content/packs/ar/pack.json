@@ -47,7 +47,8 @@
     "dua.knowledge": "العلم",
     "dua.kalima": "الكلمات الست",
     "settings.arabic_only": "العربية فقط",
-    "settings.restarting": "تتم إعادة التشغيل لتطبيق التغيير…"
+    "settings.restarting": "تتم إعادة التشغيل لتطبيق التغيير…",
+    "nasheeds.empty": "لا توجد أناشيد بعد. ضع ملفات mp3 في {folder} على السجادة لتظهر هنا."
   },
   "transliteration": {},
   "translation": {}

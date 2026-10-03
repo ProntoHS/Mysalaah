@@ -275,7 +275,8 @@
     "wudu.mouth": "Rincer la bouche",
     "wudu.nose": "Rincer le nez",
     "settings.restarting": "Redémarrage pour appliquer le changement…",
-    "settings.arabic_only": "Arabe seulement"
+    "settings.arabic_only": "Arabe seulement",
+    "nasheeds.empty": "Aucun nasheed pour l'instant. Placez des fichiers mp3 dans {folder} sur le tapis et ils apparaîtront ici."
   },
   "transliteration": {},
   "translation": {}

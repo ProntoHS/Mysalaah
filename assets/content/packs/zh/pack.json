@@ -277,6 +277,7 @@
     "wudu.mouth": "漱口",
     "wudu.nose": "洗鼻",
     "settings.restarting": "正在重新启动以套用变更…",
-    "settings.arabic_only": "仅阿拉伯语"
+    "settings.arabic_only": "仅阿拉伯语",
+    "nasheeds.empty": "还没有赞歌。把 mp3 文件放进垫子上的 {folder}，它们就会出现在这里。"
   }
 }

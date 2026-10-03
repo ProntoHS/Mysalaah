@@ -24,7 +24,7 @@ from pathlib import Path
 
 from .audio import WHOLE, Span
 from .mosque import MosqueScreen
-from .qt import QtCore, QtWidgets, Qt, Signal
+from .qt import QtCore, QtWidgets, Qt, Signal, arrows
 from .render import Fonts, TextBox
 
 # The Arabic is never drawn smaller than this (at 1080p), nor larger.
@@ -289,8 +289,11 @@ class PassageReader(QtWidgets.QWidget):
         # opened it was not written in.
         self.buttons: dict[str, QtWidgets.QPushButton] = {}
 
-        self.earlier = QtWidgets.QPushButton("‹")
-        self.later = QtWidgets.QPushButton("›")
+        # Pointing the way the reading goes: in Urdu and Arabic the pair mirrors to the
+        # other side, so the heads turn with it. See arrows() in qt.py.
+        back_glyph, on_glyph = arrows(self.win.pack.rtl)
+        self.earlier = QtWidgets.QPushButton(back_glyph)
+        self.later = QtWidgets.QPushButton(on_glyph)
         for b, forward in ((self.earlier, False), (self.later, True)):
             b.setObjectName("turnPage")
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)

@@ -17,7 +17,7 @@ Al-Ikhlas because its verses are longer, which is exactly what a printed mushaf 
 from __future__ import annotations
 
 from .audio import WHOLE, Span
-from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
+from .qt import QtCore, QtGui, QtWidgets, Qt, Signal, arrows
 from .quran import RTL, Quran, Surah, Verse
 from .render import Fonts, ParallelText, TextBox
 from .theme import palette
@@ -444,8 +444,11 @@ class Reader(QtWidgets.QWidget):
         # Which page you are on used to be spelled out beside the arrows. It has gone: the
         # arrows say the same thing by greying out at either end, and "Page 1 of 39" was the
         # widest thing in a row that had run out of room.
-        self.earlier = QtWidgets.QPushButton("‹")
-        self.later = QtWidgets.QPushButton("›")
+        # Pointing the way the reading goes: in Urdu and Arabic the pair mirrors to the
+        # other side, so the heads turn with it. See arrows() in qt.py.
+        back_glyph, on_glyph = arrows(self.win.pack.rtl)
+        self.earlier = QtWidgets.QPushButton(back_glyph)
+        self.later = QtWidgets.QPushButton(on_glyph)
         for b, forward in ((self.earlier, False), (self.later, True)):
             b.setObjectName("turnPage")
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)

@@ -275,7 +275,8 @@
     "wudu.mouth": "Rinse Mouth",
     "wudu.nose": "Rinse Nose",
     "settings.restarting": "Starting again so the change takes effect…",
-    "settings.arabic_only": "Arabic only"
+    "settings.arabic_only": "Arabic only",
+    "nasheeds.empty": "No nasheeds yet. Put mp3 files in {folder} on the mat and they will appear here."
   },
   "transliteration": {},
   "translation": {

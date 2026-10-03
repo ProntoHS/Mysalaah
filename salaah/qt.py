@@ -23,3 +23,20 @@ else:
     raise ImportError("Install PySide6 or PyQt6 (see install.sh)")
 
 Qt = QtCore.Qt
+
+
+# Arrows that point the way the reading goes.
+#
+# A row of buttons mirrors when the app is laid out right to left -- Qt moves them, which is
+# correct: in Urdu and Arabic the first thing you come to is on the RIGHT. What Qt cannot do is
+# turn the arrow round, so "<" ended up on the left of the pair, still pointing left, while
+# meaning "the one after this". The glyph said one thing and its position said the other.
+#
+# So the glyphs swap with the direction and the positions are left to Qt. Back always points
+# the way you came from -- left in English, right in Urdu -- and on always points onward.
+BACK_ARROW, ON_ARROW = "‹", "›"
+
+
+def arrows(rtl: bool) -> tuple[str, str]:
+    """(back, onward), pointing the right way for a screen laid out this way round."""
+    return (ON_ARROW, BACK_ARROW) if rtl else (BACK_ARROW, ON_ARROW)

@@ -277,6 +277,7 @@
     "wudu.mouth": "कुल्ली करें",
     "wudu.nose": "नाक साफ़ करें",
     "settings.restarting": "बदलाव लागू करने के लिए फिर से शुरू हो रहा है…",
-    "settings.arabic_only": "केवल अरबी"
+    "settings.arabic_only": "केवल अरबी",
+    "nasheeds.empty": "अभी कोई नशीद नहीं। मैट पर {folder} में mp3 फ़ाइलें रखें, वे यहाँ दिखेंगी।"
   }
 }

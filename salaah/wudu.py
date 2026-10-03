@@ -18,7 +18,7 @@ import json
 from pathlib import Path
 
 from .filmsheet import draw_themed
-from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
+from .qt import QtCore, QtGui, QtWidgets, Qt, Signal, arrows
 from .theme import palette
 
 # How much of the width the drawing takes. Two drawings get more, because they are laid side by
@@ -193,11 +193,15 @@ class WuduStep(QtWidgets.QWidget):
         # done, so the pair of them is the whole way round the section: < from the first step
         # is the way out to the seven, and > stops at the seventh rather than wrapping round to
         # the first, because the end of wu'du is not the beginning of it.
+        # The glyphs follow the direction the screen reads in -- see arrows() in qt.py. In Urdu
+        # and Arabic the pair mirrors to the other corner, and an arrow that mirrored its
+        # position but not its head was pointing away from the step it goes to.
         bottom = QtWidgets.QHBoxLayout()
         bottom.setSpacing(window.px(14))
         bottom.addStretch(1)
-        self.back_button = QtWidgets.QPushButton("<")
-        self.on_button = QtWidgets.QPushButton(">")
+        back_glyph, on_glyph = arrows(window.pack.rtl)
+        self.back_button = QtWidgets.QPushButton(back_glyph)
+        self.on_button = QtWidgets.QPushButton(on_glyph)
         for button, go in ((self.back_button, self.went_back), (self.on_button, self.went_on)):
             button.setObjectName("bigBack")
             button.setCursor(Qt.CursorShape.PointingHandCursor)

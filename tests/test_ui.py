@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import tempfile
 import time
 import urllib.request
 import unittest
@@ -2783,6 +2784,327 @@ class MenusAreDrawnInEveryLanguageTest(unittest.TestCase):
                     moved = max(abs(box.x() - english[name].x()),
                                 abs(box.y() - english[name].y()))
                     self.assertLess(moved, 12, f"{name} has moved {moved}px in {lang}")
+
+
+class NasheedPlayerTest(unittest.TestCase):
+    """The nasheeds tile: a shelf of whatever is in the owner's own folder.
+
+    Nothing ships. See the note at the top of nasheeds.py -- the artists are on labels, the
+    sites offering their work "copyright free" are aggregators who do not hold the rights, and
+    a device carrying that is Phantom Interactive distributing somebody else's record. So the
+    mat reads ~/.salaah/nasheeds, the folder beside the recitation cache that no release ever
+    touches, and plays what it finds.
+    """
+
+    class FakeCall:
+        """Stands in for audio.Call. The real one shells out to ffplay, which is neither
+        present nor wanted in a test; FakePlayer further down is the wrong shape -- it stands
+        in for Recitation, whose play() takes a span and a repeat count."""
+
+        def __init__(self):
+            self.on, self.played, self.stops = False, [], 0
+
+        @property
+        def playing(self):
+            return self.on
+
+        def play(self, audio):
+            self.played.append(Path(audio).name)
+            self.on = True
+            return True
+
+        def stop(self):
+            self.stops += 1
+            self.on = False
+
+    def shelf(self, *names):
+        import shutil
+        room = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(room, ignore_errors=True))
+        for name in names:
+            (room / name).write_bytes(b"ID3" + b"\0" * 2000)
+        return room
+
+    def window(self, room=None, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        if room is not None:
+            w.nasheeds.folders = [ASSETS / "nasheeds", room]
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def open(self, w):
+        w.open_corner("nasheeds")
+        settle()
+        return w.nasheed_screen
+
+    # What is on the shelf
+
+    def test_the_tile_opens_the_shelf_rather_than_nothing_here_yet(self):
+        w = self.window(self.shelf("one.mp3"))
+        self.assertIs(self.open(w), w.corner_screen.currentWidget())
+        self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget())
+
+    def test_it_lists_what_is_in_the_owners_folder(self):
+        w = self.window(self.shelf("allah-knows.mp3", "tala-al-badru.m4a"))
+        screen = self.open(w)
+        self.assertEqual(["allah knows", "tala al badru"],
+                         sorted(t.title for t in screen.rows_for))
+
+    def test_things_that_are_not_recordings_are_left_out(self):
+        """The folder is one a person drops files into, so it collects cover art and whatever
+        the operating system leaves lying about. A row with a play button on a .DS_Store is
+        the mat looking broken."""
+        w = self.window(self.shelf("real.mp3", "cover.jpg", ".DS_Store", "notes.txt"))
+        screen = self.open(w)
+        self.assertEqual(["real"], [t.title for t in screen.rows_for])
+
+    def test_an_empty_folder_says_where_to_put_them(self):
+        """The ordinary state of this screen on a new mat. It has to be more use than a blank
+        page -- somebody has to be able to find out that the folder exists at all."""
+        from salaah.nasheeds import MINE
+        w = self.window(self.shelf())
+        screen = self.open(w)
+        self.assertEqual([], screen.rows_for)
+        self.assertTrue(screen.empty.isVisible())
+        self.assertFalse(screen.scroll.isVisible())
+        self.assertIn(str(MINE), screen.empty.text(), "it does not say which folder")
+
+    def test_a_file_dropped_in_while_the_mat_is_running_turns_up(self):
+        """Which is how it will actually be used -- a USB stick, not a restart."""
+        room = self.shelf("first.mp3")
+        w = self.window(room)
+        screen = self.open(w)
+        self.assertEqual(1, len(screen.rows_for))
+        (room / "second.mp3").write_bytes(b"ID3" + b"\0" * 2000)
+        w.go_home()
+        settle()
+        self.open(w)
+        self.assertEqual(2, len(screen.rows_for), "the new file was not noticed")
+
+    # Playing one
+
+    def test_pressing_a_row_plays_it_and_pressing_it_again_stops(self):
+        w = self.window(self.shelf("one.mp3", "two.mp3"))
+        screen = self.open(w)
+        screen.player = self.FakeCall()
+        first = screen.rows_for[0]
+        screen.touched(first)
+        self.assertIs(first, screen.playing)
+        screen.touched(first)
+        self.assertIsNone(screen.playing, "pressing the playing one did not stop it")
+
+    def test_only_one_plays_at_a_time(self):
+        w = self.window(self.shelf("one.mp3", "two.mp3"))
+        screen = self.open(w)
+        screen.player = self.FakeCall()
+        one, two = screen.rows_for
+        screen.touched(one)
+        screen.touched(two)
+        self.assertIs(two, screen.playing)
+        self.assertEqual(1, sum(1 for i, _ in enumerate(screen.rows_for)
+                                if screen.rows.itemAt(i).widget().isChecked()))
+
+    def test_leaving_the_screen_stops_the_sound(self):
+        """A nasheed playing on from behind the Qur'an would have no way to be stopped."""
+        w = self.window(self.shelf("one.mp3"))
+        screen = self.open(w)
+        screen.player = self.FakeCall()
+        screen.touched(screen.rows_for[0])
+        self.assertIsNotNone(screen.playing)
+        w.go_home()
+        settle()
+        self.assertIsNone(screen.playing, "it is still playing behind another screen")
+
+    # The two interactions that matter on a prayer mat
+
+    def test_the_screen_does_not_go_dark_in_the_middle_of_one(self):
+        """The same rule the du'as and the Qur'an already have. Going dark over a nasheed is
+        the same rudeness as going dark over a surah."""
+        w = self.window(self.shelf("one.mp3"))
+        screen = self.open(w)
+        screen.player = self.FakeCall()
+        self.assertFalse(w.saying_a_passage())
+        screen.touched(screen.rows_for[0])
+        self.assertTrue(w.saying_a_passage(), "the sleep timer would cut it off")
+
+    def test_a_prayer_falling_due_stops_the_nasheed(self):
+        """Two things singing at once is the worst version of this, and of the two it is not
+        the call to prayer that should give way.
+
+        TWO things stop it and this tests the one that is meant to. call_to_prayer goes home
+        on its way to the call, which hides this screen, and hideEvent stops the sound -- so
+        the first version of this test passed with the explicit stop commented out, and would
+        have gone on passing if it were deleted. Going home is incidental: it stops a nasheed
+        because of where the screen went, not because a prayer is due. So the way home is
+        stubbed out here, which leaves only the deliberate guard to do the job.
+        """
+        w = self.window(self.shelf("one.mp3"))
+        screen = self.open(w)
+        screen.player = self.FakeCall()
+        screen.touched(screen.rows_for[0])
+        self.assertIsNotNone(screen.playing)
+        w.go_home = lambda *a, **k: None          # the incidental one, held still
+        w.call_to_prayer("maghrib")
+        settle()
+        self.assertIsNone(screen.playing, "the nasheed sang over the muezzin")
+
+    def test_and_walking_away_from_the_screen_stops_it_as_well(self):
+        """The incidental one, which is worth having on purpose: whatever takes the screen
+        away -- the call, the front door, a prayer starting -- leaves no sound behind it."""
+        w = self.window(self.shelf("one.mp3"))
+        screen = self.open(w)
+        screen.player = self.FakeCall()
+        screen.touched(screen.rows_for[0])
+        w.call_to_prayer("maghrib")
+        settle()
+        self.assertIsNone(screen.playing)
+        self.assertFalse(screen.player.playing)
+
+    # The rule about what ships
+
+    def test_nothing_ships_with_the_mat(self):
+        """The guard on the whole arrangement.
+
+        assets/nasheeds is read, so that something properly licensed could one day sit there.
+        Until a LICENCE.txt beside it says what the tracks are and on what terms, there must be
+        no audio in it -- because "we will sort the licence out later" is exactly how an mp3
+        ends up in a release, and a release is the thing that is hard to take back.
+        """
+        from salaah.nasheeds import SOUNDS
+        folder = ASSETS / "nasheeds"
+        audio = [p.name for p in folder.iterdir()
+                 if p.is_file() and p.suffix.lower() in SOUNDS] if folder.is_dir() else []
+        if audio:
+            licence = folder / "LICENCE.txt"
+            self.assertTrue(licence.is_file(),
+                            f"{audio} ship with the mat and there is no LICENCE.txt saying "
+                            f"what they are or who said they could")
+            said = licence.read_text(encoding="utf-8")
+            for name in audio:
+                self.assertIn(Path(name).stem, said,
+                              f"{name} ships and the licence file does not mention it")
+
+    def test_the_owners_folder_is_outside_everything_a_release_touches(self):
+        """It must not be under assets/ or salaah/, the two folders an update replaces whole."""
+        from salaah.nasheeds import MINE
+        for name in ("assets", "salaah"):
+            self.assertNotIn(name, MINE.parts,
+                             f"the owner's nasheeds are inside {name}, which updates replace")
+        self.assertIn(".salaah", MINE.parts, "it should sit beside the recitation cache")
+
+    def test_every_language_can_say_the_folder_is_empty(self):
+        for lang, pack in available_packs(ASSETS).items():
+            with self.subTest(lang):
+                said = pack.ui.get("nasheeds.empty", "")
+                self.assertTrue(said.strip(), f"{lang} cannot say the shelf is empty")
+                self.assertIn("{folder}", said, f"{lang} does not say which folder")
+
+
+class ArrowsPointTheWayTheReadingGoesTest(unittest.TestCase):
+    """Back and forward arrows, on a mat that is sometimes laid out right to left.
+
+    Qt mirrors a row of buttons when the app reads right to left, which is correct -- in Urdu
+    and Arabic the first thing you come to is the one on the RIGHT. What it cannot do is turn
+    the arrowhead round, so the pair moved to the other corner with "‹" still pointing left
+    while sitting in the position that means "onward". The glyph said one thing and its place
+    said the other.
+
+    Three screens had it: the wu'du step, the Qur'an and the du'a reader. The rule is the same
+    for all three -- back points the way you came from, which is left in English and right in
+    Urdu -- so it lives in one function and this tests all three against it.
+    """
+
+    SCREENS = ("wudu", "quran", "duas")
+
+    def window(self, lang):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def pair(self, w, screen):
+        """(back button, onward button) on that screen, once it is up."""
+        if screen == "wudu":
+            w.open_wudu_step("face")
+            settle()
+            return w.wudu_step.back_button, w.wudu_step.on_button
+        if screen == "quran":
+            w.open_surah(2)
+            settle()
+            return w.reader.earlier, w.reader.later
+        w.open_passage("duas", 0)
+        settle()
+        reader = w.section_readers["duas"]
+        return reader.earlier, reader.later
+
+    def test_the_head_turns_with_the_layout(self):
+        from salaah.qt import BACK_ARROW, ON_ARROW
+        for lang, back_glyph, on_glyph in (("en", BACK_ARROW, ON_ARROW),
+                                           ("fr", BACK_ARROW, ON_ARROW),
+                                           ("ur", ON_ARROW, BACK_ARROW),
+                                           ("ar", ON_ARROW, BACK_ARROW)):
+            w = self.window(lang)
+            for screen in self.SCREENS:
+                with self.subTest(f"{lang}.{screen}"):
+                    back, on = self.pair(w, screen)
+                    self.assertEqual(back_glyph, back.text(), "back points the wrong way")
+                    self.assertEqual(on_glyph, on.text(), "onward points the wrong way")
+
+    def test_the_arrow_points_where_the_button_sits(self):
+        """The whole point, stated as the thing a person actually sees: whichever button is on
+        the left has the left-pointing arrow on it, in every language."""
+        from salaah.qt import BACK_ARROW
+        for lang in ("en", "fr", "ur", "ar", "zh"):
+            w = self.window(lang)
+            for screen in self.SCREENS:
+                with self.subTest(f"{lang}.{screen}"):
+                    back, on = self.pair(w, screen)
+                    parent = back.parentWidget()
+                    here = back.mapTo(parent, back.rect().center()).x()
+                    there = on.mapTo(parent, on.rect().center()).x()
+                    leftmost = back if here < there else on
+                    self.assertEqual(BACK_ARROW, leftmost.text(),
+                                     f"the button on the left is {leftmost.text()!r}, which "
+                                     f"points away from it")
+
+    def test_back_is_the_first_one_reached_in_the_reading_direction(self):
+        """In English you read left to right and meet Back first; in Urdu you read right to
+        left and should still meet Back first. That is the layout mirroring doing its job, and
+        it is what makes the swapped glyphs right rather than a cosmetic fiddle."""
+        for lang, rtl in (("en", False), ("ur", True), ("ar", True)):
+            w = self.window(lang)
+            for screen in self.SCREENS:
+                with self.subTest(f"{lang}.{screen}"):
+                    back, on = self.pair(w, screen)
+                    parent = back.parentWidget()
+                    here = back.mapTo(parent, back.rect().center()).x()
+                    there = on.mapTo(parent, on.rect().center()).x()
+                    if rtl:
+                        self.assertGreater(here, there, "back is not the first one reached")
+                    else:
+                        self.assertLess(here, there, "back is not the first one reached")
+
+    def test_the_two_glyphs_are_not_the_same_character(self):
+        """A swap that returned the same glyph twice would pass every test above by accident."""
+        from salaah.qt import BACK_ARROW, ON_ARROW, arrows
+        self.assertNotEqual(BACK_ARROW, ON_ARROW)
+        self.assertEqual((BACK_ARROW, ON_ARROW), arrows(False))
+        self.assertEqual((ON_ARROW, BACK_ARROW), arrows(True))
 
 
 class ListSliderIsThickEnoughForAThumbTest(unittest.TestCase):
@@ -10719,8 +11041,9 @@ class SayingsBoardTest(unittest.TestCase):
 
 
 class TwoNewTilesTest(unittest.TestCase):
-    """Harry redrew the 7in sheet with Wu'du and Nasheeds on it. Wu'du has its seven steps now;
-    Nasheeds is still to come, and lands on the page that says so -- named, so it says which."""
+    """Harry redrew the 7in sheet with Wu'du and Nasheeds on it. Both have something behind
+    them now -- the seven steps, and the shelf of whatever is in the owner's folder -- so
+    neither lands on the page that says "nothing here yet" any more."""
 
     def window(self):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
@@ -10745,21 +11068,22 @@ class TwoNewTilesTest(unittest.TestCase):
                 self.assertTrue(tiles[name].path.is_file())
                 self.assertTrue(tiles[name].isEnabled())
 
-    def test_each_lands_on_a_page_that_says_which_one_is_coming(self):
+    def test_neither_lands_on_nothing_here_yet_any_more(self):
+        """This used to assert the opposite for Nasheeds, and was right to: the tile was drawn
+        before there was anything behind it. There is now, and an empty folder is not the same
+        thing as an unbuilt section -- the shelf says where to put the files."""
         w = self.window()
         tiles = {t.name: t for t in w.side.corner.tiles}
-        for name in ("nasheeds",):
+        for name, screen in (("nasheeds", "nasheed_screen"), ("wudu", "wudu_menu")):
             with self.subTest(name):
                 w.go_home()
                 settle()
                 tiles[name].click()
                 settle()
-                self.assertIs(w.corner_soon, w.corner_screen.currentWidget())
+                self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget(),
+                                 f"{name} still lands on 'nothing here yet'")
                 self.assertIs(w.corner_page, w.stack.currentWidget())
-                self.assertEqual(w.t(f"corner.{name}"), w.soon_title.text())
-                self.assertTrue(w.soon_title.text().strip(), "the page is headed with nothing")
-                said = [x.text() for x in w.corner_soon.findChildren(QtWidgets.QLabel)]
-                self.assertIn(w.t("corner.not_yet"), said)
+                self.assertIs(getattr(w, screen), w.corner_screen.currentWidget())
 
     def test_the_two_of_them_are_named_in_every_language_the_mat_speaks(self):
         for lang, pack in full_packs(available_packs(ASSETS)).items():
@@ -11021,7 +11345,11 @@ class WuduScreensTest(unittest.TestCase):
         step = w.wudu_step
         button = step.back_button
         self.assertEqual("bigBack", button.objectName())
-        self.assertEqual("<", button.text())
+        # The glyph, not the ASCII "<" this used to say. It is "‹" now and it turns round
+        # in Urdu and Arabic -- see ArrowsPointTheWayTheReadingGoesTest. This window is
+        # English, so back points left.
+        from salaah.qt import BACK_ARROW
+        self.assertEqual(BACK_ARROW, button.text())
         side = button.size()
         self.assertGreater(side.width(), w.px(80), "not a square: too narrow")
         self.assertGreater(side.height(), w.px(80), "not a square: too short")
@@ -11079,8 +11407,9 @@ class StepArrowsTest(unittest.TestCase):
     def test_they_are_arrows_the_same_size_as_each_other(self):
         w = self.window()
         step = w.wudu_step
-        self.assertEqual("<", step.back_button.text())
-        self.assertEqual(">", step.on_button.text())
+        from salaah.qt import BACK_ARROW, ON_ARROW
+        self.assertEqual(BACK_ARROW, step.back_button.text())
+        self.assertEqual(ON_ARROW, step.on_button.text())
         self.assertEqual(step.back_button.size(), step.on_button.size())
         for button in (step.back_button, step.on_button):
             self.assertEqual("bigBack", button.objectName(), "not the mat's square button")

@@ -28,6 +28,7 @@ from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .duamenu import DuaMenu, SAYINGS, SAYINGS_ACROSS
 from .wudu import Steps, WuduStep
+from .nasheeds import Nasheeds, NasheedScreen
 from .duaboard import DuaBoard
 from .recite import Store, WordTimes
 from .call import Adhan, CallBox
@@ -617,6 +618,7 @@ class MainWindow(QtWidgets.QWidget):
         self.kalima = Passages(self.assets, "kalima")
         self.sayings = Passages(self.assets, "hadith", folder="hadith")
         self.wudu = Steps(self.assets)
+        self.nasheeds = Nasheeds(self.assets)
         self.call = Call(volume=settings.volume)   # the call to prayer
         self.adhan = Adhan(self.assets)           # and the words of it, for the screen
         self.call_box = None                       # the TIME TO PRAY notice, while it is up
@@ -1007,6 +1009,16 @@ class MainWindow(QtWidgets.QWidget):
                                       border-radius:{px(8)}px; font-size:{px(28)}px;
                                       font-weight:bold; padding:{px(12)}px {px(30)}px; }}
             QPushButton#backButton:pressed {{ background:#8E342C; }}
+            /* A nasheed on the shelf. A row rather than a tile: these are names of recordings
+               and there could be two or two hundred, so the screen scrolls like the surah list
+               rather than trying to be a grid. Checked is the one playing -- the same red the
+               mat uses for the thing happening now. */
+            QPushButton#nasheedRow {{ background:{c.paper}; color:{c.strong}; text-align:left;
+                                      border:{px(2)}px solid {c.line}; border-radius:{px(10)}px;
+                                      font-size:{px(30)}px; padding:{px(20)}px {px(26)}px; }}
+            QPushButton#nasheedRow:pressed {{ background:{c.pressed}; }}
+            QPushButton#nasheedRow:checked {{ background:{BRICK}; color:#FFFFFF;
+                                              border-color:{BRICK}; font-weight:bold; }}
             /* The same button, given a thumb's worth of height. It is pressed by somebody
                standing over a mat on the floor, and it was 29 pixels tall on the 7" panel --
                a fingernail. Twice that, and a floor under the width as well so that a short
@@ -1432,6 +1444,12 @@ class MainWindow(QtWidgets.QWidget):
         self.hadith_board.chose.connect(lambda n: self.open_passage("hadith", n))
         stack.addWidget(self.hadith_board)
 
+        # Nasheeds: whatever is in the owner's own folder. Nothing ships -- see the note at the
+        # top of nasheeds.py for why the mat is a player rather than a library.
+        self.nasheed_screen = NasheedScreen(self, self.nasheeds)
+        self.nasheed_screen.back.connect(self.go_home)
+        stack.addWidget(self.nasheed_screen)
+
         self.corner_soon = self.page_soon()
         stack.addWidget(self.corner_soon)
 
@@ -1585,6 +1603,14 @@ class MainWindow(QtWidgets.QWidget):
         if which == "world" and getattr(self, "world_screen", None) is not None:
             self.open_world()
             return
+        if which == "nasheeds" and getattr(self, "nasheed_screen", None) is not None:
+            # Always opens, even with nothing in the folder: the screen says where to put the
+            # files, which is more use than the tile landing on "nothing here yet" and leaving
+            # somebody to guess that there is a folder at all.
+            self.nasheed_screen.retitle()
+            self.corner_screen.setCurrentWidget(self.nasheed_screen)
+            self.stack.setCurrentWidget(self.corner_page)
+            return
         # Anything with nothing behind it yet -- the three new tiles, or one of the three old
         # ones whose content is missing -- lands here, named.
         self.soon_title.setText(self.t(f"corner.{which}") if which else "")
@@ -1620,10 +1646,13 @@ class MainWindow(QtWidgets.QWidget):
                             getattr(self, "hadith_board", None)) if b is not None]
 
     def saying_a_passage(self) -> bool:
-        """Is a du'a, a kalima or a saying being read aloud, anywhere? The boards count: going
-        to sleep over a du'a is as rude as going to sleep over a surah."""
+        """Is anything being listened to, anywhere? The boards count, and so do the nasheeds:
+        going to sleep over a du'a is as rude as going to sleep over a surah, and going dark in
+        the middle of a nasheed is the same thing again."""
+        nasheed = getattr(self, "nasheed_screen", None)
         return (any(r.saying for r in getattr(self, "section_readers", {}).values())
-                or any(b.saying for b in self.boards()))
+                or any(b.saying for b in self.boards())
+                or (nasheed is not None and nasheed.saying))
 
     def open_section(self, which: str) -> None:
         """Back out of a du'a or a saying lands on the board it came from; the kalima have
@@ -1808,6 +1837,12 @@ class MainWindow(QtWidgets.QWidget):
         # lean on wake() to land in the right place.
         if self.asleep:
             self.wake()
+        # A nasheed playing when a prayer falls due is stopped before the muezzin starts.
+        # Two things singing at once is the worst version of this, and of the two it is not
+        # the call that should give way.
+        nasheed = getattr(self, "nasheed_screen", None)
+        if nasheed is not None:
+            nasheed.stop()
         self.go_home()
         # Fajr has its own recording, because the call at dawn says something the others do
         # not. If a prayer has no recording the notice still appears on its own, so the mat

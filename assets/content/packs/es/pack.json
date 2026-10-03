@@ -277,6 +277,7 @@
     "wudu.mouth": "Enjuagar la boca",
     "wudu.nose": "Enjuagar la nariz",
     "settings.restarting": "Reiniciando para aplicar el cambio…",
-    "settings.arabic_only": "Solo árabe"
+    "settings.arabic_only": "Solo árabe",
+    "nasheeds.empty": "Aún no hay nasheeds. Pon archivos mp3 en {folder} en la alfombra y aparecerán aquí."
   }
 }

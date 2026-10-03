@@ -275,7 +275,8 @@
     "wudu.mouth": "کلی کریں",
     "wudu.nose": "ناک صاف کریں",
     "settings.restarting": "تبدیلی لاگو کرنے کے لیے دوبارہ شروع ہو رہا ہے…",
-    "settings.arabic_only": "صرف عربی"
+    "settings.arabic_only": "صرف عربی",
+    "nasheeds.empty": "ابھی کوئی نشید نہیں۔ میٹ پر {folder} میں mp3 فائلیں رکھیں، وہ یہاں نظر آئیں گی۔"
   },
   "transliteration": {},
   "translation": {}
