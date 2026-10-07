@@ -12,7 +12,7 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from dataclasses import replace  # noqa: E402
-from salaah.content import Translation, available_packs, load  # noqa: E402
+from salaah.content import PRAYERS, Translation, available_packs, load  # noqa: E402
 from salaah.filmsheet import FilmSheet  # noqa: E402
 from salaah.qt import API, QtCore, QtGui, QtWidgets, Qt  # noqa: E402
 from salaah.render import MIN_ARABIC_PX  # noqa: E402
@@ -423,6 +423,9 @@ class UiTest(unittest.TestCase):
     def test_choice_screen_draws_an_arch_per_unit(self):
         from salaah.mosque import ArchButton
         w = self.win
+        patch = mock.patch.object(MainWindow, "prayer_page", lambda self, pid: None)
+        patch.start()
+        self.addCleanup(patch.stop)
         for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
             w.open_prayer(prayer)
             APP.processEvents()
@@ -687,7 +690,12 @@ class UiTest(unittest.TestCase):
         self.assertFalse(w.playing, "it leaves the prayer")
 
     def test_prayer_menu_header(self):
+        """The plate, which since 1.62 belongs to the fallback screen: Harry's drawings carry
+        the prayer's name across the dome, checked in PrayerPagesAreDrawnTest."""
         w = self.win
+        patch = mock.patch.object(MainWindow, "prayer_page", lambda self, pid: None)
+        patch.start()
+        self.addCleanup(patch.stop)
         for prayer in ("fajr", "maghrib"):
             w.open_prayer(prayer)
             APP.processEvents()
@@ -712,6 +720,9 @@ class UiTest(unittest.TestCase):
     def test_choosing_an_arch_starts_that_unit(self):
         from salaah.mosque import ArchButton
         w = self.win
+        patch = mock.patch.object(MainWindow, "prayer_page", lambda self, pid: None)
+        patch.start()
+        self.addCleanup(patch.stop)
         w.open_prayer("maghrib")
         APP.processEvents()
         first = w.pick.findChildren(ArchButton)[0]
@@ -2154,8 +2165,15 @@ class ArchArtworkTest(unittest.TestCase):
 
     def test_neighbouring_arches_do_not_touch(self):
         """Four units side by side is the tightest case, so the arches need clear air between
-        them or they read as one lump."""
+        them or they read as one lump.
+
+        About the arches the app draws for itself, which since 1.62 is the screen a prayer gets
+        when it has no drawing of its own. Harry's drawings have the gaps drawn into them.
+        """
         from salaah.mosque import ArchButton
+        patch = mock.patch.object(MainWindow, "prayer_page", lambda self, pid: None)
+        patch.start()
+        self.addCleanup(patch.stop)
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="light", recitation=False), scale=1.0,
                        save_settings=False, aspect=None)
@@ -2289,8 +2307,21 @@ class ArchColoursTest(unittest.TestCase):
     """The unit arches are an outline on the page they sit on: white inside by day, black
     inside after dark. They used to be a cream panel, which showed as a grey slab."""
 
+    def no_drawing(self):
+        """Force the screen the app draws for itself, which since 1.62 is the fallback.
+
+        Harry's five drawings replaced it, and the fallback is still there on purpose: it is
+        what a prayer gets when its drawing is missing, and -- the case that matters -- when a
+        drawing's arches do not match the units the school says the prayer has. These tests are
+        about THAT screen, so they ask for it rather than being deleted along with the default.
+        """
+        patch = mock.patch.object(MainWindow, "prayer_page", lambda self, pid: None)
+        patch.start()
+        self.addCleanup(patch.stop)
+
     def arch(self, **settings):
         from salaah.mosque import ArchButton
+        self.no_drawing()
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(**{"theme": "light", "recitation": False, **settings}),
                        scale=1.0, save_settings=False, aspect=None)
@@ -2541,9 +2572,18 @@ class FullHeightRuleTest(unittest.TestCase):
 
 
 class WalkIntoAUnitTest(unittest.TestCase):
-    """Tapping one of a prayer's unit arches walks into it the same way the mosque does."""
+    """Tapping one of a prayer's unit arches walks into it the same way the mosque does.
+
+    Pointed at the drawn-for-itself screen since 1.62, which is the fallback: Harry's drawings
+    have their own arches and their own walk, checked in PrayerPagesAreDrawnTest. The walk is
+    the same ZoomVeil either way, and this is the place it is measured frame by frame, so it is
+    kept here rather than rewritten against a picture.
+    """
 
     def window(self):
+        patch = mock.patch.object(MainWindow, "prayer_page", lambda self, pid: None)
+        patch.start()
+        self.addCleanup(patch.stop)
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="light", recitation=False), scale=1.0,
                        save_settings=False, aspect=None, side=True)
@@ -3892,15 +3932,34 @@ class EveryInterfaceLanguageTest(unittest.TestCase):
         self.assertEqual(Fonts.scripts["han"], w.language_picker.font().family())
 
     def test_the_unit_arches_are_lettered_in_the_interface_face(self):
+        """Hindi words need a Devanagari face or they come out as empty boxes on the Pi.
+
+        Since 1.62 the words in a prayer's arches are painted by the drawing's own screen
+        rather than by an ArchButton, so that is where the face has to arrive. Both are
+        checked: the drawn page as the mat actually shows it, and the fallback behind it.
+        """
         from salaah.mosque import ArchButton
         from salaah.render import Fonts
+        want = Fonts.scripts["devanagari"]
+
         w = self.window("hi")
         w.open_prayer("dhuhr")
         APP.processEvents()
+        drawn = w.prayer_mosque
+        self.assertIsNotNone(drawn, "dhuhr did not open on its drawing")
+        self.assertTrue(drawn.labels, "nothing is written in the arches")
+        self.assertEqual(want, drawn.label_face,
+                         "the words in the arches would be empty boxes on the Pi")
+
+        patch = mock.patch.object(MainWindow, "prayer_page", lambda self, pid: None)
+        patch.start()
+        self.addCleanup(patch.stop)
+        w.open_prayer("dhuhr")
+        APP.processEvents()
         arches = w.pick.findChildren(ArchButton)
-        self.assertTrue(arches)
+        self.assertTrue(arches, "the fallback drew no arches")
         for arch in arches:
-            self.assertEqual(Fonts.scripts["devanagari"], arch.family,
+            self.assertEqual(want, arch.family,
                              "the arch labels would be empty boxes on the Pi")
 
     def test_a_language_change_takes_the_face_with_it(self):
@@ -7755,35 +7814,28 @@ class MovingFrontDoorTest(unittest.TestCase):
         self.assertGreater(len(stars), 0, "the stars were put there to be masked")
 
 
-    def test_the_front_door_brings_its_own_sky(self):
-        """It used to be an outline with a see-through sky, and the app drew the sun, the moon,
-        the stars and the birds behind it. The drawing Harry replaced it with has all of those
-        in it and moving, so the app's are switched off: a second moon beside the one already
-        drawn would be worse than none, and on a mat that sits on this screen all day the clock
-        that flutters them is the Pi woken thirty times a second for nothing.
+    def test_the_film_moves_without_burying_the_sky_behind_it(self):
+        """REVERSED IN 1.62. This said the drawing brought its own sky and the app painted none,
+        which was true of the drawing it was written for. Harry's new animation has no sun, moon
+        or stars in it and he asked for the app's, so the sky is cut out of every frame.
+
+        The thing worth testing is therefore the opposite one, and it is the thing that would
+        actually go wrong: a film is a rectangle, and a frame with the sky painted into it would
+        bury the moon behind a black box while the still underneath looked perfectly right.
         """
         w = self.window()
         front = w.welcome_mosque
-        self.assertFalse(front.own_sky, "the front door is still asking for a sky")
-        self.assertFalse(front.flutter.isActive(), "and still running the clock for it")
-        # And the proof that it does not need one: turning the app's stars on changes nothing.
-        front.set_sky(False, 0.5)
-        stars = list(front.sky.stars)
-        self.assertGreater(len(stars), 20, "there are stars to have shown")
-        front.sky.stars = []
-        front.update()
-        settle()
-        bare = front.grab().toImage()
-        front.sky.stars = stars
-        front.update()
-        settle()
-        starry = front.grab().toImage()
-        showing = sum(1 for y in range(0, front.height())
-                      for x in range(0, front.width())
-                      if (QtGui.QColor(starry.pixel(x, y)).lightness()
-                          - QtGui.QColor(bare.pixel(x, y)).lightness()) > 30)
-        self.assertEqual(0, showing,
-                         f"{showing} pixels of the app's sky are coming through anyway")
+        self.assertTrue(front.own_sky, "the front door is not asking for a sky")
+        self.assertIsNotNone(front.film, "there is no film to check")
+        for frame in range(0, front.film.frameCount(), 7):
+            with self.subTest(frame):
+                front.film.jumpToFrame(frame)
+                picture = front.film.currentPixmap()
+                self.assertTrue(picture.hasAlphaChannel(),
+                                f"frame {frame} has no see-through sky at all")
+                corner = picture.toImage().pixelColor(2, 2)
+                self.assertEqual(0, corner.alpha(),
+                                 f"frame {frame} paints over the corner of the sky")
 
     def test_the_time_is_still_on_the_dome(self):
         """The one thing Harry asked for from the new drawing. It is written dark on it, where
@@ -8301,9 +8353,16 @@ class FrontDoorFillsTheScreenTest(unittest.TestCase):
         self.assertGreaterEqual(scaled.width(), front.width() - 8, "it does not reach the sides")
         self.assertGreaterEqual(scaled.height(), front.height() - 8, "it does not fill the height")
 
-    def test_the_drawing_itself_has_no_dead_sky_left_in_it(self):
-        """Filling the widget is not enough: the drawing used to sit inside its own canvas with
-        a fifth of the height empty, which is the black somebody actually sees."""
+    def test_the_sky_above_the_drawing_is_where_the_moon_goes(self):
+        """CHANGED IN 1.62. This used to insist the drawing began within a twelfth of the top,
+        because empty canvas above it was black nobody could do anything with.
+
+        Harry's new one starts a fifth of the way down, and that space is not empty: it is the
+        sky he asked to have populated, and the moon, the sun and the stars are painted into it.
+        So what has to be true is not that there is no sky above the building but that the app's
+        sky REACHES it -- the gap has to be see-through all the way across, and the moon has to
+        land inside it rather than behind the dome.
+        """
         image = QtGui.QImage(str(ASSETS / "welcome" / "mosque.png"))
         top = bottom = None
         for y in range(image.height()):
@@ -8312,9 +8371,26 @@ class FrontDoorFillsTheScreenTest(unittest.TestCase):
                 top = y if top is None else top
                 bottom = y
         self.assertIsNotNone(top)
-        self.assertLess(top, image.height() * 0.08, f"{top}px of empty sky above the drawing")
         self.assertGreater(bottom, image.height() * 0.92,
                            f"{image.height()-bottom}px of empty space below it")
+        for y in range(0, top, 7):
+            clear = sum(1 for x in range(0, image.width(), 5)
+                        if QtGui.QColor(image.pixelColor(x, y)).alpha() == 0)
+            self.assertEqual(len(range(0, image.width(), 5)), clear,
+                             f"row {y} above the building is not see-through")
+        w = self.window()
+        front = w.welcome_mosque
+        scaled, origin, _ = front.placement()
+        # At the top of its arc -- the middle of the day or the middle of the night -- the body
+        # has to be clear of the building. Not at the ends of it: there the sun is rising or
+        # setting and goes down behind the mosque, which is what rising and setting look like
+        # and is how it has always behaved on the two mosques behind this one.
+        front.set_sky(False, 0.5)
+        centre, radius = front.sky_body(scaled, origin)
+        roof = origin.y() + scaled.height() * (top / image.height())
+        self.assertLess(centre.y() + radius, roof,
+                        f"at its highest the moon is at y {centre.y():.0f}, and the building "
+                        f"starts at {roof:.0f}")
 
     def test_the_picture_is_cut_to_the_shape_of_the_screen(self):
         w = self.window()
@@ -10319,9 +10395,28 @@ class HadithHeadingTest(unittest.TestCase):
 
 class PrayerPlateTest(unittest.TestCase):
     """Each prayer's name on the same white plate the Hadith and world screens wear, with the
-    Arabic beside the English rather than at the far edge of the screen."""
+    Arabic beside the English rather than at the far edge of the screen.
+
+    SINCE 1.62 this is the fallback screen. Harry's drawings carry the prayer's name across the
+    dome instead, which is a better place for it and leaves no room for a plate; the plate is
+    what a prayer still gets when it has no drawing. These tests are kept, pointed at that
+    screen, because the fallback is a guard rather than dead weight -- see no_drawing below.
+    """
+
+    def no_drawing(self):
+        """Force the screen the app draws for itself, which since 1.62 is the fallback.
+
+        Harry's five drawings replaced it, and the fallback is still there on purpose: it is
+        what a prayer gets when its drawing is missing, and -- the case that matters -- when a
+        drawing's arches do not match the units the school says the prayer has. These tests are
+        about THAT screen, so they ask for it rather than being deleted along with the default.
+        """
+        patch = mock.patch.object(MainWindow, "prayer_page", lambda self, pid: None)
+        patch.start()
+        self.addCleanup(patch.stop)
 
     def window(self):
+        self.no_drawing()
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="dark", place="Bury"),
                        scale=1.0, save_settings=False, aspect=None, side=True)
@@ -10402,11 +10497,18 @@ class NewFrontDoorTest(unittest.TestCase):
     def front(self, w):
         front = w.welcome_mosque
         self.assertIs(w.welcome, w.stack.currentWidget(), "the mat did not open on the front door")
-        # The film is eighty frames of moving sun and stars. Held on one frame, so that what
-        # differs between two grabs is the time and only the time.
+        # The film is sixty frames of walking figures and breathing lettering, and -- since
+        # 1.62 -- the app's own stars twinkle behind it on their own clock. Both held still, so
+        # that what differs between two grabs is the time and only the time. Before 1.62 only
+        # the film needed holding: the drawing brought its own sky and the app painted none.
         if front.film is not None:
             front.film.stop()
             front.film.jumpToFrame(0)
+        front.flutter.stop()
+        held = front.sky.now()
+        frozen = mock.patch.object(type(front.sky), "now", staticmethod(lambda: held))
+        frozen.start()
+        self.addCleanup(frozen.stop)
         settle()
         return front
 
@@ -10479,23 +10581,38 @@ class NewFrontDoorTest(unittest.TestCase):
                     self.assertLess(around, 90, f"{mode}: the dome is not dark")
                     self.assertGreater(lightest, 170, f"{mode}: the numbers are not light on it")
 
-    def test_the_front_door_brings_its_own_sky_so_the_app_draws_none(self):
-        """The drawing has a sun, a moon and stars of its own, all moving. The app's sky behind
-        it would put a second moon beside the one already there -- and on a mat that sits on
-        this screen all day, it is a timer waking the Pi thirty times a second to draw
-        something nobody can see."""
+    def test_the_app_paints_the_sky_behind_the_front_door(self):
+        """REVERSED IN 1.62, and worth saying why rather than quietly rewriting it.
+
+        The drawing this replaced had a sun, a moon and stars drawn into it, all moving, so the
+        app painted none: a second moon beside the one already there would have been worse than
+        none. Harry's new drawing has none of them -- "there is no star, birds or sun on this
+        one, i want you to populate the sky like the others according to time of day" -- so the
+        sky is cut out of it and the app paints behind it again, exactly as it does on the
+        mosque. The old test is not wrong about the old drawing; it is about a drawing that is
+        no longer there.
+        """
         w = self.window()
         front = self.front(w)
-        self.assertFalse(front.own_sky, "the app is still painting a sky for the front door")
-        self.assertFalse(front.flutter.isActive(),
-                         "the sky clock is running on a screen with no sky to draw")
+        self.assertTrue(front.own_sky, "the front door is not asking for a sky")
         self.assertTrue(front.isVisible(), "and this is with the screen up, not hidden")
-        # The mosque behind it is the other way round, which is what makes the above a choice
-        # rather than a thing that is broken everywhere.
-        w.leave_welcome()
+        # The proof it is really coming through: take the stars away and the picture changes.
+        front.set_sky(False, 0.5)
+        stars = list(front.sky.stars)
+        self.assertGreater(len(stars), 20, "there are stars to have shown")
+        front.sky.stars = []
+        front.update()
         settle()
-        self.assertTrue(w.mosque.own_sky, "the mosque should still have the app's sky")
-        self.assertTrue(w.mosque.flutter.isActive(), "and its sky should be moving")
+        bare = front.grab().toImage()
+        front.sky.stars = stars
+        front.update()
+        settle()
+        starry = front.grab().toImage()
+        showing = sum(1 for y in range(0, front.height(), 2)
+                      for x in range(0, front.width(), 2)
+                      if (QtGui.QColor(starry.pixel(x, y)).lightness()
+                          - QtGui.QColor(bare.pixel(x, y)).lightness()) > 30)
+        self.assertGreater(showing, 10, "none of the app's stars reach the screen")
 
     def test_the_drawing_fills_the_screen_side_to_side(self):
         """It arrived narrower than the screen and sat in the middle with a black bar either
@@ -10610,14 +10727,26 @@ class EveryWayBackTest(unittest.TestCase):
         self.assertIsNotNone(w.welcome, "there is no front door")
         self.assertIs(w.welcome, w.stack.currentWidget())
 
-    def test_the_menu_button_under_a_prayers_units_lands_on_it(self):
+    def test_the_way_back_from_a_prayers_units_lands_on_the_front_door(self):
+        """CHANGED IN 1.62: the word on the button, not the claim.
+
+        The units screen used to carry its own Menu button above the arches. It is a drawing
+        now, with the same banner as every other screen, and the way home is the Main screen
+        button up there -- so there is nowhere for a second one to sit and no reason for it.
+        What still has to be true is that the screen has a way back and that it lands on the
+        front door, which is what this checks, by what is written on the button.
+        """
         w = self.window()
         w.leave_welcome()
         settle()
         w.open_prayer("asr")
         settle()
         self.assertIsNot(w.welcome, w.stack.currentWidget(), "we never left the front door")
-        self.a_menu_button(w, w.stack.currentWidget()).click()
+        page = w.stack.currentWidget()
+        home = [b for b in page.findChildren(QtWidgets.QPushButton)
+                if b.text() in (w.t("player.menu"), w.t("settings.main_screen"))]
+        self.assertTrue(home, "there is no way back off a prayer's units")
+        home[0].click()
         settle()
         self.assertIs(w.welcome, w.stack.currentWidget())
 
@@ -11683,3 +11812,170 @@ class AnimatedMenusTest(unittest.TestCase):
         for tile in w.wudu_menu.tiles:
             self.assertFalse(tile.quiet, "a still tile is not drawing itself")
             self.assertTrue(tile.path.is_file())
+
+
+class PrayerPagesAreDrawnTest(unittest.TestCase):
+    """Harry's five new prayer pages, in place of the arches the app used to draw for itself.
+
+    The drawings carry the mosque and the arches; they do NOT carry the words any more. The
+    number of units and what kind they are come from the pack and are written in, which is the
+    whole reason for taking them out -- the drawings say SUNNAH and FARDH in English, and the
+    mat is read in seven languages.
+
+    Everything here is measured off the rendered screen or off the window's own state, not read
+    back out of mosque.json, which would only prove the file agrees with itself.
+    """
+
+    def window(self, lang="en", mode="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, lang=lang, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def page(self, w, prayer="isha"):
+        w.open_prayer(prayer)
+        settle()
+        screen = getattr(w, "prayer_mosque", None)
+        self.assertIsNotNone(screen, f"{prayer} did not open on a drawing")
+        return screen
+
+    @staticmethod
+    def touch(screen, point):
+        ev = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress, QtCore.QPointF(point),
+                               Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                               Qt.KeyboardModifier.NoModifier)
+        screen.mousePressEvent(ev)
+        settle()
+
+    def freeze(self, screen):
+        """Stop the sky where it is, so two grabs can be compared."""
+        held = screen.sky.now()
+        patch = mock.patch.object(type(screen.sky), "now", staticmethod(lambda: held))
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_each_prayer_opens_on_its_own_drawing_with_an_arch_for_each_unit(self):
+        w = self.window()
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                screen = self.page(w, prayer)
+                self.assertEqual(len(w.school.prayers[prayer]), len(screen.arches),
+                                 f"{prayer} has an arch for every unit")
+
+    def test_the_words_in_the_arches_come_from_the_pack(self):
+        """Not from the drawing. Checked against what the rest of the app would say for the same
+        unit, so a label that drifted away from the word used elsewhere shows up here."""
+        w = self.window()
+        screen = self.page(w, "isha")
+        entries = w.school.prayers["isha"]
+        for i, entry in enumerate(entries, start=1):
+            with self.subTest(i):
+                count, kind = screen.labels[str(i)]
+                unit = w.content.units.get(entry.unit_id)
+                self.assertEqual(str(unit.rakats), count)
+                self.assertEqual(w.t(f"kind.{entry.kind}"), kind)
+
+    def test_the_words_are_really_painted_into_the_arches(self):
+        """The labels being set is not the same as their being on the screen. Taken away and the
+        arch repainted, the inside of it has to change -- and change INSIDE the arch, not
+        somewhere else on the page."""
+        w = self.window()
+        screen = self.page(w, "isha")
+        said = dict(screen.labels)
+        # The stars twinkle on their own clock, so two grabs a moment apart differ all over the
+        # sky whatever the arches are doing. Held still, what is left between them is the words.
+        screen.flutter.stop()
+        self.freeze(screen)
+        before = screen.grab().toImage()
+        screen.set_labels({})
+        settle()
+        after = screen.grab().toImage()
+        _, origin, scale = screen.placement()
+        first = screen.arches[0].box
+        inside = QtCore.QRect(origin.x() + int(first.x() * scale),
+                              origin.y() + int(first.y() * scale),
+                              int(first.width() * scale), int(first.height() * scale))
+        changed, strayed = 0, 0
+        for y in range(0, before.height(), 2):
+            for x in range(0, before.width(), 2):
+                if before.pixel(x, y) == after.pixel(x, y):
+                    continue
+                if inside.contains(x, y):
+                    changed += 1
+                elif not any(QtCore.QRect(origin.x() + int(a.box.x() * scale),
+                                          origin.y() + int(a.box.y() * scale),
+                                          int(a.box.width() * scale),
+                                          int(a.box.height() * scale)).contains(x, y)
+                             for a in screen.arches):
+                    strayed += 1
+        screen.set_labels(said, w.pack_face())
+        self.assertGreater(changed, 40, "nothing was written inside the first arch")
+        self.assertEqual(0, strayed, "the words were painted outside the arches")
+
+    def test_the_prayers_name_is_written_on_the_dome_in_the_right_language(self):
+        for lang, expected in (("en", "Isha"), ("ur", None)):
+            with self.subTest(lang):
+                w = self.window(lang=lang)
+                screen = self.page(w, "isha")
+                self.assertEqual(w.t("prayer.isha"), screen.time_text)
+                if expected:
+                    self.assertEqual(expected, screen.time_text)
+
+    def test_the_words_change_with_the_language(self):
+        """The reason the drawings gave up their lettering. English and Urdu have to differ, and
+        the Urdu has to be the pack's own word rather than the English left in place."""
+        english = self.window(lang="en")
+        urdu = self.window(lang="ur")
+        one, two = self.page(english, "isha"), self.page(urdu, "isha")
+        self.assertNotEqual(one.labels, two.labels, "the arches say the same in both languages")
+        self.assertNotEqual(one.time_text, two.time_text, "the dome says the same in both")
+        for i in one.labels:
+            with self.subTest(i):
+                self.assertNotEqual(one.labels[i][1], two.labels[i][1],
+                                    f"arch {i} is still in English on an Urdu mat")
+
+    def test_touching_an_arch_starts_that_unit(self):
+        """The arches are read off by position, so this is the test that the positions line up:
+        the third arch has to start the third thing the prayer is made of, not the first."""
+        for which in (1, 3, 5):
+            with self.subTest(which):
+                w = self.window()
+                screen = self.page(w, "isha")
+                middle = screen.arch_centre(str(which))
+                self.assertIsNotNone(middle)
+                self.touch(screen, middle)
+                self.assertIsNotNone(w.session, "nothing started")
+                self.assertEqual(w.school.prayers["isha"][which - 1].unit_id,
+                                 w.session.unit.id)
+
+    def test_it_walks_into_the_arch_on_the_way(self):
+        w = self.window()
+        screen = self.page(w, "isha")
+        self.touch(screen, screen.arch_centre("2"))
+        self.assertTrue(w.veil.running, "no walk into the arch")
+
+    def test_a_drawing_that_disagrees_with_the_school_is_refused(self):
+        """The words come from the pack and are written into whatever arches are there, so a
+        drawing with one arch too many would quietly put Fardh where Nafl belongs. Better the
+        old screen, which draws an arch per unit and cannot be out by one."""
+        w = self.window()
+        short = [e for e in w.school.prayers["isha"]][:-1]
+        with mock.patch.dict(w.school.prayers, {"isha": short}):
+            self.assertIsNone(w.prayer_page("isha"),
+                              "a drawing with more arches than units was accepted")
+            w.open_prayer("isha")
+            settle()
+        self.assertIsNone(w.prayer_mosque, "it should have fallen back to the drawn arches")
+        self.assertIs(w.pick, w.stack.currentWidget(), "and still be on a usable screen")
+
+    def test_the_main_prayer_page_behind_them_is_untouched(self):
+        """Harry: "the only page that stays the same is the main prayer page". The five arches
+        still say their own names, out of the drawing, and have no labels written over them."""
+        w = self.window()
+        self.assertEqual({}, w.mosque.labels, "something is being written over the main mosque")
+        self.assertEqual([a.prayer for a in w.mosque.arches], list(PRAYERS))

@@ -711,6 +711,21 @@ class MainWindow(QtWidgets.QWidget):
         self.wake() if self.asleep else self.sleep()
         return True
 
+    def every_sky(self):
+        """Every mosque on the mat that paints a moving sky of its own.
+
+        Written as a list rather than left to each screen's own showEvent because of sleep: a
+        hidden screen stops its own sky, but the one still on show when the panels go dark does
+        not, and nobody is looking at that either. It used to be just the main mosque, which was
+        true when it was the only drawing with a see-through sky; the front door and the five
+        prayer pages have one now, so a list that names one of them goes stale the next time a
+        drawing is added. Everything that has a flutter is in here by construction.
+        """
+        found = [getattr(self, "mosque", None), getattr(self, "welcome_mosque", None),
+                 getattr(self, "prayer_mosque", None)]
+        found += [menu.mosque for menu in getattr(self, "arch_menus", {}).values()]
+        return [s for s in found if s is not None and hasattr(s, "flutter")]
+
     def sleep(self) -> None:
         """Screens off, and everything that was only drawing them stopped.
 
@@ -736,8 +751,8 @@ class MainWindow(QtWidgets.QWidget):
         # After go_home, because showing the mosque is what starts the sky animating.
         if hasattr(self, "clock"):
             self.clock.stop()
-        if getattr(self, "mosque", None) is not None:
-            self.mosque.flutter.stop()
+        for sky in self.every_sky():
+            sky.flutter.stop()
 
     def wake(self) -> None:
         """Screens back on, at the front door.
@@ -755,8 +770,9 @@ class MainWindow(QtWidgets.QWidget):
             self.stack.setCurrentWidget(self.welcome)
         if hasattr(self, "clock"):
             self.clock.start()
-        if getattr(self, "mosque", None) is not None and self.mosque.isVisible():
-            self.mosque.flutter.start()
+        for sky in self.every_sky():
+            if sky.isVisible():
+                sky.flutter.start()
         self.tick()          # the time and the prayer due have moved on while it slept
         self.stir()          # picked up: start the going-to-sleep clock from the top
 
@@ -1946,6 +1962,11 @@ class MainWindow(QtWidgets.QWidget):
         if front is not None:
             front.set_time(now.strftime("%H:%M"))
             front.set_sky(*day_fraction(now, times))
+        # A prayer's own page gets the same sky and nothing else: its dome carries the prayer's
+        # name, so there is no clock on it to keep.
+        units = getattr(self, "prayer_mosque", None)
+        if units is not None:
+            units.set_sky(*day_fraction(now, times))
         # The prayer whose time it is stands out in green; the rest are in the banner's own
         # colour. Written as rich text, since a QLabel takes its colours that way.
         now_praying = current_prayer(now, times)
@@ -2018,6 +2039,26 @@ class MainWindow(QtWidgets.QWidget):
         if walk is not None:
             self.veil.start(*walk)
 
+    def touched_unit(self, pid: str, name: str) -> None:
+        """An arch on a prayer's own mosque. The arches are numbered left to right and so are
+        the prayer's units, so the name is the position -- the drawing never has to know what a
+        nafl is, which is what lets one builder handle all five pages."""
+        entries = self.school.prayers.get(pid, [])
+        try:
+            entry = entries[int(name) - 1]
+        except (ValueError, IndexError):
+            return
+        walk = None
+        front = getattr(self, "prayer_mosque", None)
+        if front is not None and self.stack.currentWidget() is self.pick:
+            focus = front.arch_centre(name)
+            if focus is not None:
+                walk = (self.stack.grab(), self.stack.geometry(),
+                        front.mapTo(self.stack, focus))
+        self.start(pid, entry)
+        if walk is not None:
+            self.veil.start(*walk)
+
     def enter_unit(self, pid: str, entry, arch=None) -> None:
         """A tap on one of a prayer's unit arches: the same walk again, into that arch, and out
         at the first screen of the prayer. Built the same way round as [enter_prayer] - the
@@ -2030,11 +2071,71 @@ class MainWindow(QtWidgets.QWidget):
         if walk is not None:
             self.veil.start(*walk)
 
+    def prayer_page(self, pid: str):
+        """This prayer's own mosque, if one has been drawn for it.
+
+        The same widget as the front door and the kalima menu, pointed at its own folder: the
+        drawing, the sky painted behind it, and a box per unit to touch. What the drawing does
+        NOT carry is the words -- they were taken out when it was built -- so the number and the
+        kind are written in here, from the pack, in the language the mat is set to.
+
+        None if the folder is not there, and then open_prayer falls back to the arches it has
+        always drawn for itself. That matters more than it looks: the drawings arrive in a
+        release and the five of them are new, so a mat part way through an update should meet
+        the old screen rather than an empty one.
+        """
+        entries = self.school.prayers.get(pid, [])
+        if not entries or not (self.assets / "prayers" / pid / "mosque.json").is_file():
+            return None
+        screen = MosqueScreen(self.assets, Fonts.english_family, folder=f"prayers/{pid}",
+                              idle_glow=False)
+        if not screen.ready or len(screen.arches) != len(entries):
+            # An arch per unit or nothing: a drawing and a school that disagree about how many
+            # units a prayer has would put the wrong number on the wrong arch, and the one place
+            # that must never be wrong on this mat is how many rakats you are about to pray.
+            if screen.ready:
+                print(f"prayers/{pid}: {len(screen.arches)} arches for {len(entries)} units; "
+                      f"drawing the arches instead", file=sys.stderr)
+            screen.deleteLater()
+            return None
+        return screen
+
+    def dress_prayer_page(self, pid: str, screen, entries) -> None:
+        """The name on the dome and the words in the arches, in the current language."""
+        screen.set_dome(self.t(f"prayer.{pid}"))
+        said = {}
+        for i, entry in enumerate(entries, start=1):
+            unit = self.content.units.get(entry.unit_id)
+            said[str(i)] = (str(unit.rakats if unit else ""), self.t(f"kind.{entry.kind}"))
+        screen.set_labels(said, self.pack_face())
+
     def open_prayer(self, pid: str) -> None:
         """The units of this prayer, each as an arch like the ones on the mosque."""
         self.prayer = pid
         old = self.pick
         entries = self.school.prayers.get(pid, [])
+
+        drawn = self.prayer_page(pid)
+        if drawn is not None:
+            self.dress_prayer_page(pid, drawn, entries)
+            drawn.chosen.connect(lambda name: self.touched_unit(pid, name))
+            self.prayer_mosque = drawn
+            page = QtWidgets.QWidget()
+            box = QtWidgets.QVBoxLayout(page)
+            box.setContentsMargins(0, 0, 0, 0)
+            box.setSpacing(0)
+            # The same strip as the front door and the mosque behind it, which is also the way
+            # home: there is no Menu button on this page because the banner already has one.
+            box.addWidget(self.make_banner(gear=True, home=True))
+            box.addWidget(drawn, 1)
+            self.pick = page
+            self.stack.insertWidget(1, page)
+            self.stack.removeWidget(old)
+            old.deleteLater()
+            self.stack.setCurrentWidget(page)
+            return
+
+        self.prayer_mosque = None
         w = QtWidgets.QWidget()
         lay = QtWidgets.QVBoxLayout(w)
         lay.setContentsMargins(self.px(48), self.px(16), self.px(48), self.px(20))

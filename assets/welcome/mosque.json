@@ -1,8 +1,9 @@
 {
   "schema": 1,
   "image": "mosque.png",
+  "film": "mosque.gif",
   "drawn": "dark",
-  "sky": false,
+  "sky": true,
   "size": [
     1396,
     733
@@ -10,19 +11,19 @@
   "arches": {
     "enter": {
       "box": [
-        384,
-        495,
-        1008,
-        690
+        396,
+        532,
+        1002,
+        669
       ]
     }
   },
   "clock": {
     "box": [
-      512,
-      339,
-      875,
-      479
+      559,
+      345,
+      831,
+      477
     ],
     "ink": "dark"
   }

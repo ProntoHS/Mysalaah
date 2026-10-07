@@ -2413,26 +2413,36 @@ class DuaCategoriesTest(unittest.TestCase):
 
 
 class RecutArtworkTest(unittest.TestCase):
-    """The main mosque and the six-kalima mosque, cut to the shape of the screen they fill."""
+    """Every mosque on the mat, cut to the shape of the screen it fills.
+
+    A drawing of the wrong shape is not clipped or stretched -- MosqueScreen scales it to fit --
+    so it goes wrong quietly, as a bar of bare paper down each side. On these drawings that
+    reads as the white ground stopping short of the edges with the palm trees standing on the
+    end of it, which is how it was noticed when Harry's new ones came in at 1227 by 733.
+    """
 
     def setUp(self):
         self.assets = Path(__file__).resolve().parent.parent / "assets"
 
     SHAPE = 1920 / 1008          # the screen under the strip, at 1080p
 
+    @property
+    def folders(self):
+        return ["mosque", "kalima", "welcome"] + [f"prayers/{p}" for p in PRAYERS]
+
     def described(self, folder):
         import json
         return json.loads((self.assets / folder / "mosque.json").read_text(encoding="utf-8"))
 
     def test_each_drawing_is_the_shape_of_the_screen(self):
-        for folder in ("mosque", "kalima", "welcome"):
+        for folder in self.folders:
             wide, tall = self.described(folder)["size"]
             self.assertLess(abs(wide / tall - self.SHAPE), 0.02,
                             f"{folder} is {wide/tall:.3f}, the screen is {self.SHAPE:.3f}")
 
     def test_what_the_file_says_is_the_size_of_the_picture(self):
         from salaah.qt import QtGui
-        for folder in ("mosque", "kalima", "welcome"):
+        for folder in self.folders:
             said = self.described(folder)["size"]
             image = QtGui.QImage(str(self.assets / folder / "mosque.png"))
             self.assertEqual(said, [image.width(), image.height()],
@@ -4219,3 +4229,193 @@ class WuduContentTest(unittest.TestCase):
                          "hi": "तीन", "zh": "三", "ar": "ثلاث"}[lang]
                 self.assertIn(three.lower(), said.lower(),
                               f"{lang} dropped the warning about washing three times")
+
+
+class PrayerPagesMatchTheSchoolTest(unittest.TestCase):
+    """Harry's five new prayer pages: one arch per unit of that prayer, and no words on them.
+
+    The drawings arrived with the units written into them -- "4 SUNNAH", "3 WITR" -- and the
+    numbers were right. They are not in the drawings any more, because the mat speaks seven
+    languages and a picture only speaks one; tools/build_prayer_pages.py takes the lettering out
+    and salaah/mosque.py writes it back from the pack. What is left in the drawing is the SHAPE,
+    and the one thing the shape still has to get right is how many arches there are. These check
+    that, and that the words really did come out.
+    """
+
+    FOLDER = ASSETS / "prayers"
+
+    def setUp(self):
+        if not self.FOLDER.is_dir():
+            self.skipTest("the prayer pages have not been built")
+        self.school = CONTENT.schools["hanafi"]
+
+    def described(self, prayer: str) -> dict:
+        return json.loads((self.FOLDER / prayer / "mosque.json").read_text(encoding="utf-8"))
+
+    def test_every_prayer_has_a_page(self):
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                self.assertTrue((self.FOLDER / prayer / "mosque.json").is_file(),
+                                f"{prayer} has no drawing")
+                self.assertTrue((self.FOLDER / prayer / "mosque.png").is_file(),
+                                f"{prayer} has a description but no picture")
+
+    def test_one_arch_for_each_unit_of_that_prayer(self):
+        """The arches are matched to the units by POSITION, so a drawing with five arches for a
+        four-unit prayer would put Fardh where Nafl should be. There is nothing in the picture
+        to catch that at the time: the words come from the pack now and would be written into
+        whatever arches were there."""
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                arches = self.described(prayer)["arches"]
+                units = self.school.prayers[prayer]
+                self.assertEqual(len(units), len(arches),
+                                 f"{prayer} is prayed in {len(units)} parts and its drawing has "
+                                 f"{len(arches)} arches")
+
+    def test_the_arches_run_left_to_right_in_the_order_they_are_prayed(self):
+        """They are numbered "1" upwards and read off by position, so the numbering has to
+        follow the drawing across the page rather than any order the builder happened to find
+        the shapes in."""
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                arches = self.described(prayer)["arches"]
+                order = [arches[str(i)]["box"][0] for i in range(1, len(arches) + 1)]
+                self.assertEqual(sorted(order), order,
+                                 f"{prayer}'s arches are not numbered across the page: {order}")
+
+    def test_the_arches_are_empty_and_the_dome_is_clear(self):
+        """The words are gone from the picture. An arch is a solid dark shape on these drawings,
+        so anything LIGHT inside one is lettering that survived; the dome is solid light, so
+        anything dark on it is the prayer's name still sitting there.
+
+        Both looked at as the screen does -- what is inside the shape -- rather than as a
+        rectangle, because an arch's box has building in its corners.
+        """
+        from PIL import Image
+        import numpy as np
+        from scipy import ndimage
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                described = self.described(prayer)
+                grey = np.asarray(Image.open(self.FOLDER / prayer / described["image"])
+                                  .convert("L"), dtype=np.uint8)
+                for name, arch in described["arches"].items():
+                    x0, y0, x1, y1 = arch["box"]
+                    window = grey[y0:y1, x0:x1]
+                    inside = ndimage.binary_fill_holes(window < 90)
+                    left = int(((window > 170) & inside).sum())
+                    self.assertEqual(0, left, f"{prayer} arch {name} still has {left} pixels of "
+                                              f"lettering in it")
+                x0, y0, x1, y1 = described["clock"]["box"]
+                dome = grey[y0:y1, x0:x1]
+                self.assertEqual(0, int((dome < 170).sum()),
+                                 f"{prayer} still has its name written on the dome")
+
+    def test_the_five_drawings_are_the_same_mosque(self):
+        """Above the arches the five are one picture, so once the names are off the dome they
+        should be the same to the pixel. This is the check that catches a name half wiped: a
+        dot on an i left behind shows up here as a difference from the pages that have none,
+        even though it is too small to be lettering anywhere else.
+
+        Allowed: a handful of pixels along the dome's curve, where a letter running right up to
+        the edge takes a little of the soft edge with it when it goes.
+        """
+        from PIL import Image
+        import numpy as np
+        above = min(min(a["box"][1] for a in self.described(p)["arches"].values())
+                    for p in PRAYERS)
+        first = np.asarray(Image.open(self.FOLDER / PRAYERS[0] / "mosque.png")
+                           .convert("RGBA"), dtype=np.int16)[:above]
+        for prayer in PRAYERS[1:]:
+            with self.subTest(prayer):
+                other = np.asarray(Image.open(self.FOLDER / prayer / "mosque.png")
+                                   .convert("RGBA"), dtype=np.int16)[:above]
+                apart = int((np.abs(other - first).sum(axis=2) > 20).sum())
+                self.assertLess(apart, 200,
+                                f"{prayer} differs from {PRAYERS[0]} above the arches in {apart} "
+                                f"pixels: something is left of its name")
+
+    def test_the_sky_is_cut_out_of_all_of_them(self):
+        """They say "sky": true, which means the app paints the sun, the moon, the stars and the
+        birds BEHIND the drawing. If the sky were still painted into the picture there would be
+        nothing to see them through."""
+        from PIL import Image
+        import numpy as np
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                described = self.described(prayer)
+                self.assertTrue(described.get("sky"), f"{prayer} does not ask for a sky")
+                alpha = np.asarray(Image.open(self.FOLDER / prayer / "mosque.png")
+                                   .convert("RGBA"))[:, :, 3]
+                self.assertEqual(0, int(alpha[2, 2]), f"{prayer}'s corner is not see-through")
+                clear = float((alpha == 0).mean())
+                self.assertGreater(clear, 0.3, f"only {clear:.0%} of {prayer} is sky")
+
+
+class TheNewFrontDoorTest(unittest.TestCase):
+    """The MySalaah animation Harry drew for the front of the mat.
+
+    It brings no sun, moon or stars of its own -- he asked for the app's -- so the sky has to be
+    see-through, and it has to be see-through in the SAME PLACES in every frame. The first build
+    worked the sky out frame by frame, and the flood fill disagreed with itself by a pixel along
+    the building's soft edge, so the outline crawled all the way round.
+    """
+
+    FOLDER = ASSETS / "welcome"
+
+    def setUp(self):
+        if not (self.FOLDER / "mosque.gif").is_file():
+            self.skipTest("the front door has no film")
+        self.described = json.loads((self.FOLDER / "mosque.json").read_text(encoding="utf-8"))
+
+    def frames(self):
+        from PIL import Image
+        import numpy as np
+        film = Image.open(self.FOLDER / "mosque.gif")
+        for i in range(getattr(film, "n_frames", 1)):
+            film.seek(i)
+            yield np.asarray(film.convert("RGBA"))
+
+    def test_the_app_paints_the_sky(self):
+        self.assertTrue(self.described.get("sky"),
+                        "the front door says it brings its own sky, and it brings none")
+
+    def test_every_frame_is_see_through_in_the_same_places(self):
+        import numpy as np
+        first = None
+        for i, frame in enumerate(self.frames()):
+            clear = frame[:, :, 3] == 0
+            if first is None:
+                first = clear
+                self.assertGreater(float(clear.mean()), 0.3,
+                                   f"only {clear.mean():.0%} of the film is sky")
+                continue
+            apart = int((clear != first).sum())
+            self.assertEqual(0, apart, f"frame {i} cuts the sky out in {apart} places frame "
+                                       f"one does not: the outline crawls")
+
+    def test_the_film_and_the_still_are_the_same_canvas(self):
+        """Every box on the screen -- the clock on the dome, the name the walk aims at -- was
+        measured on the still, so a film on a different canvas would move the picture out from
+        under them."""
+        from PIL import Image
+        still = Image.open(self.FOLDER / self.described["image"])
+        film = Image.open(self.FOLDER / "mosque.gif")
+        self.assertEqual(list(still.size), self.described["size"])
+        self.assertEqual(still.size, film.size)
+
+    def test_the_clock_sits_on_the_dome(self):
+        """Dark numbers on a solid white dome. Checked by looking: every pixel of the box the
+        time is written in should be part of the building, and light."""
+        from PIL import Image
+        import numpy as np
+        picture = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("RGBA"))
+        x0, y0, x1, y1 = self.described["clock"]["box"]
+        box = picture[y0:y1, x0:x1]
+        self.assertEqual(0, int((box[:, :, 3] == 0).sum()),
+                         "part of the clock box is sky: the time would be written on nothing")
+        self.assertGreater(int(box[:, :, :3].min()), 170,
+                           "the clock box is not on clear dome")
+        self.assertEqual("dark", self.described["clock"].get("ink"),
+                         "light numbers on a white dome")
