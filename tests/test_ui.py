@@ -13,7 +13,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from dataclasses import replace  # noqa: E402
 from salaah.content import PRAYERS, Translation, available_packs, load  # noqa: E402
-from salaah.reading import FLOOR_PX  # noqa: E402
+from salaah.reading import FLOOR_PX, TEXT_STEPS  # noqa: E402
 from salaah.filmsheet import FilmSheet  # noqa: E402
 from salaah.qt import API, QtCore, QtGui, QtWidgets, Qt  # noqa: E402
 from salaah.render import MIN_ARABIC_PX  # noqa: E402
@@ -6433,31 +6433,29 @@ class TwoMosquesTest(unittest.TestCase):
             found[name] = (sum(xs) // len(xs), top)
         return found
 
-    # THE KALIMA DRAWING IS THE ODD ONE OUT SINCE 1.63, and these three say so rather than
-    # being quietly relaxed.
-    #
-    # Harry has replaced the front door, the five prayer pages and now the main page with a
-    # new family of drawings: one building, 1396 by 733, the sky cut out of it, the words
-    # taken out of the arches so the app can write them in whatever language the mat is set
-    # to. The six-kalima menu is still the old artwork -- 1624 by 853, with its numbers drawn
-    # in -- so it no longer lines up with the mosque it is meant to echo, and going from one
-    # to the other jumps.
-    #
-    # That is a thing to tell him and a drawing for him to make, not something to fix in a
-    # test. So what used to be asked of the mosque and the kalima menu is asked of the new
-    # family instead, and the kalima one is checked against what it actually is, with this
-    # note saying why they differ.
-
     def test_the_minarets_and_dome_land_in_the_same_place_across_the_family(self):
-        """The main mosque and a prayer's own page are the same building drawn twice, so the
-        minarets and the dome have to land on the same pixels. This is what used to be asked
-        of the mosque and the kalima menu, moved to the two that really do share a building.
+        """Every mosque on the mat is the same building drawn again, so the minarets and the
+        dome have to land on the same pixels wherever you are.
+
+        The kalima menu is back in this check in 1.64. It was taken out in 1.63 -- the rest of
+        the mat had been redrawn and it had not, so it no longer lined up -- with a note and a
+        test whose job was to fail the moment Harry replaced it. He has, so this is what that
+        reminder was for.
         """
         w = self.window()
         w.stack.setCurrentWidget(w.home)
         settle()
         mosque = self.landmarks(w)
         self.assertIsNotNone(mosque)
+
+        def compare(what, found):
+            self.assertIsNotNone(found, f"{what}: nothing measurable on screen")
+            for part in ("left", "right", "dome"):
+                across = abs(found[part][0] - mosque[part][0])
+                down = abs(found[part][1] - mosque[part][1])
+                self.assertLess(across, 25, f"{what}: {part} is {across}px across")
+                self.assertLess(down, 25, f"{what}: {part} is {down}px down")
+
         for prayer in ("fajr", "isha"):
             with self.subTest(prayer):
                 w.open_prayer(prayer)
@@ -6466,33 +6464,21 @@ class TwoMosquesTest(unittest.TestCase):
                 page.sky.birds = []
                 page.sky.stars = []
                 settle()
-                units = self.landmarks(w)
-                self.assertIsNotNone(units)
-                for part in ("left", "right", "dome"):
-                    across = abs(units[part][0] - mosque[part][0])
-                    down = abs(units[part][1] - mosque[part][1])
-                    self.assertLess(across, 25, f"{part} is {across}px across from the mosque's")
-                    self.assertLess(down, 25, f"{part} is {down}px below the mosque's")
+                compare(prayer, self.landmarks(w))
 
-    def test_the_kalima_drawing_has_not_been_replaced_yet(self):
-        """Recorded, not asserted away. When Harry draws the kalima menu to match the rest,
-        this test fails -- and that failure is the reminder to put the two checks above back
-        the way they were, with the kalima menu in them."""
-        front = QtGui.QImage(str(ASSETS / "mosque" / "mosque.png"))
-        arches = QtGui.QImage(str(ASSETS / "kalima" / "mosque.png"))
-        self.assertNotEqual(front.size(), arches.size(),
-                            "the kalima drawing matches the mosque again -- put it back into "
-                            "test_the_minarets_and_dome_land_in_the_same_place_across_the_family "
-                            "and into CleanArtworkTest, and delete this test")
+        with self.subTest("the kalima menu"):
+            w.open_corner("kalima")
+            settle()
+            compare("the kalima menu", self.landmarks(w))
 
-    def test_the_new_drawings_are_all_one_size(self):
-        """What the check above used to be, pointed at the family that shares a building. A
-        drawing of another size does not get clipped -- MosqueScreen scales it to fit -- it
-        sits smaller and higher than the one before it, which is how this was first noticed.
-        """
+    def test_every_drawing_is_one_size(self):
+        """A drawing of another size does not get clipped -- MosqueScreen scales it to fit --
+        it sits smaller and higher than the one before it, which is how this was noticed.
+
+        All of them again since 1.64, the kalima menu included."""
         sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size()
-                 for f in ["mosque", "welcome"] + [f"prayers/{p}" for p in PRAYERS]}
-        self.assertEqual(1, len(sizes), f"the new drawings are not all one size: {sizes}")
+                 for f in ["mosque", "welcome", "kalima"] + [f"prayers/{p}" for p in PRAYERS]}
+        self.assertEqual(1, len(sizes), f"the drawings are not all one size: {sizes}")
 
     def test_the_arch_menu_has_no_bar_of_its_own_stealing_height(self):
         """It used to carry a Main screen button in a row above the mosque, which pushed the
@@ -7683,12 +7669,10 @@ class CleanArtworkTest(unittest.TestCase):
         """The mosques that read as the same building seen twice are lined up against each
         other, so they must be the same size.
 
-        CHANGED IN 1.63: it used to be the mosque and the kalima menu. Harry has replaced the
-        mosque, the front door and the five prayer pages with one family and has not yet
-        redrawn the kalima menu, which is still the old artwork at the old size -- see the
-        note in TwoMosquesTest, which carries the reminder to put it back.
+        The kalima menu rejoined them in 1.64; it was the last of the old artwork, and for one
+        version it was left out of this with a note saying why.
         """
-        folders = ["mosque", "welcome"] + [f"prayers/{p}" for p in PRAYERS]
+        folders = ["mosque", "welcome", "kalima"] + [f"prayers/{p}" for p in PRAYERS]
         sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size() for f in folders}
         self.assertEqual(1, len(sizes), f"the mosques are drawn at different sizes: {sizes}")
         shape = next(iter(sizes))
@@ -8121,6 +8105,172 @@ class MapPinTest(unittest.TestCase):
     def test_it_is_drawn_rather_than_carried_as_a_picture(self):
         self.assertFalse((ASSETS / "pin.png").exists())
         self.assertFalse(list(ASSETS.glob("**/*pin*")), "a pin picture crept into the assets")
+
+    # Harry's shape, since 1.64. The outline is a table of numbers traced off the drawing he
+    # sent, so what these watch for is a table that has been mangled -- a row out of order, a
+    # column swapped, a stray value -- rather than the drawing itself, which is not in the
+    # repository and should not be.
+
+    @staticmethod
+    def silhouette(size=240):
+        from salaah.ui import map_pin
+        image = map_pin(size, "#8FB1F0").toImage()
+        rows = []
+        for y in range(size):
+            on = [x for x in range(size) if QtGui.QColor(image.pixelColor(x, y)).alpha() > 128]
+            rows.append((on[0], on[-1]) if on else None)
+        return rows
+
+    def test_it_is_the_same_on_both_sides(self):
+        """Only half the outline is written down, so a bug in the mirroring would show here
+        and nowhere else."""
+        size = 240
+        for y, span in enumerate(self.silhouette(size)):
+            if span is None:
+                continue
+            left, right = span
+            middle = (left + right) / 2
+            self.assertLess(abs(middle - (size - 1) / 2), 1.5,
+                            f"row {y} is off centre: {left}-{right}")
+
+    def test_it_is_widest_about_a_third_of_the_way_down(self):
+        """A teardrop, not a circle and not a triangle: the head is in the upper part and the
+        taper is the long way. Table rows out of order would move the waist."""
+        rows = [(y, s) for y, s in enumerate(self.silhouette()) if s is not None]
+        widest = max(rows, key=lambda r: r[1][1] - r[1][0])[0]
+        self.assertTrue(0.28 < widest / 240 < 0.45,
+                        f"the widest part is {widest / 240:.2f} of the way down")
+
+    def test_below_the_waist_it_only_narrows(self):
+        """All the way to a point, on each side separately.
+
+        Each side, not the overall width: a bulge down one edge leaves the width shrinking all
+        the way, because the other edge is still coming in faster than the bulge goes out. The
+        first version of this measured the width and a deliberate bulge walked straight past it.
+        """
+        size = 240
+        rows = [(y, s) for y, s in enumerate(self.silhouette(size)) if s is not None]
+        widest = max(rows, key=lambda r: r[1][1] - r[1][0])[0]
+        below = [(y, s) for y, s in rows if y > widest + 4]
+        middle = (size - 1) / 2
+        # Against the narrowest it has been, not against the row above. Row by row, a bulge
+        # that comes on gradually never widens by more than a pixel at a time and walks
+        # straight through: a deliberate one nine pixels deep did exactly that, because it
+        # arrived over five rows. Once an edge has come in to X it may not go back out past X.
+        tightest = {"left": size, "right": size}
+        for y, (left, right) in below:
+            for side, out in (("left", middle - left), ("right", right - middle)):
+                self.assertLessEqual(out, tightest[side] + 2,
+                                     f"the {side} edge is back out to {out:.0f} at row {y} "
+                                     f"after coming in to {tightest[side]:.0f}")
+                tightest[side] = min(tightest[side], out)
+        self.assertLess(below[-1][1][1] - below[-1][1][0], 24,
+                        "it should come to a point, not a stump")
+
+    def test_the_hole_sits_inside_the_head(self):
+        rows = self.silhouette()
+        from salaah.ui import map_pin
+        image = map_pin(240, "#8FB1F0").toImage()
+        clear = [(x, y) for y in range(240) for x in range(240)
+                 if rows[y] is not None and rows[y][0] < x < rows[y][1]
+                 and QtGui.QColor(image.pixelColor(x, y)).alpha() < 128]
+        self.assertTrue(clear, "there is no hole in the head")
+        down = sum(y for _, y in clear) / len(clear) / 240
+        self.assertTrue(0.25 < down < 0.45, f"the hole is {down:.2f} of the way down")
+
+
+class BannerStripTest(unittest.TestCase):
+    """The black strip across the top, which every screen shares and which therefore has to
+    look the same on every screen."""
+
+    def window(self, lang="en", wide=1920, side=False):
+        # side=False by default, which is the TIGHTER strip: with the 7" screen attached the
+        # cog lives over there, and the sixty pixels that frees were enough to hide the
+        # clipping this class exists to catch.
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", lang=lang, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=side)
+        w.resize(wide, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def strip(page):
+        return next((c for c in page.findChildren(QtWidgets.QWidget)
+                     if c.objectName() == "banner"), None)
+
+    def every_screen(self, w):
+        """The strip on each of the screens that carries one, by name."""
+        out = {}
+        w.stack.setCurrentWidget(w.welcome)
+        settle()
+        out["the front door"] = self.strip(w.welcome)
+        w.stack.setCurrentWidget(w.home)
+        settle()
+        out["the mosque"] = self.strip(w.home)
+        w.open_prayer("isha")
+        settle()
+        out["a prayer's units"] = self.strip(w.pick)
+        w.open_corner("quran")
+        settle()
+        out["the Qur'an"] = self.strip(w.stack.currentWidget())
+        w.open_corner("kalima")
+        settle()
+        out["the kalima menu"] = self.strip(w.stack.currentWidget())
+        return {name: bar for name, bar in out.items() if bar is not None}
+
+    def test_the_strip_is_the_same_height_everywhere(self):
+        """Harry: the one over the prayer menu is "slightly narrower than the others". It was
+        the other way round -- the screens carrying a Main screen button came out five pixels
+        TALLER, because the button is taller than the volume slider and the row grew to hold
+        it. Either way the strip changed height as you moved about, which is the thing."""
+        w = self.window()
+        found = self.every_screen(w)
+        self.assertGreaterEqual(len(found), 4, "not enough screens were looked at")
+        heights = {name: bar.height() for name, bar in found.items()}
+        self.assertEqual(1, len(set(heights.values())),
+                         f"the strip is not one height: {heights}")
+
+    def test_the_strip_runs_the_whole_way_across(self):
+        w = self.window()
+        for name, bar in self.every_screen(w).items():
+            with self.subTest(name):
+                self.assertEqual(w.width(), bar.width(), f"{name}: the strip stops short")
+                self.assertEqual(0, bar.mapTo(w, QtCore.QPoint(0, 0)).x())
+
+    def test_the_times_fit_on_the_strip_in_every_language(self):
+        """French and Spanish ran off the end of it on any screen carrying a Main screen
+        button -- 1167 pixels of words in 1133 of room, so Isha lost its last digit. A rich
+        text label does not elide, it simply stops, and a prayer time with a character missing
+        is worse than a tighter row."""
+        for lang in WRITTEN_IN + (ARABIC_ONLY,):
+          for side in (False, True):
+            with self.subTest(f"{lang}{' with the 7 inch' if side else ''}"):
+                w = self.window(lang, side=side)
+                w.open_corner("kalima")      # the widest furniture: slider, button and cog
+                settle()
+                w.tick()
+                settle()
+                labels = [c for c in w.stack.currentWidget().findChildren(QtWidgets.QLabel)
+                          if c.objectName() == "bannerText"]
+                self.assertTrue(labels, f"{lang}: no times on the strip")
+                said = labels[0]
+                self.assertLessEqual(said.sizeHint().width(), said.width(),
+                                     f"{lang}: the times are cut off ("
+                                     f"{said.sizeHint().width()} in {said.width()})")
+                self.assertIn(":", said.text(), f"{lang}: the strip has no times on it")
+
+    def test_the_pin_is_on_every_strip(self):
+        w = self.window()
+        for name, bar in self.every_screen(w).items():
+            with self.subTest(name):
+                pins = [c for c in bar.findChildren(QtWidgets.QLabel)
+                        if c.objectName() == "bannerPin"]
+                self.assertTrue(pins, f"{name}: no pin")
+                self.assertFalse(pins[0].pixmap().isNull(), f"{name}: the pin is empty")
 
 
 class WalkIntoTheNameTest(unittest.TestCase):
@@ -12414,3 +12564,326 @@ class ReadingBarTest(unittest.TestCase):
         start, end = r.spread.pages[r.spread.at]
         self.assertTrue(start <= 40 < end,
                         f"verse 40 is not on the page it landed on ({start}-{end})")
+
+
+class KalimaMenuTest(unittest.TestCase):
+    """Harry's new six-kalima drawing, which brings it into the family the rest of the mat is
+    now drawn in -- and the one way it is deliberately not like the prayer pages.
+
+    On those, the words in the arches come from the pack, because Sunnah and Fardh have to be
+    read in whatever language the mat is set to. Here they are numbers, and Harry's call was
+    that "1 to 10 is universal regardless of language", so they are the plain digits
+    everywhere and nothing is looked up.
+    """
+
+    def window(self, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", lang=lang, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def menu(self, w):
+        self.assertIn("kalima", w.arch_menus, "the kalima menu did not load")
+        return w.arch_menus["kalima"]
+
+    def test_six_arches_numbered_across_the_page(self):
+        m = self.menu(self.window()).mosque
+        self.assertEqual([str(i) for i in range(1, 7)], [a.prayer for a in m.arches])
+        across = [a.box.x() for a in m.arches]
+        self.assertEqual(sorted(across), across, f"not in order across the page: {across}")
+
+    def test_the_numbers_are_the_same_in_every_language(self):
+        said = {}
+        for lang in WRITTEN_IN + (ARABIC_ONLY,):
+            said[lang] = self.menu(self.window(lang)).mosque.labels
+        self.assertEqual({str(i): ("", str(i)) for i in range(1, 7)}, said["en"])
+        for lang, labels in said.items():
+            with self.subTest(lang):
+                self.assertEqual(said["en"], labels,
+                                 f"{lang} numbers its arches differently")
+
+    def test_the_numbers_are_really_painted_in(self):
+        """The drawing arrives with its arches empty, so if this stops working the menu is six
+        blank doorways and there is no way to tell which kalima is which."""
+        w = self.window()
+        screen = self.menu(w).mosque
+        held = screen.sky.now()
+        frozen = mock.patch.object(type(screen.sky), "now", staticmethod(lambda: held))
+        frozen.start()
+        self.addCleanup(frozen.stop)
+        screen.flutter.stop()
+        w.open_corner("kalima")
+        settle()
+        said = dict(screen.labels)
+        before = screen.grab().toImage()
+        screen.set_labels({})
+        settle()
+        after = screen.grab().toImage()
+        _, origin, scale = screen.placement()
+        boxes = {a.prayer: QtCore.QRect(origin.x() + int(a.box.x() * scale),
+                                        origin.y() + int(a.box.y() * scale),
+                                        int(a.box.width() * scale), int(a.box.height() * scale))
+                 for a in screen.arches}
+        changed = {name: 0 for name in boxes}
+        strayed = 0
+        for y in range(0, before.height(), 2):
+            for x in range(0, before.width(), 2):
+                if before.pixel(x, y) == after.pixel(x, y):
+                    continue
+                here = [n for n, b in boxes.items() if b.contains(x, y)]
+                if here:
+                    changed[here[0]] += 1
+                else:
+                    strayed += 1
+        from salaah.render import Fonts
+        screen.set_labels(said, Fonts.english_family)
+        for name, count in changed.items():
+            with self.subTest(name):
+                self.assertGreater(count, 20, f"nothing was written in arch {name}")
+        self.assertEqual(0, strayed, "the numbers were painted outside the arches")
+
+    def test_touching_an_arch_opens_that_kalima(self):
+        w = self.window()
+        m = self.menu(w)
+        for which in (1, 4, 6):
+            with self.subTest(which):
+                w.open_corner("kalima")
+                settle()
+                middle = m.mosque.arch_centre(str(which))
+                self.assertIsNotNone(middle, f"arch {which} is not on the drawing")
+                ev = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress,
+                                       QtCore.QPointF(middle), Qt.MouseButton.LeftButton,
+                                       Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier)
+                m.mosque.mousePressEvent(ev)
+                settle()
+                reader = w.section_readers["kalima"]
+                self.assertIs(reader, w.corner_screen.currentWidget(),
+                              f"touching arch {which} did not open the kalima")
+                self.assertEqual(which - 1, reader.at,
+                                 f"touching arch {which} opened kalima {reader.at + 1}")
+
+    def test_it_keeps_the_clock_and_lights_no_prayer(self):
+        w = self.window()
+        m = self.menu(w).mosque
+        self.assertTrue(m.time_text, "no time on the dome")
+        self.assertEqual(w.mosque.time_text, m.time_text, "the two clocks disagree")
+        self.assertIsNone(m.lit, "a menu of readings should not pick a prayer")
+        self.assertFalse(m.idle_glow)
+
+
+class ScreensComeBackOnTest(unittest.TestCase):
+    """The panels are switched on when the app starts, whatever state the last run left them.
+
+    This is the other half of the crash restart. The app only ever turned the screens back on
+    when it woke or shut down cleanly, which was enough while those were the only ways it
+    ended. Since run.sh starts the app again after a crash, a crash while the mat is ASLEEP
+    leaves the panels off -- and the new instance begins with asleep=False, so it never calls
+    wake() and never turns them on. A dark mat with nothing wrong with it, for ever.
+    """
+
+    class Counting:
+        """A stand-in for Outputs that writes down what it was asked to do."""
+
+        def __init__(self):
+            self.calls = []
+            self.why = ""
+
+        def set(self, on):
+            self.calls.append(on)
+            return True
+
+    def window(self, outputs):
+        with mock.patch("salaah.ui.Outputs", lambda: outputs):
+            w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                           Settings(theme="dark", recitation=False, place="Bury"),
+                           scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_starting_up_turns_the_screens_on(self):
+        counting = self.Counting()
+        self.window(counting)
+        self.assertIn(True, counting.calls,
+                      "the app started without asking for the screens; a mat that crashed "
+                      "while asleep would come back dark")
+        self.assertEqual(True, counting.calls[0], "the first thing it does is switch them on")
+
+    def test_it_does_not_switch_them_off_on_the_way_up(self):
+        counting = self.Counting()
+        self.window(counting)
+        self.assertNotIn(False, counting.calls, "something darkened the panels at startup")
+
+    def test_sleeping_and_waking_still_work(self):
+        counting = self.Counting()
+        w = self.window(counting)
+        counting.calls.clear()
+        w.sleep()
+        settle()
+        self.assertEqual([False], counting.calls, "sleeping did not switch the panels off")
+        w.wake()
+        settle()
+        self.assertEqual([False, True], counting.calls, "waking did not switch them back on")
+
+
+class TheReaderFollowsTheWindowTest(unittest.TestCase):
+    """Two things on the Qur'an screen are sized from other widgets rather than from the
+    stylesheet, so neither can be right until the stylesheet has been applied AND laid out.
+
+    The window notices a scale change in its resizeEvent and defers the restyle to the next
+    turn of the event loop, so by the time Back is its new height every resizeEvent has been
+    and gone. Anything that matched Back inside one matched the size it was about to stop
+    being: at 1280 that was a 114-pixel play button beside a 37-pixel Back.
+    """
+
+    def window(self, wide=1920, tall=1080):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(wide, tall)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_the_play_button_follows_back_through_a_resize(self):
+        w = self.window()
+        w.open_surah(36)
+        settle()
+        r = w.reader
+        for wide, tall in ((1280, 800), (1920, 1080), (1600, 900)):
+            with self.subTest(f"{wide}x{tall}"):
+                w.resize(wide, tall)
+                settle()
+                settle()
+                self.assertEqual(r.back_button.height() * 2, r.recite_button.height(),
+                                 f"Back is {r.back_button.height()}, play is "
+                                 f"{r.recite_button.height()}")
+                self.assertEqual(r.recite_button.height(), r.recite_button.width(),
+                                 "the play button is not square")
+
+    def test_the_page_is_laid_out_again_for_the_new_size(self):
+        """The same fault, on the part that matters more: the text boxes take their floor and
+        their ceiling from the window's scale, and were being left at the old one. A page
+        would then be filled for a screen that is no longer there."""
+        w = self.window()
+        w.open_surah(36)
+        settle()
+        r = w.reader
+        self.assertAlmostEqual(w.s * r.spread.text_step, r.spread.left.scale, places=3)
+        w.resize(1280, 800)
+        settle()
+        settle()
+        self.assertAlmostEqual(w.s * r.spread.text_step, r.spread.left.scale, places=3,
+                               msg="the text boxes were left at the old screen's scale")
+        self.assertGreaterEqual(r.spread.pages_count, 1)
+
+    def test_the_chosen_text_size_survives_a_resize(self):
+        w = self.window()
+        w.open_surah(36)
+        settle()
+        r = w.reader
+        r.resize_text(2)
+        settle()
+        w.resize(1280, 800)
+        settle()
+        settle()
+        self.assertEqual(2, r.text_size.at, "the buttons forgot which size was chosen")
+        self.assertAlmostEqual(w.s * TEXT_STEPS[2], r.spread.left.scale, places=3,
+                               msg="the page came back at a different size")
+
+
+class SunGlowTest(unittest.TestCase):
+    """The glow round the sun has to read as light on whichever screen it is drawn on.
+
+    It used to be a flat disc of amber at a quarter strength, which is a soft bloom on the
+    white screen and a hard DARK BROWN ring on the black one -- a quarter of amber mixed with
+    black is a dark colour, and the mat shows the black screen whenever it is set to dark,
+    daytime included. Now it fades from nearly the sun's own colour to nothing, so there is no
+    edge left to come out the wrong shade.
+    """
+
+    def screen(self, theme):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1600, 900)
+        w.show()
+        w.tick()
+        w.stack.setCurrentWidget(w.home)
+        settle()
+        m = w.mosque
+        m.sky.birds = []
+        m.sky.stars = []
+        m.set_sky(True, 0.3)       # the sun, part way up, clear of the building
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w, m
+
+    @staticmethod
+    def along_a_ray(shot, centre, radius):
+        """Lightness going SIDEWAYS from the sun, from its edge out past the glow.
+
+        Sideways, not up: the sun sits near the top of the sky and a ray going up leaves the
+        picture a radius and a half along, which the first version of this did -- it read five
+        pixels off the end of the image, got the same number back each time, and called the
+        step between them the shape of the glow.
+        """
+        out = []
+        for step in range(10, 20):
+            x = int(centre.x() + radius * step / 10)
+            if not 0 <= x < shot.width():
+                break
+            out.append((step / 10, QtGui.QColor(shot.pixel(x, int(centre.y()))).lightness()))
+        return out
+
+    def test_the_glow_fades_the_whole_way_out(self):
+        """What was actually wrong, measured.
+
+        The flat disc does not fade: at a quarter strength it is the same colour from the
+        sun's edge all the way to its rim and then falls off a cliff. On the night screen that
+        reads as a dark brown ring with an edge to it. Measured on the black screen: 51, then
+        31, 31, 31, 31, 31, 31, 26, 0 -- six samples that do not move at all.
+
+        A glow changes all the way out, so every step has to move, and towards the sky. That
+        is the one property the flat disc cannot have, and the test that the first two
+        attempts at this missed: both of them passed with the old disc put back.
+        """
+        for theme in ("dark", "light"):
+            with self.subTest(theme):
+                w, m = self.screen(theme)
+                scaled, origin, _ = m.placement()
+                centre, radius = m.sky_body(scaled, origin)
+                shot = m.grab().toImage()
+                ray = self.along_a_ray(shot, centre, radius)
+                self.assertGreaterEqual(len(ray), 9, "not enough of the glow is on screen")
+                sky = QtGui.QColor(shot.pixel(int(centre.x() + radius * 3),
+                                              int(centre.y()))).lightness()
+                towards = 1 if sky > ray[0][1] else -1
+                for (at, a), (then, b) in zip(ray, ray[1:]):
+                    self.assertGreaterEqual((b - a) * towards, 3,
+                                            f"{theme}: between {at} and {then} radii the glow "
+                                            f"goes from {a} to {b} -- it is a flat disc, not "
+                                            f"a glow")
+                self.assertLess(abs(ray[-1][1] - sky), 25,
+                                f"{theme}: at the rim the glow is still {ray[-1][1]} against a "
+                                f"sky of {sky}; there is an edge there")
+
+    def test_the_sun_itself_is_still_the_sun(self):
+        from salaah.mosque import SUN
+        for theme in ("dark", "light"):
+            with self.subTest(theme):
+                w, m = self.screen(theme)
+                scaled, origin, _ = m.placement()
+                centre, radius = m.sky_body(scaled, origin)
+                shot = m.grab().toImage()
+                middle = QtGui.QColor(shot.pixel(int(centre.x()), int(centre.y())))
+                self.assertEqual(SUN.name(), middle.name(), f"{theme}: the sun is not amber")

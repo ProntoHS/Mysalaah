@@ -471,6 +471,7 @@ class ArchMenu(QtWidgets.QWidget):
         self.setObjectName("archMenu")
         self.mosque = MosqueScreen(self.win.assets, clock_font, folder=folder, idle_glow=False)
         self.mosque.chosen.connect(self.picked)
+        self.number_the_arches()
 
         outer = QtWidgets.QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -480,6 +481,24 @@ class ArchMenu(QtWidgets.QWidget):
         # No bar of its own: the way home is in the banner above, so the mosque gets the
         # whole screen and lines up with the front door's.
         outer.addWidget(self.mosque, 1)
+
+    def number_the_arches(self) -> None:
+        """1 to 6 across the arches, the same in every language.
+
+        Harry's drawing arrives with the arches empty, the way the prayer pages do, but for a
+        different reason and with a different answer. There the words are Sunnah and Fardh and
+        have to follow the mat's language; here they are numbers, and -- his call -- "1 to 10
+        is universal regardless of language", so they are written in the interface face as the
+        plain digits whatever the pack says. Nothing is looked up and nothing is translated.
+
+        Still written by the app rather than drawn in, because that is what lets one builder
+        handle this drawing and the five prayer pages, and because a number knocked out of the
+        artwork cannot be moved if an arch ever does.
+        """
+        if not self.mosque.ready:
+            return
+        self.mosque.set_labels({a.prayer: ("", a.prayer) for a in self.mosque.arches},
+                               Fonts.english_family)
 
     @property
     def ready(self) -> bool:

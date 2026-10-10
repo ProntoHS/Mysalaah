@@ -709,8 +709,21 @@ class MosqueScreen(QtWidgets.QWidget):
         centre, radius = self.sky_body(scaled, origin)
         painter.setPen(Qt.PenStyle.NoPen)
         if self.sun_up:
-            painter.setBrush(QtGui.QColor(255, 193, 7, 60))
-            painter.drawEllipse(centre, radius * 1.7, radius * 1.7)
+            # The halo FADES out instead of being a flat disc at a quarter strength. Flat, it
+            # is a quarter of amber mixed with whatever is behind -- a soft bloom on the white
+            # screen and a hard dark brown ring on the black one, which is what the mat showed
+            # whenever it was set to dark during the day. A gradient reads as light either
+            # way: nearly the sun's own colour where it meets the sun, nothing at all by the
+            # time it reaches the rim, so there is no edge to be the wrong colour.
+            glow = QtGui.QRadialGradient(centre, radius * 1.9)
+            near, far = QtGui.QColor(SUN), QtGui.QColor(SUN)
+            near.setAlpha(150)
+            far.setAlpha(0)
+            glow.setColorAt(radius / (radius * 1.9), near)
+            glow.setColorAt(0.0, near)
+            glow.setColorAt(1.0, far)
+            painter.setBrush(QtGui.QBrush(glow))
+            painter.drawEllipse(centre, radius * 1.9, radius * 1.9)
             painter.setBrush(SUN)
             painter.drawEllipse(centre, radius, radius)
         else:

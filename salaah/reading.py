@@ -706,6 +706,26 @@ class Reader(QtWidgets.QWidget):
         super().resizeEvent(ev)
         self.match_buttons()
 
+    def follow_scale(self) -> None:
+        """The window changed size and has just been restyled. Catch up with it.
+
+        Two things on this screen are sized FROM other widgets rather than from the
+        stylesheet, so neither can be right until the stylesheet has been applied and laid
+        out: the play button, which is twice the height of Back beside it, and the text boxes,
+        whose floor and ceiling are the screen's scale times the chosen size.
+
+        resizeEvent alone is not enough and was the bug. The scale change is noticed in
+        MainWindow.resizeEvent and the restyle is deferred to the next turn of the event loop,
+        so by the time Back is its new height every resizeEvent has already been and gone --
+        the play button went on sitting at twice the height Back used to be, which at 1280 was
+        a 114-pixel circle beside a 37-pixel button.
+        """
+        self.spread.size_the_boxes()
+        self.spread._measured = None
+        self.match_buttons()
+        self.spread.repaginate()
+        self.say_where()
+
     def resize_text(self, at: int) -> None:
         """One of the three A's was touched.
 

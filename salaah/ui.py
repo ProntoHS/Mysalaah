@@ -45,6 +45,14 @@ LAPIS = "#274B8F"
 # The banner is black whatever the theme, so the place is picked out in a blue that reads on
 # black rather than the ink-dark lapis used on paper.
 BANNER_BLUE = "#8FB1F0"
+# How tall the black strip across the top is, at 1080p. Fixed rather than left to whatever is
+# in it, because what is in it differs: the screens with a Main screen button came out five
+# pixels taller than the front door and the mosque, and going between them the strip visibly
+# grew. Harry saw it the other way round -- the main page's looking thin -- which is the same
+# five pixels. It is the slider's own height (52, a finger rather than a mouse) plus the row's
+# margins, so the strip is as tall as the tallest thing that HAS to fit in it, and anything
+# added later has to fit rather than push it about.
+BANNER_TALL = 52 + 10 + 10
 STONE = "#6B737A"
 LINE = "#D9DCD6"
 MINT = "#3C8D6B"
@@ -132,31 +140,75 @@ class ImageCache:
         return pix
 
 
-def map_pin(size: int, colour: str) -> QtGui.QPixmap:
-    """A map pin, drawn here rather than loaded from a picture.
+# Harry's map pin, traced off the drawing he sent rather than guessed at. Half the outline --
+# the shape is symmetric, so only the right-hand side is kept -- as (how far down, how far out),
+# both as fractions of the pin's own box. Thirty-seven samples, which is more than enough at the
+# thirty pixels the banner draws it: the curve between two of them is under a third of a pixel.
+#
+# Kept as numbers rather than as the PNG for the reason the old drawn pin was drawn: it has to
+# take the banner's colour, and it has to be sharp at whatever size the screen asks for. A
+# picture would be one size, one colour, and another file in the release.
+PIN_SIDE = (
+    (0.0000, 0.0229), (0.0050, 0.0858), (0.0100, 0.1257), (0.0150, 0.1494),
+    (0.0200, 0.1746), (0.0208, 0.1783), (0.0250, 0.1908), (0.0300, 0.2101),
+    (0.0350, 0.2234), (0.0400, 0.2396), (0.0417, 0.2419), (0.0450, 0.2500),
+    (0.0500, 0.2648), (0.0550, 0.2744), (0.0600, 0.2855), (0.0625, 0.2899),
+    (0.0650, 0.2944), (0.0700, 0.3033), (0.0750, 0.3136), (0.0800, 0.3210),
+    (0.0833, 0.3269), (0.0850, 0.3306), (0.0900, 0.3373), (0.0950, 0.3462),
+    (0.1000, 0.3521), (0.1042, 0.3595), (0.1250, 0.3854), (0.1458, 0.4068),
+    (0.1667, 0.4260), (0.1875, 0.4423), (0.2083, 0.4564), (0.2292, 0.4675),
+    (0.2500, 0.4778), (0.2708, 0.4852), (0.2917, 0.4911), (0.3125, 0.4956),
+    (0.3333, 0.4985), (0.3542, 0.5000), (0.3750, 0.5000), (0.3958, 0.4985),
+    (0.4167, 0.4956), (0.4375, 0.4911), (0.4583, 0.4845), (0.4792, 0.4778),
+    (0.5000, 0.4689), (0.5208, 0.4593), (0.5417, 0.4490), (0.5625, 0.4364),
+    (0.5833, 0.4246), (0.6042, 0.4098), (0.6250, 0.3942), (0.6458, 0.3787),
+    (0.6667, 0.3617), (0.6875, 0.3447), (0.7083, 0.3254), (0.7292, 0.3062),
+    (0.7500, 0.2855), (0.7708, 0.2648), (0.7917, 0.2433), (0.8125, 0.2204),
+    (0.8333, 0.1982), (0.8542, 0.1738), (0.8750, 0.1509), (0.8958, 0.1257),
+    (0.9167, 0.1006), (0.9375, 0.0754), (0.9583, 0.0503), (0.9792, 0.0251),
+    (1.0000, 0.0000),
+)
+PIN_HOLE = (0.3565, 0.1864)      # how far down its middle sits, and its radius
+PIN_WIDE = 676 / 892             # the drawing is taller than it is wide
 
-    It is four curves and a hole -- cheaper to draw than to store, sharp at any size, and it
-    takes whatever colour it is given so it always matches the words beside it. Drawing it also
-    keeps a stock-library picture, watermark and licence and all, out of the mat.
+
+def map_pin(size: int, colour: str) -> QtGui.QPixmap:
+    """Harry's map pin, drawn to fit a [size] by [size] box and filled with [colour].
+
+    Drawn rather than loaded, as the one before it was: it takes whatever colour the words
+    beside it are in, it is sharp at any size, and it keeps a stock-library picture -- watermark
+    and licence and all -- out of the mat. What changed in 1.64 is the shape, which is now his
+    rather than four curves of mine that happened to look like a pin.
+
+    The outline is walked down the right-hand side and back up the left, because the pin is
+    symmetric and storing half of it is the half that can be wrong.
     """
     pin = QtGui.QPixmap(size, size)
     pin.fill(Qt.GlobalColor.transparent)
     p = QtGui.QPainter(pin)
     p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-    head = size * 0.34                      # radius of the round head
-    middle = QtCore.QPointF(size / 2, size * 0.38)
+
+    # As tall as the box, as wide as that makes it, and centred in what is left.
+    tall = float(size)
+    wide = tall * PIN_WIDE
+    left = (size - wide) / 2
+    middle = left + wide / 2
+
     body = QtGui.QPainterPath()
-    body.addEllipse(middle, head, head)
-    tip = QtGui.QPainterPath()              # the point, drawn as a triangle onto the head
-    tip.moveTo(middle.x() - head * 0.86, middle.y() + head * 0.5)
-    tip.lineTo(size / 2, size * 0.97)
-    tip.lineTo(middle.x() + head * 0.86, middle.y() + head * 0.5)
-    tip.closeSubpath()
+    body.moveTo(middle + PIN_SIDE[0][1] * wide, PIN_SIDE[0][0] * tall)
+    for down, out in PIN_SIDE[1:]:
+        body.lineTo(middle + out * wide, down * tall)
+    for down, out in reversed(PIN_SIDE[:-1]):
+        body.lineTo(middle - out * wide, down * tall)
+    body.closeSubpath()
+
     hole = QtGui.QPainterPath()
-    hole.addEllipse(middle, head * 0.44, head * 0.44)
+    hole.addEllipse(QtCore.QPointF(middle, PIN_HOLE[0] * tall), PIN_HOLE[1] * wide,
+                    PIN_HOLE[1] * wide)
+
     p.setPen(Qt.PenStyle.NoPen)
     p.setBrush(QtGui.QColor(colour))
-    p.drawPath(body.united(tip).subtracted(hole))
+    p.drawPath(body.subtracted(hole))
     p.end()
     return pin
 
@@ -603,6 +655,14 @@ class MainWindow(QtWidgets.QWidget):
         self.bridge.power.connect(self.toggle_sleep)
         self.asleep = False
         self.outputs = Outputs()
+        # Screens on, whatever state the last run left them in. The app only ever turned them
+        # back on when it woke or shut down cleanly, which was fine while those were the only
+        # ways it ended -- and stopped being fine in 1.64, when run.sh learnt to start the app
+        # again after a crash. Crash while asleep and the panels are off; the new instance
+        # thinks it is awake, never calls wake(), and the mat is dark with nothing wrong with
+        # it. This also covers the power going off mid-sleep, and a kill from a terminal.
+        if not self.outputs.set(True):
+            print(f"start: {self.outputs.why}", file=sys.stderr)
         self.notice = None          # the update dialog, while one is on screen
         self.backlight = Backlight()
         # Every volume slider and every banner on screen, kept so they can be moved and
@@ -691,6 +751,14 @@ class MainWindow(QtWidgets.QWidget):
             self.slide.arabic.scale = self.s
             self.slide.parallel.scale = self.s
             self.slide.posture.scale = self.s
+        # The Qur'an sizes two of its own parts from widgets this has just restyled, so it has
+        # to be told after the fact rather than working it out from a resize it saw first --
+        # and a turn later again, because setting a stylesheet does not resize anything until
+        # the next layout pass. Measured: called here directly, Back is still its old height
+        # and the play button matches a size that is about to change, which is the same trap
+        # the note on match_buttons describes from the first time round.
+        if hasattr(self, "reader"):
+            QtCore.QTimer.singleShot(0, self.reader.follow_scale)
 
     # Sleep
 
@@ -1354,6 +1422,7 @@ class MainWindow(QtWidgets.QWidget):
         """
         banner = QtWidgets.QWidget()
         banner.setObjectName("banner")
+        banner.setFixedHeight(self.px(BANNER_TALL))
         row = QtWidgets.QHBoxLayout(banner)
         row.setContentsMargins(self.px(28), self.px(10), self.px(28), self.px(10))
         # The pin, then the place, then the times. Its own widget rather than a picture inside
@@ -1996,20 +2065,38 @@ class MainWindow(QtWidgets.QWidget):
         # colour. Written as rich text, since a QLabel takes its colours that way.
         now_praying = current_prayer(now, times)
         green = theme.palette().green
-        gap = "&nbsp;" * 4          # rich text squeezes plain spaces down to one
-        shown = gap.join(
-            (f'<span style="color:{green}">{self.t(f"prayer.{name}")} '
-             f'{times[name].strftime("%H:%M")}</span>' if name == now_praying else
-             f'{self.t(f"prayer.{name}")} {times[name].strftime("%H:%M")}')
-            for name in PRAYERS if times.get(name) is not None)
         where = self.settings.place or f"{self.settings.latitude:.2f}, {self.settings.longitude:.2f}"
-        # What is coming next used to be named at the end of the row. It has gone: the five
-        # times are already there with the current one in green, so the next one is the one
-        # after it, and the words were the widest thing in a banner that had to hold more.
-        after = ""
-        for label in self.banner_labels:
-            label.setText(f'<span style="color:{BANNER_BLUE}">{where}</span>'
-                          f"{gap}{shown}{after}")
+
+        def strip(spaces: int) -> str:
+            """The place and the five times, with [spaces] between each."""
+            gap = "&nbsp;" * spaces      # rich text squeezes plain spaces down to one
+            shown = gap.join(
+                (f'<span style="color:{green}">{self.t(f"prayer.{name}")} '
+                 f'{times[name].strftime("%H:%M")}</span>' if name == now_praying else
+                 f'{self.t(f"prayer.{name}")} {times[name].strftime("%H:%M")}')
+                for name in PRAYERS if times.get(name) is not None)
+            # What is coming next used to be named at the end of the row. It has gone: the five
+            # times are already there with the current one in green, so the next one is the one
+            # after it, and the words were the widest thing in a banner that had to hold more.
+            return f'<span style="color:{BANNER_BLUE}">{where}</span>{gap}{shown}'
+
+        # Four spaces between the times where there is room, fewer where there is not. Four is
+        # what it has always been and what it should look like; what it should not do is run
+        # off the end, and in French and Spanish on a screen carrying a Main screen button it
+        # did -- 1167 pixels of words in 1133 of strip, so Isha lost its last digit. A rich
+        # text label does not elide, it just stops, and a prayer time with a character missing
+        # is worse than a tighter row.
+        #
+        # ONE spacing for all of them, settled by the strip with the least room. Letting each
+        # pick its own was the obvious thing and was wrong: the main screen and the 7" beside
+        # it then showed the same times set differently, which is exactly the "the two banners
+        # disagree" the test of that has always watched for.
+        for spaces in (4, 3, 2, 1):
+            for label in self.banner_labels:
+                label.setText(strip(spaces))
+            if all(label.width() < 1 or label.sizeHint().width() <= label.width()
+                   for label in self.banner_labels):
+                break
 
     # Light and dark
 

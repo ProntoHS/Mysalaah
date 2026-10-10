@@ -1314,6 +1314,116 @@ class UpdateTest(unittest.TestCase):
         note = root / "starts"
         return len(note.read_text().split()) if note.exists() else 0
 
+    def crashing_pi(self, behaviour: str):
+        """A fake Pi plus the environment that makes the crash rules testable in seconds.
+
+        SALAAH_CRASH_SETTLED is three seconds here rather than twenty, so "it had been running"
+        can be demonstrated without the suite sitting through twenty seconds a run.
+        """
+        import os
+        import subprocess
+        root = self.fake_pi(behaviour)
+
+        def run():
+            env = dict(os.environ, SALAAH_CRASH_SETTLED="3", SALAAH_CRASH_TRIES="3")
+            return subprocess.run(["bash", str(root / "run.sh")], capture_output=True,
+                                  timeout=120, env=env)
+        return root, run
+
+    def test_a_crash_starts_the_app_again(self):
+        """Harry: "if the app crashes during use instead of it crashing and going to desktop,
+        can it auto launch?" Before this the loop only started the app again for an update or
+        a rollback; an ordinary crash fell out of the bottom and left the mat on the desktop
+        until somebody came and started it."""
+        root, run = self.crashing_pi(
+            'if [ "$(wc -l < starts)" -le 1 ]; then exit 1; fi\nsleep 4\nexit 0\n')
+        done = run()
+        self.assertEqual(0, done.returncode, done.stderr.decode())
+        self.assertEqual(2, self.starts(root), "the guard did not start it again after a crash")
+        self.assertIn(b"starting it again", done.stderr)
+
+    def test_an_abort_counts_as_a_crash(self):
+        """What PyQt6 does to the process when an exception escapes a slot: it prints the
+        traceback and calls abort, which is signal 6 and exit code 134, not 1. Measured, and
+        the thing that actually happens on the mat."""
+        root, run = self.crashing_pi(
+            'if [ "$(wc -l < starts)" -le 1 ]; then exit 134; fi\nsleep 4\nexit 0\n')
+        done = run()
+        self.assertEqual(2, self.starts(root), "an abort should be restarted like any crash")
+
+    def test_closing_the_app_leaves_it_closed(self):
+        """The other half of the claim, and the one that would make the mat unusable if it went
+        wrong: Ctrl+Q and the close button exit cleanly, and a clean exit must stay exited."""
+        root, run = self.crashing_pi("exit 0\n")
+        done = run()
+        self.assertEqual(0, done.returncode)
+        self.assertEqual(1, self.starts(root), "a clean exit was treated as a crash")
+
+    def test_it_gives_up_on_a_mat_that_cannot_start_at_all(self):
+        """A version that dies the moment it starts -- a missing file, broken artwork -- must
+        not be restarted for ever. Five times a second tells nobody anything, and the error on
+        screen is the only thing anyone can read out over the phone."""
+        root, run = self.crashing_pi("exit 1\n")
+        done = run()
+        self.assertEqual(1, done.returncode)
+        self.assertEqual(4, self.starts(root), "one go plus three tries, then it stops")
+        self.assertIn(b"crashes in a row", done.stderr)
+
+    def test_a_long_run_before_a_crash_starts_the_count_over(self):
+        """A mat that works all day and falls over at midnight gets its restart every time.
+        Only crashes that come one after another without the app ever running count towards
+        giving up -- otherwise a mat left on for a month would quietly use up its five."""
+        # Five runs that each last four seconds and then fall over, and then a good one. With
+        # three tries allowed, a guard that did not start the count over would give up after
+        # the fourth; one that does reaches the sixth and comes out cleanly.
+        root, run = self.crashing_pi(
+            'if [ "$(wc -l < starts)" -le 5 ]; then sleep 4; exit 1; fi\nsleep 4\nexit 0\n')
+        done = run()
+        self.assertEqual(0, done.returncode, done.stderr.decode())
+        self.assertEqual(6, self.starts(root),
+                         "runs that lasted should not have counted towards the limit")
+
+    def test_the_crash_is_written_down(self):
+        """The traceback scrolls away when the app starts again, so without this there is
+        nothing at all afterwards to say what happened."""
+        root, run = self.crashing_pi("exit 1\n")
+        run()
+        log = root / "crash-log.txt"
+        self.assertTrue(log.is_file(), "no record was kept of the crashes")
+        said = log.read_text()
+        self.assertIn("exit 1", said)
+        self.assertGreaterEqual(len(said.strip().splitlines()), 2)
+
+    def test_the_guard_can_be_switched_off(self):
+        """SALAAH_NO_GUARD is how this is debugged on a laptop, and a crash has to stay a
+        crash there or there is no way to see one."""
+        import os
+        import subprocess
+        root = self.fake_pi("exit 1\n")
+        done = subprocess.run(["bash", str(root / "run.sh")], capture_output=True, timeout=60,
+                              env=dict(os.environ, SALAAH_NO_GUARD="1"))
+        self.assertEqual(1, done.returncode)
+        self.assertEqual(1, self.starts(root), "the guard restarted it with the guard off")
+
+    def test_a_bad_update_is_rolled_back_rather_than_restarted(self):
+        """The two now overlap, and the order matters: a version on trial that crashes is a bad
+        update and wants the PREVIOUS one back, not the same broken one again and again. The
+        rollback has to come first."""
+        import os
+        import subprocess
+        root = self.fake_pi('if [ "$(wc -l < starts)" -le 1 ]; then exit 1; fi\nexit 0\n')
+        for name in ("salaah", "assets"):
+            (root / name).mkdir()
+            (root / f"{name}.prev").mkdir()
+            (root / name / "which.txt").write_text("new")
+            (root / f"{name}.prev" / "which.txt").write_text("old")
+        (root / "update-state.json").write_text('{"trial": "9.99"}')
+        done = subprocess.run(["bash", str(root / "run.sh")], capture_output=True, timeout=60,
+                              env=dict(os.environ, SALAAH_CRASH_SETTLED="3"))
+        self.assertIn(b"putting the previous one back", done.stderr)
+        self.assertEqual("old", (root / "salaah" / "which.txt").read_text(),
+                         "the broken version was restarted instead of being rolled back")
+
     def test_the_guard_starts_the_new_version_after_an_update(self):
         """The defect that left the mat sitting on the desktop: the app installed 1.14, stood
         down so the new version could start, and nothing started it."""
@@ -4502,3 +4612,230 @@ class MainPageIsDrawnLikeTheOthersTest(unittest.TestCase):
         self.assertEqual(0, int(alpha[2, 2]), "the corner is not see-through")
         self.assertEqual({"left", "right"}, set(self.described.get("minarets", {})),
                          "no minaret tops to glow when no prayer is due")
+
+
+class KalimaDrawingTest(unittest.TestCase):
+    """Harry's new six-kalima drawing, built by the same tool as the main prayer page.
+
+    Until 1.64 this was the last of the old artwork -- outlines at 1624 by 853 with the numbers
+    drawn in -- and it no longer matched the mosque it is meant to echo. The gap was recorded
+    in TwoMosquesTest with a note saying to put the checks back when he redrew it; this is that.
+    """
+
+    FOLDER = ASSETS / "kalima"
+
+    def setUp(self):
+        self.described = json.loads((self.FOLDER / "mosque.json").read_text(encoding="utf-8"))
+
+    def test_six_arches_numbered_across_the_page(self):
+        arches = self.described["arches"]
+        self.assertEqual([str(i) for i in range(1, 7)], list(arches))
+        across = [arches[str(i)]["box"][0] for i in range(1, 7)]
+        self.assertEqual(sorted(across), across, f"not in order across the page: {across}")
+
+    def test_the_arches_are_empty(self):
+        """The numbers are the app's now. Anything light inside an arch is lettering that was
+        drawn in and not taken out."""
+        from PIL import Image
+        import numpy as np
+        from scipy import ndimage
+        grey = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("L"),
+                          dtype=np.uint8)
+        for name, arch in self.described["arches"].items():
+            with self.subTest(name):
+                x0, y0, x1, y1 = arch["box"]
+                window = grey[y0:y1, x0:x1]
+                inside = ndimage.binary_fill_holes(window < 90)
+                self.assertEqual(0, int(((window > 170) & inside).sum()),
+                                 f"arch {name} has something drawn in it")
+
+    @staticmethod
+    def landmarks(path):
+        """Where the two minaret tips and the top of the dome are in a drawing.
+
+        The topmost drawn pixel in each third of the picture, and how far across it sits. Not
+        a pixel-by-pixel comparison: the two drawings were exported separately and their edges
+        disagree by a pixel all the way round, which is forty thousand pixels of "difference"
+        and nothing anybody can see. Where the landmarks land is the thing that matters, and
+        it is what shows if one building sits higher or further over than the other.
+        """
+        from PIL import Image
+        import numpy as np
+        solid = np.asarray(Image.open(path).convert("RGBA"))[:, :, 3] > 40
+        wide = solid.shape[1]
+        out = {}
+        for name, low, high in (("left", 0, wide // 4), ("dome", wide // 4, 3 * wide // 4),
+                                ("right", 3 * wide // 4, wide)):
+            band = solid[:, low:high]
+            rows = np.nonzero(band.any(axis=1))[0]
+            top = int(rows.min())
+            xs = np.nonzero(band[top])[0]
+            out[name] = (low + int(xs.mean()), top)
+        return out
+
+    def test_it_is_the_same_building_in_the_same_place_as_the_mosque(self):
+        here = json.loads((ASSETS / "mosque" / "mosque.json").read_text(encoding="utf-8"))
+        self.assertEqual(here["size"], self.described["size"], "drawn at different sizes")
+        mosque = self.landmarks(ASSETS / "mosque" / "mosque.png")
+        kalima = self.landmarks(self.FOLDER / "mosque.png")
+        for part in ("left", "dome", "right"):
+            with self.subTest(part):
+                across = abs(mosque[part][0] - kalima[part][0])
+                down = abs(mosque[part][1] - kalima[part][1])
+                self.assertLess(across, 8, f"{part} is {across}px across from the mosque's")
+                self.assertLess(down, 8, f"{part} is {down}px below the mosque's")
+
+    def test_the_clock_is_on_clear_dome_and_the_sky_is_cut_out(self):
+        from PIL import Image
+        import numpy as np
+        self.assertTrue(self.described.get("sky"), "the kalima menu does not ask for a sky")
+        picture = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("RGBA"))
+        self.assertEqual(0, int(picture[2, 2, 3]), "the corner is not see-through")
+        x0, y0, x1, y1 = self.described["clock"]["box"]
+        box = picture[y0:y1, x0:x1]
+        self.assertEqual(0, int((box[:, :, 3] == 0).sum()), "part of the clock box is sky")
+        self.assertGreater(int(box[:, :, :3].min()), 170, "the clock box is not on clear dome")
+
+    def test_the_minarets_can_glow(self):
+        self.assertEqual({"left", "right"}, set(self.described.get("minarets", {})))
+
+
+class CrashesEndTheAppTest(unittest.TestCase):
+    """An exception nobody caught has to END the app, so run.sh can start a fresh one.
+
+    This is the half of the auto-restart that is not in run.sh. The guard can only act on a
+    process that exits, and what a loose exception does to the process depends on the toolkit:
+    PyQt6 prints it and aborts, PySide6 prints it and carries on with whatever half-finished
+    state the slot left behind. A mat sitting in that state looks alive and is not, and nothing
+    will ever restart it.
+    """
+
+    def run_it(self, body: str):
+        """Run [body] in a fresh interpreter with the app's own hook in place."""
+        import os
+        import subprocess
+        import sys
+        import tempfile
+        root = Path(__file__).resolve().parent.parent
+        work = Path(tempfile.mkdtemp(prefix="salaah-hook-"))
+        import shutil
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        script = work / "go.py"
+        script.write_text(
+            "import sys, os\n"
+            f"sys.path.insert(0, {str(root)!r})\n"
+            f"os.chdir({str(work)!r})\n"
+            "import salaah.__main__ as m\n"
+            # Point the log at the throwaway folder rather than writing into the project while
+            # the tests run. Where it really goes is checked on its own below.
+            "from pathlib import Path\n"
+            f"m.ROOT = Path({str(work)!r})\n"
+            "sys.excepthook = m.fall_over\n"
+            "from salaah.qt import QtCore, QtWidgets\n"
+            "app = QtWidgets.QApplication([])\n"
+            + body +
+            "\nQtCore.QTimer.singleShot(2500, app.quit)\n"
+            "app.exec()\n"
+            "print('STILL ALIVE')\n", encoding="utf-8")
+        env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+        done = subprocess.run([sys.executable, str(script)], capture_output=True, timeout=90,
+                              env=env, cwd=work)
+        return done, work
+
+    def test_an_exception_in_a_slot_takes_the_app_down(self):
+        done, _ = self.run_it(
+            "def boom():\n"
+            "    raise RuntimeError('a slot blew up mid-prayer')\n"
+            "t = QtCore.QTimer()\n"
+            "t.timeout.connect(boom)\n"
+            "t.start(10)\n")
+        self.assertNotEqual(0, done.returncode,
+                            "the app carried on after an exception nobody caught")
+        self.assertNotIn(b"STILL ALIVE", done.stdout,
+                         "the event loop kept going with the app in an unknown state")
+
+    def test_it_is_written_down_where_a_rollback_cannot_delete_it(self):
+        """The traceback scrolls away when the app starts again, and salaah/ and assets/ are
+        both replaced by a rollback, so the log has to live outside them -- which is what
+        startup-error.log already does for a version that will not start."""
+        done, work = self.run_it(
+            "def boom():\n"
+            "    raise RuntimeError('a slot blew up mid-prayer')\n"
+            "t = QtCore.QTimer()\n"
+            "t.timeout.connect(boom)\n"
+            "t.start(10)\n")
+        log = work / "startup-error.log"
+        self.assertTrue(log.is_file(), "nothing was written down")
+        said = log.read_text(encoding="utf-8")
+        self.assertIn("a slot blew up mid-prayer", said)
+        self.assertIn("RuntimeError", said)
+
+    def test_the_log_lives_outside_the_folders_a_rollback_replaces(self):
+        """Where it goes, rather than that it goes somewhere. salaah/ and assets/ are the two
+        folders an update and a rollback swap wholesale, so a log written inside either is
+        deleted by the very event that makes it worth reading."""
+        import salaah.__main__ as entry
+        from salaah.update import REPLACES
+        where = (entry.ROOT / entry.LOG).resolve()
+        for name in REPLACES:
+            self.assertNotIn(name, where.parts,
+                             f"the log sits inside {name}, which a rollback replaces")
+        self.assertEqual((Path(__file__).resolve().parent.parent).resolve(), where.parent,
+                         "the log should sit next to run.sh")
+
+    def test_an_app_that_does_not_fall_over_is_left_alone(self):
+        """The hook must not be something that ends a healthy run: the mat spends most of its
+        life in the event loop with nothing going wrong."""
+        done, _ = self.run_it("pass\n")
+        self.assertEqual(0, done.returncode, done.stderr.decode()[-400:])
+        self.assertIn(b"STILL ALIVE", done.stdout)
+
+    # The two above run fall_over directly, which proves the hook works and says nothing about
+    # whether the app installs it. These two go through the real entry point for that, with
+    # main() stood in for so no window is built: what is being checked is the wiring.
+
+    @staticmethod
+    def through_the_entry_point(main):
+        import runpy
+        import sys
+        import salaah.__main__ as entry
+        with mock.patch("salaah.main.main", main):
+            try:
+                runpy.run_module("salaah", run_name="__main__")
+            except SystemExit as leaving:
+                return leaving.code, entry
+        return None, entry
+
+    def test_the_app_installs_the_hook_before_it_runs(self):
+        """Without this line the mat keeps running after an exception nobody caught, in
+        whatever state the slot left it, and run.sh never gets a chance to start a fresh one."""
+        import sys
+        was = sys.excepthook
+        self.addCleanup(lambda: setattr(sys, "excepthook", was))
+        seen = {}
+
+        def main(argv=None):
+            seen["hook"] = sys.excepthook
+            return 0
+
+        code, entry = self.through_the_entry_point(main)
+        self.assertEqual(0, code)
+        hook = seen.get("hook")
+        # By name and by where it was defined, not by identity: run_module builds a fresh copy
+        # of the module, so the function it installs is a different object from the one on the
+        # already-imported salaah.__main__, and `is` would fail on a perfectly wired app.
+        self.assertIsNotNone(hook, "main() was never reached")
+        self.assertEqual("fall_over", getattr(hook, "__name__", ""),
+                         "the app runs without the hook in place")
+        self.assertEqual(Path(entry.__file__).resolve(),
+                         Path(hook.__code__.co_filename).resolve(),
+                         "something else installed a hook of that name")
+
+    def test_a_clean_run_still_exits_cleanly(self):
+        """The hook is installed for the whole run, so it has to be something a healthy run
+        never notices."""
+        import sys
+        was = sys.excepthook
+        self.addCleanup(lambda: setattr(sys, "excepthook", was))
+        code, _ = self.through_the_entry_point(lambda argv=None: 0)
+        self.assertEqual(0, code, "a run that went fine did not come out cleanly")
