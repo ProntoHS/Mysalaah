@@ -40,6 +40,8 @@ echo "== Pointing the touchscreen at the small display"
 python3 tools/map_touch.py || echo "!! Touch mapping skipped; run tools/map_touch.py by hand"
 
 # Start automatically when the Pi logs in, and add a menu entry.
+# Belt and braces: the desktop entry names bash so this is not what autostart depends on,
+# but run.sh is still something people run by hand.
 chmod +x run.sh
 mkdir -p ~/.config/autostart ~/.local/share/applications
 sed "s#@DIR@#$DIR#g" salaah.desktop > ~/.config/autostart/salaah.desktop

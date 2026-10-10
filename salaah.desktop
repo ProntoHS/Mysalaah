@@ -2,6 +2,12 @@
 Type=Application
 Name=Salaah
 Comment=Step-by-step prayer guide
-Exec=@DIR@/run.sh
+# Through bash, not run directly, so autostart does not depend on run.sh keeping its
+# executable bit. It lost it once: run.sh is handed over on its own when the guard changes,
+# and a copy that goes via Windows arrives without Unix permissions. The entry then fails with
+# "Permission denied" where nobody can see it and the mat sits on the desktop after a reboot,
+# while `bash ./run.sh` in a terminal still works -- which makes it look like anything but
+# what it is. Naming the interpreter costs nothing and removes the whole class of failure.
+Exec=/bin/bash "@DIR@/run.sh"
 Terminal=false
 X-GNOME-Autostart-enabled=true

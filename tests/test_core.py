@@ -4839,3 +4839,85 @@ class CrashesEndTheAppTest(unittest.TestCase):
         self.addCleanup(lambda: setattr(sys, "excepthook", was))
         code, _ = self.through_the_entry_point(lambda argv=None: 0)
         self.assertEqual(0, code, "a run that went fine did not come out cleanly")
+
+
+class AutostartSurvivesACopyTest(unittest.TestCase):
+    """The mat has to come up by itself after a reboot, and that must not hang on a file
+    permission that a copy can quietly drop.
+
+    It did once. run.sh is handed over on its own whenever the guard changes -- an update
+    never replaces it, by design -- and a copy that goes through Windows arrives without its
+    executable bit. The autostart entry ran it directly, so it failed with "Permission denied"
+    somewhere nobody sees, the mat sat on the desktop after every reboot, and `bash ./run.sh`
+    in a terminal still worked perfectly, which pointed away from the cause rather than at it.
+    """
+
+    ROOT = Path(__file__).resolve().parent.parent
+
+    def entry(self) -> dict:
+        said = {}
+        for line in (self.ROOT / "salaah.desktop").read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith(("#", "[")):
+                continue
+            key, _, value = line.partition("=")
+            said[key] = value
+        return said
+
+    def test_the_entry_names_the_interpreter(self):
+        """Not that it mentions bash for its own sake: that the first word of Exec is a
+        program which exists, rather than the script, which may arrive unexecutable."""
+        started = self.entry()["Exec"]
+        first = started.split()[0]
+        self.assertTrue(first.startswith("/"), f"Exec starts with {first!r}, not a program")
+        self.assertTrue(Path(first).is_file(), f"{first} is not there to run anything")
+        self.assertIn("run.sh", started, "the entry no longer starts the app")
+
+    def test_it_starts_the_app_with_the_bit_taken_off(self):
+        """The failure itself, reproduced: strip the bit and start it the way the desktop
+        entry does."""
+        import os
+        import shutil
+        import subprocess
+        import tempfile
+        work = Path(tempfile.mkdtemp(prefix="salaah-autostart-"))
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        shutil.copy(self.ROOT / "run.sh", work / "run.sh")
+        os.chmod(work / "run.sh", 0o644)          # as a copy through Windows arrives
+
+        started = self.entry()["Exec"].replace("@DIR@", str(work))
+        # SALAAH_NO_GUARD and a python that is not there: the app cannot start in a test, and
+        # it does not need to. What is being watched for is Permission denied, which happens
+        # before anything of the app is reached.
+        done = subprocess.run(["sh", "-c", started], capture_output=True, text=True,
+                              timeout=60, cwd=work,
+                              env=dict(os.environ, SALAAH_NO_GUARD="1", PATH="/usr/bin:/bin"))
+        self.assertNotIn("Permission denied", done.stdout + done.stderr,
+                         "autostart depends on run.sh keeping its executable bit")
+
+    def test_running_it_directly_is_what_used_to_fail(self):
+        """The other half, so the test above is known to be testing something. Run directly,
+        a script without the bit IS refused -- which is why the entry must not do that."""
+        import os
+        import shutil
+        import subprocess
+        import tempfile
+        work = Path(tempfile.mkdtemp(prefix="salaah-autostart-"))
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        shutil.copy(self.ROOT / "run.sh", work / "run.sh")
+        os.chmod(work / "run.sh", 0o644)
+        done = subprocess.run(["sh", "-c", f"{work / 'run.sh'}"], capture_output=True,
+                              text=True, timeout=60, cwd=work)
+        self.assertIn("Permission denied", done.stdout + done.stderr,
+                      "a script with no executable bit ran anyway; this test proves nothing")
+
+    def test_the_installer_still_marks_it_executable(self):
+        """People run it by hand as well, and the error that gives is just as confusing."""
+        self.assertIn("chmod +x run.sh",
+                      (self.ROOT / "install.sh").read_text(encoding="utf-8"))
+
+    def test_the_installer_writes_the_entry_where_the_desktop_looks(self):
+        said = (self.ROOT / "install.sh").read_text(encoding="utf-8")
+        self.assertIn(".config/autostart/salaah.desktop", said,
+                      "nothing starts the mat at login")
+        self.assertIn("salaah.desktop", said)
