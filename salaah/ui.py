@@ -1101,11 +1101,22 @@ class MainWindow(QtWidgets.QWidget):
                                   padding-left:{px(8)}px; }}
             QLabel#readerWhere {{ font-size:{px(24)}px; color:{c.stone};
                                   min-width:{px(200)}px; qproperty-alignment:AlignCenter; }}
-            QPushButton#turnPage {{ background:{c.chip}; color:{c.paper}; border:none;
+            /* White, not c.paper. The chip this sits on is dark in BOTH themes -- "#262626"
+               after dark and "black" by day -- so c.paper meant a BLACK arrow on a near-black
+               button whenever the screen was dark, which is to say most of the time on a mat.
+               The arrow was invisible and the page buttons read as dead. Worse, the DISABLED
+               rule underneath was the brighter of the two, so the one that did nothing was the
+               one you could see. Harry reported it as "the left and right buttons dont do
+               anything?", and they did; you could not see them. */
+            QPushButton#turnPage {{ background:{c.chip}; color:white; border:none;
                                     border-radius:{px(10)}px; font-size:{px(34)}px;
                                     font-weight:bold; min-width:{px(70)}px;
                                     padding:{px(4)}px {px(16)}px; }}
-            QPushButton#turnPage:disabled {{ background:{c.line}; color:{c.stone}; }}
+            QPushButton#turnPage:hover:enabled {{ background:{BRICK}; }}
+            QPushButton#turnPage:pressed {{ background:{BRICK}; }}
+            /* The same button with the arrow faded, rather than a differently coloured one:
+               nothing moves when you reach the end of a surah, the way on just stops. */
+            QPushButton#turnPage:disabled {{ background:{c.chip}; color:#555555; }}
             QPushButton#tongue {{ background:{c.paper}; color:{c.strong};
                                   border:{px(2)}px solid {c.line}; border-radius:{px(10)}px;
                                   font-size:{px(22)}px; padding:{px(6)}px {px(14)}px; }}
@@ -1254,6 +1265,19 @@ class MainWindow(QtWidgets.QWidget):
         if walk is not None:
             self.veil.start(*walk)
 
+    def name_the_arches(self) -> None:
+        """The five prayers' names across the main mosque, from the pack.
+
+        They used to be drawn into the picture, which made them English wherever the mat was
+        set -- the one screen that could not follow the language, and the first one anybody
+        sees. Harry's new drawing has empty arches, so the names come from here: the pack's
+        word in the pack's own face, and the one whose time it is goes green on its own.
+        """
+        mosque = getattr(self, "mosque", None)
+        if mosque is None or not mosque.ready:
+            return
+        mosque.set_labels({p: ("", self.t(f"prayer.{p}")) for p in PRAYERS}, self.pack_face())
+
     def build_home(self) -> QtWidgets.QWidget:
         """The mosque: an arch per prayer, the time on the dome, and the prayer whose time it is
         lit up. If the picture is missing for any reason, fall back to plain buttons."""
@@ -1261,6 +1285,7 @@ class MainWindow(QtWidgets.QWidget):
         if not self.mosque.ready:
             return self.build_plain_home()
         self.mosque.chosen.connect(self.enter_prayer)
+        self.name_the_arches()
 
         w = QtWidgets.QWidget()
         lay = QtWidgets.QVBoxLayout(w)

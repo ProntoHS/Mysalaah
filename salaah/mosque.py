@@ -20,8 +20,6 @@ from .theme import palette
 
 GREEN = QtGui.QColor("#1E9E57")            # the name of the prayer whose time it is
 GREEN_DARK = QtGui.QColor("#4CD187")       # the same, on a dark screen
-GLOW = QtGui.QColor(255, 214, 10)          # kept for the minaret glow
-GLOW_EDGE = QtGui.QColor(255, 176, 0, 90)  # a soft halo around it
 CLOCK_INK = QtGui.QColor("white")          # on the black dome; black on the white one after dark
 CLOCK_BOOST = 1.15                         # the time, this much larger than a plain fit
 CLOCK_TRIM = 0.85                          # and then this much smaller again, as asked for
@@ -358,9 +356,14 @@ class Sky:
 
 @dataclass(frozen=True)
 class Arch:
+    """One arch: what it is called in the drawing, and where it sits in the picture.
+
+    It used to carry a mask of its inside as well, for lifting the lettering off the artwork.
+    Nothing reads one any more -- see the note where name_in_green used to be -- so the
+    arch-<name>.png files beside a drawing are no longer opened.
+    """
     prayer: str
     box: QtCore.QRect
-    mask: QtGui.QImage
 
 
 # The artwork, kept once instead of once per screen. There are three mosques now -- the front
@@ -451,8 +454,6 @@ class MosqueScreen(QtWidgets.QWidget):
         self.clock_font = clock_font
         self._scaled: QtGui.QPixmap | None = None
         self._scaled_dark = False
-        self._glows: dict[str, QtGui.QPixmap] = {}
-        self._names: dict[tuple, QtGui.QPixmap] = {}
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent)
         self.load(assets)
 
@@ -478,8 +479,7 @@ class MosqueScreen(QtWidgets.QWidget):
             self.minarets[side] = QtCore.QRect(box[0], box[1], box[2] - box[0], box[3] - box[1])
         for prayer, arch in described["arches"].items():
             x0, y0, x1, y1 = arch["box"]
-            mask = _load_once(folder / f"arch-{prayer}.png", as_image=True)
-            self.arches.append(Arch(prayer, QtCore.QRect(x0, y0, x1 - x0, y1 - y0), mask))
+            self.arches.append(Arch(prayer, QtCore.QRect(x0, y0, x1 - x0, y1 - y0)))
 
     def load_film(self, path: Path) -> None:
         """The moving version of this drawing, if there is one and it fits the still.
@@ -594,8 +594,6 @@ class MosqueScreen(QtWidgets.QWidget):
                 from .render import invert
                 self._scaled = invert(self._scaled)
             self._scaled_dark = flip
-            self._glows.clear()
-            self._names.clear()
         scale = self._scaled.width() / self.picture.width()
         origin = QtCore.QPoint((self.width() - self._scaled.width()) // 2,
                                (self.height() - self._scaled.height()) // 2)
@@ -625,66 +623,21 @@ class MosqueScreen(QtWidgets.QWidget):
         lift = int(box.height() * CLOCK_LIFT)
         return QtCore.QRect(box.x() - room, box.y() - lift, box.width() + 2 * room, box.height())
 
-    def name_in_green(self, arch: Arch, scale: float) -> QtGui.QPixmap:
-        """The prayer's name lifted off the artwork and painted green, ready to lay over it.
-
-        The names are part of the picture, so they cannot simply be restyled. Each arch has a
-        mask of its inside with the lettering cut out of it, so the letters are exactly the
-        holes: fill each row of the mask between its first and last marked pixel, and whatever
-        the filled shape covers but the mask does not is the name. How dark the artwork is
-        there gives each pixel its strength, so the edges stay smooth.
-
-        Worked out once per prayer at the artwork's own size and then scaled, so the screen's
-        size costs nothing and it is never worked out twice.
-        """
-        green = GREEN_DARK if self.flipped else GREEN
-        key = (arch.prayer, green.name())
-        if key not in self._names:
-            self._names[key] = self._stencil(arch, green)
-        size = QtCore.QSize(max(1, int(arch.box.width() * scale)),
-                            max(1, int(arch.box.height() * scale)))
-        return self._names[key].scaled(size, Qt.AspectRatioMode.IgnoreAspectRatio,
-                                       Qt.TransformationMode.SmoothTransformation)
-
-    def _stencil(self, arch: Arch, green: QtGui.QColor) -> QtGui.QPixmap:
-        mask = arch.mask.convertToFormat(QtGui.QImage.Format.Format_Grayscale8)
-        width, height = mask.width(), mask.height()
-        # The artwork's panels are transparent, so lay the patch on white first: only what is
-        # really drawn counts as ink.
-        flat = QtGui.QImage(width, height, QtGui.QImage.Format.Format_ARGB32)
-        flat.fill(QtGui.QColor("white"))
-        painter = QtGui.QPainter(flat)
-        painter.drawImage(QtCore.QRect(0, 0, width, height), self.picture.copy(arch.box).toImage())
-        painter.end()
-
-        letters = QtGui.QImage(width, height, QtGui.QImage.Format.Format_ARGB32)
-        letters.fill(Qt.GlobalColor.transparent)   # a QColor with alpha 0 does not clear it
-        for y in range(height):
-            row = [QtGui.qGray(mask.pixel(x, y)) for x in range(width)]
-            marked = [x for x, v in enumerate(row) if v > 128]
-            if not marked:
-                continue
-            for x in range(marked[0], marked[-1] + 1):     # the arch's own shape, holes filled
-                if row[x] > 128:
-                    continue                                # the mask itself: not a letter
-                ink = 255 - QtGui.qGray(flat.pixel(x, y))   # how dark the artwork is here
-                if ink > 24:
-                    letters.setPixelColor(x, y, QtGui.QColor(green.red(), green.green(),
-                                                             green.blue(), ink))
-        return QtGui.QPixmap.fromImage(letters)
-
-    def glow_for(self, arch: Arch, scale: float) -> QtGui.QPixmap:
-        """The arch's inside, filled with yellow, ready to lay over the picture."""
-        if arch.prayer not in self._glows:
-            coloured = QtGui.QImage(arch.mask.size(), QtGui.QImage.Format.Format_ARGB32)
-            coloured.fill(GLOW)
-            coloured.setAlphaChannel(arch.mask.convertToFormat(QtGui.QImage.Format.Format_Grayscale8))
-            size = QtCore.QSize(max(1, int(arch.box.width() * scale)),
-                                max(1, int(arch.box.height() * scale)))
-            self._glows[arch.prayer] = QtGui.QPixmap.fromImage(
-                coloured.scaled(size, Qt.AspectRatioMode.IgnoreAspectRatio,
-                                Qt.TransformationMode.SmoothTransformation))
-        return self._glows[arch.prayer]
+    # GONE IN 1.63: name_in_green, _stencil and glow_for.
+    #
+    # The prayer's name used to be part of the drawing, so showing the current one in green
+    # meant lifting its lettering off the artwork pixel by pixel: fill each arch's mask row by
+    # row, and whatever the filled shape covers but the mask does not is the word. It worked,
+    # and it was forty lines of per-pixel Python to avoid the simple thing.
+    #
+    # The names are not in the drawing any more. Harry's new main page has empty arches and the
+    # app writes the names in from the pack, in whatever language the mat is set to -- so the
+    # green one is the word painted green, in draw_labels, and there is nothing to lift. The
+    # masks those three read, arch-<prayer>.png, are no longer loaded either.
+    #
+    # glow_for went with them. It filled an arch with yellow and had not been called since the
+    # yellow box over the lit arch was dropped; the only thing that mentioned it was a test
+    # making sure it was not used.
 
     def sky_body(self, scaled: QtGui.QPixmap, origin: QtCore.QPoint) -> tuple[QtCore.QPointF, float]:
         """Where the sun or moon sits: along an arc across the sky, rising and setting at the
@@ -795,6 +748,28 @@ class MosqueScreen(QtWidgets.QWidget):
             font.setPixelSize(size)
         return font
 
+    def one_size(self, which: str, scale: float) -> QtGui.QFont:
+        """One size for a whole row of arches: the largest that fits the worst of them.
+
+        Fitted arch by arch, "Maghrib" comes out half the height of "Asr" beside it and the row
+        reads as five unrelated labels. Harry's drawings have them all one size, which is what
+        a row of the same thing should look like, so the longest word in the narrowest arch
+        decides for all of them.
+        """
+        font = None
+        for arch in self.arches:
+            said = self.labels.get(arch.prayer)
+            if not said:
+                continue
+            text = said[0] if which == "number" else said[1]
+            if not text:
+                continue
+            box = QtCore.QRectF(0, 0, arch.box.width() * scale, arch.box.height() * scale)
+            here = self.fitted(self.band_rect(box, which), text)
+            if font is None or here.pixelSize() < font.pixelSize():
+                font = here
+        return font
+
     def draw_labels(self, painter: QtGui.QPainter, origin: QtCore.QPoint, scale: float) -> None:
         """The number of units and what kind they are, written into each arch.
 
@@ -802,20 +777,27 @@ class MosqueScreen(QtWidgets.QWidget):
         this is ordinary lettering laid on top rather than anything lifted off the artwork --
         and that is the point: it comes from the pack, so it is Urdu on an Urdu mat, in the
         pack's own face, and changes with the language like everything else.
+
+        On the main page it is the prayer's name, and the one whose time it is goes green. That
+        used to be a stencil cut out of the artwork; now the word belongs to the app, it is the
+        word in a different colour.
         """
-        painter.setPen(QtGui.QColor("black") if self.flipped else QtGui.QColor("white"))
+        plain = QtGui.QColor("black") if self.flipped else QtGui.QColor("white")
+        green = GREEN_DARK if self.flipped else GREEN
+        fonts = {which: self.one_size(which, scale) for which in ("number", "label")}
         for arch in self.arches:
             said = self.labels.get(arch.prayer)
             if not said:
                 continue
+            painter.setPen(green if arch.prayer == self.lit else plain)
             box = QtCore.QRectF(origin.x() + arch.box.x() * scale,
                                 origin.y() + arch.box.y() * scale,
                                 arch.box.width() * scale, arch.box.height() * scale)
             for which, text in zip(("number", "label"), said):
-                if not text:
+                if not text or fonts[which] is None:
                     continue
                 line = self.band_rect(box, which)
-                painter.setFont(self.fitted(line, text))
+                painter.setFont(fonts[which])
                 painter.drawText(line, int(Qt.AlignmentFlag.AlignCenter)
                                  | int(Qt.TextFlag.TextDontClip), text)
 
@@ -857,14 +839,9 @@ class MosqueScreen(QtWidgets.QWidget):
             self.draw_labels(painter, origin, scale)
 
         # Which prayer it is now: its name on the arch in green, and its time in green in the
-        # banner. No box over the arch; that was more shout than help.
-        if self.lit:
-            for arch in self.arches:
-                if arch.prayer != self.lit:
-                    continue
-                where = QtCore.QPoint(origin.x() + int(arch.box.x() * scale),
-                                      origin.y() + int(arch.box.y() * scale))
-                painter.drawPixmap(where, self.name_in_green(arch, scale))
+        # banner. No box over the arch; that was more shout than help. The green name is drawn
+        # by draw_labels above, along with the other four -- it is the same word in a different
+        # colour now that the app writes the words rather than the drawing carrying them.
         if self.time_text:
             box = QtCore.QRect(origin.x() + int(self.clock_box.x() * scale),
                                origin.y() + int(self.clock_box.y() * scale),

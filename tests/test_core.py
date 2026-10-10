@@ -2456,8 +2456,16 @@ class RecutArtworkTest(unittest.TestCase):
                         if any(image.pixelColor(x, y).alpha() > 40
                                for x in range(0, image.width(), 5))), None)
             self.assertIsNotNone(top, f"{folder} is empty")
-            self.assertLess(top, image.height() * 0.08,
-                            f"{folder}: {top}px of empty sky above the drawing")
+            # CHANGED IN 1.63 for the same reason the front door's did in 1.62: the gap above
+            # the building is not dead any more. It is the sky the app paints the sun, the
+            # moon, the stars and the birds into, so what matters is that it is SEE-THROUGH
+            # all the way across rather than that there is none of it.
+            for y in range(0, top, max(1, top // 8) if top else 1):
+                clear = all(image.pixelColor(x, y).alpha() == 0
+                            for x in range(0, image.width(), 5))
+                self.assertTrue(clear, f"{folder}: row {y} above the building is not sky")
+            self.assertLess(top, image.height() * 0.30,
+                            f"{folder}: {top}px above the drawing is more sky than building")
 
     def test_every_box_still_sits_inside_the_picture(self):
         """The boxes were measured on the taller canvas. Crop and forget to move them and an
@@ -2473,23 +2481,28 @@ class RecutArtworkTest(unittest.TestCase):
                 self.assertTrue(0 <= y0 < y1 <= tall and 0 <= x0 < x1 <= wide,
                                 f"{folder}: {box} is off a {wide}x{tall} picture")
 
-    def test_each_arch_box_is_over_a_light_panel(self):
-        """The real check: not that the numbers are inside the picture, but that what is under
-        them is still the panel they are meant to light."""
+    def test_each_arch_box_is_over_the_arch_it_names(self):
+        """The real check: not that the boxes are inside the picture, but that what is under
+        one is the arch it belongs to.
+
+        CHANGED IN 1.63: it used to ask for a LIGHT panel. The six-kalima drawing is an outline
+        with white insides and still is; Harry's new main page draws its arches as solid dark
+        shapes with the words knocked out of them, so asking for light there would be asking
+        it to be the old picture. What both have in common is that the box is over something
+        the building encloses -- drawing, not sky -- and that is what is asked for now.
+        """
         from salaah.qt import QtGui
         for folder in ("mosque", "kalima"):
             image = QtGui.QImage(str(self.assets / folder / "mosque.png"))
             for name, arch in self.described(folder)["arches"].items():
                 x0, y0, x1, y1 = arch["box"]
-                lit = total = 0
+                solid = total = 0
                 for y in range(y0, y1, 4):
                     for x in range(x0, x1, 4):
-                        c = image.pixelColor(x, y)
                         total += 1
-                        lit += (c.alpha() > 40
-                                and (c.red() + c.green() + c.blue()) / 3 > 200)
-                self.assertGreater(lit / total, 0.55,
-                                   f"{folder}/{name}: the box is not over a panel any more")
+                        solid += image.pixelColor(x, y).alpha() > 40
+                self.assertGreater(solid / total, 0.80,
+                                   f"{folder}/{name}: the box is mostly sky, not an arch")
 
 
 class HighLatitudeTest(unittest.TestCase):
@@ -4419,3 +4432,73 @@ class TheNewFrontDoorTest(unittest.TestCase):
                            "the clock box is not on clear dome")
         self.assertEqual("dark", self.described["clock"].get("ink"),
                          "light numbers on a white dome")
+
+
+class MainPageIsDrawnLikeTheOthersTest(unittest.TestCase):
+    """Harry's new main prayer page: five arches, no words in them, the clock on the dome.
+
+    It replaced a drawing that had Fajr, Dhuhr, Asr, Maghrib and Isha written into it -- right
+    in English and only in English -- and a piece of machinery that lifted those letters off
+    the artwork pixel by pixel so the current one could be shown in green. The names come from
+    the pack now and the green one is the word painted green, which is why the drawing has to
+    arrive empty.
+    """
+
+    FOLDER = ASSETS / "mosque"
+
+    def setUp(self):
+        self.described = json.loads((self.FOLDER / "mosque.json").read_text(encoding="utf-8"))
+
+    def test_an_arch_for_each_prayer_in_the_order_of_the_day(self):
+        arches = self.described["arches"]
+        self.assertEqual(list(PRAYERS), list(arches))
+        across = [arches[p]["box"][0] for p in PRAYERS]
+        self.assertEqual(sorted(across), across,
+                         f"the arches are not in the order of the day across the page: {across}")
+
+    def test_the_arches_are_empty(self):
+        """Anything light inside an arch is lettering that survived the build. The arches are
+        solid dark shapes, so this is looked at inside the shape rather than inside its box --
+        an arch's box has building in its corners."""
+        from PIL import Image
+        import numpy as np
+        from scipy import ndimage
+        grey = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("L"),
+                          dtype=np.uint8)
+        for name, arch in self.described["arches"].items():
+            with self.subTest(name):
+                x0, y0, x1, y1 = arch["box"]
+                window = grey[y0:y1, x0:x1]
+                inside = ndimage.binary_fill_holes(window < 90)
+                left = int(((window > 170) & inside).sum())
+                self.assertEqual(0, left, f"{name} still has {left} pixels of lettering in it")
+
+    def test_it_says_where_the_name_goes(self):
+        """The app needs somewhere to put the word it is writing back, and the builder measures
+        that off the drawing. Without it every name would be drawn at a guessed height."""
+        band = self.described.get("text", {}).get("label")
+        self.assertIsNotNone(band, "the drawing does not say where a name sits in an arch")
+        top, bottom = band
+        self.assertLess(top, bottom, "the name's band has no height")
+        self.assertGreater(top, 0.4, "the name is placed in the top half of the arch")
+        self.assertLessEqual(bottom, 1.0)
+
+    def test_the_clock_is_on_clear_dome(self):
+        from PIL import Image
+        import numpy as np
+        picture = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("RGBA"))
+        x0, y0, x1, y1 = self.described["clock"]["box"]
+        box = picture[y0:y1, x0:x1]
+        self.assertEqual(0, int((box[:, :, 3] == 0).sum()),
+                         "part of the clock box is sky: the time would be written on nothing")
+        self.assertGreater(int(box[:, :, :3].min()), 170, "the clock box is not on clear dome")
+        self.assertEqual("dark", self.described["clock"].get("ink"))
+
+    def test_the_app_paints_the_sky_and_the_minarets_can_glow(self):
+        from PIL import Image
+        import numpy as np
+        self.assertTrue(self.described.get("sky"), "the main page does not ask for a sky")
+        alpha = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("RGBA"))[:, :, 3]
+        self.assertEqual(0, int(alpha[2, 2]), "the corner is not see-through")
+        self.assertEqual({"left", "right"}, set(self.described.get("minarets", {})),
+                         "no minaret tops to glow when no prayer is due")

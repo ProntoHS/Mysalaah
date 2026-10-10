@@ -23,6 +23,11 @@ class Settings:
     theme: str = "auto"  # "auto" (dark from Maghrib to sunrise), "light" or "dark"
     cursor: bool = True  # show the mouse pointer (turn off in Settings for a touchscreen alone)
     arabic_font: str = "scheherazade"  # a key from render.FONTS
+    text_step: int = 0        # how large the Qur'an is set: 0, 1 or 2, chosen by the three A
+                              # buttons on the reading bar. Each step is half as big again as
+                              # the one before -- see reading.TEXT_STEPS. Kept here rather than
+                              # on the Settings screen because it is a thing you reach for
+                              # while reading, with the page in front of you.
     inset: int = 0  # pixels kept clear on every edge, if the monitor cuts them off
     main_output: str = ""  # the screen the words went on last time, e.g. HDMI-A-1
     side_output: str = ""  # the 7" posture screen last time; both are worked out if they are wrong

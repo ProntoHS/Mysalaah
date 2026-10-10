@@ -13,6 +13,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from dataclasses import replace  # noqa: E402
 from salaah.content import PRAYERS, Translation, available_packs, load  # noqa: E402
+from salaah.reading import FLOOR_PX  # noqa: E402
 from salaah.filmsheet import FilmSheet  # noqa: E402
 from salaah.qt import API, QtCore, QtGui, QtWidgets, Qt  # noqa: E402
 from salaah.render import MIN_ARABIC_PX  # noqa: E402
@@ -1855,14 +1856,34 @@ class MainScreenMarkTest(unittest.TestCase):
         self.assertNotIn(f'color:{green}">Fajr', text)
 
     def test_no_glow_is_drawn_over_an_arch(self):
+        """CHANGED IN 1.63: the green name is painted, not stencilled.
+
+        This used to ask that paintEvent mention name_in_green, which lifted the lettering off
+        the artwork. The words are not in the artwork any more -- the drawing arrives with
+        empty arches and the app writes the names in from the pack -- so name_in_green and the
+        mask it read are gone, and the green one is draw_labels using a different pen.
+
+        glow_for went too. The yellow box over the lit arch was dropped long ago and this test
+        was the only thing still mentioning it; now there is nothing to mention.
+        """
         import inspect
         from salaah import mosque
         source = inspect.getsource(mosque.MosqueScreen.paintEvent)
         self.assertNotIn("glow_for", source, "no yellow box over the lit arch")
-        self.assertIn("name_in_green", source, "the prayer's name on the arch turns green")
+        self.assertFalse(hasattr(mosque.MosqueScreen, "glow_for"),
+                         "glow_for is still there and still unused")
+        self.assertIn("draw_labels", source, "the prayer's name on the arch turns green")
         self.assertIn("draw_minaret_glow", source, "the minarets still glow when none is due")
 
-    def test_the_name_on_the_arch_is_stencilled_in_green(self):
+    def test_the_name_on_the_arch_is_painted_in_green(self):
+        """CHANGED IN 1.63 from "stencilled" to "painted", which is the whole difference.
+
+        The claim has not moved: the prayer whose time it is has its name on the arch in
+        green, in the green that suits the panel the word sits on. How it gets there has --
+        it is the pack's word drawn with a green pen rather than the drawing's own lettering
+        lifted off pixel by pixel. So it is checked on the screen now, which is where it was
+        always meant to be true, rather than on the stencil that used to produce it.
+        """
         from salaah import mosque
         from salaah.qt import QtGui
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
@@ -1870,31 +1891,56 @@ class MainScreenMarkTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         w.resize(1920, 1080)
         w.show()
+        w.stack.setCurrentWidget(w.home)
         APP.processEvents()
         screen = w.mosque
+        held = screen.sky.now()
+        frozen = mock.patch.object(type(screen.sky), "now", staticmethod(lambda: held))
+        frozen.start()
+        self.addCleanup(frozen.stop)
+        screen.flutter.stop()
+        screen.set_lit("dhuhr")
+        APP.processEvents()
+
+        want = mosque.GREEN_DARK if screen.flipped else mosque.GREEN
+        shot = screen.grab().toImage()
+        _, origin, scale = screen.placement()
         arch = next(a for a in screen.arches if a.prayer == "dhuhr")
-        _, _, scale = screen.placement()
-        pix = screen.name_in_green(arch, scale)
-        self.assertFalse(pix.isNull())
-        image = pix.toImage()
-        image = image.convertToFormat(QtGui.QImage.Format.Format_ARGB32)
-        # pixelColor, not QColor(pixel()): QColor of a plain int means a named colour.
-        sampled = [image.pixelColor(x, y)
-                   for y in range(0, image.height(), 3) for x in range(0, image.width(), 3)]
-        painted = [c for c in sampled if c.alpha() > 200]
-        self.assertTrue(painted, "some of the lettering is painted")
-        # Which green follows the panel the name sits on, not the screen. This artwork is drawn
-        # for the dark screen, so on the white one it is turned over and the panel comes out
-        # black -- where the lighter green is the one that reads.
-        green = mosque.GREEN_DARK if screen.flipped else mosque.GREEN
-        for colour in painted:      # scaling shifts a channel by a point or two
-            for got, want in ((colour.red(), green.red()),
-                              (colour.green(), green.green()),
-                              (colour.blue(), green.blue())):
-                self.assertAlmostEqual(want, got, delta=4, msg=f"green, got {colour.name()}")
-        share = len(painted) / len(sampled)
-        self.assertLess(share, 0.5, "the lettering and outline, not the whole arch")
-        self.assertGreater(share, 0.02, "and more than a stray pixel")
+        box = QtCore.QRect(origin.x() + int(arch.box.x() * scale),
+                           origin.y() + int(arch.box.y() * scale),
+                           int(arch.box.width() * scale), int(arch.box.height() * scale))
+        painted, sampled = 0, 0
+        for y in range(box.top(), box.bottom()):
+            for x in range(box.left(), box.right()):
+                sampled += 1
+                c = QtGui.QColor(shot.pixel(x, y))
+                if (abs(c.red() - want.red()) <= 40 and abs(c.green() - want.green()) <= 40
+                        and abs(c.blue() - want.blue()) <= 40):
+                    painted += 1
+        self.assertGreater(painted, 100, f"Dhuhr is not written in {want.name()}")
+        share = painted / sampled
+        self.assertLess(share, 0.5, "the lettering, not the whole arch")
+
+    def test_the_green_stands_out_from_the_panel_it_sits_on(self):
+        """Which green is used follows the arch, not the screen: this artwork is drawn for the
+        dark screen, so by day it is turned over and the arch comes out light."""
+        from salaah import mosque
+        from salaah.qt import QtGui
+        for mode in ("light", "dark"):
+            with self.subTest(mode):
+                w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                               Settings(theme=mode, recitation=False), scale=1.0,
+                               save_settings=False)
+                self.addCleanup(lambda w=w: shut(w))
+                w.resize(1920, 1080)
+                w.show()
+                APP.processEvents()
+                screen = w.mosque
+                want = mosque.GREEN_DARK if screen.flipped else mosque.GREEN
+                panel = QtGui.QColor("white") if screen.flipped else QtGui.QColor("black")
+                gap = abs(want.lightness() - panel.lightness())
+                self.assertGreater(gap, 60,
+                                   f"{mode}: the green does not stand out from the arch")
 
 
 class SkyAndPolishTest(unittest.TestCase):
@@ -6387,36 +6433,66 @@ class TwoMosquesTest(unittest.TestCase):
             found[name] = (sum(xs) // len(xs), top)
         return found
 
-    def test_the_minarets_and_dome_land_in_the_same_place_on_both(self):
+    # THE KALIMA DRAWING IS THE ODD ONE OUT SINCE 1.63, and these three say so rather than
+    # being quietly relaxed.
+    #
+    # Harry has replaced the front door, the five prayer pages and now the main page with a
+    # new family of drawings: one building, 1396 by 733, the sky cut out of it, the words
+    # taken out of the arches so the app can write them in whatever language the mat is set
+    # to. The six-kalima menu is still the old artwork -- 1624 by 853, with its numbers drawn
+    # in -- so it no longer lines up with the mosque it is meant to echo, and going from one
+    # to the other jumps.
+    #
+    # That is a thing to tell him and a drawing for him to make, not something to fix in a
+    # test. So what used to be asked of the mosque and the kalima menu is asked of the new
+    # family instead, and the kalima one is checked against what it actually is, with this
+    # note saying why they differ.
+
+    def test_the_minarets_and_dome_land_in_the_same_place_across_the_family(self):
+        """The main mosque and a prayer's own page are the same building drawn twice, so the
+        minarets and the dome have to land on the same pixels. This is what used to be asked
+        of the mosque and the kalima menu, moved to the two that really do share a building.
+        """
         w = self.window()
-        # In to the mosque, not the screen the mat opens on. go_home lands on the new front
-        # door now, which is a different drawing altogether -- no minarets on it to line up
-        # against, and a dome in another place. This test is about the kalima building being
-        # the five-arch mosque with six arches, and that is what it has always been about.
-        #
-        # Shown rather than walked into: leave_welcome plays a zoom over the top, and offscreen
-        # that animation never finishes, so the grab catches a screen mid-walk. The first go
-        # measured a dome 450px from where it is and a left minaret that moved every run.
         w.stack.setCurrentWidget(w.home)
         settle()
         mosque = self.landmarks(w)
-        w.open_corner("kalima")
-        settle()
-        arches = self.landmarks(w)
         self.assertIsNotNone(mosque)
-        self.assertIsNotNone(arches)
-        for part in ("left", "right", "dome"):
-            across = abs(arches[part][0] - mosque[part][0])
-            down = abs(arches[part][1] - mosque[part][1])
-            self.assertLess(across, 25, f"{part} is {across}px across from the mosque's")
-            self.assertLess(down, 25, f"{part} is {down}px below the mosque's")
+        for prayer in ("fajr", "isha"):
+            with self.subTest(prayer):
+                w.open_prayer(prayer)
+                page = getattr(w, "prayer_mosque", None)
+                self.assertIsNotNone(page, f"{prayer} did not open on a drawing")
+                page.sky.birds = []
+                page.sky.stars = []
+                settle()
+                units = self.landmarks(w)
+                self.assertIsNotNone(units)
+                for part in ("left", "right", "dome"):
+                    across = abs(units[part][0] - mosque[part][0])
+                    down = abs(units[part][1] - mosque[part][1])
+                    self.assertLess(across, 25, f"{part} is {across}px across from the mosque's")
+                    self.assertLess(down, 25, f"{part} is {down}px below the mosque's")
 
-    def test_the_kalima_drawing_is_the_same_shape_as_the_front_door(self):
-        """The artwork arrived at a different size and aspect, so it sat smaller and higher
-        than the mosque it was meant to echo."""
+    def test_the_kalima_drawing_has_not_been_replaced_yet(self):
+        """Recorded, not asserted away. When Harry draws the kalima menu to match the rest,
+        this test fails -- and that failure is the reminder to put the two checks above back
+        the way they were, with the kalima menu in them."""
         front = QtGui.QImage(str(ASSETS / "mosque" / "mosque.png"))
         arches = QtGui.QImage(str(ASSETS / "kalima" / "mosque.png"))
-        self.assertEqual(front.size(), arches.size())
+        self.assertNotEqual(front.size(), arches.size(),
+                            "the kalima drawing matches the mosque again -- put it back into "
+                            "test_the_minarets_and_dome_land_in_the_same_place_across_the_family "
+                            "and into CleanArtworkTest, and delete this test")
+
+    def test_the_new_drawings_are_all_one_size(self):
+        """What the check above used to be, pointed at the family that shares a building. A
+        drawing of another size does not get clipped -- MosqueScreen scales it to fit -- it
+        sits smaller and higher than the one before it, which is how this was first noticed.
+        """
+        sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size()
+                 for f in ["mosque", "welcome"] + [f"prayers/{p}" for p in PRAYERS]}
+        self.assertEqual(1, len(sizes), f"the new drawings are not all one size: {sizes}")
 
     def test_the_arch_menu_has_no_bar_of_its_own_stealing_height(self):
         """It used to carry a Main screen button in a row above the mosque, which pushed the
@@ -7194,42 +7270,57 @@ class DrawnForTheDarkTest(unittest.TestCase):
         self.assertFalse(self.window("dark").mosque.flipped, "the night screen is the one it suits")
         self.assertTrue(self.window("light").mosque.flipped, "and the white one is not")
 
-    def test_the_dome_stays_dark_after_dark_so_the_clock_reads_white_on_it(self):
-        """The clock used to be painted black whenever the screen was dark, because the old
-        artwork came out light when it was turned over. This one is not turned over, so its
-        dome is still dark and black numerals would vanish into it."""
-        w = self.window("dark")
-        m = w.mosque
-        m.sky.birds = []
-        m.sky.stars = []
-        scaled, origin, scale = m.placement()
-        box = m.clock_box
-        m.set_time("")
-        settle()
-        bare = w.grab().toImage()
-        middle = QtGui.QColor(bare.pixel(origin.x() + int((box.x() + box.width() * 0.05) * scale),
-                                         origin.y() + int((box.y() + box.height() * 0.5) * scale)))
-        self.assertLess(middle.lightness(), 110, "the dome is not dark; the clock will not read")
+    def test_the_clock_reads_against_whatever_the_dome_is(self):
+        """CHANGED IN 1.63, because the dome changed under it.
 
-        # The numerals are found by turning them on and off, not by counting bright pixels in
-        # the box: the dome's own outline runs through that box, so counting alone reported
-        # plenty of light even with the time painted black and invisible.
-        m.set_time("14:28")
-        settle()
-        shown = w.grab().toImage()
-        lighter = darker = 0
-        for y in range(origin.y() + int(box.y() * scale),
-                       origin.y() + int((box.y() + box.height()) * scale), 2):
-            for x in range(origin.x() + int(box.x() * scale),
-                           origin.x() + int((box.x() + box.width()) * scale), 2):
-                was = QtGui.QColor(bare.pixel(x, y)).lightness()
-                now = QtGui.QColor(shown.pixel(x, y)).lightness()
-                if now - was > 60:
-                    lighter += 1
-                elif was - now > 60:
-                    darker += 1
-        self.assertGreater(lighter, 200, "the time is not painted in light ink on the dark dome")
-        self.assertGreater(lighter, darker * 4, "the time is being painted dark on a dark dome")
+        The old main page drew its dome as an OUTLINE -- a hole in the picture -- so after
+        dark the dome was dark and the time had to be white on it. Harry's new one draws the
+        dome SOLID, so after dark it is white and the same white numerals would vanish. Both
+        are right about their own drawing, and neither is the thing worth pinning.
+
+        What is worth pinning is that you can read the time: whichever way round the drawing
+        is, and whichever screen it is on, the numerals stand clear of the dome behind them.
+        Measured by turning the time on and off and comparing, because counting bright pixels
+        in the box reported plenty of light from the dome's own edge even with the numerals
+        painted invisible -- which is how the first version of this test fooled itself.
+        """
+        for mode in ("dark", "light"):
+            with self.subTest(mode):
+                w = self.window(mode)
+                m = w.mosque
+                m.sky.birds = []
+                m.sky.stars = []
+                _, origin, scale = m.placement()
+                box = m.clock_box
+                m.set_time("")
+                settle()
+                bare = w.grab().toImage()
+                m.set_time("14:28")
+                settle()
+                shown = w.grab().toImage()
+
+                dome = QtGui.QColor(bare.pixel(
+                    origin.x() + int((box.x() + box.width() * 0.05) * scale),
+                    origin.y() + int((box.y() + box.height() * 0.5) * scale))).lightness()
+                changed, wrong_way = 0, 0
+                for y in range(origin.y() + int(box.y() * scale),
+                               origin.y() + int((box.y() + box.height()) * scale), 2):
+                    for x in range(origin.x() + int(box.x() * scale),
+                                   origin.x() + int((box.x() + box.width()) * scale), 2):
+                        was = QtGui.QColor(bare.pixel(x, y)).lightness()
+                        now = QtGui.QColor(shown.pixel(x, y)).lightness()
+                        if abs(now - was) <= 60:
+                            continue
+                        # Away from the dome is the right way: dark ink on a light dome,
+                        # light ink on a dark one.
+                        if (now < was) == (dome > 128):
+                            changed += 1
+                        else:
+                            wrong_way += 1
+                self.assertGreater(changed, 200,
+                                   f"{mode}: the time does not stand out from the dome")
+                self.assertGreater(changed, wrong_way * 4,
+                                   f"{mode}: the time is painted into the dome, not on it")
 
     def test_an_old_style_drawing_would_still_be_turned_over_after_dark(self):
         """The flag defaults to the way the first mosque was made, so artwork without it keeps
@@ -7320,36 +7411,46 @@ class NewMosqueArtTest(unittest.TestCase):
         self.assertGreater(right.center().x(), m.picture.width() * 0.7)
 
     def test_the_prayer_whose_time_it_is_is_picked_out_in_green(self):
-        """The names are part of the drawing, so they are lifted off it with the arch's mask.
-        New artwork, same trick -- and if the mask and the drawing disagree, nothing is lit."""
+        """CHANGED IN 1.63. The names used to be part of the drawing and were lifted off it
+        with the arch's mask; they come from the pack now and are painted on. The claim is
+        unchanged and is checked here the same way it always should have been -- by looking at
+        the arch on the screen -- with the detail of HOW in MainScreenMarkTest.
+        """
         w = self.window()
         m = w.mosque
+        held = m.sky.now()
+        frozen = mock.patch.object(type(m.sky), "now", staticmethod(lambda: held))
+        frozen.start()
+        self.addCleanup(frozen.stop)
+        m.flutter.stop()
+        from salaah.mosque import GREEN, GREEN_DARK
+        want = GREEN_DARK if m.flipped else GREEN
+
+        def green_in(prayer):
+            shot = m.grab().toImage()
+            _, origin, scale = m.placement()
+            arch = next(a for a in m.arches if a.prayer == prayer)
+            box = QtCore.QRect(origin.x() + int(arch.box.x() * scale),
+                               origin.y() + int(arch.box.y() * scale),
+                               int(arch.box.width() * scale), int(arch.box.height() * scale))
+            found = 0
+            for y in range(box.top(), box.bottom(), 2):
+                for x in range(box.left(), box.right(), 2):
+                    c = QtGui.QColor(shot.pixel(x, y))
+                    if (abs(c.red() - want.red()) <= 40
+                            and abs(c.green() - want.green()) <= 40
+                            and abs(c.blue() - want.blue()) <= 40):
+                        found += 1
+            return found
+
         m.set_lit("dhuhr")
         settle()
-        from salaah.mosque import GREEN, GREEN_DARK
-        arch = next(a for a in m.arches if a.prayer == "dhuhr")
-        stencil = m.name_in_green(arch, 1.0).toImage()
-        painted, shades = 0, set()
-        for y in range(0, stencil.height(), 2):
-            for x in range(0, stencil.width(), 2):
-                c = QtGui.QColor(stencil.pixelColor(x, y))
-                if c.alpha() > 40:
-                    painted += 1
-                    shades.add((c.red(), c.green(), c.blue()))
-        self.assertGreater(painted, 200, "the name did not come off the drawing")
-        # Which green matters, not just that something was painted. The panel under it is
-        # white on this artwork whatever the screen is, so it wants the darker green; the
-        # lighter one is for a name sitting on a dark panel and is washed out on a white one.
-        want = GREEN_DARK if m.flipped else GREEN
-        # A few shades wide: the stencil is scaled smoothly, so the edges of the letters blend
-        # a point or two either side of the colour they were filled with.
-        off = [c for c in shades if max(abs(c[0] - want.red()), abs(c[1] - want.green()),
-                                        abs(c[2] - want.blue())) > 6]
-        self.assertEqual([], off,
-                         f"the name is not painted in {want.name()}; found {sorted(shades)[:4]}")
-        panel = QtGui.QColor("white") if not m.flipped else QtGui.QColor("black")
-        gap = abs(want.lightness() - panel.lightness())
-        self.assertGreater(gap, 60, "the green does not stand out from the panel it sits on")
+        self.assertGreater(green_in("dhuhr"), 30, "Dhuhr is not picked out when it is its time")
+        self.assertLess(green_in("fajr"), 5, "Fajr is green and it is not its time")
+        m.set_lit("fajr")
+        settle()
+        self.assertGreater(green_in("fajr"), 30, "the green did not move with the hour")
+        self.assertLess(green_in("dhuhr"), 5, "Dhuhr stayed green after its time passed")
 
 
 class MovingMuezzinTest(unittest.TestCase):
@@ -7578,15 +7679,21 @@ class CleanArtworkTest(unittest.TestCase):
                             f"{folder}: {share*100:.1f}% of what is drawn is a half shade -- "
                             f"that is the glow that made the first pair look muddy")
 
-    def test_the_two_that_are_compared_share_a_canvas(self):
-        """The mosque and the kalima menu are meant to read as the same building seen twice, so
-        they are lined up against each other and must be the same size. The front door is not
-        compared with either -- it was cropped to fill the screen, which is a different shape."""
-        sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size() for f in ("mosque", "kalima")}
-        self.assertEqual(1, len(sizes), "the two mosques are drawn at different sizes")
-        front = QtGui.QImage(str(ASSETS / "welcome" / "mosque.png")).size()
-        self.assertGreater(front.width() / front.height(), 1.85,
-                           "the front door should be cut to the shape of the screen")
+    def test_the_drawings_that_are_compared_share_a_canvas(self):
+        """The mosques that read as the same building seen twice are lined up against each
+        other, so they must be the same size.
+
+        CHANGED IN 1.63: it used to be the mosque and the kalima menu. Harry has replaced the
+        mosque, the front door and the five prayer pages with one family and has not yet
+        redrawn the kalima menu, which is still the old artwork at the old size -- see the
+        note in TwoMosquesTest, which carries the reminder to put it back.
+        """
+        folders = ["mosque", "welcome"] + [f"prayers/{p}" for p in PRAYERS]
+        sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size() for f in folders}
+        self.assertEqual(1, len(sizes), f"the mosques are drawn at different sizes: {sizes}")
+        shape = next(iter(sizes))
+        self.assertGreater(shape.width() / shape.height(), 1.85,
+                           "they should be cut to the shape of the screen")
 
 
 class ArchFinderTest(unittest.TestCase):
@@ -7668,8 +7775,11 @@ class ArtworkCacheTest(unittest.TestCase):
         self.addCleanup(lambda: (a.deleteLater(), b.deleteLater(), APP.processEvents()))
         self.assertTrue(a.ready and b.ready)
         self.assertIs(a.picture, b.picture, "the drawing was read again for the second screen")
+        # The masks each arch used to carry were checked here too. Nothing reads one since
+        # 1.63 -- the lettering they existed for is not in the drawing any more -- so they are
+        # not opened at all, which is the same saving by a shorter road.
         for one, two in zip(a.arches, b.arches):
-            self.assertIs(one.mask, two.mask, f"the {one.prayer} mask was read again")
+            self.assertFalse(hasattr(one, "mask"), f"{one.prayer} is loading a mask again")
 
     def test_rebuilding_the_artwork_is_picked_up_and_not_served_stale(self):
         """Harry rebuilds these drawings often. A cache keyed on the file name alone would go
@@ -7684,7 +7794,13 @@ class ArtworkCacheTest(unittest.TestCase):
         self.assertTrue(first.ready)
         was = first.picture.size()
 
-        shutil.copy(ASSETS / "kalima" / "mosque.png", spare / "mosque" / "mosque.png")
+        # A different drawing on the same canvas, made rather than borrowed. It used to borrow
+        # the kalima one, which worked while the two were the same size and stopped when
+        # Harry's new main page came in at 1396x733 against the kalima's 1624x853 -- the test
+        # then failed for a reason that had nothing to do with the cache it was watching.
+        from salaah.qt import QtGui
+        turned = QtGui.QImage(str(spare / "mosque" / "mosque.png")).mirrored(True, False)
+        self.assertTrue(turned.save(str(spare / "mosque" / "mosque.png")))
         import os, time
         later = time.time() + 5
         os.utime(spare / "mosque" / "mosque.png", (later, later))
@@ -11973,9 +12089,328 @@ class PrayerPagesAreDrawnTest(unittest.TestCase):
         self.assertIsNone(w.prayer_mosque, "it should have fallen back to the drawn arches")
         self.assertIs(w.pick, w.stack.currentWidget(), "and still be on a usable screen")
 
-    def test_the_main_prayer_page_behind_them_is_untouched(self):
-        """Harry: "the only page that stays the same is the main prayer page". The five arches
-        still say their own names, out of the drawing, and have no labels written over them."""
+    def test_the_main_prayer_page_names_its_arches_too(self):
+        """CHANGED IN 1.63. In 1.62 Harry kept the old main page, and this said so: its arches
+        carried their own names out of the drawing and nothing was written over them.
+
+        He replaced it in 1.63 with one of the same family -- empty arches, names from the
+        pack. So the claim turns round: the five arches are named here, in order, from the
+        same place the rest of the app takes its words from.
+        """
         w = self.window()
-        self.assertEqual({}, w.mosque.labels, "something is being written over the main mosque")
         self.assertEqual([a.prayer for a in w.mosque.arches], list(PRAYERS))
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                self.assertEqual(("", w.t(f"prayer.{prayer}")), w.mosque.labels[prayer])
+
+
+class MainPageNamesTest(unittest.TestCase):
+    """The five prayers' names on the new main page, written by the app rather than drawn in.
+
+    The drawing is empty now, so if this stops working the mat's first screen is five blank
+    arches -- which is why the words are looked for on the rendered screen and not only in
+    the labels dict.
+    """
+
+    def window(self, lang="en", mode="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, lang=lang, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        w.stack.setCurrentWidget(w.home)
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def freeze(self, screen):
+        held = screen.sky.now()
+        patch = mock.patch.object(type(screen.sky), "now", staticmethod(lambda: held))
+        patch.start()
+        self.addCleanup(patch.stop)
+        screen.flutter.stop()
+
+    def test_the_names_come_from_the_pack_and_change_with_the_language(self):
+        english = self.window("en").mosque.labels
+        urdu = self.window("ur").mosque.labels
+        self.assertEqual(("", "Fajr"), english["fajr"])
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                self.assertNotEqual(english[prayer], urdu[prayer],
+                                    f"{prayer} is still in English on an Urdu mat")
+
+    def test_the_names_are_really_painted_on_the_arches(self):
+        """Set and painted are not the same claim. Taken away, the inside of each arch has to
+        change -- and nothing outside the arches may."""
+        w = self.window()
+        screen = w.mosque
+        self.freeze(screen)
+        said = dict(screen.labels)
+        before = screen.grab().toImage()
+        screen.set_labels({})
+        settle()
+        after = screen.grab().toImage()
+        _, origin, scale = screen.placement()
+        boxes = {a.prayer: QtCore.QRect(origin.x() + int(a.box.x() * scale),
+                                        origin.y() + int(a.box.y() * scale),
+                                        int(a.box.width() * scale), int(a.box.height() * scale))
+                 for a in screen.arches}
+        changed = {p: 0 for p in boxes}
+        strayed = 0
+        for y in range(0, before.height(), 2):
+            for x in range(0, before.width(), 2):
+                if before.pixel(x, y) == after.pixel(x, y):
+                    continue
+                here = [p for p, b in boxes.items() if b.contains(x, y)]
+                if here:
+                    changed[here[0]] += 1
+                else:
+                    strayed += 1
+        screen.set_labels(said, w.pack_face())
+        for prayer, count in changed.items():
+            with self.subTest(prayer):
+                self.assertGreater(count, 30, f"nothing was written in the {prayer} arch")
+        self.assertEqual(0, strayed, "the names were painted outside the arches")
+
+    def test_the_prayer_whose_time_it_is_is_the_only_green_one(self):
+        """It used to be a stencil cut out of the artwork; it is the same word in a different
+        colour now. Measured as green pixels inside each arch, so it is about what is on the
+        screen rather than about which code path ran."""
+        w = self.window()
+        screen = w.mosque
+        self.freeze(screen)
+        _, origin, scale = screen.placement()
+
+        def greenness():
+            shot = screen.grab().toImage()
+            out = {}
+            for arch in screen.arches:
+                box = QtCore.QRect(origin.x() + int(arch.box.x() * scale),
+                                   origin.y() + int(arch.box.y() * scale),
+                                   int(arch.box.width() * scale), int(arch.box.height() * scale))
+                count = 0
+                for y in range(box.top(), box.bottom(), 2):
+                    for x in range(box.left(), box.right(), 2):
+                        c = QtGui.QColor(shot.pixel(x, y))
+                        if c.green() > c.red() + 40 and c.green() > c.blue() + 40:
+                            count += 1
+                out[arch.prayer] = count
+            return out
+
+        for lit in ("fajr", "maghrib"):
+            with self.subTest(lit):
+                screen.set_lit(lit)
+                settle()
+                green = greenness()
+                self.assertGreater(green[lit], 10, f"{lit} is not shown in green")
+                for prayer, count in green.items():
+                    if prayer != lit:
+                        self.assertLess(count, 5, f"{prayer} is green and it is not its time")
+
+    def test_nothing_reads_an_arch_mask_any_more(self):
+        """The stencil is gone and so are the files it read. A drawing added later with no
+        arch-<name>.png beside it must still open -- which is the whole of what this checks,
+        and it would have raised before 1.63."""
+        w = self.window()
+        self.assertFalse(hasattr(w.mosque, "name_in_green"),
+                         "the stencil is back; the names are the app's now")
+        for arch in w.mosque.arches:
+            self.assertFalse(hasattr(arch, "mask"), f"{arch.prayer} still carries a mask")
+
+
+class ReadingBarTest(unittest.TestCase):
+    """The bar above the Qur'an: the page arrows, and the three A's that set how large it is."""
+
+    def window(self, mode="dark", **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury", **settings),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def reader(self, w, surah=36):
+        w.open_surah(surah)
+        settle()
+        return w.reader
+
+    # The arrows
+
+    def test_a_live_arrow_is_clearly_brighter_than_a_dead_one(self):
+        """Harry: "the left and right buttons dont do anything?". They did. The rule said
+        color:c.paper on a chip that is dark in BOTH themes, so after dark the live arrow was
+        drawn black on near-black and could not be seen -- while the disabled rule underneath
+        gave the dead one a lighter grey. The one that worked looked deadest.
+
+        Measured off the rendered button rather than read out of the stylesheet: the glyph's
+        brightest pixel, with one arrow live and the other not.
+        """
+        for mode in ("dark", "light"):
+            with self.subTest(mode):
+                w = self.window(mode)
+                r = self.reader(w)
+                self.assertTrue(r.later.isEnabled(), "Ya-Sin should have a page to go on to")
+                self.assertFalse(r.earlier.isEnabled(), "and none to go back to, on page one")
+                live = self.brightest(r.later)
+                dead = self.brightest(r.earlier)
+                self.assertGreater(live, dead + 60,
+                                   f"{mode}: the live arrow ({live}) is no brighter than the "
+                                   f"dead one ({dead})")
+                self.assertGreater(live, 150, f"{mode}: the live arrow is too dim to see")
+
+    @staticmethod
+    def brightest(button):
+        shot = button.grab().toImage()
+        best = 0
+        for y in range(0, shot.height()):
+            for x in range(0, shot.width()):
+                c = QtGui.QColor(shot.pixel(x, y))
+                best = max(best, c.lightness())
+        return best
+
+    def test_the_arrows_turn_the_pages(self):
+        w = self.window()
+        r = self.reader(w)
+        self.assertGreater(r.spread.pages_count, 2, "Ya-Sin should run to several pages")
+        r.later.click()
+        settle()
+        self.assertEqual(1, r.spread.at)
+        self.assertTrue(r.earlier.isEnabled(), "there is a page to go back to now")
+        r.earlier.click()
+        settle()
+        self.assertEqual(0, r.spread.at)
+
+    # The three A's
+
+    def test_three_sizes_and_the_chosen_one_is_red(self):
+        w = self.window()
+        r = self.reader(w)
+        from salaah.reading import TEXT_STEPS, TextSize
+        self.assertEqual(3, len(TEXT_STEPS))
+        self.assertEqual(0, r.text_size.at, "it should open at the size it was left at")
+        for at in (1, 2, 0):
+            with self.subTest(at):
+                r.text_size.set_at(at)
+                settle()
+                shot = r.text_size.grab().toImage()
+                for i, box in enumerate(r.text_size.boxes()):
+                    middle = box.center()
+                    # A corner of the box rather than the middle, which is where the A is.
+                    spot = QtCore.QPoint(int(box.left() + box.width() * 0.12),
+                                         int(box.top() + box.height() * 0.12))
+                    c = QtGui.QColor(shot.pixel(spot))
+                    red = c.red() > c.green() + 60 and c.red() > c.blue() + 60
+                    self.assertEqual(i == at, red,
+                                     f"box {i} is {'red' if red else 'grey'} and {at} is chosen")
+
+    def test_each_step_makes_the_words_bigger_and_the_page_still_holds_them(self):
+        """Two claims, and the second is the one that bites.
+
+        Bigger: a page holds fewer verses, so the surah runs to more pages. Still holds them:
+        what is on the page fits inside it. They are separate because the size is set by two
+        numbers and only one of them is obvious -- the text boxes are told how large to draw,
+        and the pagination is told how small the words may get while verses are being counted
+        onto a page. Raise the first and forget the second and the page count still goes up,
+        which is why counting pages alone passed with the fix taken out; the verses are
+        counted at the old size and then drawn at the new one, and the last two run off the
+        bottom of the page. Measured here: 912 pixels of text in 830 pixels of page.
+        """
+        w = self.window()
+        r = self.reader(w)
+        counts = []
+        for at in (0, 1, 2):
+            with self.subTest(at):
+                r.resize_text(at)
+                settle()
+                counts.append(r.spread.pages_count)
+                page = r.spread.parallel
+                self.assertTrue(page.isVisible(), "this surah should show a meaning beside it")
+                _, used = page._rows(int(FLOOR_PX * page.scale))
+                room = int(page.height() * 0.96)
+                self.assertLessEqual(used, room,
+                                     f"size {at}: {used}px of text on a {room}px page -- the "
+                                     f"last verses run off the bottom")
+        self.assertGreater(counts[1], counts[0], "the middle A is no bigger than the small one")
+        self.assertGreater(counts[2], counts[1], "the large A is no bigger than the middle one")
+
+    def test_the_meaning_grows_with_the_arabic(self):
+        """Harry asked for "the text of the quran and/or translation". The meaning is set from
+        the Arabic's size, so this is the check that it really follows rather than staying put
+        while the Arabic grows away from it."""
+        w = self.window()
+        r = self.reader(w)
+        self.assertTrue(r.spread.translated, "this surah should have a meaning beside it")
+        before = r.spread.parallel.scale
+        r.resize_text(2)
+        settle()
+        self.assertGreater(r.spread.parallel.scale, before,
+                           "the meaning column was left at the old size")
+
+    def test_the_size_is_remembered(self):
+        w = self.window()
+        r = self.reader(w)
+        r.resize_text(2)
+        settle()
+        self.assertEqual(2, w.settings.text_step, "the chosen size was not written down")
+        later = self.window(text_step=2)
+        self.assertEqual(2, self.reader(later).text_size.at,
+                         "it did not open at the size it was left at")
+
+    def test_an_odd_setting_does_not_stop_the_reader(self):
+        """A settings.json edited by hand, or written by an older version, must not take the
+        Qur'an down with it."""
+        w = self.window()
+        r = self.reader(w)
+        for odd in (-1, 99, "big", None):
+            with self.subTest(repr(odd)):
+                w.settings.text_step = odd
+                r.spread.show_surah(r.spread.verses, r.spread.rtl_meaning)
+                settle()
+                self.assertGreaterEqual(r.spread.pages_count, 1)
+
+    # Following the recitation
+
+    def test_the_page_follows_the_recitation(self):
+        """With the text set large Ya-Sin runs to thirty-odd pages, so a recitation that walks
+        off the bottom of page one and leaves the reader to catch up by hand is no use. The
+        page turns itself to wherever the verse being said has landed."""
+        w = self.window()
+        r = self.reader(w)
+        r.resize_text(1)
+        settle()
+        self.assertGreater(r.spread.pages_count, 3)
+        far = r.spread.pages[3][0]          # the first verse of the fourth page
+        r.reciting = True
+        r.at_verse = far
+        r.keep_up()
+        settle()
+        self.assertEqual(3, r.spread.at, "the page did not follow the recitation")
+
+    def test_it_does_not_drag_a_reader_along(self):
+        """Only while reciting. Someone who turned back a page to look at something again
+        should be left where they put themselves."""
+        w = self.window()
+        r = self.reader(w)
+        r.reciting = False
+        r.at_verse = r.spread.pages[2][0] if r.spread.pages_count > 2 else 0
+        r.spread.go_to(0)
+        r.keep_up()
+        settle()
+        self.assertEqual(0, r.spread.at, "it turned the page of somebody reading")
+
+    def test_changing_size_mid_recitation_stays_with_the_verse(self):
+        """The pages fall somewhere else at a different size, so the page number means nothing
+        across the change; the verse being recited is what has to be kept."""
+        w = self.window()
+        r = self.reader(w)
+        r.reciting = True
+        r.at_verse = 40
+        r.resize_text(2)
+        settle()
+        start, end = r.spread.pages[r.spread.at]
+        self.assertTrue(start <= 40 < end,
+                        f"verse 40 is not on the page it landed on ({start}-{end})")

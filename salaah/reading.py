@@ -27,6 +27,17 @@ from .theme import palette
 FLOOR_PX = 30
 MOST_VERSES = 40          # a page never holds more than this, however short the verses
 
+# The three sizes the A buttons on the reading bar choose between. The first is what the mat
+# has always done; each step after it is half as big again, which is what Harry asked for.
+#
+# They work by raising the FLOOR, not by setting a size. The page already grows its text to
+# fill the room it has, so the thing that decides how big the Arabic comes out is how many
+# verses were put on the page -- and that is settled by how small the words were allowed to
+# get while they were being counted. Lift the floor and fewer verses fit; the page then fills
+# with what is left, larger. It is the same mechanism a printed mushaf uses when it is set in
+# a bigger face: not more ink on the page, but fewer verses on it.
+TEXT_STEPS = (1.0, 1.5, 2.25)
+
 # Which way a swipe goes. Right-to-left means forward, as it does in every other touch screen
 # the mat's owner uses. An Arabic book turns the other way, so this is the line to change if
 # that matters more than the habit does.
@@ -186,12 +197,53 @@ class Spread(QtWidgets.QWidget):
                             rtl=True, by_word=True)
         self.right = TextBox(Fonts.arabic(self.win.settings.arabic_font), FLOOR_PX, 200,
                              rtl=True, by_word=True)
-        for w in (self.parallel, self.left, self.right):
-            w.scale = self.win.s
+        self.size_the_boxes()
         lay.addWidget(self.parallel, 1)
         lay.addWidget(self.left, 1)
         lay.addWidget(self.right, 1)
         self.parallel.hide()
+
+    @property
+    def text_at(self) -> int:
+        """Which of the three sizes is chosen: 0, 1 or 2, whatever the settings file holds."""
+        at = getattr(self.win.settings, "text_step", 0)
+        try:
+            at = int(at)
+        except (TypeError, ValueError):
+            at = 0
+        return max(0, min(at, len(TEXT_STEPS) - 1))
+
+    @property
+    def text_step(self) -> float:
+        """How much larger than usual the Qur'an is set, from the A buttons on the bar."""
+        return TEXT_STEPS[self.text_at]
+
+    def size_the_boxes(self) -> None:
+        """Hand the three text boxes the screen's scale and the chosen size, together.
+
+        One number does both because the boxes already read `scale` for the smallest and the
+        largest they may draw. Lifting it lifts the floor, which is what makes a page hold
+        fewer verses, which is what makes the text come out bigger.
+        """
+        for w in (self.parallel, self.left, self.right):
+            w.scale = self.win.s * self.text_step
+
+    def set_text_step(self, at: int, keep_verse: int | None = None) -> None:
+        """A different size was chosen. Lay the surah out again for it.
+
+        [keep_verse] is an index into the surah to stay with. The pages fall in different
+        places at a different size, so "page 4" means somewhere else afterwards; what the
+        reader cares about is the verse in front of them, not the number of the page it is on.
+        """
+        self.win.settings.text_step = max(0, min(int(at), len(TEXT_STEPS) - 1))
+        if keep_verse is None and self.pages:
+            keep_verse = self.pages[max(0, min(self.at, len(self.pages) - 1))][0]
+        self.size_the_boxes()
+        self.at = 0
+        self._measured = None
+        self.repaginate()
+        if keep_verse is not None:
+            self.go_to(self.page_of(keep_verse))
 
     # What is being read
 
@@ -218,7 +270,7 @@ class Spread(QtWidgets.QWidget):
     def repaginate(self) -> None:
         """Work out where each page starts and ends, for the room there is now."""
         key = (self.width(), self.height(), self.translated, len(self.verses),
-               self.win.settings.arabic_font, self.win.s)
+               self.win.settings.arabic_font, self.win.s, self.text_step)
         if self._measured == key:
             return
         self._measured = key
@@ -262,7 +314,7 @@ class Spread(QtWidgets.QWidget):
         return best
 
     def holds(self, start: int, end: int) -> bool:
-        floor = max(1, int(FLOOR_PX * self.win.s))
+        floor = max(1, int(FLOOR_PX * self.win.s * self.text_step))
         some = self.verses[start:end]
         if self.translated:
             self.parallel.arabic = [self.numbered(v) for v in some]
@@ -351,6 +403,13 @@ class Spread(QtWidgets.QWidget):
         self.turned.emit()
         return True
 
+    def page_of(self, index: int) -> int:
+        """Which page the verse at [index] has landed on."""
+        for i, (start, end) in enumerate(self.pages):
+            if start <= index < end:
+                return i
+        return max(0, len(self.pages) - 1)
+
     def go_to(self, page: int) -> None:
         self.at = max(0, min(page, len(self.pages) - 1))
         self.show_page()
@@ -380,6 +439,104 @@ class Spread(QtWidgets.QWidget):
     def follow_theme(self) -> None:
         for w in (self.parallel, self.left, self.right):
             w.update()
+
+
+class TextSize(QtWidgets.QWidget):
+    """Three A's, each larger than the last. Touch one to set the Qur'an at that size.
+
+    Drawn rather than pictured. Harry sent it as three screenshots -- small chosen, middle
+    chosen, large chosen -- and three pictures would be three files that do not know what size
+    the screen is, do not turn over with the theme, and would need a fourth and a fifth if the
+    row ever grew. It is three rounded squares and a letter, so it is drawn, the way the
+    settings cog on the banner is. The shape, the proportions and the red are measured off his
+    drawing: boxes 123, 140 and 156 wide standing on one line, and #DC1824 on the chosen one.
+
+    The letter in each box is drawn at the size that box stands for, which is the whole point
+    of the control -- the buttons are a picture of what they do.
+    """
+
+    chose = Signal(int)
+
+    CHOSEN = QtGui.QColor("#DC1824")      # off Harry's drawing
+    RESTING = QtGui.QColor("#565656")
+    WIDTHS = (0.79, 0.90, 1.0)            # of the tallest box, as he drew them
+    HEIGHTS = (0.58, 0.79, 1.0)
+    GAP = 0.09                            # of the tallest box
+
+    def __init__(self, window, at: int = 0):
+        super().__init__()
+        self.win = window
+        self.at = at
+        self.pressed: int | None = None
+        self.setObjectName("textSize")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        # Fixed, and sized here rather than left to the layout. A row with a stretch in it
+        # gives a widget whatever is left over, which for this one was a sliver of the first
+        # box and two slivers of the others -- the boxes are drawn to a proportion, so being
+        # handed the wrong shape does not shrink them, it clips them.
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed,
+                           QtWidgets.QSizePolicy.Policy.Fixed)
+        self.setFixedSize(self.sizeHint())
+
+    def sizeHint(self) -> QtCore.QSize:
+        tall = self.win.px(52)
+        wide = sum(int(tall * w) for w in self.WIDTHS) + int(tall * self.GAP) * 2
+        return QtCore.QSize(wide, tall)
+
+    def boxes(self) -> list[QtCore.QRectF]:
+        """Where the three sit: bottom-aligned on one line, growing to the right."""
+        tall = self.height()
+        gap = tall * self.GAP
+        wide = sum(tall * w for w in self.WIDTHS) + gap * 2
+        x = (self.width() - wide) / 2
+        out = []
+        for w, h in zip(self.WIDTHS, self.HEIGHTS):
+            box = QtCore.QRectF(x, self.height() - tall * h, tall * w, tall * h)
+            out.append(box)
+            x += box.width() + gap
+        return out
+
+    def set_at(self, at: int) -> None:
+        if at != self.at:
+            self.at = at
+            self.update()
+
+    def paintEvent(self, _):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        for i, box in enumerate(self.boxes()):
+            colour = QtGui.QColor(self.CHOSEN if i == self.at else self.RESTING)
+            if i == self.pressed:
+                colour = colour.lighter(130)
+            painter.setBrush(colour)
+            painter.drawRoundedRect(box, box.width() * 0.14, box.width() * 0.14)
+            font = QtGui.QFont(Fonts.english_family)
+            font.setWeight(QtGui.QFont.Weight(700))
+            font.setPixelSize(max(8, int(box.height() * 0.58)))
+            painter.setFont(font)
+            painter.setPen(QtGui.QColor("white"))
+            painter.drawText(box, int(Qt.AlignmentFlag.AlignCenter), "A")
+            painter.setPen(Qt.PenStyle.NoPen)
+
+    def which(self, point: QtCore.QPointF) -> int | None:
+        for i, box in enumerate(self.boxes()):
+            if box.contains(point):
+                return i
+        return None
+
+    def mousePressEvent(self, event):
+        self.pressed = self.which(event.position())
+        self.update()
+
+    def mouseReleaseEvent(self, event):
+        was, self.pressed = self.pressed, None
+        self.update()
+        here = self.which(event.position())
+        if here is not None and here == was:
+            self.set_at(here)
+            self.chose.emit(here)
 
 
 class Reader(QtWidgets.QWidget):
@@ -447,6 +604,13 @@ class Reader(QtWidgets.QWidget):
         # Pointing the way the reading goes: in Urdu and Arabic the pair mirrors to the
         # other side, so the heads turn with it. See arrows() in qt.py.
         back_glyph, on_glyph = arrows(self.win.pack.rtl)
+        # How large the Qur'an is set, beside the arrows that turn the pages: the two things
+        # you reach for with the page in front of you, in the one place you are already
+        # looking. Before the arrows, so the pair that turns pages stays together at the end.
+        self.text_size = TextSize(self.win, getattr(self.win.settings, "text_step", 0))
+        self.text_size.chose.connect(self.resize_text)
+        bar.addWidget(self.text_size, 0, Qt.AlignmentFlag.AlignVCenter)
+        bar.addSpacing(self.win.px(18))
         self.earlier = QtWidgets.QPushButton(back_glyph)
         self.later = QtWidgets.QPushButton(on_glyph)
         for b, forward in ((self.earlier, False), (self.later, True)):
@@ -541,6 +705,20 @@ class Reader(QtWidgets.QWidget):
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
         self.match_buttons()
+
+    def resize_text(self, at: int) -> None:
+        """One of the three A's was touched.
+
+        The page is laid out again at the new size and the setting written down, so the mat
+        opens the next surah -- and starts up tomorrow -- at the size it was left at. Someone
+        who needs the big one needs it every time.
+        """
+        self.spread.set_text_step(at, self.at_verse if self.reciting else None)
+        # The buttons are told as well as asked, so the red one is always the size the page is
+        # actually set at -- including when something other than a finger changes it.
+        self.text_size.set_at(self.spread.text_at)
+        self.say_where()
+        self.win.persist()
 
     def say_where(self) -> None:
         """Only the arrows now: live while there is a page that way, greyed out at the end."""
@@ -640,6 +818,7 @@ class Reader(QtWidgets.QWidget):
             return self.begin_verse()
         if position is None:
             return
+        self.keep_up()
         number = self.spread.verses[self.at_verse].number
         if self.win.word_times.whole_only(self.number, number):
             # One of the twelve where the two texts disagree about where a word ends. Lighting
@@ -648,6 +827,24 @@ class Reader(QtWidgets.QWidget):
             return
         word = self.win.word_times.word_at(self.number, number, position)
         self.spread.highlight_at(self.at_verse, word)
+
+    def keep_up(self) -> None:
+        """Turn the page when the recitation leaves it.
+
+        Without this the reciter walks off the bottom of the page and the lighting simply
+        stops, because highlight_at only lights a verse that is on the page in front of you --
+        so the listener has to turn pages by hand to keep up with a recording. That was just
+        about livable when a surah was a few pages; with the text set large Ya-Sin is thirty
+        four, and it would be the whole of the experience.
+
+        Only while reciting. Someone reading at their own pace, who has turned back a page to
+        look at something, should not be dragged forward.
+        """
+        if not self.reciting:
+            return
+        wanted = self.spread.page_of(self.at_verse)
+        if wanted != self.spread.at:
+            self.spread.go_to(wanted)
 
     def follow_theme(self) -> None:
         self.spread.follow_theme()
