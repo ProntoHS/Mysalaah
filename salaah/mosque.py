@@ -22,7 +22,18 @@ GREEN = QtGui.QColor("#1E9E57")            # the name of the prayer whose time i
 GREEN_DARK = QtGui.QColor("#4CD187")       # the same, on a dark screen
 CLOCK_INK = QtGui.QColor("white")          # on the black dome; black on the white one after dark
 CLOCK_BOOST = 1.15                         # the time, this much larger than a plain fit
-CLOCK_TRIM = 0.85                          # and then this much smaller again, as asked for
+CLOCK_TRIM = 0.95                          # and then this much smaller again, as asked for.
+                                           # 0.85 until 1.67, when Harry asked for the time
+                                           # on the dome "slightly bigger" again.
+CLOCK_WEIGHT = 0.05                        # the time's strokes thickened by this much of its
+                                           # own height, which is how it is made bolder.
+                                           # Not by asking for a heavier weight: the face the
+                                           # mat falls back to has Regular and Bold and
+                                           # nothing above, so 800 and 900 draw exactly what
+                                           # 700 draws -- measured, 10,424 dark pixels for
+                                           # all three. Stroking the lettering works in any
+                                           # face, including whichever one a Pi happens to
+                                           # have, and is the same thickening at every size.
 CLOCK_LIFT = 0.07                          # and this much of the box's height higher up
 CLOCK_ROOM = 0.35                          # room either side, so a boosted digit is never clipped
 SUN = QtGui.QColor(255, 193, 7)
@@ -616,6 +627,32 @@ class MosqueScreen(QtWidgets.QWidget):
         font.setPixelSize(max(8, int(size * CLOCK_BOOST * CLOCK_TRIM)))
         return font
 
+    def draw_the_time(self, painter: QtGui.QPainter, font: QtGui.QFont,
+                      where: QtCore.QRect, ink: QtGui.QColor) -> None:
+        """The time across the dome, drawn as a shape and then thickened.
+
+        Centred in [where] by hand rather than by AlignCenter, because a letter drawn as a
+        path is placed by its baseline and there is no alignment flag for a path. The centre
+        of the lettering, not of the line: ascent less descent puts the digits' own middle on
+        the middle of the box, where a plain half-the-line-height would hang them low by the
+        depth of a descender the time has not got.
+
+        Then stroked as well as filled, which is what makes it bolder -- see CLOCK_WEIGHT.
+        """
+        metrics = QtGui.QFontMetricsF(font)
+        path = QtGui.QPainterPath()
+        path.addText(where.center().x() - metrics.horizontalAdvance(self.time_text) / 2,
+                     where.center().y() + (metrics.ascent() - metrics.descent()) / 2,
+                     font, self.time_text)
+        pen = QtGui.QPen(ink)
+        pen.setWidthF(max(1.0, font.pixelSize() * CLOCK_WEIGHT))
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(ink)
+        painter.drawPath(path)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
     def clock_rect(self, box: QtCore.QRect) -> QtCore.QRect:
         """Where the time is drawn: the dome's flat middle, lifted a little towards the centre
         of the dome, and given room either side so the boosted lettering is not clipped."""
@@ -860,12 +897,10 @@ class MosqueScreen(QtWidgets.QWidget):
                                origin.y() + int(self.clock_box.y() * scale),
                                int(self.clock_box.width() * scale),
                                int(self.clock_box.height() * scale))
-            painter.setFont(self.clock_type(box, self.time_text, painter.font()))
+            font = self.clock_type(box, self.time_text, painter.font())
             dark = self.clock_dark != self.flipped
-            painter.setPen(QtGui.QColor("black") if dark else CLOCK_INK)
-            painter.drawText(self.clock_rect(box),
-                             int(Qt.AlignmentFlag.AlignCenter) | int(Qt.TextFlag.TextDontClip),
-                             self.time_text)
+            self.draw_the_time(painter, font, self.clock_rect(box),
+                               QtGui.QColor("black") if dark else CLOCK_INK)
 
     # Choosing
 

@@ -38,6 +38,12 @@ MOST_VERSES = 40          # a page never holds more than this, however short the
 # a bigger face: not more ink on the page, but fewer verses on it.
 TEXT_STEPS = (1.0, 1.5, 2.25)
 
+# How tall the largest of the three A buttons is on the reading bar, at 1080p. 64, up from
+# the 52 it was drawn at: Harry wanted it "slightly bigger", and the bar it lives in has the
+# surah's name, a play button and the page arrows in it, so slightly is as far as it goes.
+# The wu'du steps set their own, much larger -- see wudu.py.
+READING_TEXT_SIZE_PX = 64
+
 # Which way a swipe goes. Right-to-left means forward, as it does in every other touch screen
 # the mat's owner uses. An Arabic book turns the other way, so this is the line to change if
 # that matters more than the habit does.
@@ -509,7 +515,12 @@ class Reader(QtWidgets.QWidget):
         # How large the Qur'an is set, beside the arrows that turn the pages: the two things
         # you reach for with the page in front of you, in the one place you are already
         # looking. Before the arrows, so the pair that turns pages stays together at the end.
-        self.text_size = TextSize(self.win, getattr(self.win.settings, "text_step", 0))
+        # A size larger than it was drawn at. Not as large as the wu'du steps make it -- they
+        # stand it beside two square buttons at the bottom of an open screen, where this sits
+        # in a bar with a title, a play button and the page arrows, and a row as tall as a
+        # button would push the bar down into the page.
+        self.text_size = TextSize(self.win, getattr(self.win.settings, "text_step", 0),
+                                  tall=READING_TEXT_SIZE_PX)
         self.text_size.chose.connect(self.resize_text)
         bar.addWidget(self.text_size, 0, Qt.AlignmentFlag.AlignVCenter)
         bar.addSpacing(self.win.px(18))

@@ -238,6 +238,12 @@ class WuduStep(QtWidgets.QWidget):
             button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             button.clicked.connect(go)
             bottom.addWidget(button)
+        # As tall as the arrows beside it, which is what Harry asked for -- the row was drawn
+        # for a reading bar and next to two big square buttons it read as a trinket. Asked of
+        # the button rather than written down here: how big a square button comes out is the
+        # stylesheet's business, and a number copied from it goes stale the first time that
+        # changes. Square, as he drew the boxes; the arrow buttons are a little wider.
+        self.text_size.stand_as_tall_as(self.back_button.sizeHint().height())
         right.addLayout(bottom)
         across.addLayout(right, 1)
 
@@ -316,6 +322,9 @@ class WuduStep(QtWidgets.QWidget):
 
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
+        # The arrows are sized from the stylesheet, which is rebuilt for the new screen, so
+        # the row beside them has to ask again or the two stop matching.
+        self.text_size.stand_as_tall_as(self.back_button.sizeHint().height())
         self.room_for_the_films()
         # px() follows the window, so the words' own size has to be worked out again or a
         # resize leaves them set for the screen that is no longer there.

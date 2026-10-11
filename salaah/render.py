@@ -68,11 +68,17 @@ class TextSize(QtWidgets.QWidget):
     WIDTHS = (0.79, 0.90, 1.0)            # of the tallest box, as he drew them
     HEIGHTS = (0.58, 0.79, 1.0)
     GAP = 0.09                            # of the tallest box
+    TALL = 52                             # the largest box at 1080p, if nobody says otherwise
 
-    def __init__(self, window, at: int = 0):
+    def __init__(self, window, at: int = 0, tall: int = 0):
         super().__init__()
         self.win = window
         self.at = at
+        # How big the largest of the three is, at 1080p. The two screens that use this row
+        # want different answers: beside the wu'du arrows, which are big square buttons, the
+        # row was a trinket, so it stands as tall as they do; on the reading bar it is a
+        # little larger than it was and no more, because the bar it sits in is a bar.
+        self.tall = int(tall) or self.TALL
         self.pressed: int | None = None
         self.setObjectName("textSize")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -86,9 +92,21 @@ class TextSize(QtWidgets.QWidget):
         self.setFixedSize(self.sizeHint())
 
     def sizeHint(self) -> QtCore.QSize:
-        tall = self.win.px(52)
+        tall = self.win.px(self.tall)
         wide = sum(int(tall * w) for w in self.WIDTHS) + int(tall * self.GAP) * 2
         return QtCore.QSize(wide, tall)
+
+    def stand_as_tall_as(self, tall: int) -> None:
+        """Make the largest of the three [tall] pixels high, measured on the screen.
+
+        In screen pixels, not 1080p ones, because what it is being matched to is a button
+        whose height the stylesheet works out -- asking the button is the only way to be the
+        same size as it, and it is asked again after every resize.
+        """
+        tall = int(tall)
+        if tall > 0 and tall != self.height():
+            self.tall = max(1, round(tall / max(0.01, getattr(self.win, "s", 1.0))))
+            self.setFixedSize(self.sizeHint())
 
     def boxes(self) -> list[QtCore.QRectF]:
         """Where the three sit: bottom-aligned on one line, growing to the right."""

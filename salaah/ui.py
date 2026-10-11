@@ -1266,6 +1266,13 @@ class MainWindow(QtWidgets.QWidget):
                                       font-size:{px(24)}px; font-weight:bold; padding:{px(10)}px {px(26)}px; }}
             QLabel#bannerText {{ background:{c.chip}; color:white; font-size:{px(28)}px;
                                  font-weight:bold; }}
+            /* The pin is drawn with its background left see-through, and it needs saying here
+               or it is not: the blanket QWidget rule at the top of this sheet paints every
+               widget in the paper colour, and a QLabel is a widget. So the pin's square came
+               out black on the strip's dark grey by night, and white on its black by day --
+               a box around the pin either way. Harry: "the geo icon has a black background".
+               The strip is the one place on the mat where paper is not what is behind you. */
+            QLabel#bannerPin {{ background:transparent; }}
             QWidget#playerRoot {{ background:{c.paper}; }}
             QWidget#bar, QWidget#bar QLabel {{ background:{c.paper}; color:{c.strong}; }}
             QWidget#bar QPushButton {{ background:transparent; color:{c.strong}; border:none;

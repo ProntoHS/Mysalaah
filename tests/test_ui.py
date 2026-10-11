@@ -827,9 +827,15 @@ class UiTest(unittest.TestCase):
         self.assertLessEqual(QtGui.QFontMetrics(plain).horizontalAdvance("21:45"),
                              box.width() * 0.95)
 
-    def test_the_time_on_the_dome_is_fifteen_percent_smaller_than_it_was(self):
-        """What was asked for. Measured against the untrimmed size rather than against a
-        number written down here, so it stays true if the dome or the font ever change."""
+    def test_the_trim_is_the_one_the_app_says_it_is(self):
+        """That the trim is really applied, measured against the untrimmed size.
+
+        It asked for 0.85 until 1.67 -- "fifteen percent smaller than it was", which is what
+        Harry wanted at the time. He has since asked for the time on the dome to be slightly
+        bigger again, so the number is read from the app rather than written down here; what
+        this holds is that the step exists and does what it says. How big the time ends up
+        against a plain fit is TimeOnTheDomeTest's business.
+        """
         from salaah import mosque
         w = self.win
         box = w.mosque.clock_box
@@ -838,8 +844,9 @@ class UiTest(unittest.TestCase):
         mosque.CLOCK_TRIM = 1.0
         self.addCleanup(lambda: setattr(mosque, "CLOCK_TRIM", was))
         before = w.mosque.clock_type(box, "21:45").pixelSize()
-        self.assertAlmostEqual(0.85, trimmed / before, delta=0.02,
-                               msg=f"{before}px became {trimmed}px")
+        self.assertAlmostEqual(was, trimmed / before, delta=0.02,
+                               msg=f"{before}px became {trimmed}px, which is not a trim "
+                                   f"of {was}")
 
     def test_settings_is_two_columns_of_settings(self):
         from salaah.mosque import GearButton
@@ -8273,6 +8280,36 @@ class BannerStripTest(unittest.TestCase):
                 self.assertTrue(pins, f"{name}: no pin")
                 self.assertFalse(pins[0].pixmap().isNull(), f"{name}: the pin is empty")
 
+    def test_the_pin_sits_on_the_strip_and_not_in_a_box_of_its_own(self):
+        """Harry: "the geo icon has a black background ... it should be the same as banner".
+
+        The pin is drawn with its background left see-through, which is not enough on its
+        own: the blanket QWidget rule at the top of the stylesheet paints every widget in the
+        paper colour, and a QLabel is a widget. So the pin came in a black square by night
+        and a white one by day, on a strip that is neither.
+
+        Measured at the corners of the pin's own label, which is where the square showed and
+        where the pin itself never reaches.
+        """
+        for mode in ("dark", "light"):
+            w = self.window(side=True)
+            w.settings.theme = mode
+            w.apply_theme(chosen=True)
+            settle()
+            for name, bar in self.every_screen(w).items():
+                pin = next(c for c in bar.findChildren(QtWidgets.QLabel)
+                           if c.objectName() == "bannerPin")
+                shot = bar.grab().toImage()
+                at = pin.mapTo(bar, pin.rect().topLeft())
+                strip = QtGui.QColor(shot.pixel(max(0, at.x() - 6), at.y() + 2))
+                for x, y in ((0, 0), (pin.width() - 1, 0), (0, pin.height() - 1)):
+                    with self.subTest(f"{mode}, {name}, corner {x},{y}"):
+                        corner = QtGui.QColor(shot.pixel(at.x() + x, at.y() + y))
+                        self.assertEqual(
+                            strip.name(), corner.name(),
+                            f"{mode}, {name}: the pin's corner is {corner.name()} on a strip "
+                            f"of {strip.name()} -- it is sitting in a box of its own")
+
     def test_the_times_are_spaced_out_rather_than_run_together(self):
         """Harry: "the text all looks joined up, there is no adequate spacing and distance
         between the prayers, looks like one long sentence".
@@ -12018,6 +12055,38 @@ class WuduTextSizeTest(unittest.TestCase):
         self.assertLess(abs(mine.center().y() - step.back_button.geometry().center().y()),
                         w.px(20), "the A's and the arrows are not on the same line")
 
+    def test_the_largest_a_is_as_big_as_an_arrow_button(self):
+        """Harry: "make the largest box of the 3 the same size as the arrow buttons".
+
+        Its height, and square, which is how he drew the boxes -- the arrow buttons are a
+        little wider than they are tall. Taken from the button rather than from a number
+        written down beside it, so the two cannot drift apart when the stylesheet changes.
+        """
+        w = self.window()
+        step = w.wudu_step
+        biggest = step.text_size.boxes()[-1]
+        self.assertEqual(step.back_button.height(), round(biggest.height()),
+                         f"the largest A is {round(biggest.height())} tall against an arrow "
+                         f"button of {step.back_button.height()}")
+        self.assertEqual(round(biggest.width()), round(biggest.height()), "it is not square")
+        self.assertEqual(step.text_size.height(), round(biggest.height()),
+                         "the row is taller than the box it holds")
+
+    def test_the_row_still_fits_beside_the_arrows(self):
+        """Three times as wide as it was, in a row that also holds two big buttons."""
+        w = self.window()
+        step = w.wudu_step
+        for at in (0, 2):           # the widest right-hand column and the narrowest
+            with self.subTest(at):
+                step.resize_words(at)
+                settle()
+                self.assertGreater(step.text_size.mapTo(step, QtCore.QPoint(0, 0)).x(),
+                                   step.stage.width(),
+                                   "the A's have been pushed back over the drawing")
+                self.assertLess(step.text_size.geometry().right(),
+                                step.back_button.geometry().left() + 2,
+                                "the A's have run into the arrows")
+
     def test_the_chosen_one_is_red_and_it_starts_on_the_smallest(self):
         w = self.window()
         step = w.wudu_step
@@ -12707,6 +12776,40 @@ class ReadingBarTest(unittest.TestCase):
                     self.assertEqual(i == at, red,
                                      f"box {i} is {'red' if red else 'grey'} and {at} is chosen")
 
+    def test_the_as_are_bigger_than_they_were_drawn_but_smaller_than_the_wudu_ones(self):
+        """Harry: "the text size button during playback of the quran should be slightly
+        bigger too". Slightly: this row shares a bar with the surah's name, a play button and
+        the page arrows, where the wu'du one has the bottom of an open screen to itself and
+        stands as tall as the buttons beside it.
+        """
+        from salaah.render import TextSize
+        w = self.window()
+        r = self.reader(w)
+        biggest = r.text_size.boxes()[-1]
+        self.assertGreater(biggest.height(), w.px(TextSize.TALL),
+                           "the row is still the size it was drawn at")
+        w.open_wudu_step("hands")
+        settle(3)
+        self.assertLess(biggest.height(), w.wudu_step.text_size.boxes()[-1].height(),
+                        "the reading bar's A's are as big as the wu'du steps' -- the bar has "
+                        "a title and a play button in it and cannot take that")
+
+    def test_the_bigger_as_have_not_pushed_the_page_off_the_bottom(self):
+        """A taller bar is a shorter page, and the page is what the surah has to fit in."""
+        w = self.window()
+        r = self.reader(w)
+        for at in (0, 1, 2):
+            with self.subTest(at):
+                r.resize_text(at)
+                settle()
+                page = r.spread.parallel
+                _, used = page._rows(int(FLOOR_PX * page.scale))
+                room = int(page.height() * 0.96)
+                self.assertLessEqual(used, room,
+                                     f"size {at}: {used}px of text on a {room}px page")
+        self.assertLessEqual(r.text_size.geometry().bottom(), r.height(),
+                             "the A's hang off the bottom of the reader")
+
     def test_each_step_makes_the_words_bigger_and_the_page_still_holds_them(self):
         """Two claims, and the second is the one that bites.
 
@@ -13254,3 +13357,119 @@ class EveryMosqueOpensOnTheRightSkyTest(unittest.TestCase):
             SUN.name(),
             QtGui.QColor(shot.pixel(int(centre.x()), int(centre.y()))).name(),
             "there is a sun up at ten at night")
+
+
+class TimeOnTheDomeTest(unittest.TestCase):
+    """Harry: "the time displayed on [the] dome should be slightly bigger and a bolder font"."""
+
+    def screen(self, mode="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.leave_welcome()
+        w.veil.stop()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.mosque.set_time("20:16")
+        settle()
+        return w, w.mosque
+
+    @staticmethod
+    def plain_fit(box, text, font):
+        """The largest the time can be drawn and still fit across the dome's flat middle:
+        the size the mat used before any boost or trim, worked out here so the test does not
+        have to know what those are."""
+        font = QtGui.QFont(font)
+        size = max(8, int(box.height() * 1.10))
+        font.setPixelSize(size)
+        while size > 8 and QtGui.QFontMetrics(font).horizontalAdvance(text) > box.width() * 0.94:
+            size -= 2
+            font.setPixelSize(size)
+        return size
+
+    def test_the_time_is_larger_than_a_plain_fit(self):
+        """It was 0.9775 of one -- boosted by 1.15 for the dome's curve and then trimmed by
+        0.85, which between them came out slightly SMALLER than simply fitting it."""
+        w, m = self.screen()
+        box = QtCore.QRect(0, 0, 420, 120)
+        chosen = m.clock_type(box, "20:16").pixelSize()
+        plain = self.plain_fit(box, "20:16", QtGui.QFont(m.clock_font) if m.clock_font
+                               else QtGui.QFont())
+        self.assertGreater(chosen, plain,
+                           f"the time is drawn at {chosen}px where a plain fit is {plain}px")
+
+    def test_it_still_has_room_either_side(self):
+        w, m = self.screen()
+        box = QtCore.QRect(100, 100, 420, 120)
+        font = m.clock_type(box, "20:16")
+        self.assertLessEqual(QtGui.QFontMetrics(font).horizontalAdvance("20:16"),
+                             m.clock_rect(box).width(),
+                             "the bigger time runs off the end of the room it is given")
+
+    def test_the_strokes_are_thicker_than_the_face_draws_them(self):
+        """The "bolder" half, and the reason it is not done by asking for a heavier weight:
+        the face the mat falls back to has Regular and Bold and nothing above, so 800 and 900
+        draw exactly what 700 draws -- measured at 10,424 dark pixels for all three. The
+        lettering is stroked as well as filled instead, which thickens it in any face.
+
+        Measured against the same font drawn the plain way, on the same white ground.
+        """
+        w, m = self.screen()
+        box = QtCore.QRect(0, 0, 420, 120)
+        font = m.clock_type(box, "20:16")
+        where = QtCore.QRect(0, 0, 700, 300)
+
+        def ink(painted):
+            shot = QtGui.QImage(where.size(), QtGui.QImage.Format.Format_ARGB32)
+            shot.fill(QtGui.QColor("white"))
+            p = QtGui.QPainter(shot)
+            p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+            painted(p)
+            p.end()
+            return sum(1 for y in range(shot.height()) for x in range(shot.width())
+                       if QtGui.QColor(shot.pixel(x, y)).lightness() < 100)
+
+        def plain(p):
+            p.setFont(font)
+            p.setPen(QtGui.QColor("black"))
+            p.drawText(where, int(Qt.AlignmentFlag.AlignCenter), "20:16")
+
+        thin = ink(plain)
+        thick = ink(lambda p: m.draw_the_time(p, font, where, QtGui.QColor("black")))
+        self.assertGreater(thick, thin * 1.12,
+                           f"{thick} dark pixels against {thin} drawn plainly -- the time is "
+                           f"no bolder than the face makes it")
+
+    def test_it_is_still_centred_where_the_plain_one_was(self):
+        """Drawn as a path now, which is placed by its baseline and not by an alignment flag.
+        Get that wrong and the time slides off the middle of the dome, or hangs low by the
+        depth of a descender it has not got."""
+        w, m = self.screen()
+        box = QtCore.QRect(0, 0, 420, 120)
+        font = m.clock_type(box, "20:16")
+        where = QtCore.QRect(0, 0, 700, 300)
+
+        def middle_of(painted):
+            shot = QtGui.QImage(where.size(), QtGui.QImage.Format.Format_ARGB32)
+            shot.fill(QtGui.QColor("white"))
+            p = QtGui.QPainter(shot)
+            p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+            painted(p)
+            p.end()
+            dark = [(x, y) for y in range(shot.height()) for x in range(shot.width())
+                    if QtGui.QColor(shot.pixel(x, y)).lightness() < 100]
+            self.assertTrue(dark, "nothing was drawn")
+            return (sum(x for x, _ in dark) / len(dark), sum(y for _, y in dark) / len(dark))
+
+        def plain(p):
+            p.setFont(font)
+            p.setPen(QtGui.QColor("black"))
+            p.drawText(where, int(Qt.AlignmentFlag.AlignCenter), "20:16")
+
+        was = middle_of(plain)
+        now = middle_of(lambda p: m.draw_the_time(p, font, where, QtGui.QColor("black")))
+        self.assertLess(abs(now[0] - was[0]), 6, f"it has moved sideways: {was} to {now}")
+        self.assertLess(abs(now[1] - was[1]), 6, f"it has moved up or down: {was} to {now}")
