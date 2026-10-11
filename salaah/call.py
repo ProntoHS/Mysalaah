@@ -351,19 +351,27 @@ class CallBox(QtWidgets.QDialog):
             box.set_highlight(None)
 
     def fit(self) -> None:
-        """The whole screen.
+        """The whole screen but the strip across the top.
 
         It used to be 88% by 92%, a box sitting on top of the mat with the mat showing round
         the edge. Harry asked for the full screen and he is right: the call is not a message
         about something else happening, it IS what the mat is doing, and a margin of prayer
         times round the outside is the screen arguing with itself. It also buys the Arabic a
         good deal more room, which is the point of showing it at all.
+
+        The strip stays, though -- "full screen BUT retain the top banner only". It is the one
+        part of the screen that is true wherever you are, and during the call it is the thing
+        worth seeing: where you are, and which prayer the mat has just reached. The call takes
+        everything under it.
         """
         parent = self.parentWidget()
         if parent is None:
             return
-        self.resize(parent.width(), parent.height())
-        self.move(parent.x(), parent.y())
+        strip = getattr(parent, "banner_height", None)
+        top = strip() if callable(strip) else 0
+        top = max(0, min(int(top), parent.height() // 3))
+        self.resize(parent.width(), parent.height() - top)
+        self.move(parent.x(), parent.y() + top)
 
     def square_off_the_stop(self) -> None:
         """Stop is a square, and a big one.

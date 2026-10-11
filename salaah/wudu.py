@@ -18,8 +18,8 @@ import json
 from pathlib import Path
 
 from .filmsheet import draw_themed
-from .qt import QtCore, QtGui, QtWidgets, Qt, Signal, arrows
-from .render import TextSize
+from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
+from .render import ArrowButton, TextSize
 from .theme import palette
 
 # How much of the width the drawing takes. Two drawings get more, because they are laid side by
@@ -216,9 +216,10 @@ class WuduStep(QtWidgets.QWidget):
         # done, so the pair of them is the whole way round the section: < from the first step
         # is the way out to the seven, and > stops at the seventh rather than wrapping round to
         # the first, because the end of wu'du is not the beginning of it.
-        # The glyphs follow the direction the screen reads in -- see arrows() in qt.py. In Urdu
-        # and Arabic the pair mirrors to the other corner, and an arrow that mirrored its
-        # position but not its head was pointing away from the step it goes to.
+        # The chevrons are drawn rather than set in type -- see ArrowButton -- and they point
+        # the way the screen reads. In Urdu and Arabic the pair mirrors to the other corner,
+        # and an arrow that mirrored its position but not its head was pointing away from the
+        # step it goes to.
         bottom = QtWidgets.QHBoxLayout()
         bottom.setSpacing(window.px(14))
         bottom.addStretch(1)
@@ -229,13 +230,10 @@ class WuduStep(QtWidgets.QWidget):
         self.text_size.chose.connect(self.resize_words)
         bottom.addWidget(self.text_size, 0, Qt.AlignmentFlag.AlignVCenter)
         bottom.addSpacing(window.px(18))
-        back_glyph, on_glyph = arrows(window.pack.rtl)
-        self.back_button = QtWidgets.QPushButton(back_glyph)
-        self.on_button = QtWidgets.QPushButton(on_glyph)
+        self.back_button = ArrowButton(False, window.pack.rtl)
+        self.on_button = ArrowButton(True, window.pack.rtl)
         for button, go in ((self.back_button, self.went_back), (self.on_button, self.went_on)):
             button.setObjectName("bigBack")
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             button.clicked.connect(go)
             bottom.addWidget(button)
         # As tall as the arrows beside it, which is what Harry asked for -- the row was drawn

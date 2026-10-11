@@ -3146,23 +3146,51 @@ class ArrowsPointTheWayTheReadingGoesTest(unittest.TestCase):
         reader = w.section_readers["duas"]
         return reader.earlier, reader.later
 
+    @staticmethod
+    def drawn_pointing_left(button) -> bool:
+        """Which way the painted chevron points, read off the button.
+
+        Off the pixels rather than off the attribute that draws them, because this is the one
+        thing on the screen a person reads directly: the point of the chevron is at the
+        middle of its height and the two arms are at the top and the bottom, so whichever of
+        those is further left is the way it is pointing.
+        """
+        shot = button.grab().toImage()
+        seen = {}
+        for y in range(shot.height()):
+            for x in range(shot.width()):
+                c = QtGui.QColor(shot.pixel(x, y))
+                seen.setdefault((c.red(), c.green(), c.blue()), []).append((x, y))
+        # The box is whatever colour most of the button is; the chevron is everything far
+        # enough from it. Taken this way rather than by looking for white, because a dead
+        # arrow is drawn in grey and a live one on a board sits on red.
+        box = max(seen, key=lambda k: len(seen[k]))
+        ink = [p for colour, pixels in seen.items() for p in pixels
+               if sum(abs(a - b) for a, b in zip(colour, box)) > 120]
+        assert ink, "nothing is drawn on this button"
+        rows = sorted({y for _, y in ink})
+        band = max(2, len(rows) // 6)
+        middle = [x for x, y in ink if abs(y - rows[len(rows) // 2]) <= band]
+        ends = [x for x, y in ink if y <= rows[0] + band or y >= rows[-1] - band]
+        return sum(middle) / len(middle) < sum(ends) / len(ends)
+
     def test_the_head_turns_with_the_layout(self):
-        from salaah.qt import BACK_ARROW, ON_ARROW
-        for lang, back_glyph, on_glyph in (("en", BACK_ARROW, ON_ARROW),
-                                           ("fr", BACK_ARROW, ON_ARROW),
-                                           ("ur", ON_ARROW, BACK_ARROW),
-                                           ("ar", ON_ARROW, BACK_ARROW)):
+        """Back always points the way you came from -- left in English, right in Urdu -- and
+        on always points onward. Until 1.69 that was done by swapping two characters; the
+        chevron is painted now, so what is checked is which way it came out."""
+        for lang, back_left in (("en", True), ("fr", True), ("ur", False), ("ar", False)):
             w = self.window(lang)
             for screen in self.SCREENS:
                 with self.subTest(f"{lang}.{screen}"):
                     back, on = self.pair(w, screen)
-                    self.assertEqual(back_glyph, back.text(), "back points the wrong way")
-                    self.assertEqual(on_glyph, on.text(), "onward points the wrong way")
+                    self.assertEqual(back_left, self.drawn_pointing_left(back),
+                                     "back points the wrong way")
+                    self.assertEqual(not back_left, self.drawn_pointing_left(on),
+                                     "onward points the wrong way")
 
     def test_the_arrow_points_where_the_button_sits(self):
         """The whole point, stated as the thing a person actually sees: whichever button is on
         the left has the left-pointing arrow on it, in every language."""
-        from salaah.qt import BACK_ARROW
         for lang in ("en", "fr", "ur", "ar", "zh"):
             w = self.window(lang)
             for screen in self.SCREENS:
@@ -3172,9 +3200,8 @@ class ArrowsPointTheWayTheReadingGoesTest(unittest.TestCase):
                     here = back.mapTo(parent, back.rect().center()).x()
                     there = on.mapTo(parent, on.rect().center()).x()
                     leftmost = back if here < there else on
-                    self.assertEqual(BACK_ARROW, leftmost.text(),
-                                     f"the button on the left is {leftmost.text()!r}, which "
-                                     f"points away from it")
+                    self.assertTrue(self.drawn_pointing_left(leftmost),
+                                    "the button on the left points away from it")
 
     def test_back_is_the_first_one_reached_in_the_reading_direction(self):
         """In English you read left to right and meet Back first; in Urdu you read right to
@@ -3193,12 +3220,16 @@ class ArrowsPointTheWayTheReadingGoesTest(unittest.TestCase):
                     else:
                         self.assertLess(here, there, "back is not the first one reached")
 
-    def test_the_two_glyphs_are_not_the_same_character(self):
-        """A swap that returned the same glyph twice would pass every test above by accident."""
-        from salaah.qt import BACK_ARROW, ON_ARROW, arrows
-        self.assertNotEqual(BACK_ARROW, ON_ARROW)
-        self.assertEqual((BACK_ARROW, ON_ARROW), arrows(False))
-        self.assertEqual((ON_ARROW, BACK_ARROW), arrows(True))
+    def test_the_two_are_not_drawn_the_same_way_round(self):
+        """A pair that came out identical would pass every test above by accident."""
+        for lang in ("en", "ur"):
+            w = self.window(lang)
+            for screen in self.SCREENS:
+                with self.subTest(f"{lang}.{screen}"):
+                    back, on = self.pair(w, screen)
+                    self.assertNotEqual(self.drawn_pointing_left(back),
+                                        self.drawn_pointing_left(on),
+                                        "both arrows are drawn pointing the same way")
 
 
 class ListSliderIsThickEnoughForAThumbTest(unittest.TestCase):
@@ -5117,29 +5148,37 @@ class PassageScreenTest(unittest.TestCase):
         self.assertGreaterEqual(len(seen), 48, "du'as have gone missing from the menu")
         self.assertEqual(2 * len([c for c in CATEGORIES if c not in NOT_A_KIND]), drawn, "every kind should draw exactly two")
 
-    def test_the_shuffle_can_reach_every_dua_and_not_just_the_first_two(self):
-        """Only two of a kind are shown at a time now, so 'reachable' means the shuffle will
-        get to it. A pick that always returned the same two would pass the test above -- every
-        du'a would still be FILED behind a tile -- while half of them were never once seen.
+    def test_the_pages_reach_every_dua_and_not_just_the_first_two(self):
+        """Only two of a kind are on screen at a time, so "reachable" means the arrows get to
+        it. The test above would pass with half a kind unreachable -- every du'a would still
+        be FILED behind a tile -- while nobody could ever see them.
 
-        Drawn from pick() two hundred times a kind rather than by opening screens: it is the
-        same call the screen makes, it is fast, and two hundred draws makes a false alarm about
-        one in 10^25 rather than one run in a hundred.
+        This used to draw from pick() two hundred times a kind, because the two on screen were
+        dealt from a shuffled bag and reachable meant "the shuffle gets there eventually".
+        The pages are walked instead, which is both the shorter test and the stronger claim:
+        not eventually, but in order, every time.
         """
         from salaah.duamenu import CATEGORIES, NOT_A_KIND
         w = self.window()
         board = w.dua_board
         for cat in (c for c in CATEGORIES if c not in NOT_A_KIND):
-            board.only = cat
-            whole = {item.key for _, item in board.wanted()}
-            self.assertGreaterEqual(len(whole), 3, f"{cat} has too few to shuffle")
-            reached = set()
-            for _ in range(200):
-                got = board.pick()
-                self.assertEqual(2, len(got), f"{cat} picked {len(got)}")
-                reached.update(item.key for _, item in got)
-            self.assertEqual(whole, reached,
-                             f"{cat}: the shuffle never reaches {sorted(whole - reached)}")
+            with self.subTest(cat):
+                board.show_only(cat)
+                settle()
+                whole = [item.key for _, item in board.wanted()]
+                self.assertGreaterEqual(len(whole), 3, f"{cat} has too few to walk")
+                reached = []
+                for _ in range(board.pages() + 2):
+                    reached += [item.key for _, item in board.showing]
+                    self.assertLessEqual(len(board.showing), 2,
+                                         f"{cat} put {len(board.showing)} on one page")
+                    if not board.later.isEnabled():
+                        break
+                    board.turn(True)
+                    settle(2)
+                self.assertEqual(whole, reached,
+                                 f"{cat}: walking the pages misses "
+                                 f"{sorted(set(whole) - set(reached))}")
 
     def test_choosing_one_opens_it_and_back_returns_to_the_list(self):
         w = self.window()
@@ -6739,15 +6778,17 @@ class AzaanScreenTest(unittest.TestCase):
             missing = [lang for lang in langs if not line.get("text", {}).get(lang, "").strip()]
             self.assertEqual([], missing, f"{line['key']} has no meaning in {missing}")
 
-    def test_the_call_covers_the_whole_screen(self):
+    def test_the_call_covers_the_screen_but_for_the_strip(self):
         """It was 88% by 92% -- a box on top of the mat with prayer times showing round the
         edge. The call is not a message about something else happening; it is what the mat is
-        doing, so it takes the screen."""
+        doing, so it takes the screen. All but the strip across the top, which Harry asked to
+        keep in 1.69: during the call that is the one thing worth seeing behind it."""
         w = self.window()
         b = self.box(w)
-        self.assertEqual(w.size(), b.size(),
+        strip = w.banner_height()
+        self.assertEqual(QtCore.QSize(w.width(), w.height() - strip), b.size(),
                          "the call is still a box in the middle of the screen")
-        self.assertEqual(w.pos(), b.pos())
+        self.assertEqual(QtCore.QPoint(w.x(), w.y() + strip), b.pos())
 
     def test_stop_is_a_big_square_in_the_top_corner(self):
         """Harry asked for it moved off the bottom. On a full screen the bottom edge is a long
@@ -9153,8 +9194,13 @@ class DuaBoardTest(unittest.TestCase):
         self.assertFalse(hasattr(board, "back_button"))
         buttons = [b for b in board.findChildren(QtWidgets.QAbstractButton) if b.isVisible()]
         for b in buttons:
-            self.assertEqual("duaPlay", b.objectName(),
-                             f"{b.objectName() or b.text()!r} is on the board")
+            # The play marks sit on the cards; the two chevrons sit in the strip at the top,
+            # beside the heading. Anything else, anywhere, is the strip creeping back.
+            self.assertIn(b.objectName(), ("duaPlay", "turnBoard"),
+                          f"{b.objectName() or b.text()!r} is on the board")
+            if b.objectName() == "turnBoard":
+                self.assertLess(b.mapTo(board, QtCore.QPoint(0, 0)).y(), board.height() * 0.2,
+                                "an arrow has wandered down the screen")
         floor = max(c.mapTo(board, c.rect().bottomLeft()).y() for c in board.cards)
         self.assertGreater(floor, board.height() * 0.93,
                            "the cards stop short of the bottom -- something is taking that strip")
@@ -9195,15 +9241,20 @@ class DuaBoardTest(unittest.TestCase):
         long = max(c.arabic.fitted_size() for c in board.cards)
         self.assertGreater(short, long * 1.5, f"short {short}px vs long {long}px")
 
-    def test_which_two_are_shown_changes_between_visits(self):
-        """Opening the same kind ten times should not give the same pair every time. Every kind
-        holds at least three, so there is always another pair to give."""
+    def test_the_same_kind_opens_on_the_same_two_every_time(self):
+        """The opposite of what this asked until 1.69, and on purpose.
+
+        The two on screen used to be dealt off a shuffled bag so that a kind gave you
+        something different each visit. That answered the wrong question: stood on a mat you
+        want the du'a you were reading a moment ago, not a surprise. The kind opens on its
+        first two now and the arrows are the way to the rest -- see WalkingTheBoardsTest.
+        """
         w = self.window()
         seen = set()
-        for _ in range(12):
+        for _ in range(6):
             board = self.board(w, "gratitude")
-            seen.add(tuple(sorted(i for i, _ in board.showing)))
-        self.assertGreater(len(seen), 1, "the same two came up twelve times running")
+            seen.add(tuple(i for i, _ in board.showing))
+        self.assertEqual(1, len(seen), f"the pair still changes between visits: {seen}")
 
     def test_nothing_along_the_bottom_takes_height_from_the_arabic(self):
         """Back was removed to give that strip's height to the words. If anything creeps back
@@ -10013,7 +10064,8 @@ class CalledWordsTest(unittest.TestCase):
         parent, and a fraction is the kind of thing that works at one size and not another."""
         b = self.box(1024, 600)
         self.assertEqual(1024, b.width())
-        self.assertEqual(600, b.height())
+        self.assertEqual(600 - b.parentWidget().banner_height(), b.height(),
+                         "a small screen does not get the same treatment as the mat's own")
 
 
 class WorldScreenTest(unittest.TestCase):
@@ -11690,90 +11742,14 @@ class TwoNewTilesTest(unittest.TestCase):
                 self.assertTrue(check(), f"the {name} tile landed somewhere new")
 
 
-class FreshPairTest(unittest.TestCase):
-    """Two at a time, and a different two every time the kind is opened -- on the DU'A board.
-
-    It used to be random.sample, which is not the same thing: two drawn out of four at random
-    come up the same about one visit in six, and nothing promises the other two are ever seen.
-    Each kind keeps a shuffled bag now and two are dealt off the top.
-
-    The sayings board used the same bag until 1.68, when Harry asked for arrows on it instead:
-    a category holds five to eleven of a hundred and nine, which is too many to meet two at a
-    time however fairly they are dealt. It is walked now -- see WalkingTheSayingsTest -- and
-    what is left here is the du'as, where a kind holds two to five and they are things you say
-    rather than read through.
-    """
-
-    def window(self):
-        w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme="dark", recitation=False, place="Bury"),
-                       scale=1.0, save_settings=False, aspect=None, side=True)
-        w.resize(1920, 1080)
-        w.show()
-        w.side.resize(600, 1024)
-        w.side.show()
-        w.tick()
-        settle()
-        self.addCleanup(lambda: shut(w))
-        return w
-
-    def visits(self, w, opener, board, kind, times=16):
-        out = []
-        for _ in range(times):
-            opener(kind)
-            settle(2)
-            out.append(frozenset(i for i, _ in board.showing))
-        return out
-
-    BOTH = (("du'as", "dua_board", "open_dua_category", "worry"),)
-
-    def test_never_the_same_two_twice_running(self):
-        w = self.window()
-        for name, board, opener, kind in self.BOTH:
-            with self.subTest(name):
-                seen = self.visits(w, getattr(w, opener), getattr(w, board), kind)
-                for before, after in zip(seen, seen[1:]):
-                    self.assertNotEqual(before, after,
-                                        f"{name}: the same pair came up twice running")
-
-    def test_two_at_a_time_and_only_two(self):
-        w = self.window()
-        for name, board, opener, kind in self.BOTH:
-            with self.subTest(name):
-                for pair in self.visits(w, getattr(w, opener), getattr(w, board), kind, 6):
-                    self.assertEqual(2, len(pair), name)
-                self.assertEqual(2, len(getattr(w, board).cards), name)
-
-    def test_the_whole_kind_comes_round_rather_than_the_same_favourites(self):
-        """The thing random sampling could not promise. With a bag, everything in the kind is
-        dealt before anything comes round again."""
-        w = self.window()
-        for name, board, opener, kind in self.BOTH:
-            with self.subTest(name):
-                held = {i for i, item in enumerate(getattr(w, board).passages.items)
-                        if kind in item.cats}
-                seen = set()
-                for pair in self.visits(w, getattr(w, opener), getattr(w, board), kind,
-                                        len(held)):
-                    seen |= pair
-                self.assertEqual(held, seen,
-                                 f"{name}: {len(held) - len(seen)} of {len(held)} never showed "
-                                 f"in {len(held)} visits")
-
-    def test_a_kind_holding_only_two_shows_both_and_does_not_fall_over(self):
-        w = self.window()
-        board = w.dua_board
-        board.show_only("worry", "Worry")
-        settle()
-        # A kind with two in it: faked by asking the board for a pair out of exactly two.
-        held = [(i, x) for i, x in enumerate(board.passages.items) if "worry" in x.cats][:2]
-        board.wanted = lambda: held
-        board.bags.clear()
-        for _ in range(4):
-            board.show_only("worry", "Worry")
-            settle()
-            self.assertEqual(2, len(board.showing))
-            self.assertEqual({i for i, _ in held}, {i for i, _ in board.showing})
+# FreshPairTest went in 1.69, with the machinery it was written for.
+#
+# Both boards used to deal their two cards off a shuffled bag -- everything in a kind seen
+# before anything came round again, and never the pair you had just been shown. It was
+# careful, it worked, and it answered a question nobody had asked: Harry wanted to walk a
+# category, not be given a fresh sample of it. The bag, the shuffle and the four tests that
+# held them to account are all gone; what replaced them is WalkingTheBoardsTest, which makes
+# the stronger claim -- every passage under a heading, in order, every time.
 
 
 class TheTrialEndsTest(unittest.TestCase):
@@ -11930,8 +11906,8 @@ class WuduScreensTest(unittest.TestCase):
         # The glyph, not the ASCII "<" this used to say. It is "‹" now and it turns round
         # in Urdu and Arabic -- see ArrowsPointTheWayTheReadingGoesTest. This window is
         # English, so back points left.
-        from salaah.qt import BACK_ARROW
-        self.assertEqual(BACK_ARROW, button.text())
+        from salaah.render import ArrowButton
+        self.assertIsInstance(button, ArrowButton)
         side = button.size()
         self.assertGreater(side.width(), w.px(80), "not a square: too narrow")
         self.assertGreater(side.height(), w.px(80), "not a square: too short")
@@ -11989,9 +11965,11 @@ class StepArrowsTest(unittest.TestCase):
     def test_they_are_arrows_the_same_size_as_each_other(self):
         w = self.window()
         step = w.wudu_step
-        from salaah.qt import BACK_ARROW, ON_ARROW
-        self.assertEqual(BACK_ARROW, step.back_button.text())
-        self.assertEqual(ON_ARROW, step.on_button.text())
+        from salaah.render import ArrowButton
+        for button in (step.back_button, step.on_button):
+            self.assertIsInstance(button, ArrowButton)
+        self.assertNotEqual(step.back_button.points_left, step.on_button.points_left,
+                            "both chevrons are drawn pointing the same way")
         self.assertEqual(step.back_button.size(), step.on_button.size())
         for button in (step.back_button, step.on_button):
             self.assertEqual("bigBack", button.objectName(), "not the mat's square button")
@@ -13542,8 +13520,8 @@ class TimeOnTheDomeTest(unittest.TestCase):
         self.assertLess(abs(now[1] - was[1]), 6, f"it has moved up or down: {was} to {now}")
 
 
-class WalkingTheSayingsTest(unittest.TestCase):
-    """Arrows on the sayings board, and the randomiser gone from it.
+class WalkingTheBoardsTest(unittest.TestCase):
+    """Arrows on both boards, and the randomiser gone from them.
 
     Harry: "in the hadith sections when selecting a category and it currently shows 2 random
     hadith passages, could we add a < > buttons and place them under the "Main Screen"
@@ -13712,12 +13690,294 @@ class WalkingTheSayingsTest(unittest.TestCase):
         self.assertEqual(page, board.page, "it came back to a different page")
         self.assertEqual(pair, [i for i, _ in board.showing])
 
-    def test_the_duas_are_left_as_they_were(self):
-        """Harry asked for this in the hadith section. A kind of du'a holds two to five and
-        they are things you say rather than read through, so that board still deals."""
+    def test_the_duas_walk_the_same_way(self):
+        """Harry asked for the sayings first and the du'as a version later: "do the same with
+        the du'as section aswell add the <> same as hadith section"."""
+        from salaah.duamenu import CATEGORIES, NOT_A_KIND
         w = self.window()
-        self.assertFalse(w.dua_board.paged)
-        self.assertIsNone(w.dua_board.earlier, "the du'a board has grown arrows")
+        board = w.dua_board
+        self.assertIsNotNone(board.earlier, "the du'a board has no arrows")
+        for cat in (c for c in CATEGORIES if c not in NOT_A_KIND):
+            with self.subTest(cat):
+                w.open_dua_category(cat)
+                settle()
+                if w.corner_screen.currentWidget() is not board:
+                    continue
+                wanted = [i for i, item in enumerate(w.duas.items) if cat in item.cats]
+                self.assertEqual(wanted, self.walk(w, board),
+                                 f"{cat}: walking does not show every du'a in order")
+
+    def test_both_boards_use_the_same_pair_of_buttons(self):
+        """One kind of arrow on the mat, not one per room."""
+        w = self.window()
+        w.open_saying_category("faith")
+        settle()
         w.open_dua_category("travel")
         settle()
-        self.assertTrue(w.dua_board.cards, "nothing on the du'a board")
+        for board in (w.hadith_board, w.dua_board):
+            for button in (board.earlier, board.later):
+                self.assertEqual("turnBoard", button.objectName())
+        self.assertEqual(w.hadith_board.earlier.size(), w.dua_board.earlier.size())
+
+
+class DrawnChevronTest(unittest.TestCase):
+    """Every way-back and next on the mat, drawn rather than typed.
+
+    Harry: "the <> text is small where as the button its in is big, make both <> big white
+    bold and use a more angular font". There is no angular face to reach for -- the mat falls
+    back to whatever the Pi has -- so the chevron is two straight strokes painted into the
+    button, which is as big as we say at any size and the same shape in every language.
+    """
+
+    def window(self, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def pairs(self, w):
+        """Every pair of arrows on the mat, by the screen it belongs to."""
+        w.open_wudu_step("head")
+        settle(3)
+        w.open_surah(36)
+        settle(3)
+        w.open_saying_category("faith")
+        settle(3)
+        w.open_dua_category("travel")
+        settle(3)
+        return {"a wu'du step": (w.wudu_step.back_button, w.wudu_step.on_button),
+                "the Qur'an": (w.reader.earlier, w.reader.later),
+                "the sayings": (w.hadith_board.earlier, w.hadith_board.later),
+                "the du'as": (w.dua_board.earlier, w.dua_board.later)}
+
+    @staticmethod
+    def ink(button, colour, tol=40):
+        """How many pixels of [colour] the button has on it."""
+        shot = button.grab().toImage()
+        want = QtGui.QColor(colour)
+        found = 0
+        for y in range(0, shot.height()):
+            for x in range(0, shot.width()):
+                c = QtGui.QColor(shot.pixel(x, y))
+                if (abs(c.red() - want.red()) < tol and abs(c.green() - want.green()) < tol
+                        and abs(c.blue() - want.blue()) < tol):
+                    found += 1
+        return found
+
+    def test_no_arrow_on_the_mat_is_a_letter_any_more(self):
+        """The old ones were the character "‹" set in the pack's own face, which is why
+        they came out small: a guillemet is punctuation, drawn to sit beside words."""
+        from salaah.render import ArrowButton
+        w = self.window()
+        for name, pair in self.pairs(w).items():
+            for button in pair:
+                with self.subTest(f"{name}, {'back' if button is pair[0] else 'on'}"):
+                    self.assertIsInstance(button, ArrowButton)
+                    self.assertEqual("", button.text(), "it is still setting type")
+
+    def test_the_chevron_is_white_and_fills_its_button(self):
+        """Big and bold, measured on the button: the drawn mark covers a useful part of it,
+        where the old glyph was a speck in a slab."""
+        w = self.window()
+        for name, pair in self.pairs(w).items():
+            for button in pair:
+                if not button.isEnabled():
+                    continue
+                with self.subTest(name):
+                    white = self.ink(button, "#FFFFFF")
+                    self.assertGreater(white, button.width() * button.height() * 0.02,
+                                       f"{name}: only {white}px of white on a "
+                                       f"{button.width()}x{button.height()} button")
+                    shot = button.grab().toImage()
+                    rows = [y for y in range(shot.height())
+                            if any(QtGui.QColor(shot.pixel(x, y)).lightness() > 200
+                                   for x in range(shot.width()))]
+                    tall = (max(rows) - min(rows) + 1) if rows else 0
+                    self.assertGreater(tall, button.height() * 0.45,
+                                       f"{name}: the mark is {tall}px tall in a "
+                                       f"{button.height()}px button")
+
+    def test_a_step_matches_its_arrows_to_the_largest_a(self):
+        """Both halves of what Harry asked for on that screen: the box is the arrow's size,
+        and the chevron inside it is the size of the letter."""
+        w = self.window()
+        step = w.wudu_step
+        w.open_wudu_step("head")
+        settle(3)
+        biggest = step.text_size.boxes()[-1]
+        self.assertEqual(step.back_button.height(), round(biggest.height()))
+        shot = step.on_button.grab().toImage()
+        rows = [y for y in range(shot.height())
+                if any(QtGui.QColor(shot.pixel(x, y)).lightness() > 200
+                       for x in range(shot.width()))]
+        chevron = max(rows) - min(rows) + 1
+        letter = biggest.height() * 0.58        # the A's own pixel size, from TextSize
+        self.assertLess(abs(chevron - letter), letter * 0.35,
+                        f"the chevron is {chevron}px against a letter of {round(letter)}px")
+
+    def test_the_boards_pair_is_red_and_bigger_than_the_reading_bars(self):
+        """Harry: "they should also be in a red box instead of grey"."""
+        from salaah.ui import BRICK
+        w = self.window()
+        pairs = self.pairs(w)
+        for name in ("the sayings", "the du'as"):
+            live = next(b for b in pairs[name] if b.isEnabled())
+            with self.subTest(name):
+                red = self.ink(live, BRICK)
+                self.assertGreater(red, live.width() * live.height() * 0.5,
+                                   f"{name}: the box is not red")
+                self.assertGreater(live.height(), w.reader.later.height(),
+                                   f"{name}: no bigger than the reading bar's")
+
+    def test_a_dead_arrow_is_grey_and_a_live_one_is_not(self):
+        """The same rule as everywhere else: shown and dead rather than taken away, and
+        plainly one or the other -- there was a version where the dead one was brighter."""
+        w = self.window()
+        w.open_saying_category("faith")
+        settle(3)
+        board = w.hadith_board
+        self.assertFalse(board.earlier.isEnabled())
+        self.assertTrue(board.later.isEnabled())
+        dead = self.ink(board.earlier, "#FFFFFF")
+        live = self.ink(board.later, "#FFFFFF")
+        self.assertGreater(live, dead * 3,
+                           f"the dead arrow has {dead}px of white against the live one's "
+                           f"{live} -- they look alike")
+
+    def test_the_pair_mirrors_for_a_screen_that_reads_the_other_way(self):
+        w = self.window("ur")
+        step = w.wudu_step
+        w.open_wudu_step("head")
+        settle(3)
+        self.assertTrue(w.pack.rtl, "this pack should read right to left")
+        self.assertTrue(step.back_button.points_left is False,
+                        "the way back should point the way the reading goes")
+        self.assertTrue(step.on_button.points_left,
+                        "the way on should point against it on an RTL screen")
+
+
+class UpdateButtonInTheCornerTest(unittest.TestCase):
+    """Harry: "make update button a little bigger and to the bottom right completely"."""
+
+    def window(self, tall=1080):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, tall)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_settings()
+        settle()
+        return w
+
+    def test_it_sits_hard_in_the_corner(self):
+        w = self.window()
+        page = w.settings_screen
+        here = w.update_button.mapTo(page, QtCore.QPoint(0, 0))
+        self.assertEqual(page.width(), here.x() + w.update_button.width(),
+                         "there is a margin to the right of it")
+        self.assertEqual(page.height(), here.y() + w.update_button.height(),
+                         "there is a margin underneath it")
+
+    def test_it_is_bigger_than_it_was(self):
+        """146 by 92 before. Bigger in both directions, and still a button rather than a
+        panel -- a tenth of the screen's width is where that line is."""
+        w = self.window()
+        self.assertGreater(w.update_button.width(), w.px(150))
+        self.assertGreater(w.update_button.height(), w.px(96))
+        self.assertLess(w.update_button.width(), w.width() * 0.15)
+
+    def test_the_version_is_still_in_the_other_corner_with_room_round_it(self):
+        """The margin moved rather than went: everything but the button keeps its 48."""
+        w = self.window()
+        page = w.settings_screen
+        version = next(x for x in page.findChildren(QtWidgets.QLabel)
+                       if x.text().strip().lower().startswith(w.t("settings.version",
+                                                                  number="").strip().lower()[:7]))
+        self.assertGreater(version.mapTo(page, QtCore.QPoint(0, 0)).x(), w.px(30),
+                           "the version is jammed against the left-hand edge")
+
+    def test_settings_still_does_not_scroll_on_a_1080_screen(self):
+        """The button grew into the room the page had spare. There were 28 pixels of it, and
+        a block this size spends most of them -- which is why the foot's own margin went."""
+        for tall in (1080, 1200):
+            with self.subTest(tall):
+                w = self.window(tall)
+                bar = w.settings_scroll.verticalScrollBar()
+                self.assertEqual(0, bar.maximum(),
+                                 f"a {tall}px screen scrolls by {bar.maximum()}px")
+
+
+class CallKeepsTheStripTest(unittest.TestCase):
+    """Harry: "i want the pop up to be full screen BUT retain the top banner only"."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", azaan=True),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def called(self, w, prayer="maghrib"):
+        w.call_to_prayer(prayer)
+        settle(4)
+        box = w.call_box
+        self.assertIsNotNone(box, "no call box came up")
+        self.addCleanup(w.let_go_of_the_box)
+        return box
+
+    def test_it_covers_everything_below_the_strip_and_nothing_of_it(self):
+        from salaah.call import CallBox
+        w = self.window()
+        box = self.called(w)
+        self.assertIsInstance(box, CallBox, "the plain notice came up, not the call")
+        strip = w.banner_height()
+        self.assertGreater(strip, 0)
+        self.assertEqual(strip, box.y(), "the call does not start at the foot of the strip")
+        self.assertEqual(0, box.x())
+        self.assertEqual(w.width(), box.width(), "it does not reach both edges")
+        self.assertEqual(w.height() - strip, box.height(),
+                         "it does not reach the bottom of the screen")
+
+    def test_the_strip_is_still_there_to_be_read(self):
+        """Not just uncovered -- showing the place and the times, which is the point of
+        leaving it: during the call it is the one thing worth seeing behind it."""
+        w = self.window()
+        self.called(w)
+        # Whatever page the call landed on -- it goes home, and home is the front door,
+        # which carries the same strip as the mosque behind it.
+        page = w.stack.currentWidget()
+        bar = next(c for c in page.findChildren(QtWidgets.QWidget)
+                   if c.objectName() == "banner")
+        said = next(c for c in bar.findChildren(QtWidgets.QLabel)
+                    if c.objectName() == "bannerText")
+        self.assertTrue(said.isVisible())
+        self.assertIn(":", said.text(), "the strip above the call has no times on it")
+        self.assertIn("Bury", said.text())
+        self.assertGreaterEqual(bar.mapTo(w, QtCore.QPoint(0, 0)).y(), 0)
+        self.assertLessEqual(bar.height(), w.call_box.y(),
+                             "the call is drawn over the bottom of the strip")
+
+    def test_it_follows_the_screen_when_the_window_changes_size(self):
+        w = self.window()
+        box = self.called(w)
+        w.resize(1600, 900)
+        settle()
+        box.fit()
+        settle()
+        self.assertEqual(w.banner_height(), box.y())
+        self.assertEqual(w.width(), box.width())
+        self.assertEqual(w.height() - w.banner_height(), box.height())

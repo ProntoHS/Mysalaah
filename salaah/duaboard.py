@@ -17,10 +17,8 @@ du'as rather than the same ones until the mat is restarted.
 """
 from __future__ import annotations
 
-import random
-
-from .qt import QtCore, QtGui, QtWidgets, Qt, Signal, arrows
-from .render import Fonts, TextBox
+from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
+from .render import ArrowButton, Fonts, TextBox
 from .theme import palette
 
 ON_SCREEN = 2          # du'as shown at once: one each side of the rule
@@ -183,17 +181,14 @@ class DuaBoard(QtWidgets.QWidget):
     chose = Signal(int)
     play = Signal(int)
 
-    def __init__(self, window, passages, sayings: bool = False, paged: bool = False):
+    def __init__(self, window, passages, sayings: bool = False):
         super().__init__()
         self.win = window
         self.passages = passages
         self.sayings = sayings
         self.only = None
-        # Walked with arrows rather than dealt at random. See the note on pick().
-        self.paged = paged
+        # Which pair of the kind is up. See the note above pages().
         self.page = 0
-        # A shuffled bag per kind, dealt from two at a time. See pick().
-        self.bags: dict[str | None, list[int]] = {}
         self.setObjectName("duaBoard")
         # Which card is being read aloud, if any, and the clock that follows the words.
         self.said_by: DuaCard | None = None
@@ -211,31 +206,29 @@ class DuaBoard(QtWidgets.QWidget):
         # is where Harry pointed: "place them under the 'Main Screen' button, there is
         # space". The heading is centred on the screen and not on what is left of it, so
         # whatever the arrows take on the right is given back as a blank on the left.
-        self.earlier = self.later = None
-        if self.paged:
-            back_glyph, on_glyph = arrows(window.pack.rtl)
-            self.earlier = QtWidgets.QPushButton(back_glyph)
-            self.later = QtWidgets.QPushButton(on_glyph)
-            for button, forward in ((self.earlier, False), (self.later, True)):
-                button.setObjectName("turnPage")
-                button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-                button.setCursor(Qt.CursorShape.PointingHandCursor)
-                button.clicked.connect(lambda _=False, f=forward: self.turn(f))
-            self.balance = QtWidgets.QWidget()
-            head.addWidget(self.balance)
+        self.earlier = ArrowButton(False, window.pack.rtl)
+        self.later = ArrowButton(True, window.pack.rtl)
+        for button, forward in ((self.earlier, False), (self.later, True)):
+            # Its own name, not the reading bar's: these are bigger, and they are red rather
+            # than grey. A board is a screen you stand in front of and read two cards off, so
+            # the way on is a thing you reach for, and on this mat the things you press are
+            # red -- Menu, Main screen, Back.
+            button.setObjectName("turnBoard")
+            button.clicked.connect(lambda _=False, f=forward: self.turn(f))
+        self.balance = QtWidgets.QWidget()
+        head.addWidget(self.balance)
         head.addStretch(1)
         self.title = QtWidgets.QLabel("")
         self.title.setObjectName("namePlate")
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         head.addWidget(self.title)
         head.addStretch(1)
-        if self.paged:
-            pair = QtWidgets.QHBoxLayout()
-            pair.setContentsMargins(0, 0, 0, 0)
-            pair.setSpacing(window.px(14))
-            pair.addWidget(self.earlier)
-            pair.addWidget(self.later)
-            head.addLayout(pair)
+        pair = QtWidgets.QHBoxLayout()
+        pair.setContentsMargins(0, 0, 0, 0)
+        pair.setSpacing(window.px(14))
+        pair.addWidget(self.earlier)
+        pair.addWidget(self.later)
+        head.addLayout(pair)
         outer.addLayout(head)
 
         self.scroll = QtWidgets.QScrollArea()
@@ -290,50 +283,21 @@ class DuaBoard(QtWidgets.QWidget):
         return [(i, item) for i, item in enumerate(self.passages.items)
                 if self.only is None or self.only in item.cats]
 
-    def pick(self) -> list:
-        """The two to show, dealt off a shuffled bag rather than drawn at random.
-
-        It used to be random.sample, which is not what "it changes every time" means. Drawing
-        two out of four at random gives you the same two about one visit in six, and gives no
-        promise that the other two are ever seen -- Harry pressed it twice and got the same
-        pair, which is exactly the arithmetic working as written.
-
-        So each kind keeps a shuffled bag of its own. Two are dealt off the top each visit and
-        the bag is topped up, in a fresh shuffle, when it runs low: everything in the kind is
-        seen before anything comes round again, and the pair is never the pair just shown. A
-        kind holding only two can of course only show those two.
-        """
-        mine = self.wanted()
-        if len(mine) <= ON_SCREEN:
-            return mine
-        bag = self.bags.get(self.only, [])
-        if len(bag) < ON_SCREEN:
-            fresh = [k for k in range(len(mine)) if k not in bag]
-            random.shuffle(fresh)
-            # Not the pair that is on screen now. Only reachable when the bag ran out exactly
-            # as the last pair was dealt, which on a kind of four is every other visit.
-            just = {i for i, _ in self.showing}
-            for _ in range(20):
-                if not just or not {mine[k][0] for k in (bag + fresh)[:ON_SCREEN]} <= just:
-                    break
-                random.shuffle(fresh)
-            bag = bag + fresh
-        self.bags[self.only] = bag[ON_SCREEN:]
-        return [mine[k] for k in bag[:ON_SCREEN]]
-
-    # -- walking a category two at a time -----------------------------------------------------
+    # -- walking a kind two at a time ---------------------------------------------------------
     #
-    # The sayings are read this way rather than dealt. There are a hundred and nine of them
-    # and a category holds five to eleven, so two drawn at random is a glimpse of a category
-    # rather than a reading of it: you could press a heading six times and not see the one
-    # saying under it you were looking for. Harry: "this will allow us to drop the randomiser
-    # and let the user scroll, this will also allow us to obtain more hadiths and some do fall
-    # under multiple categories" -- and the second half is the reason the paging matters more
-    # as the collection grows. A saying filed under two headings is reachable under both, in
-    # its place, rather than being one more ticket in two raffles.
+    # Both boards are read this way rather than dealt. The sayings asked for it first: there
+    # are a hundred and nine of them and a category holds five to eleven, so two drawn at
+    # random is a glimpse of a category rather than a reading of it -- you could press a
+    # heading six times and not see the one saying you were looking for. Harry: "this will
+    # allow us to drop the randomiser and let the user scroll, this will also allow us to
+    # obtain more hadiths and some do fall under multiple categories", and the second half is
+    # why it matters more as the collection grows: a saying filed under two headings is
+    # reachable under both, in its place, rather than being one more ticket in two raffles.
     #
-    # The du'as still deal: a kind holds two to five, they are things you say rather than
-    # things you read through, and nobody asked.
+    # The du'as followed a version later, and what went with them was a shuffled bag that
+    # dealt two off the top each visit. It was careful work and it answered the wrong
+    # question: "a different two each time" is not what you want stood on a mat, "the two I
+    # was reading a moment ago" is.
 
     def pages(self) -> int:
         mine = self.wanted()
@@ -358,8 +322,6 @@ class DuaBoard(QtWidgets.QWidget):
     def dress_arrows(self) -> None:
         """Which way there is still something to go. Shown and dead rather than taken away,
         as everywhere else on the mat: a button that vanishes moves the other one."""
-        if not self.paged or self.earlier is None:
-            return
         self.earlier.setEnabled(self.page > 0)
         self.later.setEnabled(self.page < self.pages() - 1)
         # The blank that keeps the heading in the middle of the screen is whatever the pair
@@ -376,7 +338,7 @@ class DuaBoard(QtWidgets.QWidget):
         if heading:
             self.title.setText(heading)
         self.page = 0
-        self.showing = self.page_at(0) if self.paged else self.pick()
+        self.showing = self.page_at(0)
         self.dress_arrows()
         self.filled = None
         self.fill()

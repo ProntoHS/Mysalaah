@@ -17,9 +17,9 @@ Al-Ikhlas because its verses are longer, which is exactly what a printed mushaf 
 from __future__ import annotations
 
 from .audio import WHOLE, Span
-from .qt import QtCore, QtGui, QtWidgets, Qt, Signal, arrows
+from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .quran import RTL, Quran, Surah, Verse
-from .render import Fonts, ParallelText, TextBox, TextSize
+from .render import ArrowButton, Fonts, ParallelText, TextBox, TextSize
 from .theme import palette
 
 # The Arabic is never drawn smaller than this (at 1080p). Fitting more verses on a page by
@@ -516,8 +516,7 @@ class Reader(QtWidgets.QWidget):
         # arrows say the same thing by greying out at either end, and "Page 1 of 39" was the
         # widest thing in a row that had run out of room.
         # Pointing the way the reading goes: in Urdu and Arabic the pair mirrors to the
-        # other side, so the heads turn with it. See arrows() in qt.py.
-        back_glyph, on_glyph = arrows(self.win.pack.rtl)
+        # other side, so the heads turn with it. See ArrowButton in render.py.
         # How large the Qur'an is set, beside the arrows that turn the pages: the two things
         # you reach for with the page in front of you, in the one place you are already
         # looking. Before the arrows, so the pair that turns pages stays together at the end.
@@ -530,11 +529,10 @@ class Reader(QtWidgets.QWidget):
         self.text_size.chose.connect(self.resize_text)
         bar.addWidget(self.text_size, 0, Qt.AlignmentFlag.AlignVCenter)
         bar.addSpacing(self.win.px(18))
-        self.earlier = QtWidgets.QPushButton(back_glyph)
-        self.later = QtWidgets.QPushButton(on_glyph)
+        self.earlier = ArrowButton(False, self.win.pack.rtl)
+        self.later = ArrowButton(True, self.win.pack.rtl)
         for b, forward in ((self.earlier, False), (self.later, True)):
             b.setObjectName("turnPage")
-            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             b.clicked.connect(lambda _=False, f=forward: self.spread.turn(f))
         bar.addWidget(self.earlier)
         bar.addWidget(self.later)

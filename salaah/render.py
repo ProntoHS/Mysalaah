@@ -41,6 +41,72 @@ SCRIPT_FONTS = {
 }
 
 
+class ArrowButton(QtWidgets.QPushButton):
+    """A square-shouldered chevron, drawn rather than typed.
+
+    Every way-back and next on the mat used to be the character "‹" set in whatever face
+    the pack is written in, and that is where it went wrong: a guillemet is punctuation, drawn
+    small and light because it belongs beside words, so in a button the size of a thumb it
+    came out as a speck in a slab. Harry: "the <> text is small where as the button its in is
+    big, make both <> big white bold and use a more angular font".
+
+    There is no angular face to reach for -- the mat falls back to whatever the Pi has -- so
+    the chevron is two straight strokes meeting at a point, painted here. It is as big as we
+    say it is at any screen size, it is the same shape in every language, and the weight is a
+    number rather than whatever the font designer thought a quotation mark should weigh.
+
+    The button itself is still a QPushButton with an objectName, so the box around it -- its
+    colour, its corners, its pressed state -- is the stylesheet's business as it was before.
+    """
+
+    # Of the button's height: how tall the chevron stands, and how thick its strokes are.
+    # The height is the A's cap height on the text-size control beside it, which is what
+    # Harry asked them to match; the weight is measured to read as bold rather than drawn.
+    TALL = 0.52
+    WEIGHT = 0.11
+    REACH = 0.42        # how far out the arms come, as a fraction of the chevron's height
+
+    def __init__(self, forward: bool, rtl: bool = False, parent=None):
+        super().__init__("", parent)
+        # Which way the point faces. In Urdu and Arabic the pair swaps corners, so an arrow
+        # that mirrored its position but not its head would point away from where it goes.
+        self.points_left = forward == rtl
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+    def ink(self) -> QtGui.QColor:
+        """White, and a dead grey when there is nothing that way.
+
+        The same grey the stylesheet gives a disabled page arrow, so a button that is drawn
+        here and a button that is drawn by Qt look alike when neither can be pressed.
+        """
+        return QtGui.QColor("white" if self.isEnabled() else "#555555")
+
+    def paintEvent(self, event):
+        super().paintEvent(event)       # the box, from the stylesheet
+        tall = self.height() * self.TALL
+        if tall < 4:
+            return
+        middle = QtCore.QPointF(self.width() / 2, self.height() / 2)
+        reach = tall * self.REACH
+        tip = middle.x() + (-reach / 2 if self.points_left else reach / 2)
+        back = middle.x() + (reach / 2 if self.points_left else -reach / 2)
+        path = QtGui.QPainterPath()
+        path.moveTo(back, middle.y() - tall / 2)
+        path.lineTo(tip, middle.y())
+        path.lineTo(back, middle.y() + tall / 2)
+        pen = QtGui.QPen(self.ink())
+        pen.setWidthF(max(2.0, self.height() * self.WEIGHT))
+        # Mitred and squared off: a round join rolls the point over into a blob at this
+        # weight, which is the opposite of angular.
+        pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        pen.setCapStyle(Qt.PenCapStyle.SquareCap)
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        painter.setPen(pen)
+        painter.drawPath(path)
+
+
 class TextSize(QtWidgets.QWidget):
     """Three A's, each larger than the last. Touch one to set the text at that size.
 

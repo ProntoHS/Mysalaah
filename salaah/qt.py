@@ -34,9 +34,9 @@ Qt = QtCore.Qt
 #
 # So the glyphs swap with the direction and the positions are left to Qt. Back always points
 # the way you came from -- left in English, right in Urdu -- and on always points onward.
-BACK_ARROW, ON_ARROW = "‹", "›"
-
-
-def arrows(rtl: bool) -> tuple[str, str]:
-    """(back, onward), pointing the right way for a screen laid out this way round."""
-    return (ON_ARROW, BACK_ARROW) if rtl else (BACK_ARROW, ON_ARROW)
+# BACK_ARROW, ON_ARROW and arrows() went in 1.69. Every way-back and next on the mat was
+# the character "‹" or "›" set in whatever face the pack is written in, and that is
+# exactly what was wrong with them: a guillemet is punctuation, drawn small and light
+# because it belongs beside words, so in a button the size of a thumb it was a speck in a
+# slab. They are painted now -- see ArrowButton in render.py -- and which way they point is
+# the button's own business rather than a pair of characters chosen for it here.

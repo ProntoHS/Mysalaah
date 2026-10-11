@@ -53,6 +53,10 @@ BANNER_BLUE = "#8FB1F0"
 # margins, so the strip is as tall as the tallest thing that HAS to fit in it, and anything
 # added later has to fit rather than push it about.
 BANNER_TALL = 52 + 10 + 10
+# The pair of chevrons that walks a board's cards, at 1080p. Bigger than the reading bar's
+# 64, which is what Harry asked for -- a board is read standing in front of it, where the
+# reading bar is a bar on a screen you are already close to.
+BOARD_ARROW = 88
 STONE = "#6B737A"
 LINE = "#D9DCD6"
 MINT = "#3C8D6B"
@@ -911,6 +915,14 @@ class MainWindow(QtWidgets.QWidget):
     def px(self, n: float) -> int:
         return max(1, int(n * self.s))
 
+    def banner_height(self) -> int:
+        """How tall the strip across the top is.
+
+        A method rather than a number other files reach in for, because the call box sits
+        under it and call.py importing from here would close a circle -- ui imports call.
+        """
+        return self.px(BANNER_TALL)
+
     @property
     def pack(self) -> LanguagePack:
         return self.packs.get(self.settings.lang, self.english)
@@ -1157,11 +1169,13 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#compassTitle {{ font-size:{px(44)}px; font-weight:bold; }}
             QLabel#compassArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                     font-size:{px(52)}px; font-weight:bold; }}
+            /* A step bigger again, and square-ish: it sits in the corner of the screen now
+               with nothing beside it, where before it was a block on the end of a row. */
             QPushButton#updateButton {{ background:{BRICK}; color:white; border:none;
-                                        font-size:{px(22)}px; font-weight:bold;
-                                        padding:{px(10)}px {px(24)}px;
+                                        font-size:{px(26)}px; font-weight:bold;
+                                        padding:{px(10)}px {px(34)}px;
                                         border-radius:{px(8)}px;
-                                        min-height:{px(72)}px; min-width:{px(72)}px; }}
+                                        min-height:{px(88)}px; min-width:{px(88)}px; }}
             QPushButton#updateButton:pressed {{ background:#8E342C; }}
             QPushButton#updateButton:disabled {{ background:#8E342C; color:#E3BDB9; }}
             QWidget#knowledge {{ background:{c.paper}; }}
@@ -1215,6 +1229,19 @@ class MainWindow(QtWidgets.QWidget):
                                        bottom made a 64 box come out 72. */
                                     min-height:{px(READING_TEXT_SIZE_PX)}px;
                                     padding:0px {px(16)}px; }}
+            /* The pair on a board -- the du'as and the sayings -- is the same button a size
+               up and in the mat's red, which is the colour of everything you press on it.
+               Harry: "make them angular and bigger too, they should also be in a red box
+               instead of grey". The chevron inside is drawn: see ArrowButton. */
+            QPushButton#turnBoard {{ background:{BRICK}; color:white; border:none;
+                                     border-radius:{px(10)}px;
+                                     min-width:{px(BOARD_ARROW)}px;
+                                     min-height:{px(BOARD_ARROW)}px;
+                                     padding:0px {px(16)}px; }}
+            QPushButton#turnBoard:pressed {{ background:#8E342C; }}
+            /* Dead at the end of a category: the box fades back to the chip colour and the
+               chevron greys with it, the same way the reading bar's pair goes out. */
+            QPushButton#turnBoard:disabled {{ background:{c.chip}; }}
             QPushButton#turnPage:hover:enabled {{ background:{BRICK}; }}
             QPushButton#turnPage:pressed {{ background:{BRICK}; }}
             /* The same button with the arrow faded, rather than a differently coloured one:
@@ -1605,8 +1632,11 @@ class MainWindow(QtWidgets.QWidget):
         else:
             menu.deleteLater()
 
-        # The du'as of one kind are shown on a board rather than in a list: a kind holds two to
-        # five and they all fit, so there is nothing to scroll for.
+        # The du'as of one kind are shown on a board rather than in a list, two at a time,
+        # and walked with the same pair of chevrons as the sayings. They were dealt off a
+        # shuffled bag until 1.69: a kind holds two to five, so the bag worked, but "a
+        # different two each visit" and "the two I was reading a moment ago" are different
+        # things to want and the second is the one you want when you are stood on a mat.
         self.dua_board = DuaBoard(self, self.duas)
         self.dua_board.chose.connect(lambda n: self.open_passage("duas", n))
         stack.addWidget(self.dua_board)
@@ -1631,9 +1661,7 @@ class MainWindow(QtWidgets.QWidget):
 
         # The same board for the sayings, with the play mark carried down beside the
         # translation rather than sitting over the Arabic.
-        # paged: the sayings are walked through two at a time rather than dealt at random.
-        # See the note above pages() in duaboard.py.
-        self.hadith_board = DuaBoard(self, self.sayings, sayings=True, paged=True)
+        self.hadith_board = DuaBoard(self, self.sayings, sayings=True)
         self.hadith_board.chose.connect(lambda n: self.open_passage("hadith", n))
         stack.addWidget(self.hadith_board)
 
@@ -3197,10 +3225,14 @@ class MainWindow(QtWidgets.QWidget):
         # rather than a strip, and a block brings its own breathing room. The 46 pixels it grew
         # by had to come from somewhere: a 1920x1080 monitor had 28 to spare and started
         # scrolling by 18, which the scroll test caught.
-        outer.setContentsMargins(self.px(48), self.px(12), self.px(48), self.px(8))
+        # Nothing on the right and nothing at the bottom, so the Update button can sit hard
+        # in the corner of the glass -- Harry: "to the bottom right completely". Everything
+        # above it puts its own 48 back, which is why the margin moved rather than went.
+        outer.setContentsMargins(self.px(48), self.px(12), 0, 0)
         outer.setSpacing(self.px(6))
 
         head = QtWidgets.QHBoxLayout()
+        head.setContentsMargins(0, 0, self.px(48), 0)
         cog = GearButton(self.px(44), QtGui.QColor(BRICK))   # the one that was pressed to get here
         cog.setToolTip(self.t("settings.title"))
         head.addWidget(cog)
@@ -3228,7 +3260,10 @@ class MainWindow(QtWidgets.QWidget):
         columns.addLayout(left, 1)
         columns.addLayout(right, 1)
         self.settings_scroll.setWidget(body)
-        outer.addWidget(self.settings_scroll, 1)
+        scrolled = QtWidgets.QHBoxLayout()
+        scrolled.setContentsMargins(0, 0, self.px(48), 0)
+        scrolled.addWidget(self.settings_scroll, 1)
+        outer.addLayout(scrolled, 1)
 
         def section(column: QtWidgets.QVBoxLayout, key: str, hint: str = "") -> None:
             column.addSpacing(self.px(14))
@@ -3363,6 +3398,11 @@ class MainWindow(QtWidgets.QWidget):
         # No way out to the desktop: the mat is the product, and there is nothing behind it to
         # go to. Ctrl+Q still quits, for working on it (see eventFilter).
         foot = QtWidgets.QHBoxLayout()
+        # The version keeps its breathing room; the button has none on the two sides that
+        # face the corner, which is what puts it there. The two pixels above are all the
+        # taller button left: a 1920x1080 screen had 28 pixels spare before it scrolls, and
+        # a block this size spends most of them.
+        foot.setContentsMargins(0, self.px(2), 0, 0)
         version = QtWidgets.QLabel(self.t("settings.version", number=__version__))
         version.setObjectName("settingValue")
         foot.addWidget(version)
