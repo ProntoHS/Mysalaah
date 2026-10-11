@@ -3019,15 +3019,27 @@ class RadioTest(unittest.TestCase):
         screen.player.player = "dies"
         station = screen.rows_for[0]
         screen.touched(station)
-        for _ in range(30):
+        for _ in range(40):
             settle()
-            if not screen.player.playing:
+            screen.look()
+            if screen.silent is not None:
                 break
-        screen.look()
-        settle()
         row = screen.rows.itemAt(0).widget()
         self.assertIn(w.t("radio.silent"), row.text(),
                       f"the row says {row.text()!r} of a station that never answered")
+        self.assertIsNone(screen.playing, "it is still shown as playing")
+        # And it stays said. The first version worked this out from `playing` as the row was
+        # drawn, so the message lasted exactly one repaint: the next fill -- a resize, a
+        # language change, coming back to the screen -- wiped it and left the row looking as
+        # though nothing had happened.
+        screen.fill()
+        settle()
+        row = screen.rows.itemAt(0).widget()
+        self.assertIn(w.t("radio.silent"), row.text(),
+                      "the message was wiped by the next repaint")
+        screen.touched(screen.rows_for[-1])
+        settle()
+        self.assertIsNone(screen.silent, "pressing another station left the old message up")
 
     def test_leaving_the_screen_stops_the_station(self):
         """A station playing on from behind the Qur'an could only be stopped by coming back

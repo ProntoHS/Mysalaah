@@ -100,6 +100,11 @@ class RadioScreen(QtWidgets.QWidget):
         self.stations = stations
         self.player = Stream(volume=window.settings.volume)
         self.playing: dict | None = None
+        # The station that was pressed and did not answer, kept until something else is.
+        # Not worked out from `playing` when the row is drawn: a station that has fallen
+        # silent is no longer playing, so the two cannot be the same fact, and the version
+        # that tried showed the message for one repaint and then lost it again.
+        self.silent: dict | None = None
         self.rows_for: list[dict] = []
         # What the mat could reach when it was last asked. True to begin with: a screen that
         # opens saying "connect to Wi-Fi" and then fills in with stations a second later
@@ -240,7 +245,7 @@ class RadioScreen(QtWidgets.QWidget):
                 continue
             row.setChecked(station is self.playing)
             said = self.said(station)
-            if station is self.playing and self.player.answered() is False:
+            if station is self.silent:
                 said = f"{station['name']}\n{self.win.t('radio.silent')}"
             row.setText(said)
 
@@ -253,6 +258,7 @@ class RadioScreen(QtWidgets.QWidget):
 
     def play(self, station: dict) -> None:
         self.win.stir()
+        self.silent = None
         self.player.volume = self.win.settings.volume
         self.playing = station if self.player.play(station["url"]) else None
         self.mark()
@@ -265,16 +271,21 @@ class RadioScreen(QtWidgets.QWidget):
         self.watch.stop()
         self.mark()
 
+    def quiet(self) -> None:
+        """Stop, and forget that anything failed: the screen starts clean next time."""
+        self.silent = None
+        self.stop()
+
     def look(self) -> None:
         """The station stopped sounding. Either it never answered or it has dropped; both are
         shown the same way, because to somebody stood in front of it they are the same thing."""
         if self.playing is None:
             return
         if self.player.playing:
-            return self.mark()      # still going; the row may have been saying "settling"
+            return self.mark()      # still going
         self.watch.stop()
-        self.mark()                 # leaves the row saying it is not answering
-        self.playing = None
+        self.silent, self.playing = self.playing, None
+        self.mark()
 
     @property
     def saying(self) -> bool:
@@ -289,7 +300,7 @@ class RadioScreen(QtWidgets.QWidget):
         return False
 
     def leaving(self) -> None:
-        self.stop()
+        self.quiet()
         self.back.emit()
 
     def retitle(self) -> None:
