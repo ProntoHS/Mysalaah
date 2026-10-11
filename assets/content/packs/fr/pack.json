@@ -21,7 +21,7 @@
     "corner.hadith": "Hadith",
     "corner.item": "{at} sur {of}",
     "corner.kalima": "Les six kalima",
-    "corner.nasheeds": "Nasheeds",
+    "corner.radio": "Radio",
     "corner.not_yet": "Pas encore rempli.",
     "corner.quran": "Coran",
     "corner.salaah": "Salaah",
@@ -276,7 +276,10 @@
     "wudu.nose": "Rincer le nez",
     "settings.restarting": "Redémarrage pour appliquer le changement…",
     "settings.arabic_only": "Arabe seulement",
-    "nasheeds.empty": "Aucun nasheed pour l'instant. Placez des fichiers mp3 dans {folder} sur le tapis et ils apparaîtront ici."
+    "radio.offline": "Le tapis n'est pas connecté à internet. Rejoignez un réseau Wi-Fi pour écouter la radio.",
+    "radio.connect": "Connecter le Wi-Fi",
+    "radio.silent": "Pas de réponse — essayez une autre station",
+    "radio.empty": "Aucune station pour l'instant."
   },
   "transliteration": {},
   "translation": {}

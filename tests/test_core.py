@@ -4921,3 +4921,85 @@ class AutostartSurvivesACopyTest(unittest.TestCase):
         self.assertIn(".config/autostart/salaah.desktop", said,
                       "nothing starts the mat at login")
         self.assertIn("salaah.desktop", said)
+
+
+class StreamPlayerTest(unittest.TestCase):
+    """The player the radio uses: a URL, played until it is stopped.
+
+    Its own class rather than a flag on Call, because the two differ in the one way that
+    matters to everything around them -- a call ends, and a station does not.
+    """
+
+    def test_every_player_can_be_handed_a_url(self):
+        """Which is the whole reason the radio needed no new dependency: the mat already
+        shells out to one of these, and all four take a URL where they take a path."""
+        from salaah.audio import STREAMERS
+        url = "https://example.invalid/stream.mp3"
+        for name, build in STREAMERS.items():
+            with self.subTest(name):
+                command = build(url, 70)
+                self.assertEqual(name, command[0])
+                self.assertIn(url, command, f"{name} is not given the address")
+
+    def test_nothing_is_told_to_seek_or_to_stop_after_a_while(self):
+        """A live stream has no beginning to seek to and no length to stop after. Asking for
+        either is how a player is handed a position in something that has none."""
+        from salaah.audio import STREAMERS
+        seeky = ("-ss", "-t", "--start", "--length", "--start-time", "--stop-time", "-k", "-n")
+        for name, build in STREAMERS.items():
+            with self.subTest(name):
+                for bit in build("https://example.invalid/s", 70):
+                    self.assertFalse(str(bit).split("=")[0] in seeky,
+                                     f"{name} is told {bit}, which a stream cannot do")
+
+    def test_every_player_is_told_the_volume(self):
+        from salaah.audio import STREAMERS
+        for name, build in STREAMERS.items():
+            with self.subTest(name):
+                quiet = " ".join(str(x) for x in build("https://example.invalid/s", 10))
+                loud = " ".join(str(x) for x in build("https://example.invalid/s", 90))
+                self.assertNotEqual(quiet, loud, f"{name} plays at one volume whatever it is told")
+
+    def test_a_station_is_only_counted_as_answering_once_it_has_been_sounding(self):
+        """How a station that is not there is told apart from one that is: a player handed a
+        URL it cannot use dies at once, and one that is playing stays up. Nothing else about
+        the two is different enough to go on -- the alternative is parsing four players'
+        error output, which differs between them and between versions."""
+        import time
+        from salaah import audio
+        from salaah.audio import Stream
+        audio.STREAMERS["alive"] = lambda u, v: ["sleep", "30"]
+        audio.STREAMERS["dead"] = lambda u, v: ["true"]
+        try:
+            live = Stream(player="alive")
+            live.SETTLE = 0.3
+            self.assertTrue(live.play("https://example.invalid/s"))
+            self.assertIsNone(live.answered(), "it cannot be known this early")
+            time.sleep(0.5)
+            self.assertTrue(live.answered())
+            live.stop()
+            self.assertIsNone(live.answered(), "stopped is not the same as never answered")
+
+            gone = Stream(player="dead")
+            gone.SETTLE = 0.3
+            self.assertTrue(gone.play("https://example.invalid/s"),
+                            "starting the player is not the same as the station answering")
+            time.sleep(0.5)
+            self.assertFalse(gone.answered())
+        finally:
+            audio.STREAMERS.pop("alive", None)
+            audio.STREAMERS.pop("dead", None)
+
+    def test_it_will_not_play_nothing(self):
+        from salaah import audio
+        from salaah.audio import Stream
+        audio.STREAMERS["alive"] = lambda u, v: ["sleep", "5"]
+        try:
+            s = Stream(player="alive")
+            for empty in ("", "   ", None):
+                with self.subTest(repr(empty)):
+                    self.assertFalse(s.play(empty or ""))
+            s.volume = 0
+            self.assertFalse(s.play("https://example.invalid/s"), "turned right down")
+        finally:
+            audio.STREAMERS.pop("alive", None)

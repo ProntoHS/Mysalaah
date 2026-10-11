@@ -23,7 +23,7 @@
     "corner.hadith": "圣训",
     "corner.item": "第 {at} / {of}",
     "corner.kalima": "六大证言",
-    "corner.nasheeds": "赞主诗歌",
+    "corner.radio": "广播",
     "corner.not_yet": "尚未填写。",
     "corner.quran": "《古兰经》",
     "corner.salaah": "Salaah",
@@ -278,6 +278,9 @@
     "wudu.nose": "洗鼻",
     "settings.restarting": "正在重新启动以套用变更…",
     "settings.arabic_only": "仅阿拉伯语",
-    "nasheeds.empty": "还没有赞歌。把 mp3 文件放进垫子上的 {folder}，它们就会出现在这里。"
+    "radio.offline": "垫子没有连接互联网。请连接 Wi-Fi 来收听广播。",
+    "radio.connect": "连接 Wi-Fi",
+    "radio.silent": "无响应 — 试试其他电台",
+    "radio.empty": "暂无电台。"
   }
 }

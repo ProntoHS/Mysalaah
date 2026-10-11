@@ -28,12 +28,12 @@ from .theme import palette
 # "salaah" is not a section of the Knowledge Corner at all: it is the way back to the front
 # door, and it took the square the six kalima had until the du'a menu gave them one of its own.
 # A tile rather than a button because this menu is six squares and always has been.
-# Eight now rather than six: Harry redrew the sheet with Wu'du and Nasheeds on the end and the
-# other six smaller. The two new ones have nothing behind them yet and land on the page that
-# says so, named -- the same thing Hadith and World did until their sections were built.
-# Reading order off Harry's sheet, which he has now reordered twice -- so this is read off the
-# drawing rather than remembered. Two across, four down.
-TILES = ("quran", "salaah", "hadith", "duas", "wudu", "nasheeds", "settings", "world")
+# Eight now rather than six: Harry redrew the sheet with Wu'du and a sixth on the end and the
+# other six smaller. That sixth was Nasheeds until 1.70 and is Radio now -- the shelf of
+# recordings nobody could legally fill became a handful of stations played off the internet.
+# Reading order off Harry's sheet, which he has now reordered three times -- so this is read
+# off the drawing rather than remembered. Two across, four down.
+TILES = ("quran", "salaah", "hadith", "duas", "wudu", "radio", "settings", "world")
 ACROSS = 2
 
 

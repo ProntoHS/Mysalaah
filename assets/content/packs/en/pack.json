@@ -21,7 +21,7 @@
     "corner.hadith": "Hadith",
     "corner.item": "{at} of {of}",
     "corner.kalima": "The six kalima",
-    "corner.nasheeds": "Nasheeds",
+    "corner.radio": "Radio",
     "corner.not_yet": "Not filled in yet.",
     "corner.quran": "Qur'an",
     "corner.salaah": "Salaah",
@@ -276,7 +276,10 @@
     "wudu.nose": "Rinse Nose",
     "settings.restarting": "Starting again so the change takes effect…",
     "settings.arabic_only": "Arabic only",
-    "nasheeds.empty": "No nasheeds yet. Put mp3 files in {folder} on the mat and they will appear here."
+    "radio.offline": "The mat is not connected to the internet. Join a Wi-Fi network to listen to the radio.",
+    "radio.connect": "Connect Wi-Fi",
+    "radio.silent": "Not answering — try another station",
+    "radio.empty": "No stations yet."
   },
   "transliteration": {},
   "translation": {

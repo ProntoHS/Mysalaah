@@ -2880,51 +2880,23 @@ class MenusAreDrawnInEveryLanguageTest(unittest.TestCase):
                     self.assertLess(moved, 12, f"{name} has moved {moved}px in {lang}")
 
 
-class NasheedPlayerTest(unittest.TestCase):
-    """The nasheeds tile: a shelf of whatever is in the owner's own folder.
+class RadioTest(unittest.TestCase):
+    """The radio tile: a handful of stations, played off the internet.
 
-    Nothing ships. See the note at the top of nasheeds.py -- the artists are on labels, the
-    sites offering their work "copyright free" are aggregators who do not hold the rights, and
-    a device carrying that is Phantom Interactive distributing somebody else's record. So the
-    mat reads ~/.salaah/nasheeds, the folder beside the recitation cache that no release ever
-    touches, and plays what it finds.
+    It was Nasheeds until 1.70. That section could ship nothing -- the artists are on labels,
+    the sites offering their work "copyright free" are aggregators who do not hold the
+    rights -- so it was a player pointed at a folder the owner had to fill themselves, and on
+    a new mat it was a shelf with nothing on it. A station is the other way round: nothing is
+    copied, nothing is stored, the mat opens a public stream the way a radio set does, and
+    the station carries its own licences. Harry: "this way i dont need to store anything, no
+    violation etc".
     """
 
-    class FakeCall:
-        """Stands in for audio.Call. The real one shells out to ffplay, which is neither
-        present nor wanted in a test; FakePlayer further down is the wrong shape -- it stands
-        in for Recitation, whose play() takes a span and a repeat count."""
-
-        def __init__(self):
-            self.on, self.played, self.stops = False, [], 0
-
-        @property
-        def playing(self):
-            return self.on
-
-        def play(self, audio):
-            self.played.append(Path(audio).name)
-            self.on = True
-            return True
-
-        def stop(self):
-            self.stops += 1
-            self.on = False
-
-    def shelf(self, *names):
-        import shutil
-        room = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(room, ignore_errors=True))
-        for name in names:
-            (room / name).write_bytes(b"ID3" + b"\0" * 2000)
-        return room
-
-    def window(self, room=None, lang="en"):
+    def window(self, online=True, **settings):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme="dark", recitation=False, place="Bury", lang=lang),
+                       Settings(**{"theme": "dark", "recitation": False, "place": "Bury",
+                                   **settings}),
                        scale=1.0, save_settings=False, aspect=None, side=True)
-        if room is not None:
-            w.nasheeds.folders = [ASSETS / "nasheeds", room]
         w.resize(1920, 1080)
         w.show()
         w.side.resize(600, 1024)
@@ -2932,174 +2904,270 @@ class NasheedPlayerTest(unittest.TestCase):
         w.tick()
         settle()
         self.addCleanup(lambda: shut(w))
+        # The mat is never asked the real question in a test: looking a name up takes as long
+        # as it takes and the answer depends on the machine the suite is run on.
+        w.radio_screen.reachable = online
+        w.radio_screen.ask_the_network = lambda: None
         return w
 
-    def open(self, w):
-        w.open_corner("nasheeds")
+    def screen(self, w):
+        w.open_corner("radio")
         settle()
-        return w.nasheed_screen
+        return w.radio_screen
 
-    # What is on the shelf
+    def fake_player(self):
+        """A sleep standing in for the audio player, as the recitation tests do -- there is no
+        sound card on the machine this suite runs on, and a station to play it from would be
+        a test that fails when somebody else's server has a bad night."""
+        from salaah import audio
+        audio.STREAMERS["test"] = lambda u, v: ["sleep", "30"]
+        self.addCleanup(lambda: audio.STREAMERS.pop("test", None))
+        # And put the sleep down afterwards. One test leaves the radio deliberately playing,
+        # which otherwise walks out of the suite as a stray process.
+        self.addCleanup(lambda: self._hush())
+        return "test"
 
-    def test_the_tile_opens_the_shelf_rather_than_nothing_here_yet(self):
-        w = self.window(self.shelf("one.mp3"))
-        self.assertIs(self.open(w), w.corner_screen.currentWidget())
-        self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget())
+    def _hush(self):
+        for w in QtWidgets.QApplication.topLevelWidgets():
+            screen = getattr(w, "radio_screen", None)
+            if screen is not None:
+                screen.player.stop()
 
-    def test_it_lists_what_is_in_the_owners_folder(self):
-        w = self.window(self.shelf("allah-knows.mp3", "tala-al-badru.m4a"))
-        screen = self.open(w)
-        self.assertEqual(["allah knows", "tala al badru"],
-                         sorted(t.title for t in screen.rows_for))
+    # The tile
 
-    def test_things_that_are_not_recordings_are_left_out(self):
-        """The folder is one a person drops files into, so it collects cover art and whatever
-        the operating system leaves lying about. A row with a play button on a .DS_Store is
-        the mat looking broken."""
-        w = self.window(self.shelf("real.mp3", "cover.jpg", ".DS_Store", "notes.txt"))
-        screen = self.open(w)
-        self.assertEqual(["real"], [t.title for t in screen.rows_for])
+    def test_the_sixth_tile_is_the_radio_now(self):
+        from salaah.knowledge import TILES
+        w = self.window()
+        self.assertIn("radio", TILES)
+        self.assertNotIn("nasheeds", TILES)
+        self.assertEqual([t.name for t in w.side.corner.tiles], list(TILES))
 
-    def test_an_empty_folder_says_where_to_put_them(self):
-        """The ordinary state of this screen on a new mat. It has to be more use than a blank
-        page -- somebody has to be able to find out that the folder exists at all."""
-        from salaah.nasheeds import MINE
-        w = self.window(self.shelf())
-        screen = self.open(w)
-        self.assertEqual([], screen.rows_for)
-        self.assertTrue(screen.empty.isVisible())
-        self.assertFalse(screen.scroll.isVisible())
-        self.assertIn(str(MINE), screen.empty.text(), "it does not say which folder")
+    def test_the_tile_opens_the_radio_even_with_nothing_to_reach(self):
+        """It says what is wrong and offers the way to fix it, which is more use than a tile
+        that does nothing."""
+        for online in (True, False):
+            with self.subTest(f"{'online' if online else 'offline'}"):
+                w = self.window(online)
+                screen = self.screen(w)
+                self.assertIs(screen, w.corner_screen.currentWidget())
 
-    def test_a_file_dropped_in_while_the_mat_is_running_turns_up(self):
-        """Which is how it will actually be used -- a USB stick, not a restart."""
-        room = self.shelf("first.mp3")
-        w = self.window(room)
-        screen = self.open(w)
-        self.assertEqual(1, len(screen.rows_for))
-        (room / "second.mp3").write_bytes(b"ID3" + b"\0" * 2000)
-        w.go_home()
+    # With nothing to reach
+
+    def test_offline_it_says_so_and_offers_the_wifi_screen(self):
+        w = self.window(online=False)
+        screen = self.screen(w)
+        self.assertFalse(screen.scroll.isVisible(), "stations are listed with no connection")
+        self.assertTrue(screen.offline.isVisible())
+        self.assertTrue(screen.wifi_button.isVisible())
+        self.assertIn("Wi-Fi", screen.offline_said.text())
+        screen.wifi_button.click()
         settle()
-        self.open(w)
-        self.assertEqual(2, len(screen.rows_for), "the new file was not noticed")
+        self.assertIs(w.wifi_page, w.stack.currentWidget(),
+                      "the button did not land on the Wi-Fi screen")
+
+    def test_online_the_stations_are_listed(self):
+        w = self.window(online=True)
+        screen = self.screen(w)
+        self.assertTrue(screen.scroll.isVisible())
+        self.assertFalse(screen.offline.isVisible())
+        self.assertEqual(len(w.stations.items), len(screen.rows_for))
+        said = [screen.rows.itemAt(i).widget().text() for i in range(len(screen.rows_for))]
+        for station in w.stations.items:
+            self.assertTrue(any(station["name"] in t for t in said),
+                            f"{station['name']} is not on the screen")
 
     # Playing one
 
-    def test_pressing_a_row_plays_it_and_pressing_it_again_stops(self):
-        w = self.window(self.shelf("one.mp3", "two.mp3"))
-        screen = self.open(w)
-        screen.player = self.FakeCall()
-        first = screen.rows_for[0]
-        screen.touched(first)
-        self.assertIs(first, screen.playing)
-        screen.touched(first)
-        self.assertIsNone(screen.playing, "pressing the playing one did not stop it")
-
-    def test_only_one_plays_at_a_time(self):
-        w = self.window(self.shelf("one.mp3", "two.mp3"))
-        screen = self.open(w)
-        screen.player = self.FakeCall()
-        one, two = screen.rows_for
-        screen.touched(one)
-        screen.touched(two)
-        self.assertIs(two, screen.playing)
-        self.assertEqual(1, sum(1 for i, _ in enumerate(screen.rows_for)
-                                if screen.rows.itemAt(i).widget().isChecked()))
-
-    def test_leaving_the_screen_stops_the_sound(self):
-        """A nasheed playing on from behind the Qur'an would have no way to be stopped."""
-        w = self.window(self.shelf("one.mp3"))
-        screen = self.open(w)
-        screen.player = self.FakeCall()
-        screen.touched(screen.rows_for[0])
-        self.assertIsNotNone(screen.playing)
-        w.go_home()
+    def test_pressing_a_station_plays_its_address_and_pressing_it_again_stops(self):
+        w = self.window()
+        screen = self.screen(w)
+        screen.player.player = self.fake_player()
+        station = screen.rows_for[0]
+        screen.touched(station)
         settle()
-        self.assertIsNone(screen.playing, "it is still playing behind another screen")
-
-    # The two interactions that matter on a prayer mat
-
-    def test_the_screen_does_not_go_dark_in_the_middle_of_one(self):
-        """The same rule the du'as and the Qur'an already have. Going dark over a nasheed is
-        the same rudeness as going dark over a surah."""
-        w = self.window(self.shelf("one.mp3"))
-        screen = self.open(w)
-        screen.player = self.FakeCall()
-        self.assertFalse(w.saying_a_passage())
-        screen.touched(screen.rows_for[0])
-        self.assertTrue(w.saying_a_passage(), "the sleep timer would cut it off")
-
-    def test_a_prayer_falling_due_stops_the_nasheed(self):
-        """Two things singing at once is the worst version of this, and of the two it is not
-        the call to prayer that should give way.
-
-        TWO things stop it and this tests the one that is meant to. call_to_prayer goes home
-        on its way to the call, which hides this screen, and hideEvent stops the sound -- so
-        the first version of this test passed with the explicit stop commented out, and would
-        have gone on passing if it were deleted. Going home is incidental: it stops a nasheed
-        because of where the screen went, not because a prayer is due. So the way home is
-        stubbed out here, which leaves only the deliberate guard to do the job.
-        """
-        w = self.window(self.shelf("one.mp3"))
-        screen = self.open(w)
-        screen.player = self.FakeCall()
-        screen.touched(screen.rows_for[0])
-        self.assertIsNotNone(screen.playing)
-        w.go_home = lambda *a, **k: None          # the incidental one, held still
-        w.call_to_prayer("maghrib")
-        settle()
-        self.assertIsNone(screen.playing, "the nasheed sang over the muezzin")
-
-    def test_and_walking_away_from_the_screen_stops_it_as_well(self):
-        """The incidental one, which is worth having on purpose: whatever takes the screen
-        away -- the call, the front door, a prayer starting -- leaves no sound behind it."""
-        w = self.window(self.shelf("one.mp3"))
-        screen = self.open(w)
-        screen.player = self.FakeCall()
-        screen.touched(screen.rows_for[0])
-        w.call_to_prayer("maghrib")
+        self.assertIs(station, screen.playing)
+        self.assertTrue(screen.player.playing)
+        self.assertEqual(station["url"], screen.player.url,
+                         "the player was handed something other than the station's address")
+        screen.touched(station)
         settle()
         self.assertIsNone(screen.playing)
         self.assertFalse(screen.player.playing)
 
+    def test_only_one_station_plays_at_a_time(self):
+        w = self.window()
+        screen = self.screen(w)
+        screen.player.player = self.fake_player()
+        if len(screen.rows_for) < 2:
+            self.skipTest("the list has only one station on it")
+        screen.touched(screen.rows_for[0])
+        settle()
+        screen.touched(screen.rows_for[1])
+        settle()
+        self.assertIs(screen.rows_for[1], screen.playing)
+        self.assertEqual(screen.rows_for[1]["url"], screen.player.url)
+
+    def test_a_station_that_does_not_answer_says_so_on_its_row(self):
+        """A file either plays or is missing. A stream can be listed, addressed correctly and
+        simply not answer tonight, and the screen has to say that rather than sit silent with
+        a row lit up."""
+        from salaah import audio
+        audio.STREAMERS["dies"] = lambda u, v: ["true"]      # starts, and is gone at once
+        self.addCleanup(lambda: audio.STREAMERS.pop("dies", None))
+        w = self.window()
+        screen = self.screen(w)
+        screen.player.player = "dies"
+        station = screen.rows_for[0]
+        screen.touched(station)
+        for _ in range(30):
+            settle()
+            if not screen.player.playing:
+                break
+        screen.look()
+        settle()
+        row = screen.rows.itemAt(0).widget()
+        self.assertIn(w.t("radio.silent"), row.text(),
+                      f"the row says {row.text()!r} of a station that never answered")
+
+    def test_leaving_the_screen_stops_the_station(self):
+        """A station playing on from behind the Qur'an could only be stopped by coming back
+        here to find it."""
+        w = self.window()
+        screen = self.screen(w)
+        screen.player.player = self.fake_player()
+        screen.touched(screen.rows_for[0])
+        settle()
+        self.assertTrue(screen.player.playing)
+        w.go_home()
+        settle()
+        self.assertFalse(screen.player.playing)
+        self.assertIsNone(screen.playing)
+
+    def test_a_prayer_falling_due_stops_the_station(self):
+        """Two things sounding at once is the worst version of this, and of the two it is not
+        the call that should give way."""
+        w = self.window(azaan=True)
+        screen = self.screen(w)
+        screen.player.player = self.fake_player()
+        screen.touched(screen.rows_for[0])
+        settle()
+        self.assertTrue(screen.player.playing)
+        w.call_to_prayer("maghrib")
+        settle()
+        self.addCleanup(w.let_go_of_the_box)
+        self.assertIsNone(screen.playing, "the radio played over the muezzin")
+        self.assertFalse(screen.player.playing)
+
+    def test_a_prayer_falling_due_stops_it_even_from_asleep(self):
+        """The case the sleep rule creates, and the reason the call stops the radio by name
+        rather than leaving it to the screen change.
+
+        Awake, the call goes home and the radio screen is hidden on the way, which stops it
+        as walking away does. Asleep, the screen was hidden hours ago and the sound has been
+        carrying on ever since -- so nothing is hidden, nothing fires, and without the call
+        saying so the muezzin would come up over a playing station.
+        """
+        w = self.window(azaan=True)
+        screen = self.screen(w)
+        screen.player.player = self.fake_player()
+        screen.touched(screen.rows_for[0])
+        settle()
+        w.sleep()
+        settle()
+        self.assertTrue(screen.player.playing, "the radio did not survive going to sleep")
+        w.call_to_prayer("maghrib")
+        settle()
+        self.addCleanup(w.let_go_of_the_box)
+        self.assertFalse(screen.player.playing, "the radio played under the muezzin")
+
+    def test_the_screens_may_go_dark_while_it_plays(self):
+        """The one deliberate difference from the shelf it replaced. A nasheed is a few
+        minutes and the screens stayed on for it; a station plays until somebody turns it
+        off, so a mat that cannot go dark while the radio is on is a mat left bright all
+        evening. Harry asked for the sound to carry on when the screens do."""
+        w = self.window()
+        screen = self.screen(w)
+        screen.player.player = self.fake_player()
+        screen.touched(screen.rows_for[0])
+        settle()
+        self.assertFalse(w.saying_a_passage(),
+                         "the radio is holding the screens awake")
+        w.sleep()
+        settle()
+        self.assertTrue(w.asleep, "the mat would not go to sleep with the radio on")
+        self.assertTrue(screen.player.playing, "sleep stopped the sound as well as the screens")
+
+    # The list itself
+
+    def test_every_station_has_a_name_and_an_address_that_could_be_a_stream(self):
+        w = self.window()
+        seen = set()
+        self.assertTrue(w.stations.items, "there are no stations at all")
+        for station in w.stations.items:
+            with self.subTest(station["name"]):
+                self.assertTrue(station["name"].strip())
+                self.assertRegex(station["url"], r"^https?://",
+                                 "not an address a player can open")
+                self.assertNotIn(station["key"], seen, "two stations share a key")
+                seen.add(station["key"])
+
+    def test_the_list_is_not_claimed_to_be_checked(self):
+        """Nothing on it has been heard on a mat. The machine the list was assembled on
+        reaches package registries and GitHub and nothing else, so every address came from a
+        directory rather than from listening -- tools/check_stations.py is what settles it,
+        and until somebody runs it this file says so."""
+        w = self.window()
+        self.assertFalse(w.stations.reviewed,
+                         "the station list claims to have been checked")
+
+    def test_a_station_with_no_address_is_left_off_rather_than_drawn_dead(self):
+        w = self.window()
+        stations = w.stations
+        stations._items = None
+        import json
+        from pathlib import Path as P
+        raw = json.loads(stations.path.read_text(encoding="utf-8"))
+        raw["stations"].append({"key": "broken", "name": "Nowhere", "url": "  "})
+        hold = stations.path.read_text(encoding="utf-8")
+        self.addCleanup(lambda: stations.path.write_text(hold, encoding="utf-8"))
+        stations.path.write_text(json.dumps(raw), encoding="utf-8")
+        stations._items = None
+        self.assertNotIn("broken", [s["key"] for s in stations.items])
+
+    def test_every_language_can_say_what_the_radio_needs(self):
+        for lang, pack in available_packs(ASSETS).items():
+            if lang == ARABIC_ONLY:
+                continue        # a deliberately partial pack; it falls back to English
+            for key in ("corner.radio", "radio.offline", "radio.connect", "radio.silent"):
+                with self.subTest(f"{lang}.{key}"):
+                    self.assertTrue(pack.ui.get(key, "").strip(),
+                                    f"{lang} cannot say {key}")
+
     # The rule about what ships
 
-    def test_nothing_ships_with_the_mat(self):
-        """The guard on the whole arrangement.
+    def test_no_audio_ships_without_a_licence_beside_it(self):
+        """The guard that outlived the section it was written for.
 
-        assets/nasheeds is read, so that something properly licensed could one day sit there.
-        Until a LICENCE.txt beside it says what the tracks are and on what terms, there must be
-        no audio in it -- because "we will sort the licence out later" is exactly how an mp3
-        ends up in a release, and a release is the thing that is hard to take back.
+        It used to watch assets/nasheeds alone. Nothing reads that folder now, which makes it
+        MORE likely that something is dropped in there and forgotten, so the rule is the
+        whole of assets/ instead: audio ships only where a file beside it says what it is and
+        on what terms. assets/audio is the one place that already has that -- those are
+        Harry's own recordings and its README says so, file by file.
         """
-        from salaah.nasheeds import SOUNDS
-        folder = ASSETS / "nasheeds"
-        audio = [p.name for p in folder.iterdir()
-                 if p.is_file() and p.suffix.lower() in SOUNDS] if folder.is_dir() else []
-        if audio:
-            licence = folder / "LICENCE.txt"
-            self.assertTrue(licence.is_file(),
-                            f"{audio} ship with the mat and there is no LICENCE.txt saying "
-                            f"what they are or who said they could")
-            said = licence.read_text(encoding="utf-8")
-            for name in audio:
-                self.assertIn(Path(name).stem, said,
-                              f"{name} ships and the licence file does not mention it")
-
-    def test_the_owners_folder_is_outside_everything_a_release_touches(self):
-        """It must not be under assets/ or salaah/, the two folders an update replaces whole."""
-        from salaah.nasheeds import MINE
-        for name in ("assets", "salaah"):
-            self.assertNotIn(name, MINE.parts,
-                             f"the owner's nasheeds are inside {name}, which updates replace")
-        self.assertIn(".salaah", MINE.parts, "it should sit beside the recitation cache")
-
-    def test_every_language_can_say_the_folder_is_empty(self):
-        for lang, pack in available_packs(ASSETS).items():
-            with self.subTest(lang):
-                said = pack.ui.get("nasheeds.empty", "")
-                self.assertTrue(said.strip(), f"{lang} cannot say the shelf is empty")
-                self.assertIn("{folder}", said, f"{lang} does not say which folder")
+        sounds = {".mp3", ".ogg", ".m4a", ".wav", ".flac", ".aac", ".opus"}
+        for path in sorted(ASSETS.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in sounds:
+                continue
+            folder = path.parent
+            if (ASSETS / "audio") in path.parents:
+                continue        # Harry's own, recorded for the mat; see its README
+            said = ""
+            for name in ("LICENCE.txt", "LICENSE.txt", "README.txt", "README.md"):
+                if (folder / name).is_file():
+                    said += (folder / name).read_text(encoding="utf-8", errors="replace")
+            self.assertIn(path.stem, said,
+                          f"{path.relative_to(ASSETS)} ships with the mat and nothing beside "
+                          f"it says what it is or who said it could")
 
 
 class ArrowsPointTheWayTheReadingGoesTest(unittest.TestCase):
@@ -4779,7 +4847,7 @@ class KnowledgeCornerTest(unittest.TestCase):
         w = self.window()
         self.assertTrue(w.side.showing_corner, "the 7in should show the corner between prayers")
         self.assertEqual(["quran", "salaah", "hadith", "duas",
-                          "wudu", "nasheeds", "settings", "world"],
+                          "wudu", "radio", "settings", "world"],
                          [t.name for t in w.side.corner.tiles])
 
     def test_the_posture_takes_the_small_screen_back_during_a_prayer(self):
@@ -8571,7 +8639,7 @@ class SixTileMenuTest(unittest.TestCase):
         # reading order: across, then down
         order = sorted(tiles, key=lambda t: (t.y(), t.x()))
         self.assertEqual(["quran", "salaah", "hadith", "duas",
-                          "wudu", "nasheeds", "settings", "world"],
+                          "wudu", "radio", "settings", "world"],
                          [t.name for t in order])
 
     def test_the_heading_is_gone_and_the_tiles_take_the_height(self):
@@ -11692,7 +11760,7 @@ class TwoNewTilesTest(unittest.TestCase):
     def test_both_of_them_are_drawn_and_touchable(self):
         w = self.window()
         tiles = {t.name: t for t in w.side.corner.tiles}
-        for name in ("wudu", "nasheeds"):
+        for name in ("wudu", "radio"):
             with self.subTest(name):
                 self.assertIn(name, tiles)
                 self.assertEqual(f"{name}.png", tiles[name].path.name)
@@ -11700,12 +11768,12 @@ class TwoNewTilesTest(unittest.TestCase):
                 self.assertTrue(tiles[name].isEnabled())
 
     def test_neither_lands_on_nothing_here_yet_any_more(self):
-        """This used to assert the opposite for Nasheeds, and was right to: the tile was drawn
-        before there was anything behind it. There is now, and an empty folder is not the same
-        thing as an unbuilt section -- the shelf says where to put the files."""
+        """This used to assert the opposite for the sixth tile, and was right to: it was drawn
+        before there was anything behind it. There is now -- and no connection is not the same
+        thing as an unbuilt section, so the radio opens either way and says which it is."""
         w = self.window()
         tiles = {t.name: t for t in w.side.corner.tiles}
-        for name, screen in (("nasheeds", "nasheed_screen"), ("wudu", "wudu_menu")):
+        for name, screen in (("radio", "radio_screen"), ("wudu", "wudu_menu")):
             with self.subTest(name):
                 w.go_home()
                 settle()
@@ -11718,7 +11786,7 @@ class TwoNewTilesTest(unittest.TestCase):
 
     def test_the_two_of_them_are_named_in_every_language_the_mat_speaks(self):
         for lang, pack in full_packs(available_packs(ASSETS)).items():
-            for name in ("wudu", "nasheeds"):
+            for name in ("wudu", "radio"):
                 with self.subTest(f"{lang}.{name}"):
                     self.assertTrue(pack.ui.get(f"corner.{name}", "").strip(),
                                     f"{lang} cannot name {name}")
@@ -11936,7 +12004,7 @@ class WuduScreensTest(unittest.TestCase):
         w = self.window()
         order = sorted(w.side.corner.tiles, key=lambda t: (t.y(), t.x()))
         self.assertEqual(["quran", "salaah", "hadith", "duas",
-                          "wudu", "nasheeds", "settings", "world"],
+                          "wudu", "radio", "settings", "world"],
                          [t.name for t in order])
 
 

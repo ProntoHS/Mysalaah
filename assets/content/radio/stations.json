@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "reviewed": false,
+  "note": "SEED LIST -- none of these has been heard on a mat yet. The container this was assembled in cannot reach a radio station, so every address here came from a directory rather than from listening to it. tools/check_stations.py is the thing that settles it: run it on the mat, or on any machine with a speaker and a connection, and it says which of these answer, in what codec, at what bitrate. Anything that does not answer comes out of this file before it is called finished.",
+  "licence": "The mat is a receiver. Nothing here is copied, stored or passed on -- it opens a station's own public stream the way a radio set does, and the station carries its own music licences. Any station whose terms do not allow another app to open its stream directly comes out of this list; see the note in salaah/radio.py.",
+  "stations": [
+    {
+      "key": "radio-sunna",
+      "name": "Radio Sunna",
+      "url": "https://radiosunna.radioca.st/stream",
+      "about": "Qur'an and lectures, from Mecca",
+      "country": "SA",
+      "lang": "ar",
+      "source": "islamic.app catalogue"
+    },
+    {
+      "key": "mishary",
+      "name": "Mishary Alafasy",
+      "url": "https://radio.mp3islam.com/listen/mishary/radio.mp3",
+      "about": "Recitation, around the clock",
+      "country": "KW",
+      "lang": "ar",
+      "source": "mp3islam.com, via the radio.dubbeh.net directory"
+    }
+  ]
+}

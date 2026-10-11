@@ -1,0 +1,19 @@
+Remove-Item -Recurse -Force ..\salaah-release -ErrorAction SilentlyContinue
+$zip = Get-ChildItem "$HOME\Downloads\salaah-*-changes*.zip" | Sort-Object LastWriteTime | Select-Object -Last 1
+$zip.Name
+Expand-Archive -Path $zip.FullName -DestinationPath . -Force
+$v = ([regex]'"(.+)"').Match((Select-String '__version__' salaah\__init__.py).Line).Groups[1].Value
+$v
+git status
+git add -A
+git commit -m "<what changed, in a line>"
+git push
+python tools\sign_release.py --out ..\salaah-release --url "https://github.com/ProntoHS/Mysalaah/releases/download/v$v/salaah-$v.zip"
+
+
+python tools\check_release.py
+copy ..\salaah-release\latest.json .
+git add latest.json
+git commit -m "Publish $v"
+git push
+python tools\check_release.py --live

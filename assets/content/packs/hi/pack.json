@@ -23,7 +23,7 @@
     "corner.hadith": "हदीस",
     "corner.item": "{of} में से {at}",
     "corner.kalima": "छह कलिमे",
-    "corner.nasheeds": "नशीद",
+    "corner.radio": "रेडियो",
     "corner.not_yet": "अभी तैयार नहीं।",
     "corner.quran": "क़ुरआन",
     "corner.salaah": "Salaah",
@@ -278,6 +278,9 @@
     "wudu.nose": "नाक साफ़ करें",
     "settings.restarting": "बदलाव लागू करने के लिए फिर से शुरू हो रहा है…",
     "settings.arabic_only": "केवल अरबी",
-    "nasheeds.empty": "अभी कोई नशीद नहीं। मैट पर {folder} में mp3 फ़ाइलें रखें, वे यहाँ दिखेंगी।"
+    "radio.offline": "मैट इंटरनेट से जुड़ी नहीं है। रेडियो सुनने के लिए वाई-फ़ाई से जुड़ें।",
+    "radio.connect": "वाई-फ़ाई से जुड़ें",
+    "radio.silent": "कोई जवाब नहीं — दूसरा स्टेशन आज़माएँ",
+    "radio.empty": "अभी कोई स्टेशन नहीं।"
   }
 }
