@@ -27,7 +27,7 @@ from .side import SideWindow
 from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .duamenu import DuaMenu, SAYINGS, SAYINGS_ACROSS
-from .wudu import Steps, WuduStep
+from .wudu import WORDS_PX as WUDU_WORDS_PX, Steps, WuduStep
 from .nasheeds import Nasheeds, NasheedScreen
 from .duaboard import DuaBoard
 from .recite import Store, WordTimes
@@ -779,6 +779,29 @@ class MainWindow(QtWidgets.QWidget):
         self.wake() if self.asleep else self.sleep()
         return True
 
+    def catch_up_with_the_sky(self, *screens) -> None:
+        """Put the time and the sky on a mosque that has only just been built.
+
+        A new MosqueScreen starts at its own defaults -- midday, the sun half way across --
+        and waits for the ten-second clock to tell it otherwise. On the two screens built when
+        the app starts nobody notices, because the first tick follows immediately. On a
+        prayer's own page, which is built the moment an arch is touched, it is the whole of
+        what you see: open a prayer after dark and there is a sun in a daylit sky for up to
+        ten seconds before it snaps to the moon. Harry saw it as the sky being "different when
+        selecting rakats of any prayer", and it was -- it was ten seconds behind.
+
+        Called wherever a mosque is built, so the answer cannot be forgotten in one place and
+        remembered in another.
+        """
+        now = datetime.now()
+        times = self.prayer_times(now)
+        for screen in screens:
+            if screen is None or not getattr(screen, "ready", False):
+                continue
+            screen.set_sky(*day_fraction(now, times))
+            if screen.own_sky:
+                screen.flutter.start() if screen.isVisible() else None
+
     def every_sky(self):
         """Every mosque on the mat that paints a moving sky of its own.
 
@@ -1123,7 +1146,10 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#wuduHeading {{ background:white; color:black; font-size:{px(52)}px;
                                   font-weight:bold; border-radius:{px(10)}px;
                                   padding:{px(10)}px {px(26)}px; }}
-            QLabel#wuduWords {{ color:{c.ink}; font-size:{px(38)}px; line-height:150%; }}
+            /* The size here is the FIRST of the three the A buttons on a step offer, and the
+               step sets its own on the label when another is chosen -- see wudu.WUDU_SIZES.
+               The number comes from there so the two cannot drift apart. */
+            QLabel#wuduWords {{ color:{c.ink}; font-size:{px(WUDU_WORDS_PX)}px; }}
             QLabel#prayerNameBig {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                     font-size:{px(64)}px; font-weight:bold; }}
             QWidget#banner {{ background:{c.chip}; }}
@@ -1304,6 +1330,7 @@ class MainWindow(QtWidgets.QWidget):
             return None
         screen.chosen.connect(self.leave_welcome)
         self.welcome_mosque = screen
+        self.catch_up_with_the_sky(screen)
         # The same strip as the mosque behind it, so the place and the five times are there
         # before anything is touched.
         page = QtWidgets.QWidget()
@@ -1354,6 +1381,7 @@ class MainWindow(QtWidgets.QWidget):
             return self.build_plain_home()
         self.mosque.chosen.connect(self.enter_prayer)
         self.name_the_arches()
+        self.catch_up_with_the_sky(self.mosque)
 
         w = QtWidgets.QWidget()
         lay = QtWidgets.QVBoxLayout(w)
@@ -1412,6 +1440,38 @@ class MainWindow(QtWidgets.QWidget):
         """
         return self.side is None
 
+    @staticmethod
+    def room_on_the_strip(label: QtWidgets.QLabel) -> int:
+        """How much width the times really have on the strip [label] sits in.
+
+        Worked out from the strip rather than asked of the label, because a label's own width
+        is last layout's answer: set longer text on it and width() still reports what it was
+        given before, so "does this fit" compares the new text against the old room and says
+        no every time. That is what walked the spacing down to one space however much room
+        there was.
+
+        Everything else on the strip keeps its width whatever the times say -- the pin, the
+        slider, the buttons are all fixed -- so what is left over is the room, and it can be
+        added up without laying anything out.
+        """
+        strip = label.parentWidget()
+        row = strip.layout() if strip is not None else None
+        if row is None:
+            return 0
+        edges = row.contentsMargins()
+        taken = edges.left() + edges.right() + row.spacing() * max(0, row.count() - 1)
+        for i in range(row.count()):
+            item = row.itemAt(i)
+            if item.widget() is label:
+                continue
+            if item.widget() is not None:
+                taken += item.widget().sizeHint().width()
+            elif item.layout() is not None:
+                taken += item.layout().sizeHint().width()
+            elif item.spacerItem() is not None and item.spacerItem().sizeHint().width() > 0:
+                taken += item.spacerItem().sizeHint().width()
+        return max(0, strip.width() - taken)
+
     def make_banner(self, gear: bool = True, home: bool = False) -> QtWidgets.QWidget:
         """The black strip across the top: where you are, the five prayer times with the
         current one in green, what is next -- and how loud the recitation is.
@@ -1454,6 +1514,10 @@ class MainWindow(QtWidgets.QWidget):
             cog.setToolTip(self.t("home.settings"))
             cog.pressed_signal.connect(self.open_settings)
             row.addWidget(cog)
+        # Filled in now rather than at the next tick: see write_the_times. A strip built
+        # between ticks -- which is every strip but the mosque's -- would otherwise come up
+        # blank, and on a prayer's units that is a new one every time an arch is touched.
+        self.write_the_times()
         return banner
 
     # The Knowledge Corner
@@ -1521,6 +1585,7 @@ class MainWindow(QtWidgets.QWidget):
             menu.chose.connect(lambda n: self.open_passage("kalima", n - 1))
             stack.addWidget(menu)
             self.arch_menus["kalima"] = menu
+            self.catch_up_with_the_sky(menu.mosque)
         else:
             menu.deleteLater()
 
@@ -2061,6 +2126,41 @@ class MainWindow(QtWidgets.QWidget):
         units = getattr(self, "prayer_mosque", None)
         if units is not None:
             units.set_sky(*day_fraction(now, times))
+        self.write_the_times(now, times)
+
+    def forget_the_strips_that_have_gone(self) -> None:
+        """Drop the labels whose page has been taken down.
+
+        A prayer's units are rebuilt every time an arch is touched and the old page is thrown
+        away -- so the strip that was on it is thrown away with it, while this list goes on
+        holding a Python handle to a widget that is no longer there. Writing the time to one
+        of those does not quietly do nothing: both Qt bindings raise, out of a timer, which
+        takes the app down. Two prayers and a tick was all it needed.
+
+        There is no asking a dead wrapper whether it is dead, so it is asked something
+        harmless and the ones that object are dropped.
+        """
+        alive = []
+        for label in self.banner_labels:
+            try:
+                label.objectName()
+            except RuntimeError:
+                continue
+            alive.append(label)
+        self.banner_labels = alive
+
+    def write_the_times(self, now: datetime | None = None, times: dict | None = None) -> None:
+        """The place and the five times onto every strip the window owns.
+
+        Its own method rather than part of the clock because a banner can be built between
+        ticks -- the front door's, a prayer's units, every corner screen -- and a label nobody
+        has written to yet is blank. That is the sky's fault over again: touch a prayer and
+        the strip above it has no place and no times on it until the ten-second clock comes
+        round. So make_banner calls this as soon as it has made one.
+        """
+        now = now or datetime.now()
+        times = self.prayer_times(now) if times is None else times
+        self.forget_the_strips_that_have_gone()
         # The prayer whose time it is stands out in green; the rest are in the banner's own
         # colour. Written as rich text, since a QLabel takes its colours that way.
         now_praying = current_prayer(now, times)
@@ -2080,22 +2180,27 @@ class MainWindow(QtWidgets.QWidget):
             # after it, and the words were the widest thing in a banner that had to hold more.
             return f'<span style="color:{BANNER_BLUE}">{where}</span>{gap}{shown}'
 
-        # Four spaces between the times where there is room, fewer where there is not. Four is
-        # what it has always been and what it should look like; what it should not do is run
-        # off the end, and in French and Spanish on a screen carrying a Main screen button it
-        # did -- 1167 pixels of words in 1133 of strip, so Isha lost its last digit. A rich
-        # text label does not elide, it just stops, and a prayer time with a character missing
-        # is worse than a tighter row.
+        # FOUR spaces, and the room for them comes from the slider rather than from the gaps.
         #
-        # ONE spacing for all of them, settled by the strip with the least room. Letting each
-        # pick its own was the obvious thing and was wrong: the main screen and the 7" beside
-        # it then showed the same times set differently, which is exactly the "the two banners
-        # disagree" the test of that has always watched for.
+        # The version before this tightened the spacing whenever the strip was short, which
+        # looked exactly as bad as it sounds -- "no adequate spacing and distance between the
+        # prayers, looks like one long sentence" -- and it did it on every screen at once.
+        # Two things were wrong. The squeeze was the wrong answer to begin with: the shortfall
+        # was 54 pixels in the worst language and the slider beside it was 320 wide, so there
+        # was room to be had without touching the words. And it measured every banner the
+        # window owns, including the three sitting on pages that have never been shown, whose
+        # width is a default Qt has not laid out yet -- 640 against a real 1021. Those
+        # measurements dragged every strip down to one space, including the one on screen.
+        #
+        # So: one spacing, always, and a net that only reads the banner a person is actually
+        # looking at. A hidden page cannot vote.
+        room = min([self.room_on_the_strip(x) for x in self.banner_labels
+                    if x.isVisible() and x.width() > 1] or [0])
         for spaces in (4, 3, 2, 1):
+            said = strip(spaces)
             for label in self.banner_labels:
-                label.setText(strip(spaces))
-            if all(label.width() < 1 or label.sizeHint().width() <= label.width()
-                   for label in self.banner_labels):
+                label.setText(said)
+            if room < 1 or self.banner_labels[0].sizeHint().width() <= room:
                 break
 
     # Light and dark
@@ -2230,6 +2335,7 @@ class MainWindow(QtWidgets.QWidget):
         drawn = self.prayer_page(pid)
         if drawn is not None:
             self.dress_prayer_page(pid, drawn, entries)
+            self.catch_up_with_the_sky(drawn)
             drawn.chosen.connect(lambda name: self.touched_unit(pid, name))
             self.prayer_mosque = drawn
             page = QtWidgets.QWidget()
@@ -3468,7 +3574,13 @@ class MainWindow(QtWidgets.QWidget):
         bar.setSingleStep(5)
         bar.setPageStep(10)
         bar.setValue(self.settings.volume if self.settings.recitation else 0)
-        bar.setFixedWidth(self.px(320))
+        # 240, not the 320 it was. The strip has to hold a pin, a place, five prayer times,
+        # this, a Main screen button and a cog, and at 1920 that came to 54 pixels more than
+        # there is in Spanish. Something had to give and for one version it was the spacing
+        # between the times, which Harry saw at once: "looks like one long sentence". The
+        # slider is a control and still an easy one to hit at 240; the times are the thing
+        # people read, so the slider is what gives.
+        bar.setFixedWidth(self.px(240))
         bar.setMinimumHeight(self.px(52))       # a finger, not a mouse
         # The figure beside it has gone: where the handle sits says how loud it is, and the
         # number was the only thing on the strip nobody was reading. It is still built, hidden,

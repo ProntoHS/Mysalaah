@@ -19,6 +19,7 @@ from pathlib import Path
 
 from .filmsheet import draw_themed
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal, arrows
+from .render import TextSize
 from .theme import palette
 
 # How much of the width the drawing takes. Two drawings get more, because they are laid side by
@@ -26,6 +27,28 @@ from .theme import palette
 # is the height that decides how big they come out -- the head and the ears came out at 320x480
 # each in a column 806 wide, which is a lot of empty paper either side of two small pictures.
 FILM_SHARE = {1: 0.42, 2: 0.54}
+
+# How large the description is at the first of the three sizes, at 1080p. Named here rather
+# than written into the stylesheet alone, because the A buttons multiply it and the two have
+# to be the same number -- salaah/ui.py reads it for the rule.
+WORDS_PX = 38
+
+# The three sizes the A buttons on a step choose between: how much larger the words are, and
+# how much of the films' width is left once they have grown.
+#
+# The second number is why these are not the Qur'an's 1, 1.5, 2.25. A step has a fixed panel
+# and a paragraph that has to stay inside it in one go -- Harry: "ample room for the text to
+# be visible in one slide regardless of text size chosen" -- and in the room as it stands only
+# a quarter again fits. The tightest of the seven in any language is `head` in French, which
+# at the current size already fills a little over half its panel.
+#
+# So the films give up width as the words grow, and the words rewrap wider: fewer lines, each
+# taller. They give up no more than they have to: measured across all seven steps in all seven
+# languages, the panel at the third size still has a quarter of its height spare in the worst
+# case (Spanish `head`), and the drawing comes out 333px rather than the 255px that handing
+# the words half the screen would leave it. The three worst cases are 1.92, 1.49 and 1.24
+# times the height the words need, and a test holds them above one.
+WUDU_SIZES = ((1.0, 1.0), (1.3, 0.8), (1.6, 0.65))
 
 
 class Steps:
@@ -199,6 +222,13 @@ class WuduStep(QtWidgets.QWidget):
         bottom = QtWidgets.QHBoxLayout()
         bottom.setSpacing(window.px(14))
         bottom.addStretch(1)
+        # How large the words are, to the left of the arrows, as Harry asked. In the same row
+        # so it is where a thumb already is, and before the arrows so that the pair which
+        # walks the steps stays together at the corner.
+        self.text_size = TextSize(window, self.chosen_size)
+        self.text_size.chose.connect(self.resize_words)
+        bottom.addWidget(self.text_size, 0, Qt.AlignmentFlag.AlignVCenter)
+        bottom.addSpacing(window.px(18))
         back_glyph, on_glyph = arrows(window.pack.rtl)
         self.back_button = QtWidgets.QPushButton(back_glyph)
         self.on_button = QtWidgets.QPushButton(on_glyph)
@@ -210,6 +240,35 @@ class WuduStep(QtWidgets.QWidget):
             bottom.addWidget(button)
         right.addLayout(bottom)
         across.addLayout(right, 1)
+
+    @property
+    def chosen_size(self) -> int:
+        """Which of the three is set: 0, 1 or 2, whatever the settings file holds."""
+        at = getattr(self.win.settings, "wudu_text_step", 0)
+        try:
+            at = int(at)
+        except (TypeError, ValueError):
+            at = 0
+        return max(0, min(at, len(WUDU_SIZES) - 1))
+
+    def resize_words(self, at: int) -> None:
+        """One of the three A's was touched: set the words, and give the films their share."""
+        self.win.settings.wudu_text_step = max(0, min(int(at), len(WUDU_SIZES) - 1))
+        self.text_size.set_at(self.chosen_size)
+        self.size_the_words()
+        self.room_for_the_films()
+        self.win.persist()
+
+    def size_the_words(self) -> None:
+        """The description at the chosen size.
+
+        Set on the label itself rather than through the window's stylesheet: the app-wide rule
+        gives every wu'du step the same size, and this is the one thing on the screen that has
+        to differ from it. A rule on the widget beats the app's for that one property and
+        leaves the colour alone.
+        """
+        bigger, _ = WUDU_SIZES[self.chosen_size]
+        self.words.setStyleSheet(f"font-size:{max(8, int(self.win.px(WORDS_PX) * bigger))}px;")
 
     def went_back(self) -> None:
         if self.place > 0:
@@ -224,6 +283,8 @@ class WuduStep(QtWidgets.QWidget):
     def show_step(self, step: dict, heading: str, words: str,
                   place: int = 0, of: int = 1) -> None:
         self.place, self.of = place, of
+        self.text_size.set_at(self.chosen_size)
+        self.size_the_words()
         # The last step has nowhere forward to go. Shown but not pressable, rather than taken
         # away: a button that vanishes moves the other one, and a thumb on a touchscreen learns
         # where things are.
@@ -248,11 +309,17 @@ class WuduStep(QtWidgets.QWidget):
 
     def room_for_the_films(self) -> None:
         share = FILM_SHARE.get(len(self.films), max(FILM_SHARE.values()))
+        # And narrower again as the words grow, which is what keeps a step on one screen at
+        # the larger sizes: the words rewrap into the width the films give up.
+        share *= WUDU_SIZES[self.chosen_size][1]
         self.stage.setFixedWidth(max(1, int(self.width() * share)))
 
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
         self.room_for_the_films()
+        # px() follows the window, so the words' own size has to be worked out again or a
+        # resize leaves them set for the screen that is no longer there.
+        self.size_the_words()
 
     def start(self) -> None:
         for film in self.films:

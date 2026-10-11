@@ -1,6 +1,7 @@
 """Drives the real screens without a display and saves screenshots to /tmp/salaah-shots."""
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -8272,6 +8273,98 @@ class BannerStripTest(unittest.TestCase):
                 self.assertTrue(pins, f"{name}: no pin")
                 self.assertFalse(pins[0].pixmap().isNull(), f"{name}: the pin is empty")
 
+    def test_the_times_are_spaced_out_rather_than_run_together(self):
+        """Harry: "the text all looks joined up, there is no adequate spacing and distance
+        between the prayers, looks like one long sentence".
+
+        What had happened: the strip narrows its gaps when the words will not fit, and it was
+        asking every banner the window owns whether they fit -- including the ones on pages
+        that have never been shown, which report a width Qt gave them before it ever laid
+        them out (640 against a real 1021). Those hidden pages voted the gap down to a single
+        space on the screen you were actually looking at.
+
+        Measured in pixels off the strip rather than counted in the markup, because the markup
+        is what the code wrote and the gap is what a person sees: the strip is rendered as it
+        stands, then again with every gap taken out, and the difference is the spacing, which
+        has to come to at least three spaces for each of the five gaps on the row.
+        """
+        w = self.window()
+        for name, bar in self.every_screen(w).items():
+            with self.subTest(name):
+                said = next(c for c in bar.findChildren(QtWidgets.QLabel)
+                            if c.objectName() == "bannerText")
+                # How many gaps there are on the row, not how wide they are: a run of spaces
+                # however long counts once, and the width of them is measured below.
+                gaps = len(re.findall(r"(?:&nbsp;)+", said.text()))
+                self.assertGreaterEqual(gaps, 4, f"{name}: no gaps on the strip at all")
+                shut_up = QtWidgets.QLabel(said.text().replace("&nbsp;", ""))
+                shut_up.setTextFormat(Qt.TextFormat.RichText)
+                shut_up.setFont(said.font())
+                self.addCleanup(shut_up.deleteLater)
+                thin = QtGui.QFontMetrics(said.font()).horizontalAdvance(" ")
+                spacing = said.sizeHint().width() - shut_up.sizeHint().width()
+                self.assertGreaterEqual(
+                    spacing, thin * 3 * gaps,
+                    f"{name}: {spacing}px of spacing across {gaps} gaps -- under three "
+                    f"spaces each, which is the row reading as one long sentence")
+                self.assertLessEqual(said.sizeHint().width(), said.width(),
+                                     f"{name}: spaced out, but now it does not fit")
+
+    @staticmethod
+    def gap(label) -> int:
+        """The widest run of spaces on the strip, counted in spaces."""
+        return max((len(run) // len("&nbsp;")
+                    for run in re.findall(r"(?:&nbsp;)+", label.text())), default=0)
+
+    def test_opening_one_prayer_after_another_does_not_take_the_app_down(self):
+        """A strip that has been thrown away is not written to again.
+
+        A prayer's units are built fresh every time an arch is touched and the old page is
+        deleted -- but the window went on holding a handle to the strip that was on it, and
+        writing the time to a widget that is no longer there raises, in both bindings, out of
+        the ten-second timer. Two prayers and a tick was all it took; what Harry would have
+        seen is the mat dropping to the desktop, or now restarting itself.
+        """
+        w = self.window()
+        for prayer in ("fajr", "dhuhr", "isha", "asr"):
+            w.open_prayer(prayer)
+            settle()
+            w.tick()
+            settle()
+        said = next(c for c in self.strip(w.pick).findChildren(QtWidgets.QLabel)
+                    if c.objectName() == "bannerText")
+        self.assertIn(":", said.text(), "the strip on the page you are looking at is blank")
+        self.assertLessEqual(len(w.banner_labels), 8,
+                             f"{len(w.banner_labels)} strips are being kept for "
+                             f"{len(w.stack.children())} pages; the dead ones pile up")
+
+    def test_the_spacing_comes_back_when_there_is_room_again(self):
+        """The other half of the same fault, and the half that made it stick.
+
+        How much room the times have was asked of the label -- and a label's width is last
+        layout's answer, so once the row had been squeezed onto a narrow window the measure
+        of the room was the squeezed width, and the four spaces never fitted again however
+        wide the window went afterwards. Measured: 1920 gives four spaces, 900 gives two,
+        and back at 1920 the old way gives one, for good.
+
+        The room is worked out from the strip instead -- its width less the pin, the slider
+        and the buttons, all of which are fixed -- so it is right the moment it is asked.
+        """
+        w = self.window()
+        w.stack.setCurrentWidget(w.home)
+        settle()
+        said = next(c for c in self.strip(w.home).findChildren(QtWidgets.QLabel)
+                    if c.objectName() == "bannerText")
+        self.assertGreaterEqual(self.gap(said), 4, "it did not start out spaced")
+        for wide in (900, 1920):
+            w.resize(wide, 1080)
+            settle()
+            w.tick()
+            settle()
+        self.assertGreaterEqual(self.gap(said), 4,
+                                "the strip was squeezed onto a narrow window and stayed "
+                                "squeezed when the room came back")
+
 
 class WalkIntoTheNameTest(unittest.TestCase):
     """Touching MySalaah walks into the name, the way touching an arch walks into the arch."""
@@ -8571,9 +8664,16 @@ class VolumeSliderLookTest(unittest.TestCase):
         self.assertNotIn("%", said, "a percentage is still printed on the strip")
 
     def test_it_is_bigger_than_it_was(self):
+        """Wide enough for a thumb, which is why it was made bigger in the first place.
+
+        It asked for 300 until the strip ran out of room in Spanish and the spacing between
+        the prayer times was what gave way -- "looks like one long sentence". The slider gave
+        up those 80 pixels instead: it is a control, and still an easy one to hit at 240,
+        where the times are the thing people read.
+        """
         w = self.window()
         bar = self.showing(w)
-        self.assertGreaterEqual(bar.width(), w.px(300), "no wider than before")
+        self.assertGreaterEqual(bar.width(), w.px(240), "no wider than before")
         self.assertGreaterEqual(bar.height(), w.px(50), "no taller than before")
 
     def test_it_still_fits_inside_the_strip(self):
@@ -11872,6 +11972,156 @@ class StepArrowsTest(unittest.TestCase):
                         "and stop the drawing on the way")
 
 
+class WuduTextSizeTest(unittest.TestCase):
+    """The three A's on a wu'du step.
+
+    Harry: "add the same text size button from earlier, place it near the arrows on the bottom
+    right of the screen, to the left of the arrows, do it for steps of wudu. the current size
+    will be starting size so will go bigger twice, there should be ample room for the text to
+    be visible in one slide regardless of text size chosen."
+
+    The same widget as the Qur'an's, with its own sizes: a step has a fixed panel and the
+    whole of the description has to stay inside it in one go, so the films give up width as
+    the words grow and the words rewrap into it.
+    """
+
+    def window(self, lang="en", **kw):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang, **kw),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_wudu_step("hands")
+        settle(4)
+        return w
+
+    def test_three_sizes_sitting_to_the_left_of_the_arrows(self):
+        w = self.window()
+        step = w.wudu_step
+        from salaah.render import TextSize
+        from salaah.wudu import WUDU_SIZES
+        self.assertIsInstance(step.text_size, TextSize, "the A's are not the mat's own widget")
+        self.assertEqual(3, len(WUDU_SIZES))
+        self.assertEqual(3, len(step.text_size.boxes()), "there should be three A's")
+        self.assertTrue(step.text_size.isVisible(), "the A's are not on the screen")
+        mine = step.text_size.geometry()
+        self.assertLess(mine.right(), step.back_button.geometry().left() + 2,
+                        "the A's should be to the LEFT of the arrows")
+        here = step.text_size.mapTo(step, QtCore.QPoint(0, 0))
+        self.assertGreater(here.x(), step.width() * 0.6, "not over on the right")
+        self.assertGreater(here.y(), step.height() * 0.6, "not down at the bottom")
+        self.assertLess(abs(mine.center().y() - step.back_button.geometry().center().y()),
+                        w.px(20), "the A's and the arrows are not on the same line")
+
+    def test_the_chosen_one_is_red_and_it_starts_on_the_smallest(self):
+        w = self.window()
+        step = w.wudu_step
+        self.assertEqual(0, step.chosen_size, "a step should open at the size it was left at")
+        for at in (0, 1, 2):
+            with self.subTest(at):
+                step.resize_words(at)
+                settle()
+                shot = step.text_size.grab().toImage()
+                for i, box in enumerate(step.text_size.boxes()):
+                    spot = QtCore.QPoint(int(box.left() + box.width() * 0.12),
+                                         int(box.top() + box.height() * 0.12))
+                    c = QtGui.QColor(shot.pixel(spot))
+                    red = c.red() > c.green() + 60 and c.red() > c.blue() + 60
+                    self.assertEqual(i == at, red,
+                                     f"box {i} is {'red' if red else 'grey'} and {at} is chosen")
+
+    def test_each_step_up_makes_the_words_bigger_and_the_drawing_smaller(self):
+        """Both halves, because the second is how the first is paid for: the words only have
+        room to grow because the films hand width over, and a size that grew the words without
+        narrowing the stage would push the last lines off the bottom of the panel."""
+        w = self.window()
+        step = w.wudu_step
+        sizes, stages = [], []
+        for at in (0, 1, 2):
+            step.resize_words(at)
+            settle()
+            sizes.append(QtGui.QFontMetrics(step.words.font()).height())
+            stages.append(step.stage.width())
+        self.assertEqual(sorted(set(sizes)), sizes, f"the words do not grow: {sizes}")
+        self.assertEqual(sorted(set(stages), reverse=True), stages,
+                         f"the drawing does not give up any width: {stages}")
+
+    def test_every_step_fits_in_one_slide_at_every_size(self):
+        """What Harry actually asked for, and the thing that decided the numbers.
+
+        Every step, in the languages whose words run longest, at all three sizes: the whole
+        description has to be inside its panel. A QLabel does not scroll and does not elide --
+        it simply stops -- so a paragraph that overruns loses its last lines with nothing to
+        say it has.
+        """
+        for lang in ("en", "fr", "es"):
+            w = self.window(lang)
+            step = w.wudu_step
+            for row in w.wudu.steps:
+                w.open_wudu_step(row["key"])
+                settle(3)
+                for at in (0, 1, 2):
+                    with self.subTest(f"{lang}/{row['key']} at {at}"):
+                        step.resize_words(at)
+                        settle(3)
+                        needs = step.words.heightForWidth(step.words.width())
+                        self.assertLessEqual(
+                            needs, step.words.height(),
+                            f"{lang}/{row['key']} at size {at}: {needs}px of words in a "
+                            f"{step.words.height()}px panel -- the end of it is off screen")
+
+    def test_the_drawing_is_still_worth_looking_at_at_the_largest_size(self):
+        """The films are the point of the step screen, so they give up no more width than the
+        words need. Measured on the head, which is the one step with two drawings sharing the
+        column and therefore the narrowest of the seven: handing the words half the screen
+        left each drawing 255px wide, and keeping two thirds of the share leaves them 333."""
+        w = self.window()
+        step = w.wudu_step
+        w.open_wudu_step("head")
+        settle(3)
+        self.assertEqual(2, len(step.films), "the head should have two drawings on it")
+        step.resize_words(2)
+        settle()
+        self.assertGreaterEqual(step.films[0].drawn_size().width(), w.px(300),
+                                "the drawing has been squeezed down to a thumbnail")
+
+    def test_the_size_is_remembered(self):
+        w = self.window()
+        w.wudu_step.resize_words(2)
+        settle()
+        self.assertEqual(2, w.settings.wudu_text_step, "the chosen size was not written down")
+        self.assertIn("wudu_text_step", Settings.__dataclass_fields__,
+                      "it is not a setting, so it will not survive the app being closed")
+        later = self.window(wudu_text_step=2)
+        self.assertEqual(2, later.wudu_step.chosen_size,
+                         "a step did not open at the size it was left at")
+
+    def test_the_quran_keeps_its_own_size(self):
+        """Two settings, not one: the Qur'an is read sitting down and a wu'du step is read
+        standing at a basin, and the steps give their words less room, so the two screens do
+        not share an answer."""
+        w = self.window()
+        w.wudu_step.resize_words(2)
+        settle()
+        self.assertEqual(0, w.settings.text_step, "it moved the Qur'an's size as well")
+
+    def test_an_odd_setting_does_not_stop_a_step(self):
+        w = self.window()
+        step = w.wudu_step
+        for odd in (-1, 99, "big", None):
+            with self.subTest(repr(odd)):
+                w.settings.wudu_text_step = odd
+                w.open_wudu_step("head")
+                settle(3)
+                self.assertIn(step.chosen_size, (0, 1, 2))
+                self.assertTrue(step.words.text(), "the step came up with nothing on it")
+
+
 class FilmsFollowTheThemeTest(unittest.TestCase):
     """Harry's drawings are black lines on white paper. On the night screen that was a slab of
     white light beside words in the opposite colours; everything else on the mat inverts, and
@@ -12887,3 +13137,120 @@ class SunGlowTest(unittest.TestCase):
                 shot = m.grab().toImage()
                 middle = QtGui.QColor(shot.pixel(int(centre.x()), int(centre.y())))
                 self.assertEqual(SUN.name(), middle.name(), f"{theme}: the sun is not amber")
+
+
+class EveryMosqueOpensOnTheRightSkyTest(unittest.TestCase):
+    """A mosque built after the app has started shows the sky as it is now, straight away.
+
+    Harry: "the sky animation is different when selecting rakats of any prayer. i want the sky
+    and its animation to be the same as main home page and main prayer page."
+
+    It was not a different animation. A MosqueScreen comes up at its own defaults -- the sun,
+    half way across -- and waits for the ten-second clock to tell it otherwise. The two built
+    when the app starts are told within the same breath, so nobody sees it. A prayer's units
+    are built the moment an arch is touched: open a prayer after dark and there is a sun in a
+    daylit sky for up to ten seconds before it snaps to the moon.
+
+    The clock is held at ten at night here, which is the other side of the default from the
+    sun in the middle of the day, so a screen that has not been told shows the wrong thing.
+    """
+
+    AFTER_DARK = None       # filled in below, once datetime is imported
+
+    def frozen(self):
+        from datetime import datetime as real
+
+        class Frozen(real):
+            @classmethod
+            def now(cls, tz=None):
+                return real(2026, 1, 15, 22, 0)
+
+        self.AFTER_DARK = Frozen.now()
+        return mock.patch("salaah.ui.datetime", Frozen)
+
+    def window(self, tick=True):
+        held = self.frozen()
+        held.start()
+        self.addCleanup(held.stop)
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        if tick:
+            w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def sky(self, screen):
+        return (screen.sun_up, round(screen.through, 2))
+
+    def test_the_clock_being_held_really_does_put_the_moon_up(self):
+        """The guard on everything below: if ten at night still read as a sunny midday, each
+        of these tests would be comparing a default against itself and passing on nothing."""
+        w = self.window()
+        from salaah.mosque import MosqueScreen
+        self.assertFalse(w.mosque.sun_up, "ten at night is not after dark on this mat")
+        from salaah.render import Fonts
+        fresh = MosqueScreen(ASSETS, Fonts.english_family)
+        self.addCleanup(fresh.deleteLater)
+        self.assertNotEqual(self.sky(w.mosque), self.sky(fresh),
+                            "a new mosque already agrees with the sky, so nothing is proved")
+
+    def test_a_prayers_units_open_on_the_same_sky_as_the_mosque(self):
+        w = self.window()
+        for prayer in ("fajr", "dhuhr", "isha"):
+            with self.subTest(prayer):
+                w.open_prayer(prayer)
+                settle()
+                units = w.prayer_mosque
+                self.assertIsNotNone(units, f"{prayer}: no drawing to look at")
+                self.assertFalse(units.sun_up,
+                                 f"{prayer}: the sun is up on the units at ten at night")
+                self.assertEqual(self.sky(w.mosque), self.sky(units),
+                                 f"{prayer}: the units came up on a different sky from the "
+                                 f"mosque they were opened from")
+
+    def test_the_front_door_and_the_kalima_do_too(self):
+        """The same answer in the two other places a mosque is built, so it cannot be
+        remembered in one and forgotten in another.
+
+        Before the clock has run once, which is the only moment at which these two can be
+        wrong: they are built while the app is starting and the first tick follows close
+        behind. Close behind is not the same as at once, and the front door is the first
+        thing anybody sees.
+        """
+        w = self.window(tick=False)
+        for name, screen in (("the front door", getattr(w, "welcome_mosque", None)),
+                             ("the kalima", w.arch_menus["kalima"].mosque)):
+            with self.subTest(name):
+                self.assertIsNotNone(screen, f"{name}: no drawing to look at")
+                self.assertFalse(screen.sun_up,
+                                 f"{name}: the sun is up on it at ten at night")
+                self.assertEqual(self.sky(w.mosque), self.sky(screen),
+                                 f"{name}: a different sky from the mosque")
+
+    def test_the_moon_is_really_drawn_on_the_new_screen(self):
+        """Off the screen rather than off the attribute: set_sky can be told the right thing
+        and still have painted the sun, and the sun is the complaint."""
+        from salaah.mosque import MOON, SUN
+        w = self.window()
+        w.open_prayer("isha")
+        settle(6)
+        units = w.prayer_mosque
+        scaled, origin, _ = units.placement()
+        centre, radius = units.sky_body(scaled, origin)
+        shot = units.grab().toImage()
+        # On the limb of the crescent, not in the middle of it: the moon is a disc with a
+        # second disc taken out towards the upper right, so its own centre is sky.
+        limb = QtCore.QPoint(int(centre.x() - radius * 0.75), int(centre.y() + radius * 0.2))
+        found = QtGui.QColor(shot.pixel(limb))
+        self.assertEqual(MOON.name(), found.name(),
+                         f"the body in the sky is {found.name()}; the sun is {SUN.name()}")
+        self.assertNotEqual(
+            SUN.name(),
+            QtGui.QColor(shot.pixel(int(centre.x()), int(centre.y()))).name(),
+            "there is a sun up at ten at night")

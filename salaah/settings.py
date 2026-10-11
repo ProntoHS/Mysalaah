@@ -28,6 +28,12 @@ class Settings:
                               # the one before -- see reading.TEXT_STEPS. Kept here rather than
                               # on the Settings screen because it is a thing you reach for
                               # while reading, with the page in front of you.
+    wudu_text_step: int = 0   # the same question for the wu'du steps, which have their own row
+                              # of three A buttons beside the arrows. A separate setting because
+                              # the two screens are read at different distances -- the Qur'an
+                              # sitting down, the wu'du standing at a basin -- and because the
+                              # steps give the words less room, so the sizes differ: see
+                              # wudu.WUDU_SIZES against reading.TEXT_STEPS.
     inset: int = 0  # pixels kept clear on every edge, if the monitor cuts them off
     main_output: str = ""  # the screen the words went on last time, e.g. HDMI-A-1
     side_output: str = ""  # the 7" posture screen last time; both are worked out if they are wrong

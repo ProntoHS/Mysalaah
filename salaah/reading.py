@@ -19,7 +19,7 @@ from __future__ import annotations
 from .audio import WHOLE, Span
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal, arrows
 from .quran import RTL, Quran, Surah, Verse
-from .render import Fonts, ParallelText, TextBox
+from .render import Fonts, ParallelText, TextBox, TextSize
 from .theme import palette
 
 # The Arabic is never drawn smaller than this (at 1080p). Fitting more verses on a page by
@@ -439,104 +439,6 @@ class Spread(QtWidgets.QWidget):
     def follow_theme(self) -> None:
         for w in (self.parallel, self.left, self.right):
             w.update()
-
-
-class TextSize(QtWidgets.QWidget):
-    """Three A's, each larger than the last. Touch one to set the Qur'an at that size.
-
-    Drawn rather than pictured. Harry sent it as three screenshots -- small chosen, middle
-    chosen, large chosen -- and three pictures would be three files that do not know what size
-    the screen is, do not turn over with the theme, and would need a fourth and a fifth if the
-    row ever grew. It is three rounded squares and a letter, so it is drawn, the way the
-    settings cog on the banner is. The shape, the proportions and the red are measured off his
-    drawing: boxes 123, 140 and 156 wide standing on one line, and #DC1824 on the chosen one.
-
-    The letter in each box is drawn at the size that box stands for, which is the whole point
-    of the control -- the buttons are a picture of what they do.
-    """
-
-    chose = Signal(int)
-
-    CHOSEN = QtGui.QColor("#DC1824")      # off Harry's drawing
-    RESTING = QtGui.QColor("#565656")
-    WIDTHS = (0.79, 0.90, 1.0)            # of the tallest box, as he drew them
-    HEIGHTS = (0.58, 0.79, 1.0)
-    GAP = 0.09                            # of the tallest box
-
-    def __init__(self, window, at: int = 0):
-        super().__init__()
-        self.win = window
-        self.at = at
-        self.pressed: int | None = None
-        self.setObjectName("textSize")
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        # Fixed, and sized here rather than left to the layout. A row with a stretch in it
-        # gives a widget whatever is left over, which for this one was a sliver of the first
-        # box and two slivers of the others -- the boxes are drawn to a proportion, so being
-        # handed the wrong shape does not shrink them, it clips them.
-        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed,
-                           QtWidgets.QSizePolicy.Policy.Fixed)
-        self.setFixedSize(self.sizeHint())
-
-    def sizeHint(self) -> QtCore.QSize:
-        tall = self.win.px(52)
-        wide = sum(int(tall * w) for w in self.WIDTHS) + int(tall * self.GAP) * 2
-        return QtCore.QSize(wide, tall)
-
-    def boxes(self) -> list[QtCore.QRectF]:
-        """Where the three sit: bottom-aligned on one line, growing to the right."""
-        tall = self.height()
-        gap = tall * self.GAP
-        wide = sum(tall * w for w in self.WIDTHS) + gap * 2
-        x = (self.width() - wide) / 2
-        out = []
-        for w, h in zip(self.WIDTHS, self.HEIGHTS):
-            box = QtCore.QRectF(x, self.height() - tall * h, tall * w, tall * h)
-            out.append(box)
-            x += box.width() + gap
-        return out
-
-    def set_at(self, at: int) -> None:
-        if at != self.at:
-            self.at = at
-            self.update()
-
-    def paintEvent(self, _):
-        painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        painter.setPen(Qt.PenStyle.NoPen)
-        for i, box in enumerate(self.boxes()):
-            colour = QtGui.QColor(self.CHOSEN if i == self.at else self.RESTING)
-            if i == self.pressed:
-                colour = colour.lighter(130)
-            painter.setBrush(colour)
-            painter.drawRoundedRect(box, box.width() * 0.14, box.width() * 0.14)
-            font = QtGui.QFont(Fonts.english_family)
-            font.setWeight(QtGui.QFont.Weight(700))
-            font.setPixelSize(max(8, int(box.height() * 0.58)))
-            painter.setFont(font)
-            painter.setPen(QtGui.QColor("white"))
-            painter.drawText(box, int(Qt.AlignmentFlag.AlignCenter), "A")
-            painter.setPen(Qt.PenStyle.NoPen)
-
-    def which(self, point: QtCore.QPointF) -> int | None:
-        for i, box in enumerate(self.boxes()):
-            if box.contains(point):
-                return i
-        return None
-
-    def mousePressEvent(self, event):
-        self.pressed = self.which(event.position())
-        self.update()
-
-    def mouseReleaseEvent(self, event):
-        was, self.pressed = self.pressed, None
-        self.update()
-        here = self.which(event.position())
-        if here is not None and here == was:
-            self.set_at(here)
-            self.chose.emit(here)
 
 
 class Reader(QtWidgets.QWidget):
