@@ -3205,9 +3205,10 @@ class ListSliderIsThickEnoughForAThumbTest(unittest.TestCase):
     """The slider down the side of the surah list, and the other lists that share it.
 
     A desktop draws this 14px wide, which is a target for a mouse pointer. It went to 42 when
-    the lists were built and Harry asked for it thicker again after dragging it on glass, so
-    it is 56 -- about a centimetre on the mat's screen, which is the width of the thumb doing
-    the dragging rather than the width of a line somebody thought looked right.
+    the lists were built, to 56 when Harry had dragged it on glass, and to 84 when he had
+    dragged it again -- about a centimetre and a half on the mat's screen, which is the width
+    of the thumb doing the dragging rather than the width of a line somebody thought looked
+    right.
     """
 
     def window(self, lang="en"):
@@ -3234,12 +3235,23 @@ class ListSliderIsThickEnoughForAThumbTest(unittest.TestCase):
                                 f"the slider came out {bar.width()}px")
 
     def test_it_is_thicker_than_it_was_and_far_thicker_than_a_desktops(self):
-        """Measured against the two numbers that mean something: 14px is what Qt gives a
-        mouse, and 42 is where this was before Harry used it."""
+        """Measured against the numbers that mean something: 14px is what Qt gives a mouse,
+        42 is where this was before Harry used it, and 56 is where it was when he asked for
+        it half again as wide."""
         from salaah.reading import LIST_BAR
-        self.assertGreater(LIST_BAR, 42, "no thicker than it already was")
+        self.assertGreaterEqual(LIST_BAR, int(56 * 1.5), "not half again as wide as it was")
         self.assertGreater(LIST_BAR, 14 * 3)
-        self.assertLess(LIST_BAR, 90, "a slider, not a column")
+        self.assertLess(LIST_BAR, 120, "a slider, not a column")
+
+    def test_the_rows_are_still_the_bigger_part_of_the_screen(self):
+        """The guard on asking for it wider again: the slider takes its room out of the rows,
+        so there is a width at which the list is a slider with some surahs beside it."""
+        w = self.window()
+        w.open_corner("quran")
+        settle(8)
+        bar = w.surah_list.scroll.verticalScrollBar()
+        self.assertLess(bar.width(), w.surah_list.width() * 0.1,
+                        f"the slider is {bar.width()}px of a {w.surah_list.width()}px screen")
 
     def test_the_list_gives_up_the_width_rather_than_being_sat_on(self):
         """A fatter slider must take its room out of the rows, not cover them. The rows are
@@ -4820,6 +4832,37 @@ class QuranTest(unittest.TestCase):
         rows = w.surah_list.findChildren(QtWidgets.QPushButton)
         rows = [b for b in rows if b.objectName() == "surahRow"]
         self.assertEqual(114, len(rows))
+
+    def test_nothing_is_written_above_the_list_but_the_room_is_still_there(self):
+        """Harry: "remove the text 'The 114 surahs' completely but leave the gap as it is".
+
+        It was a caption telling you what you were already looking at. The label it was in
+        stays, empty: that is what holds the gap open, and it holds it at a line of the
+        heading's own type rather than at a number of pixels somebody chose.
+        """
+        w = self.window()
+        w.open_corner_list()
+        settle()
+        lst = w.surah_list
+        said = [x.text() for x in lst.findChildren(QtWidgets.QLabel) if x.text()]
+        self.assertEqual("", lst.title.text(), "there is still a heading above the list")
+        # In every language, since the caption is a line in each pack. The row for surah 114
+        # of course says 114, so what is looked for is the caption's own text.
+        for lang in WRITTEN_IN + (ARABIC_ONLY,):
+            self.assertNotIn(w.packs[lang].ui.get("corner.surahs", "\0"), said,
+                             f"the {lang} caption is still on the list")
+        # A line of the heading's own type, measured off the reader's heading rather than off
+        # this screen's: a label that has been taken out of the layout is still an object and
+        # still answers questions, in the plain system font, so asking the empty one how tall
+        # its line is would make the gap look right exactly when it had gone.
+        line = QtGui.QFontMetrics(w.reader.title.font()).height()
+        self.assertGreater(line, 20, "the heading type was not found")
+        first = min((b for b in lst.findChildren(QtWidgets.QPushButton)
+                     if b.objectName() == "surahRow"),
+                    key=lambda b: b.mapTo(lst, QtCore.QPoint(0, 0)).y())
+        self.assertGreaterEqual(first.mapTo(lst, QtCore.QPoint(0, 0)).y(), line,
+                                "the first surah has come up against the strip above -- the "
+                                "caption went and took the gap with it")
 
     def test_each_is_named_in_arabic_and_in_english(self):
         w = self.window()
@@ -11387,27 +11430,31 @@ class SayingsMenuTest(unittest.TestCase):
         """Harry: "some hadiths will fall under multiple categories, which is fine."
 
         Checked on the board rather than in the file, because what matters is that the same
-        narration comes up under either tile. The bag is shuffled, so it is dealt until the
-        one being looked for appears rather than opened once and hoped for -- and the loop is
-        bounded by the size of the heading, since the bag deals everything before repeating.
+        narration comes up under either tile. It is walked with the arrows: until 1.68 the
+        board dealt a random pair and this test opened the heading over and over hoping the
+        one it wanted would turn up, which is the very thing the arrows were asked for.
         """
         w = self.window()
         shared = [i for i in w.hadith_board.passages.items if len(i.cats) > 1]
         self.assertTrue(shared, "nothing is filed under two headings")
+        board = w.hadith_board
         for item in shared[:4]:
             for heading in item.cats:
                 with self.subTest(f"{item.ref} under {heading}"):
-                    held = sum(1 for p in w.hadith_board.passages.items
-                               if heading in p.cats)
+                    w.open_saying_category(heading)
+                    settle(2)
                     found = False
-                    for _ in range(held + 2):
-                        w.open_saying_category(heading)
-                        settle(2)
-                        if any(p.ref == item.ref for _, p in w.hadith_board.showing):
+                    for _ in range(board.pages() + 2):
+                        if any(p.ref == item.ref for _, p in board.showing):
                             found = True
                             break
-                    self.assertTrue(found, f"{item.ref} never came up under {heading} "
-                                           f"in {held + 2} visits to a heading of {held}")
+                        if not board.later.isEnabled():
+                            break
+                        board.later.click()
+                        settle(2)
+                    self.assertTrue(found, f"{item.ref} is filed under {heading} but walking "
+                                           f"that heading's {board.pages()} pages never "
+                                           f"reached it")
 
     def test_the_heading_is_written_across_the_top_in_the_reading_language(self):
         w = self.window()
@@ -11644,11 +11691,17 @@ class TwoNewTilesTest(unittest.TestCase):
 
 
 class FreshPairTest(unittest.TestCase):
-    """Two at a time, and a different two every time the kind is opened -- on both boards.
+    """Two at a time, and a different two every time the kind is opened -- on the DU'A board.
 
     It used to be random.sample, which is not the same thing: two drawn out of four at random
     come up the same about one visit in six, and nothing promises the other two are ever seen.
     Each kind keeps a shuffled bag now and two are dealt off the top.
+
+    The sayings board used the same bag until 1.68, when Harry asked for arrows on it instead:
+    a category holds five to eleven of a hundred and nine, which is too many to meet two at a
+    time however fairly they are dealt. It is walked now -- see WalkingTheSayingsTest -- and
+    what is left here is the du'as, where a kind holds two to five and they are things you say
+    rather than read through.
     """
 
     def window(self):
@@ -11672,8 +11725,7 @@ class FreshPairTest(unittest.TestCase):
             out.append(frozenset(i for i, _ in board.showing))
         return out
 
-    BOTH = (("sayings", "hadith_board", "open_saying_category", "character"),
-            ("du'as", "dua_board", "open_dua_category", "worry"))
+    BOTH = (("du'as", "dua_board", "open_dua_category", "worry"),)
 
     def test_never_the_same_two_twice_running(self):
         w = self.window()
@@ -11710,17 +11762,15 @@ class FreshPairTest(unittest.TestCase):
 
     def test_a_kind_holding_only_two_shows_both_and_does_not_fall_over(self):
         w = self.window()
-        board = w.hadith_board
-        board.show_only("hereafter", "The Hereafter")
+        board = w.dua_board
+        board.show_only("worry", "Worry")
         settle()
-        board.passages._items = [x for x in board.passages.items
-                                 if "hereafter" not in x.cats][:0] or board.passages.items
         # A kind with two in it: faked by asking the board for a pair out of exactly two.
-        held = [(i, x) for i, x in enumerate(board.passages.items) if "hereafter" in x.cats][:2]
+        held = [(i, x) for i, x in enumerate(board.passages.items) if "worry" in x.cats][:2]
         board.wanted = lambda: held
         board.bags.clear()
         for _ in range(4):
-            board.show_only("hereafter", "The Hereafter")
+            board.show_only("worry", "Worry")
             settle()
             self.assertEqual(2, len(board.showing))
             self.assertEqual({i for i, _ in held}, {i for i, _ in board.showing})
@@ -12794,6 +12844,23 @@ class ReadingBarTest(unittest.TestCase):
                         "the reading bar's A's are as big as the wu'du steps' -- the bar has "
                         "a title and a play button in it and cannot take that")
 
+    def test_the_arrows_are_the_size_of_the_largest_a(self):
+        """Harry, once the A's had grown: "the < > arrows at the top, make them a little
+        bigger so their boxes are the same size as the largest A". Their height, the way a
+        wu'du step matches its A's to its arrows -- they stay wider than they are tall,
+        because an arrow in a square is a smaller target for a thumb than one in a pill.
+        """
+        w = self.window()
+        r = self.reader(w)
+        biggest = r.text_size.boxes()[-1]
+        for name, button in (("<", r.earlier), (">", r.later)):
+            with self.subTest(name):
+                self.assertEqual(round(biggest.height()), button.height(),
+                                 f"{name} is {button.height()} tall against an A of "
+                                 f"{round(biggest.height())}")
+                self.assertGreaterEqual(button.width(), button.height(),
+                                        f"{name} is narrower than it is tall")
+
     def test_the_bigger_as_have_not_pushed_the_page_off_the_bottom(self):
         """A taller bar is a shorter page, and the page is what the surah has to fit in."""
         w = self.window()
@@ -13473,3 +13540,184 @@ class TimeOnTheDomeTest(unittest.TestCase):
         now = middle_of(lambda p: m.draw_the_time(p, font, where, QtGui.QColor("black")))
         self.assertLess(abs(now[0] - was[0]), 6, f"it has moved sideways: {was} to {now}")
         self.assertLess(abs(now[1] - was[1]), 6, f"it has moved up or down: {was} to {now}")
+
+
+class WalkingTheSayingsTest(unittest.TestCase):
+    """Arrows on the sayings board, and the randomiser gone from it.
+
+    Harry: "in the hadith sections when selecting a category and it currently shows 2 random
+    hadith passages, could we add a < > buttons and place them under the "Main Screen"
+    button, there is space. this will allow us to drop the randomiser and let the user
+    scroll, this will also allow us to obtain more hadiths and some do fall under multiple
+    categories."
+
+    Which is the whole case for it: a category holds five to eleven of the hundred and nine,
+    so two drawn at random is a glimpse of a category rather than a reading of it -- and a
+    saying filed under two headings should be reachable under both, in its place, rather than
+    being one more ticket in two raffles.
+    """
+
+    def window(self, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def walk(self, w, board, forward=True):
+        """Every index seen from here to the end, in the order they come up.
+
+        Capped, because "the end" is the arrow going dead and a board that wrapped round
+        would walk for ever: a test that hangs is a test nobody runs.
+        """
+        seen = []
+        button = board.later if forward else board.earlier
+        for _ in range(board.pages() + 2):
+            seen += [i for i, _ in board.showing]
+            if not button.isEnabled():
+                return seen
+            button.click()
+            settle(3)
+        self.fail(f"the arrows never ran out on a category of {board.pages()} pages")
+
+    def test_the_arrows_are_up_at_the_top_right_under_the_strip(self):
+        w = self.window()
+        w.open_saying_category("faith")
+        settle()
+        board = w.hadith_board
+        for name, button in (("<", board.earlier), (">", board.later)):
+            with self.subTest(name):
+                self.assertIsNotNone(button, "the sayings board has no arrows")
+                self.assertTrue(button.isVisible())
+                here = button.mapTo(board, QtCore.QPoint(0, 0))
+                self.assertGreater(here.x(), board.width() * 0.75, "not over on the right")
+                self.assertLess(here.y(), board.height() * 0.2, "not up at the top")
+        self.assertLess(board.earlier.geometry().right(), board.later.geometry().left() + 2,
+                        "< should be to the left of >")
+        self.assertGreater(board.cards[0].mapTo(board, QtCore.QPoint(0, 0)).y(),
+                           board.later.geometry().bottom() - board.later.height(),
+                           "the arrows are sitting over the sayings")
+
+    def test_the_heading_is_still_in_the_middle_of_the_screen(self):
+        """The arrows take room at one end of the row the heading is centred in, so without
+        something to balance them the name of the category slides off to the left."""
+        w = self.window()
+        w.open_saying_category("purification")
+        settle()
+        board = w.hadith_board
+        middle = board.title.geometry().center().x()
+        self.assertLess(abs(middle - board.width() / 2), board.width() * 0.03,
+                        f"the heading is centred on {middle} of {board.width()}")
+
+    def test_every_saying_under_a_heading_can_be_reached_in_order(self):
+        """The point of the whole change. Not "some of them come up eventually": all of
+        them, in the order they are filed, every time."""
+        from salaah.duamenu import SAYINGS
+        w = self.window()
+        board = w.hadith_board
+        for cat in SAYINGS:
+            with self.subTest(cat):
+                w.open_saying_category(cat)
+                settle()
+                if w.corner_screen.currentWidget() is not board:
+                    continue        # nothing filed under it; that screen says so
+                wanted = [i for i, item in enumerate(w.sayings.items) if cat in item.cats]
+                self.assertGreater(len(wanted), 2, f"{cat} fits on one page; nothing to walk")
+                self.assertEqual(wanted, self.walk(w, board),
+                                 f"{cat}: walking forward does not show every saying in order")
+
+    def test_a_saying_filed_under_two_headings_is_under_both(self):
+        """Which is the other half of what the paging buys, and the reason the collection can
+        grow without the categories getting thinner."""
+        from salaah.duamenu import SAYINGS
+        w = self.window()
+        board = w.hadith_board
+        shared = [(i, item) for i, item in enumerate(w.sayings.items) if len(item.cats) > 1]
+        self.assertTrue(shared, "no saying is filed under more than one heading")
+        index, item = shared[0]
+        for cat in item.cats:
+            if cat not in SAYINGS:
+                continue
+            with self.subTest(cat):
+                w.open_saying_category(cat)
+                settle()
+                self.assertIn(index, self.walk(w, board),
+                              f"{item.ref} is filed under {cat} but cannot be reached there")
+
+    def test_the_arrows_die_at_each_end_rather_than_wrapping(self):
+        w = self.window()
+        w.open_saying_category("faith")
+        settle()
+        board = w.hadith_board
+        self.assertEqual(0, board.page, "a category should open on its first page")
+        self.assertFalse(board.earlier.isEnabled(), "there is a way back off the first page")
+        self.assertTrue(board.later.isEnabled(), "there is no way on")
+        first = [i for i, _ in board.showing]
+        self.walk(w, board)
+        self.assertEqual(board.pages() - 1, board.page)
+        self.assertFalse(board.later.isEnabled(), "forward went past the last page")
+        self.assertTrue(board.earlier.isEnabled())
+        board.later.click()         # dead, so nothing should move
+        settle()
+        self.assertEqual(board.pages() - 1, board.page, "it wrapped round to the beginning")
+        # And again past the button, because a dead button is only the first of the two
+        # things stopping it: the turn itself refuses to go off either end, which is what
+        # holds if anything ever asks it another way.
+        board.turn(True)
+        settle()
+        self.assertEqual(board.pages() - 1, board.page,
+                         "turning past the last page wrapped round to the beginning")
+        self.walk(w, board, forward=False)
+        self.assertEqual(0, board.page)
+        self.assertEqual(first, [i for i, _ in board.showing],
+                         "walking all the way back did not land on the first pair")
+        board.turn(False)
+        settle()
+        self.assertEqual(0, board.page, "turning back off the first page wrapped to the end")
+        self.assertEqual(first, [i for i, _ in board.showing])
+
+    def test_the_same_heading_opens_on_the_same_pair_every_time(self):
+        """The randomiser is gone from this board: opening a category twice shows the same
+        two sayings, which is what makes the arrows mean anything."""
+        w = self.window()
+        board = w.hadith_board
+        seen = []
+        for _ in range(4):
+            w.open_saying_category("family")
+            settle()
+            seen.append([i for i, _ in board.showing])
+        self.assertEqual([seen[0]] * 4, seen, f"the pair still changes between visits: {seen}")
+
+    def test_stepping_into_a_saying_and_back_lands_on_the_page_it_came_from(self):
+        w = self.window()
+        board = w.hadith_board
+        w.open_saying_category("purification")
+        settle()
+        board.later.click()
+        board.later.click()
+        settle()
+        page, pair = board.page, [i for i, _ in board.showing]
+        self.assertEqual(2, page)
+        w.open_passage("hadith", pair[0])
+        settle()
+        w.open_section("hadith")
+        settle()
+        self.assertIs(board, w.corner_screen.currentWidget())
+        self.assertEqual(page, board.page, "it came back to a different page")
+        self.assertEqual(pair, [i for i, _ in board.showing])
+
+    def test_the_duas_are_left_as_they_were(self):
+        """Harry asked for this in the hadith section. A kind of du'a holds two to five and
+        they are things you say rather than read through, so that board still deals."""
+        w = self.window()
+        self.assertFalse(w.dua_board.paged)
+        self.assertIsNone(w.dua_board.earlier, "the du'a board has grown arrows")
+        w.open_dua_category("travel")
+        settle()
+        self.assertTrue(w.dua_board.cards, "nothing on the du'a board")

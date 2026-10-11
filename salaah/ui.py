@@ -32,7 +32,7 @@ from .nasheeds import Nasheeds, NasheedScreen
 from .duaboard import DuaBoard
 from .recite import Store, WordTimes
 from .call import Adhan, CallBox
-from .reading import LIST_BAR, NUMBER_LINE, Reader, SurahList
+from .reading import LIST_BAR, NUMBER_LINE, READING_TEXT_SIZE_PX, Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
 from .power import Outputs
 from .settings import Settings
@@ -1202,10 +1202,19 @@ class MainWindow(QtWidgets.QWidget):
                rule underneath was the brighter of the two, so the one that did nothing was the
                one you could see. Harry reported it as "the left and right buttons dont do
                anything?", and they did; you could not see them. */
+            /* As tall as the largest of the three A's beside them, which is what Harry asked
+               for once those grew: "make them a little bigger so their boxes are the same
+               size as the largest A". Their height, the way the wu'du step matches its A's
+               to its arrows -- they stay a little wider than they are tall, because an arrow
+               in a square is a smaller target for a thumb than an arrow in a pill. */
             QPushButton#turnPage {{ background:{c.chip}; color:white; border:none;
-                                    border-radius:{px(10)}px; font-size:{px(34)}px;
-                                    font-weight:bold; min-width:{px(70)}px;
-                                    padding:{px(4)}px {px(16)}px; }}
+                                    border-radius:{px(10)}px; font-size:{px(36)}px;
+                                    font-weight:bold; min-width:{px(READING_TEXT_SIZE_PX)}px;
+                                    /* No padding up and down: a stylesheet's min-height is
+                                       the room INSIDE the padding, so four pixels top and
+                                       bottom made a 64 box come out 72. */
+                                    min-height:{px(READING_TEXT_SIZE_PX)}px;
+                                    padding:0px {px(16)}px; }}
             QPushButton#turnPage:hover:enabled {{ background:{BRICK}; }}
             QPushButton#turnPage:pressed {{ background:{BRICK}; }}
             /* The same button with the arrow faded, rather than a differently coloured one:
@@ -1622,7 +1631,9 @@ class MainWindow(QtWidgets.QWidget):
 
         # The same board for the sayings, with the play mark carried down beside the
         # translation rather than sitting over the Arabic.
-        self.hadith_board = DuaBoard(self, self.sayings, sayings=True)
+        # paged: the sayings are walked through two at a time rather than dealt at random.
+        # See the note above pages() in duaboard.py.
+        self.hadith_board = DuaBoard(self, self.sayings, sayings=True, paged=True)
         self.hadith_board.chose.connect(lambda n: self.open_passage("hadith", n))
         stack.addWidget(self.hadith_board)
 

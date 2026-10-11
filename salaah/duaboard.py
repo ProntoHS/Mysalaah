@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import random
 
-from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
+from .qt import QtCore, QtGui, QtWidgets, Qt, Signal, arrows
 from .render import Fonts, TextBox
 from .theme import palette
 
@@ -183,12 +183,15 @@ class DuaBoard(QtWidgets.QWidget):
     chose = Signal(int)
     play = Signal(int)
 
-    def __init__(self, window, passages, sayings: bool = False):
+    def __init__(self, window, passages, sayings: bool = False, paged: bool = False):
         super().__init__()
         self.win = window
         self.passages = passages
         self.sayings = sayings
         self.only = None
+        # Walked with arrows rather than dealt at random. See the note on pick().
+        self.paged = paged
+        self.page = 0
         # A shuffled bag per kind, dealt from two at a time. See pick().
         self.bags: dict[str | None, list[int]] = {}
         self.setObjectName("duaBoard")
@@ -204,12 +207,35 @@ class DuaBoard(QtWidgets.QWidget):
 
         head = QtWidgets.QHBoxLayout()
         head.setContentsMargins(window.px(20), window.px(10), window.px(20), 0)
+        # The arrows sit at the right-hand end, under Main screen on the strip above, which
+        # is where Harry pointed: "place them under the 'Main Screen' button, there is
+        # space". The heading is centred on the screen and not on what is left of it, so
+        # whatever the arrows take on the right is given back as a blank on the left.
+        self.earlier = self.later = None
+        if self.paged:
+            back_glyph, on_glyph = arrows(window.pack.rtl)
+            self.earlier = QtWidgets.QPushButton(back_glyph)
+            self.later = QtWidgets.QPushButton(on_glyph)
+            for button, forward in ((self.earlier, False), (self.later, True)):
+                button.setObjectName("turnPage")
+                button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
+                button.clicked.connect(lambda _=False, f=forward: self.turn(f))
+            self.balance = QtWidgets.QWidget()
+            head.addWidget(self.balance)
         head.addStretch(1)
         self.title = QtWidgets.QLabel("")
         self.title.setObjectName("namePlate")
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         head.addWidget(self.title)
         head.addStretch(1)
+        if self.paged:
+            pair = QtWidgets.QHBoxLayout()
+            pair.setContentsMargins(0, 0, 0, 0)
+            pair.setSpacing(window.px(14))
+            pair.addWidget(self.earlier)
+            pair.addWidget(self.later)
+            head.addLayout(pair)
         outer.addLayout(head)
 
         self.scroll = QtWidgets.QScrollArea()
@@ -295,6 +321,53 @@ class DuaBoard(QtWidgets.QWidget):
         self.bags[self.only] = bag[ON_SCREEN:]
         return [mine[k] for k in bag[:ON_SCREEN]]
 
+    # -- walking a category two at a time -----------------------------------------------------
+    #
+    # The sayings are read this way rather than dealt. There are a hundred and nine of them
+    # and a category holds five to eleven, so two drawn at random is a glimpse of a category
+    # rather than a reading of it: you could press a heading six times and not see the one
+    # saying under it you were looking for. Harry: "this will allow us to drop the randomiser
+    # and let the user scroll, this will also allow us to obtain more hadiths and some do fall
+    # under multiple categories" -- and the second half is the reason the paging matters more
+    # as the collection grows. A saying filed under two headings is reachable under both, in
+    # its place, rather than being one more ticket in two raffles.
+    #
+    # The du'as still deal: a kind holds two to five, they are things you say rather than
+    # things you read through, and nobody asked.
+
+    def pages(self) -> int:
+        mine = self.wanted()
+        return max(1, (len(mine) + ON_SCREEN - 1) // ON_SCREEN)
+
+    def page_at(self, page: int) -> list:
+        mine = self.wanted()
+        page = max(0, min(page, self.pages() - 1))
+        return mine[page * ON_SCREEN:(page + 1) * ON_SCREEN]
+
+    def turn(self, forward: bool) -> None:
+        """An arrow was pressed. Nothing happens at either end: the arrow there is dead."""
+        want = self.page + (1 if forward else -1)
+        if not 0 <= want < self.pages():
+            return
+        self.page = want
+        self.showing = self.page_at(self.page)
+        self.fill()
+        self.to_the_top()
+        self.dress_arrows()
+
+    def dress_arrows(self) -> None:
+        """Which way there is still something to go. Shown and dead rather than taken away,
+        as everywhere else on the mat: a button that vanishes moves the other one."""
+        if not self.paged or self.earlier is None:
+            return
+        self.earlier.setEnabled(self.page > 0)
+        self.later.setEnabled(self.page < self.pages() - 1)
+        # The blank that keeps the heading in the middle of the screen is whatever the pair
+        # of arrows takes up. Asked of them rather than worked out, so it stays right at any
+        # size, and set here because this runs whenever the pair might have changed.
+        wide = self.earlier.sizeHint().width() + self.later.sizeHint().width() + self.win.px(14)
+        self.balance.setFixedWidth(wide)
+
     def show_only(self, cat: str | None, heading: str = "") -> None:
         """Open a kind. This is where the pair is drawn -- not in fill(), which runs again
         whenever the screen is shown, and would otherwise swap the du'as under somebody who had
@@ -302,7 +375,9 @@ class DuaBoard(QtWidgets.QWidget):
         self.only = cat or None
         if heading:
             self.title.setText(heading)
-        self.showing = self.pick()
+        self.page = 0
+        self.showing = self.page_at(0) if self.paged else self.pick()
+        self.dress_arrows()
         self.filled = None
         self.fill()
 
@@ -344,7 +419,14 @@ class DuaBoard(QtWidgets.QWidget):
 
     def showEvent(self, ev):
         self.fill()
+        self.dress_arrows()
         super().showEvent(ev)
+
+    def resizeEvent(self, ev):
+        # The arrows are sized by the stylesheet, which is rebuilt for the new screen, so the
+        # blank holding the heading in the middle has to be measured again.
+        super().resizeEvent(ev)
+        self.dress_arrows()
 
     def hideEvent(self, ev):
         # Leaving the screen stops the voice. A recording left playing to an empty room is the

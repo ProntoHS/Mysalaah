@@ -69,11 +69,11 @@ NUMBER_LINE = 4          # and how thick its outline is drawn
 # resize to whatever the slider leaves, so the rows give up the width rather than the slider
 # sitting on top of them.
 #
-# 42 at first, which was already three times a desktop's, and Harry asked for it thicker again
-# after using it. He is the one dragging it on glass: 56px is about a centimetre on the mat's
-# screen, which is the width of the thumb doing the dragging rather than the width of the line
-# somebody thought looked right.
-LIST_BAR = 56
+# 42 at first, which was already three times a desktop's, and Harry has asked for it thicker
+# twice since, each time after using it. He is the one dragging it on glass: 84px is about a
+# centimetre and a half on the mat's screen, which is the width of the thumb doing the
+# dragging rather than the width of the line somebody thought looked right.
+LIST_BAR = 84
 
 
 class SurahList(QtWidgets.QWidget):
@@ -93,11 +93,17 @@ class SurahList(QtWidgets.QWidget):
 
         # The way out used to sit here. It is in the banner above this screen now, along with
         # the clock and the prayer times, so it is in the same place wherever you are.
+        # No heading on it. It said "The 114 surahs", which is a caption telling you what you
+        # are already looking at, and Harry asked for it gone -- but for the space it took to
+        # stay, so the first row of surahs does not come up hard against the strip above.
+        # The label is still here and still empty, which is what keeps that space: it is as
+        # tall as a line of the heading's own type, at whatever size the screen is, and it
+        # will follow the type if that ever changes. A fixed number of pixels here would not.
         bar = QtWidgets.QHBoxLayout()
         bar.setContentsMargins(self.win.px(20), self.win.px(10), self.win.px(20), 0)
-        title = QtWidgets.QLabel(self.win.t("corner.surahs"))
-        title.setObjectName("readerTitle")
-        bar.addWidget(title)
+        self.title = QtWidgets.QLabel("")
+        self.title.setObjectName("readerTitle")
+        bar.addWidget(self.title)
         bar.addStretch(1)
         outer.addLayout(bar)
 
