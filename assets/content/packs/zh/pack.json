@@ -90,6 +90,7 @@
     "player.leave_hint": "立刻再按一次即退出。稍等再按则继续。",
     "player.leave_title": "要退出礼拜吗？",
     "player.menu": "菜单",
+    "player.meaning": "翻译",
     "player.rakat": "第{n}拜，共{total}拜",
     "player.repeat": "念{n}遍",
     "player.stay": "继续",

@@ -58,6 +58,24 @@
       "country": "GB",
       "lang": "en",
       "source": "sent by Harry"
+    },
+    {
+      "key": "radio-seerah",
+      "name": "Radio Seerah",
+      "url": "https://icecast.maxxwave.co.uk/radioseerah",
+      "about": "Talks and recitation",
+      "country": "GB",
+      "lang": "en",
+      "source": "sent by Harry"
+    },
+    {
+      "key": "unity-fm",
+      "name": "Unity FM",
+      "url": "http://live.canstream.co.uk:8000/unity.mp3",
+      "about": "Community radio",
+      "country": "GB",
+      "lang": "en",
+      "source": "sent by Harry; the one address on this list that is plain http, so it is the one stream nobody could encrypt even if they wanted to"
     }
   ]
 }

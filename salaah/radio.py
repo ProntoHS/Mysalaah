@@ -48,9 +48,15 @@ BOX_GAP = 24
 BOX_EDGE = 6
 BOX_ROUND = 18
 # How much of the square the logo is allowed, across and down, inside the border. Short of
-# the whole of it on purpose: these are six marks drawn by six different people and some are
-# wider than they are tall, so the breathing room is what makes them look like one set.
-LOGO_WIDE = 0.76
+# the whole of it on purpose: these are marks drawn by as many different people as there are
+# stations, and the breathing room is what makes them look like one set.
+#
+# Wider than tall because the allowances do different jobs. A square or upright mark is
+# settled by the height and never comes near the width, so the width only ever binds on the
+# wide ones -- Unity FM's wordmark is nearly four times as wide as it is tall -- and holding
+# them to the same 0.74 made them small in a way that read as a worse logo rather than a
+# wider one.
+LOGO_WIDE = 0.86
 LOGO_TALL = 0.74
 
 
@@ -268,12 +274,20 @@ class Stations:
 class RadioScreen(QtWidgets.QWidget):
     """The stations, with one playing at a time.
 
-    The same shape as the shelf it replaces: a row each, press one to play it, press the one
-    that is playing to stop. No queue and no shuffle -- this is a radio on a prayer mat and a
-    child picks a station.
+    The same shape as the shelf it replaces: press one to play it, press the one that is
+    playing to stop. No queue and no shuffle -- this is a radio on a prayer mat and a child
+    picks a station.
+
+    NOTHING ON IT BUT THE STATIONS, as of 1.75: no heading, no way out. Harry asked for both
+    to go, and they can go here where they could not on any other screen, because the way out
+    is on the other screen -- the 7" panel beside the mat is showing the menu the whole time,
+    and touching any tile on it leaves. A heading saying "Radio" over eight station logos was
+    saying what the pictures already say, and a Back button was a ninth thing to press on a
+    screen whose whole point is that you press a station.
+
+    Leaving still stops the sound: hideEvent does that, and it fires whichever way you leave.
     """
 
-    back = Signal()
     wifi = Signal()         # "connect Wi-Fi" was pressed: the window knows where that is
 
     def __init__(self, window, stations: Stations):
@@ -302,19 +316,6 @@ class RadioScreen(QtWidgets.QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        bar = QtWidgets.QHBoxLayout()
-        bar.setContentsMargins(window.px(20), window.px(10), window.px(20), 0)
-        self.title = QtWidgets.QLabel(window.t("corner.radio"))
-        self.title.setObjectName("namePlate")
-        bar.addWidget(self.title)
-        bar.addStretch(1)
-        self.back_button = QtWidgets.QPushButton(window.t("corner.back"))
-        self.back_button.setObjectName("backButton")
-        self.back_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.back_button.clicked.connect(self.leaving)
-        bar.addWidget(self.back_button)
-        outer.addLayout(bar)
-
         self.scroll = QtWidgets.QScrollArea()
         self.scroll.setObjectName("listScroll")      # the wide, touchable slider
         self.scroll.setWidgetResizable(True)
@@ -322,14 +323,17 @@ class RadioScreen(QtWidgets.QWidget):
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         inner = QtWidgets.QWidget()
         inner.setObjectName("radioRoot")
-        # A grid of squares rather than a list of rows, as Harry asked. Centred, and with
-        # the rows pushed to the top: four stations in a two-by-two block belong under the
-        # heading, not spread down an empty screen.
+        # A grid of squares rather than a list of rows, as Harry asked. Centred, and -- with
+        # the heading gone -- centred down the screen as well, because there is no longer
+        # anything for the block to sit under. Stretch above and below rather than only
+        # below, so eight squares are a block in the middle of the screen and not a block
+        # pushed against the top of it.
         held = QtWidgets.QVBoxLayout(inner)
-        held.setContentsMargins(window.px(20), window.px(16), window.px(20), window.px(20))
+        held.setContentsMargins(window.px(20), window.px(20), window.px(20), window.px(20))
         self.rows = QtWidgets.QGridLayout()
         self.rows.setSpacing(window.px(BOX_GAP))
-        self.rows.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        self.rows.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        held.addStretch(1)
         held.addLayout(self.rows)
         held.addStretch(1)
         self.scroll.setWidget(inner)
@@ -408,6 +412,15 @@ class RadioScreen(QtWidgets.QWidget):
         by three -- and then as many as the screen can take at a size worth pressing. The
         block is squarer than a single row of eight would be, and it grows down the screen
         rather than off the side of it as the list gets longer.
+
+        WITH NO GAP IN IT, which is the part that is not just the square root. Eight stations
+        rounded up to three a row is three, three and two: a block with a corner missing,
+        which reads as a station having failed to load rather than as eight stations. So the
+        count that divides the list evenly is preferred, taking the first one at or above the
+        square root -- eight goes four and four, six goes three and three, nine stays three
+        by three. A prime number of stations has no such count worth having (seven would go
+        in one long row), so past twice the square root it gives up and takes the ragged
+        block, which is the better of the two bad answers.
         """
         if how_many < 1:
             return 1
@@ -415,7 +428,9 @@ class RadioScreen(QtWidgets.QWidget):
         room = max(self.width() - self.win.px(40), self.win.px(BOX_LEAST))
         fits = max(1, (room + self.win.px(BOX_GAP))
                    // (self.win.px(BOX_LEAST) + self.win.px(BOX_GAP)))
-        return max(1, min(tidy, fits))
+        whole = next((n for n in range(tidy, min(how_many, 2 * tidy) + 1)
+                      if how_many % n == 0), tidy)
+        return max(1, min(whole, fits))
 
     def size_the_boxes(self) -> None:
         """Every square the same size, as large as the row allows and no larger."""
@@ -516,13 +531,10 @@ class RadioScreen(QtWidgets.QWidget):
         """
         return False
 
-    def leaving(self) -> None:
-        self.quiet()
-        self.back.emit()
-
     def retitle(self) -> None:
-        self.title.setText(self.win.t("corner.radio"))
-        self.back_button.setText(self.win.t("corner.back"))
+        """The language changed, or the screen is being opened. There is no heading to
+        rewrite any more -- the only words left are on the Wi-Fi notice, and they are only
+        ever seen by somebody who cannot reach a station."""
         self.wifi_button.setText(self.win.t("radio.connect"))
         self.fill()
 

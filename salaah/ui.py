@@ -568,7 +568,17 @@ class PrayerPage(QtWidgets.QWidget):
         self.arabic.set_family(meaning_face if page.latin else arabic_face)
         self.arabic.rtl = meaning_rtl if page.latin else True
         self.arabic.set_lines(page.arabic)
-        side_by_side = not page.latin and any(page.english)
+        # The switch in the bar decides whether the meaning is drawn; the pages are built with
+        # it either way, which is why flipping it mid-prayer takes effect on the page in front
+        # of you rather than at the next unit. It costs nothing to carry: a page is one screen
+        # of Arabic whether or not the meaning goes beside it (build_pages is called with
+        # one_page), so the English lines being there change neither the paging nor the size
+        # the Arabic is set at.
+        #
+        # The intention is not touched by this. It has no Arabic to stand beside -- it is one
+        # sentence saying which prayer you are about to perform -- so hiding "the meaning"
+        # there would leave the first screen of every prayer blank.
+        side_by_side = not page.latin and any(page.english) and self.win.settings.meaning
         if side_by_side:
             self.parallel.set_family(arabic_face)
             self.parallel.set_meaning_face(meaning_face, meaning_rtl)
@@ -1320,6 +1330,11 @@ class MainWindow(QtWidgets.QWidget):
                                         border-radius:{px(8)}px; min-height:{px(56)}px; }}
             QLabel#prayerName {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                  font-size:{px(54)}px; font-weight:bold; }}
+            /* The word beside the switch in the middle of the prayer bar. Smaller than the
+               Arabic name that used to sit there: it is a label on a control, not a heading,
+               and the control is the thing the eye should land on. */
+            QWidget#bar QLabel#meaningWord {{ font-size:{px(30)}px; font-weight:bold; }}
+            QWidget#bar QLabel#meaningWord:disabled {{ color:{c.stone}; }}
             QWidget#bar QLabel#title {{ background:{c.chip}; color:white; font-size:{px(26)}px;
                                         font-weight:bold; padding:0 {px(20)}px;
                                         border-radius:{px(8)}px; min-height:{px(56)}px; }}
@@ -1670,8 +1685,9 @@ class MainWindow(QtWidgets.QWidget):
         # Radio: a handful of stations, played straight off the internet. It replaced the
         # nasheed shelf in 1.70 -- see the note at the top of radio.py for why a receiver
         # suits this mat where a library never could.
+        # No way back off it since 1.75, and no heading: the 7" panel is showing the menu the
+        # whole time this is up, so the way out is already under the hand that opened it.
         self.radio_screen = RadioScreen(self, self.stations)
-        self.radio_screen.back.connect(self.go_home)
         self.radio_screen.wifi.connect(self.open_wifi)
         stack.addWidget(self.radio_screen)
 
@@ -2580,15 +2596,36 @@ class MainWindow(QtWidgets.QWidget):
         left.addStretch(1)
         grid.addLayout(left, 0, 0)
 
-        name_font = QtGui.QFont(Fonts.arabic(self.settings.arabic_font))
-        name_font.setPixelSize(self.px(54))
-        self.arabic_name = QtWidgets.QLabel(bar)       # placed by TopBar, dead centre
-        self.arabic_name.setObjectName("prayerName")   # size and family come from the stylesheet
-        self.arabic_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # Arabic vowel marks sit well above and below the letters; give them room.
-        self.arabic_name.setMinimumHeight(QtGui.QFontMetrics(name_font).height())
-        bar.centre = self.arabic_name
-        bar.setMinimumHeight(QtGui.QFontMetrics(name_font).height() + self.px(12))
+        # Dead centre: the switch that takes the meaning off the screen and leaves the Arabic.
+        #
+        # The prayer's name in Arabic was here until 1.75, and it was the one thing in the bar
+        # that nobody needed: you are three touches into Dhuhr and the English name of it is
+        # already in the box at the left-hand end. Harry asked for the switch in its place,
+        # and for the reason the rest of this comment is about.
+        #
+        # Praying with the Arabic alone was possible before -- it is what "Arabic only" in
+        # Settings does -- but that is a LANGUAGE, so choosing it turned the menus, the du'as,
+        # the sayings and the wu'du steps Arabic too. Somebody who reads English menus and
+        # wants the Arabic alone in front of them while they pray had no way to say so. This
+        # is that, and nothing else: it hides a column on this screen and touches no setting
+        # that any other screen reads.
+        #
+        # The word beside it for the same reason the Settings switches have one -- a knob on
+        # its own, read from a few feet away, says nothing about what it does.
+        centre = QtWidgets.QWidget(bar)                # placed by TopBar, dead centre
+        middle = QtWidgets.QHBoxLayout(centre)
+        middle.setContentsMargins(0, 0, 0, 0)
+        middle.setSpacing(self.px(16))
+        self.meaning_word = QtWidgets.QLabel(self.t("player.meaning"))
+        self.meaning_word.setObjectName("meaningWord")
+        self.meaning_word.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        middle.addWidget(self.meaning_word, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.meaning_switch = Switch(self.settings.meaning, scale=self.s)
+        self.meaning_switch.setObjectName("meaningSwitch")
+        self.meaning_switch.toggled.connect(self.set_meaning)
+        middle.addWidget(self.meaning_switch, 0, Qt.AlignmentFlag.AlignVCenter)
+        bar.centre = centre
+        bar.setMinimumHeight(self.meaning_switch.sizeHint().height() + self.px(24))
 
         right = QtWidgets.QHBoxLayout()
         right.setSpacing(self.px(16))
@@ -2660,7 +2697,10 @@ class MainWindow(QtWidgets.QWidget):
             self.slide.tasbih.show_dhikr(self.content.dhikr)   # back to 33, 33, 33
         self.title = f"{self.t(f'prayer.{prayer}')}, {self.content.unit_label(entry, self.pack, self.english)}"
         self.title_label.setText(self.title)
-        self.arabic_name.setText(self.content.prayer_names.get(prayer, ""))
+        # Greyed out where there is nothing to hide: Arabic only, or a language the mat has no
+        # translation file for. A switch that does nothing is worse than no switch, and this
+        # is the one screen where the person can see for themselves that it is off.
+        self.show_the_meaning_switch()
         self.bar.place_centre()
         self.stack.setCurrentWidget(self.player)
         self.slide.set_dim(self.veil_percent())
@@ -2726,6 +2766,31 @@ class MainWindow(QtWidgets.QWidget):
             self.refresh()
         elif self.side is not None:
             self.side.show_idle()
+
+    def show_the_meaning_switch(self) -> None:
+        """Put the switch in the bar the way the settings leave it, and grey it out if there
+        is no meaning to be had."""
+        there = self.translation is not None
+        self.meaning_switch.setEnabled(there)
+        self.meaning_word.setEnabled(there)
+        was = self.meaning_switch.blockSignals(True)
+        self.meaning_switch.setChecked(bool(self.settings.meaning) and there)
+        self.meaning_switch.blockSignals(was)
+
+    def set_meaning(self, yes: bool) -> None:
+        """The switch in the prayer bar: show the meaning beside the Arabic, or don't.
+
+        Redrawn with show_page rather than refresh, which is the whole of this method that is
+        not obvious. refresh also starts the page's recitation again, so flipping the switch
+        halfway through Al-Fatiha would take the reciter back to the beginning of it. The red
+        word comes back by itself: follow_audio sets it sixteen times a second.
+        """
+        self.stir()
+        self.settings.meaning = bool(yes)
+        self.persist()
+        page = self.current_page
+        if page is not None:
+            self.slide.show_page(page, self.assets)
 
     @property
     def translation(self):

@@ -88,6 +88,7 @@
     "player.leave_hint": "Click again straight away to leave. Pause, then click, to carry on.",
     "player.leave_title": "Leave the prayer?",
     "player.menu": "Menu",
+    "player.meaning": "Translation",
     "player.rakat": "Rakat {n} of {total}",
     "player.repeat": "Say {n} times",
     "player.stay": "Carry on",

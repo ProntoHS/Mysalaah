@@ -903,15 +903,27 @@ class UiTest(unittest.TestCase):
         self.assertEqual("None connected", w.devices_label.text())
         self.assertEqual(BRICK, w.dot.color.name().upper().replace("#", "#"), "red when not")
 
-    def test_banner_shows_the_prayer_in_arabic(self):
+    def test_the_middle_of_the_prayer_bar_is_the_translation_switch(self):
+        """The prayer's name in Arabic was here until 1.75. It was the one thing in the bar
+        nobody needed -- the prayer is named in the box at the left-hand end of the same
+        row -- and Harry asked for the switch in its place.
+
+        Dead centre is what is measured, because that is what the hand-placing in TopBar
+        exists for: a wide volume bar on one side must not shift it.
+        """
         w = self.win
         for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
             w.start(prayer, w.school.prayers[prayer][0])
             APP.processEvents()
-            self.assertEqual(CONTENT.prayer_names[prayer], w.arabic_name.text(), prayer)
-            # dead centre of the screen, not just somewhere in the middle
-            centre = w.arabic_name.mapTo(w, w.arabic_name.rect().center()).x()
+            self.assertTrue(w.meaning_switch.isVisible(), prayer)
+            middle = w.meaning_switch.parentWidget()
+            centre = middle.mapTo(w, middle.rect().center()).x()
             self.assertLess(abs(centre - w.width() // 2), 4, prayer)
+            words = [x.text() for x in middle.findChildren(QtWidgets.QLabel)]
+            self.assertNotIn(CONTENT.prayer_names[prayer], words,
+                             "the Arabic name is still in the middle of the bar")
+            self.assertIn(w.t("player.meaning"), words,
+                          "the switch has nothing beside it saying what it does")
 
     def test_cursor_setting(self):
         """Shown means a pointing finger, not an arrow: everything on the mat is touched, so a
@@ -2965,6 +2977,50 @@ class RadioTest(unittest.TestCase):
         self.assertIs(w.wifi_page, w.stack.currentWidget(),
                       "the button did not land on the Wi-Fi screen")
 
+    def test_there_is_nothing_on_the_screen_but_the_stations(self):
+        """Harry: "remove the Back button and Radio text box completely".
+
+        Swept rather than asserted one name at a time: the two that went were a QLabel and a
+        QPushButton, and the check that interests anybody is that nothing of that kind is left
+        on the screen -- not that those two particular attributes are gone. The squares are
+        QAbstractButtons and are counted separately, because they are the screen.
+        """
+        w = self.window(online=True)
+        screen = self.screen(w)
+        spare = [x for x in screen.findChildren(QtWidgets.QWidget)
+                 if x.isVisible() and isinstance(x, (QtWidgets.QPushButton, QtWidgets.QLabel))]
+        self.assertEqual([], [x.text() for x in spare],
+                         "there are words or buttons on the radio screen besides the stations")
+        self.assertEqual(len(w.stations.items), len(screen.boxes))
+
+    def test_the_way_out_is_the_seven_inch_menu_rather_than_a_button(self):
+        """Which is why the Back button could go at all, and the thing to break if it could
+        not: touching a tile on the small screen has to leave the radio AND stop it."""
+        w = self.window()
+        screen = self.screen(w)
+        screen.player.player = self.fake_player()
+        screen.touched(screen.rows_for[0])
+        settle()
+        self.assertTrue(screen.player.playing)
+        w.chose_on_the_small_screen("wudu")
+        settle()
+        self.assertIsNot(screen, w.corner_screen.currentWidget(),
+                         "the 7in menu could not get off the radio screen")
+        self.assertFalse(screen.player.playing, "it left the station playing behind it")
+
+    def test_eight_stations_go_four_and_four_with_no_gap(self):
+        """A block with a corner missing reads as a station having failed to load. Eight
+        rounded up to the square root is three a row, which is three, three and two."""
+        w = self.window()
+        screen = self.screen(w)
+        self.assertEqual(8, len(screen.boxes), "the list is no longer eight stations")
+        self.assertEqual(4, screen.across(8))
+        for how_many, want in ((4, 2), (6, 3), (8, 4), (9, 3), (12, 4), (16, 4)):
+            with self.subTest(how_many):
+                across = screen.across(how_many)
+                self.assertEqual(want, across)
+                self.assertEqual(0, how_many % across, "that leaves a gap in the block")
+
     def test_online_the_stations_are_listed(self):
         w = self.window(online=True)
         screen = self.screen(w)
@@ -3445,7 +3501,9 @@ class RadioTest(unittest.TestCase):
         w = self.window()
         by_key = {s["key"]: s for s in w.stations.items}
         for key, url in (("buzz-islam", "https://tunein.buzzislam.com/radio/8000/radio.mp3"),
-                         ("radio-ikhlas", "https://radio.canstream.co.uk:8050/live.mp3")):
+                         ("radio-ikhlas", "https://radio.canstream.co.uk:8050/live.mp3"),
+                         ("radio-seerah", "https://icecast.maxxwave.co.uk/radioseerah"),
+                         ("unity-fm", "http://live.canstream.co.uk:8000/unity.mp3")):
             with self.subTest(key):
                 self.assertIn(key, by_key, "the station was not added")
                 self.assertEqual(url, by_key[key]["url"])
@@ -3518,6 +3576,147 @@ class RadioTest(unittest.TestCase):
             self.assertIn(path.stem, said,
                           f"{path.relative_to(ASSETS)} ships with the mat and nothing beside "
                           f"it says what it is or who said it could")
+
+
+class TranslationSwitchTest(unittest.TestCase):
+    """The switch in the middle of the prayer bar, in the Arabic name's old place.
+
+    Harry: "at the moment, the user has to select arabic only in the settings before this
+    takes effect and this changes the whole menu language system. having a button will allow
+    user to switch translation off regardless of which language they are in and only have the
+    arabic."
+
+    So the thing being tested is a difference between two states of the mat, not a flag: with
+    the switch on, the Arabic and its meaning stand side by side; with it off, the Arabic has
+    the screen to itself AND the mat is still in the language it was in. Arabic only already
+    did the first half -- it is the second half that is new.
+    """
+
+    def window(self, lang="en", **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=False, place="Bury", lang=lang,
+                                **settings),
+                       scale=1.0, save_settings=False)
+        w.resize(1920, 1080)
+        w.show()
+        w.leave_welcome()
+        w.veil.stop()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def a_page_with_arabic_and_a_meaning(w):
+        """Walk to the first page that has both. The first page of any prayer is the
+        intention, which is one sentence in one language and no test of anything here."""
+        for _ in range(12):
+            page = w.current_page
+            if page is not None and not page.latin and any(page.english):
+                return page
+            w.last_click = None
+            w.move("next")
+            settle()
+        raise AssertionError("no page of this prayer carries a meaning beside the Arabic")
+
+    def test_off_leaves_the_arabic_alone_on_the_screen(self):
+        w = self.window("en")
+        w.start("fajr", w.school.prayers["fajr"][0])
+        settle()
+        self.a_page_with_arabic_and_a_meaning(w)
+        self.assertTrue(w.slide.parallel.isVisible(), "the meaning is not shown to begin with")
+        self.assertFalse(w.slide.arabic.isVisible())
+        w.meaning_switch.setChecked(False)
+        settle()
+        self.assertFalse(w.slide.parallel.isVisible(), "the meaning is still on the screen")
+        self.assertTrue(w.slide.arabic.isVisible(),
+                        "the meaning went and took the Arabic with it")
+        w.meaning_switch.setChecked(True)
+        settle()
+        self.assertTrue(w.slide.parallel.isVisible(), "it would not come back")
+
+    def test_it_takes_effect_on_the_page_in_front_of_you(self):
+        """Not at the next unit. Somebody reaches for this because the meaning is in the way
+        of what they are reading NOW."""
+        w = self.window("en")
+        w.start("dhuhr", w.school.prayers["dhuhr"][0])
+        settle()
+        self.a_page_with_arabic_and_a_meaning(w)
+        where = w.session.position
+        w.meaning_switch.setChecked(False)
+        settle()
+        self.assertEqual(where, w.session.position,
+                         "flipping the switch moved the prayer along")
+        self.assertTrue(w.slide.arabic.isVisible())
+        self.assertTrue(w.slide.arabic.lines, "the Arabic was not put back on the screen")
+
+    def test_the_mat_stays_in_its_own_language(self):
+        """The whole of what this is for. Arabic only did the Arabic-alone half already, and
+        turned the menus, the du'as and the wu'du steps Arabic in the bargain."""
+        for lang in ("fr", "ur", "zh"):
+            with self.subTest(lang):
+                w = self.window(lang)
+                said = w.t("player.menu")
+                w.start("fajr", w.school.prayers["fajr"][0])
+                settle()
+                w.meaning_switch.setChecked(False)
+                settle()
+                self.assertEqual(lang, w.settings.lang, "the language setting was changed")
+                self.assertEqual(said, w.t("player.menu"), "the menus changed language")
+                self.assertIsNotNone(w.translation,
+                                     "the mat forgot it has a translation at all")
+
+    def test_it_is_remembered_rather_than_asked_again_every_prayer(self):
+        """Five prayers a day. A switch that resets each time is a switch pressed five times
+        a day, which is not a setting, it is a chore."""
+        w = self.window("en", meaning=False)
+        self.assertFalse(w.meaning_switch.isChecked(),
+                         "the mat opened with the meaning back on")
+        w.start("fajr", w.school.prayers["fajr"][0])
+        settle()
+        self.a_page_with_arabic_and_a_meaning(w)
+        self.assertFalse(w.slide.parallel.isVisible())
+        w.meaning_switch.setChecked(True)
+        self.assertTrue(w.settings.meaning, "the switch was not written down")
+        w.stop()
+        w.start("isha", w.school.prayers["isha"][0])
+        settle()
+        self.assertTrue(w.meaning_switch.isChecked(), "the next prayer forgot")
+
+    def test_with_nothing_to_hide_it_is_greyed_out_rather_than_lying(self):
+        """Set to Arabic only there is no meaning to take off the screen, so a switch that
+        could be flipped would be a control that does nothing."""
+        w = self.window(ARABIC_ONLY)
+        w.start("fajr", w.school.prayers["fajr"][0])
+        settle()
+        self.assertIsNone(w.translation)
+        self.assertFalse(w.meaning_switch.isEnabled(), "it can be pressed and does nothing")
+        self.assertFalse(w.meaning_switch.isChecked(), "it says the meaning is on")
+        w = self.window("en")
+        w.start("fajr", w.school.prayers["fajr"][0])
+        settle()
+        self.assertTrue(w.meaning_switch.isEnabled(),
+                        "it is greyed out with a translation sitting right there")
+
+    def test_the_intention_is_left_alone(self):
+        """The first screen of every prayer: one sentence saying which prayer you are about to
+        perform, in the language you read. It has no Arabic to stand beside, so hiding "the
+        meaning" there would open every prayer on a blank screen."""
+        w = self.window("fr", meaning=False)
+        w.start("fajr", w.school.prayers["fajr"][0])
+        settle()
+        page = w.current_page
+        self.assertTrue(page.latin, "the prayer does not open on the intention any more")
+        self.assertTrue(w.slide.arabic.isVisible())
+        self.assertTrue(any(line.strip() for line in w.slide.arabic.lines),
+                        "the intention screen came up blank")
+
+    def test_every_language_can_name_the_switch(self):
+        for lang, pack in available_packs(ASSETS).items():
+            if lang == ARABIC_ONLY:
+                continue        # a deliberately partial pack; it falls back to English
+            with self.subTest(lang):
+                self.assertTrue(pack.ui.get("player.meaning", "").strip(),
+                                f"{lang} cannot say what the switch does")
 
 
 class ArrowsPointTheWayTheReadingGoesTest(unittest.TestCase):
@@ -4412,14 +4611,23 @@ class EveryInterfaceLanguageTest(unittest.TestCase):
             self.assertEqual(Fonts.english_family, w.pack_face(), lang)
 
     def test_the_arabic_prayer_name_keeps_its_own_face(self):
-        """Setting a Chinese face on every widget must not take the Arabic with it."""
+        """Setting a Chinese face on every widget must not take the Arabic with it.
+
+        Checked on the plate on the arch-picking screen since 1.75. The same label used to sit
+        in the middle of the prayer bar, where the translation switch is now; the plate is
+        where the prayer's name in Arabic lives, and the claim is unchanged.
+        """
+        from salaah.ui import MainWindow
         w = self.window("zh")
-        entry = [e for e in w.school.prayers["dhuhr"] if e.kind == "farz"][0]
+        patch = mock.patch.object(MainWindow, "prayer_page", lambda self, pid: None)
+        patch.start()
+        self.addCleanup(patch.stop)
         w.open_prayer("dhuhr")
-        w.start("dhuhr", entry)
         APP.processEvents()
-        self.assertIn("Scheherazade", w.arabic_name.font().family())
-        self.assertTrue(w.arabic_name.text())
+        named = {x.objectName(): x for x in w.pick.findChildren(QtWidgets.QLabel)}
+        arabic = named["plateArabic"]
+        self.assertIn("Scheherazade", arabic.font().family())
+        self.assertTrue(arabic.text())
 
     def test_the_language_list_draws_each_name_in_its_own_script(self):
         """The one list that holds four scripts at once. Each row carries its own face, and so

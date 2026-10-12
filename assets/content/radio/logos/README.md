@@ -26,12 +26,15 @@ guess is wrong, which it was for one of these six.
 | `imc-uk.png` | Islam Media Central | `27e77a61-image.png`, 600×600 | guessed: framed in black |
 | `buzz-islam.png` | Buzz Islam | `70adb9c9-image.png`, 330×330 | `--no-invert`: the white corners outside its rounded square fooled the guess |
 | `radio-ikhlas.png` | Radio Ikhlas | `920c9dba-image.png`, 476×476 | guessed: framed in black |
+| `radio-seerah.png` | Radio Seerah | `e5b9cf02-image.png`, 1000×1000 | guessed: framed in black |
+| `unity-fm.png` | Unity FM | `8d47350b-image.png`, 1000×1000 | guessed: framed in black |
 
 ## Where they came from, and on what footing
 
-All six were sent by Harry on 12 October 2026, with the two new addresses, to replace the names
-that were written on the squares: "the icons should be self explanatory so no text needed
-underneath".
+The first six were sent by Harry on 12 October 2026, with the Buzz Islam and Radio Ikhlas
+addresses, to replace the names that were written on the squares: "the icons should be self
+explanatory so no text needed underneath". Radio Seerah and Unity FM came the same evening,
+with theirs.
 
 They are each station's own mark, used here to say which station a square will tune to and for
 nothing else — the mat does not sell anything, does not claim any connection to any of them,

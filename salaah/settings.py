@@ -38,6 +38,15 @@ class Settings:
     main_output: str = ""  # the screen the words went on last time, e.g. HDMI-A-1
     side_output: str = ""  # the 7" posture screen last time; both are worked out if they are wrong
     recitation: bool = True  # play the recorded recitation and follow the words in red
+    meaning: bool = True      # show the meaning beside the Arabic during a prayer.
+                              # NOT the "translation" setting that went in 1.58, which asked
+                              # WHICH language the meaning was in and so could disagree with
+                              # `lang`. This asks only whether to show it, and it is reached
+                              # from the prayer screen itself rather than from Settings --
+                              # the same kind of setting as text_step, a thing you reach for
+                              # with the screen in front of you. Before this, praying with
+                              # the Arabic alone meant setting the whole mat to Arabic only,
+                              # which took the menus with it.
     volume: int = 80  # 0-100: how loud the recitation is, set by the bar on the prayer screen
     # "quran_lang" went the same way as "translation" in 1.58. It was the meaning shown beside
     # the Qur'an, set by a row of buttons on the reading bar, and it was the third place the mat
