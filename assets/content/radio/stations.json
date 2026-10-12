@@ -2,6 +2,7 @@
   "schema": 1,
   "reviewed": false,
   "note": "SEED LIST -- nothing here has been heard on a mat yet. The container this was assembled in cannot reach a radio station, so the addresses came from a directory or from Harry rather than from listening to them. tools/check_stations.py is what settles it: run it on the mat, or on anything with a connection, and it says which of these answer, in what codec, at what bitrate. Anything that does not answer comes out of this file.",
+  "logos": "A station's square shows its logo instead of its name, from logos/<key>.png. A station with no file there keeps its name written across the square, so adding one here without artwork is no worse than it used to be. See logos/README.md -- those files are stencils, not pictures.",
   "licence": "The mat is a receiver. Nothing here is copied, stored or passed on -- it opens a station's own public stream the way a radio set does, and the station carries its own music licences. Any station whose terms do not allow another app to open its stream directly comes out of this list; see the note in salaah/radio.py.",
   "stations": [
     {
@@ -36,6 +37,24 @@
       "name": "Islam Media Central",
       "url": "https://a4.asurahosting.com:7820/radio.mp3",
       "about": "Talks and recitation, from the UK",
+      "country": "GB",
+      "lang": "en",
+      "source": "sent by Harry"
+    },
+    {
+      "key": "buzz-islam",
+      "name": "Buzz Islam",
+      "url": "https://tunein.buzzislam.com/radio/8000/radio.mp3",
+      "about": "Listen, reflect, share",
+      "country": "GB",
+      "lang": "en",
+      "source": "sent by Harry"
+    },
+    {
+      "key": "radio-ikhlas",
+      "name": "Radio Ikhlas",
+      "url": "https://radio.canstream.co.uk:8050/live.mp3",
+      "about": "The voice of sincerity",
       "country": "GB",
       "lang": "en",
       "source": "sent by Harry"

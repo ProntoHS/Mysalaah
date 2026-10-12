@@ -47,17 +47,29 @@ BOX_GAP = 24
 # same look as the tiles on the 7" menu, which is where somebody has just come from.
 BOX_EDGE = 6
 BOX_ROUND = 18
+# How much of the square the logo is allowed, across and down, inside the border. Short of
+# the whole of it on purpose: these are six marks drawn by six different people and some are
+# wider than they are tall, so the breathing room is what makes them look like one set.
+LOGO_WIDE = 0.76
+LOGO_TALL = 0.74
 
 
 class StationBox(QtWidgets.QAbstractButton):
-    """One station: a square with a bold white border and its name in the middle.
+    """One station: a square with a bold white border and the station's mark in the middle.
 
     Painted rather than built out of a styled QPushButton with a label or two inside it,
-    because there are three things to draw and they have to stay inside a square at whatever
-    size the grid hands it: the name, which can be two words or four and has to wrap; the
-    line under it saying what the station carries; and, in place of that line, the word that
-    it is not answering. A stylesheet cannot wrap a button's text, and a button with labels
-    laid out inside it stops being one thing to press.
+    because what goes in the square has to stay inside it at whatever size the grid hands it,
+    and because what goes in the square is not always the same thing: the logo if there is
+    one, the name wrapped across two or three lines if there is not, and underneath either of
+    them, when it happens, the word that the station is not answering. A stylesheet cannot
+    wrap a button's text, and a button with labels laid out inside it stops being one thing
+    to press.
+
+    THE LOGO IS A STENCIL, not a picture -- see assets/content/radio/logos/README.md. Only
+    its alpha is kept, and the ink is painted through it here, at the moment of drawing. That
+    is what lets one file be black on the day screen, white on the night one and white again
+    over the red of the station that is playing, instead of three files that have to be kept
+    in step with each other and with the theme.
 
     Red when it is playing -- the colour the mat uses for the thing happening now, the same
     as a lit prayer arch or a station's row before this was squares.
@@ -68,14 +80,53 @@ class StationBox(QtWidgets.QAbstractButton):
         self.win = window
         self.station = station
         self.about = station.get("about", "")
+        # Set when this station was pressed and nothing came back. Kept as a fact of its own
+        # rather than worked out from the line of text, which is what the first version did:
+        # the message and the station's own description went through the same field and the
+        # square had to compare its text against a translation to know which it was holding.
+        self.silent = False
+        self.logo = QtGui.QPixmap(station["logo"]) if station.get("logo") else QtGui.QPixmap()
+        if self.logo.isNull():
+            self.logo = None
+        # The name is set on the button even when it is never drawn: it is what the station
+        # is called, and anything that asks a button what it says -- a test, a screen reader,
+        # somebody debugging a list of six identical squares -- should get an answer.
+        self.setText(station["name"])
         self.setCheckable(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
+    def stencilled(self, where: QtCore.QRect, ink: QtGui.QColor) -> QtGui.QPixmap:
+        """The logo at [where]'s size, in [ink].
+
+        Scaled and tinted every time it is drawn rather than kept: a square is repainted when
+        it is pressed, when the theme turns over and when the grid is relaid, which is not
+        often enough to be worth a cache, and a cache here is six pixmaps per window held for
+        the life of the app on a machine with a gigabyte in it. The scale is the expensive
+        half and the raster engine does it at the size asked for, once.
+        """
+        small = self.logo.scaled(where.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                 Qt.TransformationMode.SmoothTransformation)
+        # SourceIn keeps what is already there as a shape and replaces its colour, which is
+        # the whole trick: the alpha survives, including the soft edge of every stroke, and
+        # the white underneath it is thrown away.
+        p = QtGui.QPainter(small)
+        p.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_SourceIn)
+        p.fillRect(small.rect(), ink)
+        p.end()
+        return small
+
     def say(self, about: str) -> None:
-        """The line under the name: what it carries, or that it is not answering."""
+        """The line under the name, on a square that has no logo: what the station carries."""
         if about != self.about:
             self.about = about
+            self.update()
+
+    def not_answering(self, yes: bool) -> None:
+        """Whether this station was pressed and stayed silent. The one thing a square says in
+        words now, and it only says it when something has gone wrong."""
+        if yes != self.silent:
+            self.silent = yes
             self.update()
 
     def paintEvent(self, _):
@@ -99,23 +150,48 @@ class StationBox(QtWidgets.QAbstractButton):
         ink = QtGui.QColor("white") if self.isChecked() else QtGui.QColor(c.ink)
         quiet = QtGui.QColor("#F0D6D3") if self.isChecked() else QtGui.QColor(c.soft)
 
-        # The name as large as it will go in the top two thirds, the line underneath in the
-        # bottom third. Fitted rather than set, because "Islam Media Central" and "Nasheeds"
-        # are not the same length and a size that suits one wastes the square on the other.
-        name = QtCore.QRectF(room.x(), room.y(), room.width(), room.height() * 0.66)
-        under = QtCore.QRectF(room.x(), room.bottom() - room.height() * 0.30,
-                              room.width(), room.height() * 0.30)
-        p.setPen(ink)
-        p.setFont(self.fitted(self.station["name"], name, bold=True,
-                              most=int(room.height() * 0.22)))
-        p.drawText(name, int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap),
-                   self.station["name"])
-        if self.about:
+        # One line of text ever gets drawn on a square now, and only when something is wrong:
+        # that the station is not answering. Harry: "the icons should be self explanatory so
+        # no text needed underneath". A fault is not self-explanatory, so the message keeps
+        # its place and the logo moves up out of its way to make the room.
+        trouble = self.win.t("radio.silent") if self.silent else ""
+        under = QtCore.QRectF(room.x(), room.bottom() - room.height() * 0.22,
+                              room.width(), room.height() * 0.22)
+        if trouble:
+            room = QtCore.QRectF(room.x(), room.y(), room.width(), room.height() * 0.76)
+
+        if self.logo is not None:
+            shape = QtCore.QRect(0, 0, int(room.width() * LOGO_WIDE),
+                                 int(room.height() * LOGO_TALL))
+            drawn = self.stencilled(shape, ink)
+            p.drawPixmap(int(room.center().x() - drawn.width() / 2),
+                         int(room.center().y() - drawn.height() / 2), drawn)
+        else:
+            # No artwork for this one, which is what every station had before 1.74: its name
+            # as large as it will go, wrapped, and the line about what it carries underneath.
+            name = QtCore.QRectF(room.x(), room.y(), room.width(),
+                                 room.height() * (1.0 if trouble else 0.66))
+            p.setPen(ink)
+            p.setFont(self.fitted(self.station["name"], name, bold=True,
+                                  most=int(room.height() * 0.22)))
+            p.drawText(name, int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap),
+                       self.station["name"])
+            if self.about and not trouble:
+                p.setPen(quiet)
+                said = QtCore.QRectF(room.x(), room.bottom() - room.height() * 0.30,
+                                     room.width(), room.height() * 0.30)
+                p.setFont(self.fitted(self.about, said, bold=False,
+                                      most=int(room.height() * 0.11)))
+                p.drawText(said, int(Qt.AlignmentFlag.AlignHCenter
+                                     | Qt.AlignmentFlag.AlignTop
+                                     | Qt.TextFlag.TextWordWrap), self.about)
+
+        if trouble:
             p.setPen(quiet)
-            p.setFont(self.fitted(self.about, under, bold=False,
-                                  most=int(room.height() * 0.11)))
-            p.drawText(under, int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop
-                                  | Qt.TextFlag.TextWordWrap), self.about)
+            p.setFont(self.fitted(trouble, under, bold=False,
+                                  most=int(under.height() * 0.46)))
+            p.drawText(under, int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap),
+                       trouble)
 
     def fitted(self, words: str, where: QtCore.QRectF, bold: bool, most: int) -> QtGui.QFont:
         """The largest size that puts [words] inside [where], wrapped, and no larger."""
@@ -169,13 +245,21 @@ class Stations:
             # nothing, which is worse than a list one shorter.
             if not isinstance(row, dict) or not str(row.get("url", "")).strip():
                 continue
+            key = str(row.get("key", ""))
+            # The artwork is found by name rather than named in the row: a station's logo is
+            # logos/<key>.png or there isn't one, and a station added to this file by hand --
+            # which is the point of it being a file -- needs no second entry to remember. A
+            # missing file is not a fault; the square carries the station's name instead,
+            # which is what all of them did until 1.74.
+            logo = self.path.parent / "logos" / f"{key}.png"
             out.append({
-                "key": str(row.get("key", "")),
-                "name": str(row.get("name", "")) or str(row.get("key", "")),
+                "key": key,
+                "name": str(row.get("name", "")) or key,
                 "url": str(row["url"]).strip(),
                 "about": str(row.get("about", "")),
                 "country": str(row.get("country", "")),
                 "lang": str(row.get("lang", "")),
+                "logo": str(logo) if key and logo.is_file() else "",
             })
         self._items = out
         return self._items
@@ -373,18 +457,13 @@ class RadioScreen(QtWidgets.QWidget):
         self.wifi_button.setVisible(not self.online())
         self.mark()
 
-    def said(self, station: dict) -> str:
-        """A station's name, and what it carries underneath it if it says."""
-        about = station.get("about", "")
-        return f"{station['name']}\n{about}" if about else station["name"]
-
     def mark(self) -> None:
         """Show which square is playing, and whichever one is not answering."""
         for box in self.boxes:
             station = box.station
             box.setChecked(station is self.playing)
-            box.say(self.win.t("radio.silent") if station is self.silent
-                    else station.get("about", ""))
+            box.not_answering(station is self.silent)
+            box.say(station.get("about", ""))
             box.update()
 
     # Playing one

@@ -3024,8 +3024,8 @@ class RadioTest(unittest.TestCase):
             if screen.silent is not None:
                 break
         box = screen.boxes[0]
-        self.assertEqual(w.t("radio.silent"), box.about,
-                         f"the square says {box.about!r} of a station that never answered")
+        self.assertTrue(box.silent,
+                        "the square does not know its station never answered")
         self.assertIsNone(screen.playing, "it is still shown as playing")
         # And it stays said. The first version worked this out from `playing` as the row was
         # drawn, so the message lasted exactly one repaint: the next fill -- a resize, a
@@ -3033,11 +3033,94 @@ class RadioTest(unittest.TestCase):
         # though nothing had happened.
         screen.fill()
         settle()
-        self.assertEqual(w.t("radio.silent"), screen.boxes[0].about,
-                         "the message was wiped by the next repaint")
+        self.assertTrue(screen.boxes[0].silent,
+                        "the message was wiped by the next repaint")
         screen.touched(screen.rows_for[-1])
         settle()
         self.assertIsNone(screen.silent, "pressing another station left the old message up")
+
+    def test_the_message_about_not_answering_is_the_one_thing_still_written(self):
+        """Harry asked for no text on the squares -- "the icons should be self explanatory so
+        no text needed underneath" -- and a fault is the exception, because a fault is the one
+        thing a logo cannot be self-explanatory about. So the words are actually drawn, and
+        the logo gives up the bottom of the square rather than being written over.
+        """
+        w = self.window()
+        screen = self.screen(w)
+        box = screen.boxes[0]
+        before = self.lettering_under(box)
+        box.not_answering(True)
+        settle()
+        self.assertGreater(self.lettering_under(box), 200,
+                           "nothing is written on the square of a station that went silent")
+        self.assertNotEqual(before, self.lettering_under(box),
+                            "the foot of the square is unchanged by the station going quiet")
+        # And the logo is still there, above it, rather than painted over by the message.
+        self.assertGreater(self.marked_in(box, 0.05, 0.70), 400,
+                           "the logo went away when the station did")
+
+    def test_the_logo_gets_out_of_the_message_s_way_rather_than_being_written_over(self):
+        """Six different marks, and the same six words.
+
+        So if the logo has really moved up to make the room, the foot of a silent square is
+        the message and nothing else -- which means it is the same picture on all six, pixel
+        for pixel, however different the marks above it are. One of them reaching down into
+        those words would break that, and nothing else would.
+        """
+        w = self.window()
+        screen = self.screen(w)
+        self.assertGreater(len(screen.boxes), 1)
+        feet, quiet = [], []
+        for box in screen.boxes:
+            quiet.append(self.foot_of(box))
+            box.not_answering(True)
+            settle()
+            feet.append(self.foot_of(box))
+        self.assertEqual(1, len(set(feet)),
+                         "the foot of a silent square is not the same on every station, so "
+                         "something is drawn down there besides the message")
+        self.assertGreater(len(set(quiet)), 1,
+                           "the squares look alike at the foot even before anything is "
+                           "wrong, so this proves nothing")
+        self.assertNotIn(feet[0], quiet, "the message was already there")
+
+    @staticmethod
+    def foot_of(box) -> bytes:
+        """The strip across the bottom of the square, as something two of them can be
+        compared by.
+
+        Encoded rather than read out of the image's own buffer, which is the one place the
+        two bindings differ in the hand: PySide hands back a memoryview and PyQt6 a
+        sip.voidptr, and only one of them knows how to become bytes. Nothing is written to
+        disk -- the buffer is in memory -- and the same pixels encode the same way inside one
+        run, which is all that is being asked of it.
+        """
+        shot = box.grab().toImage().copy(0, int(box.height() * 0.76),
+                                         box.width(), int(box.height() * 0.22))
+        hold = QtCore.QBuffer()
+        hold.open(QtCore.QIODevice.OpenModeFlag.WriteOnly)
+        shot.save(hold, "PNG")
+        return bytes(hold.data())
+
+    @staticmethod
+    def marked_in(box, top: float, bottom: float) -> int:
+        """How many pixels between [top] and [bottom] of the square are not the background.
+
+        The background is taken from the palette rather than sampled off the square, because
+        every point worth sampling is somewhere the drawing might be.
+        """
+        from salaah.theme import palette
+        shot = box.grab().toImage()
+        pad = box.width() // 8
+        back = QtGui.QColor(palette().paper).lightness()
+        return sum(1 for y in range(int(box.height() * top), int(box.height() * bottom))
+                   for x in range(pad, box.width() - pad)
+                   if abs(QtGui.QColor(shot.pixel(x, y)).lightness() - back) > 60)
+
+    @classmethod
+    def lettering_under(cls, box) -> int:
+        """Marked pixels across the foot of the square, where the message goes."""
+        return cls.marked_in(box, 0.78, 0.95)
 
     def test_leaving_the_screen_stops_the_station(self):
         """A station playing on from behind the Qur'an could only be stopped by coming back
@@ -3180,22 +3263,154 @@ class RadioTest(unittest.TestCase):
                 self.assertLess(self.ink_in(box, BRICK), box.width() ** 2 * 0.05,
                                 "a square that is not playing has gone red")
 
-    def test_the_name_is_drawn_on_the_square(self):
-        """The square is painted rather than built out of labels, so this is the check that
-        anything is written on it at all."""
+    # The logos
+
+    @staticmethod
+    def shape_of(mask, grid=28):
+        """A picture boiled down to a [grid]x[grid] silhouette of where it is drawn.
+
+        [mask] is (width, height, is_drawn(x, y)). Everything is measured from the drawing's
+        own bounding box, so the answer says nothing about how big it was or where it sat --
+        which is the point: it is compared against a file on disk that knows neither.
+        """
+        w, h, drawn = mask
+        on = [(x, y) for y in range(h) for x in range(w) if drawn(x, y)]
+        if not on:
+            return None
+        x0, x1 = min(x for x, _ in on), max(x for x, _ in on)
+        y0, y1 = min(y for _, y in on), max(y for _, y in on)
+        wide, tall = max(1, x1 - x0 + 1), max(1, y1 - y0 + 1)
+        cells = [0] * (grid * grid)
+        for x, y in on:
+            cells[min(grid - 1, (y - y0) * grid // tall) * grid
+                  + min(grid - 1, (x - x0) * grid // wide)] += 1
+        # A cell counts as drawn if a tenth of it is, which keeps thin strokes -- the Ikhlas
+        # knotwork is one pixel wide in places at this size -- without keeping stray dust.
+        each = (wide / grid) * (tall / grid)
+        return [c > each * 0.10 for c in cells], wide / tall
+
+    def test_each_square_carries_its_station_s_logo_and_not_its_name(self):
+        """Harry: "replace the buttons in the radio menu with these, the icons should be self
+        explanatory so no text needed underneath".
+
+        What is drawn on the square is compared against the file it is supposed to be drawn
+        from: both are reduced to a silhouette inside their own bounding box, so the test
+        knows nothing about where the square decided to put it or how big it made it, and a
+        square carrying the station's name in words instead agrees with nothing.
+        """
         w = self.window()
         screen = self.screen(w)
+        self.assertTrue(screen.boxes)
         for box in screen.boxes:
             with self.subTest(box.station["name"]):
+                self.assertTrue(box.station["logo"],
+                                "this station has no artwork, so nothing was replaced")
                 shot = box.grab().toImage()
-                # Well inside the border, and only the top of the square, which is where the
-                # NAME goes. Scanning the whole thing counts the border and the line
-                # underneath, so it would pass with the name left off altogether.
-                pad = w.px(44)
-                ink = sum(1 for y in range(pad, int(box.height() * 0.55))
-                          for x in range(pad, box.width() - pad)
-                          if QtGui.QColor(shot.pixel(x, y)).lightness() > 160)
-                self.assertGreater(ink, 500, "the station's name is not on its square")
+                pad = w.px(30)      # inside the border, which is drawn in the same ink
+                drawn = self.shape_of((box.width(), box.height(),
+                                       lambda x, y: (pad < x < box.width() - pad
+                                                     and pad < y < box.height() - pad
+                                                     and QtGui.QColor(
+                                                         shot.pixel(x, y)).lightness() > 150)))
+                self.assertIsNotNone(drawn, "nothing is drawn on the square at all")
+                file = QtGui.QImage(box.station["logo"])
+                self.assertFalse(file.isNull(), "the logo file would not open")
+                want = self.shape_of((file.width(), file.height(),
+                                      lambda x, y: QtGui.QColor.fromRgba(
+                                          file.pixel(x, y)).alpha() > 40))
+                same = sum(1 for a, b in zip(drawn[0], want[0]) if a == b) / len(want[0])
+                # Measured: the six logos score 0.85 to 0.99 against their own files, and
+                # the same squares carrying their station's NAME instead score 0.47 to 0.60.
+                # The bar sits in the gap, nearer the names than the logos: the floor is the
+                # Mishary portrait, which is fine hatching and loses a little of itself being
+                # boiled down to a silhouette twenty-eight squares across.
+                self.assertGreater(same, 0.75,
+                                   f"what is on the square matches the logo in {same:.0%} of "
+                                   f"it, which is nearer a name than that logo")
+                self.assertAlmostEqual(drawn[1], want[1], delta=0.08,
+                                       msg="the logo has been stretched out of shape")
+
+    def test_the_logo_is_stencilled_in_the_ink_of_the_day(self):
+        """Black on the white screen, white on the black one, and white over the red of the
+        station that is playing. The files are white artwork with an alpha channel and the
+        colour is painted through them here -- one file for three appearances, rather than
+        three files to keep in step with each other and with the theme.
+        """
+        for mode, ink in (("dark", 255), ("light", 0)):
+            with self.subTest(mode):
+                w = self.window(theme=mode)
+                screen = self.screen(w)
+                box = screen.boxes[-1]
+                shot = box.grab().toImage()
+                pad = w.px(30)
+                lights = [QtGui.QColor(shot.pixel(x, y)).lightness()
+                          for y in range(pad, box.height() - pad)
+                          for x in range(pad, box.width() - pad)]
+                marked = [v for v in lights if abs(v - ink) < 60]
+                self.assertGreater(len(marked), 400,
+                                   f"{mode}: the logo is not drawn in lightness {ink}")
+        w = self.window(theme="light")
+        screen = self.screen(w)
+        screen.player.player = self.fake_player()
+        screen.touched(screen.rows_for[0])
+        settle()
+        box = screen.boxes[0]
+        shot = box.grab().toImage()
+        pad = w.px(30)
+        white = sum(1 for y in range(pad, box.height() - pad)
+                    for x in range(pad, box.width() - pad)
+                    if QtGui.QColor(shot.pixel(x, y)).lightness() > 200)
+        self.assertGreater(white, 400,
+                           "the playing station's logo stayed black on the red square")
+
+    def test_a_station_with_no_artwork_still_gets_its_name(self):
+        """Which is what all of them had until 1.74, and what the next one added to the file
+        by hand will have until somebody draws it. A square with neither would be blank."""
+        w = self.window()
+        screen = self.screen(w)
+        bare = dict(screen.rows_for[0], key="bare", name="Nowhere Radio",
+                    about="Nothing at all", logo="")
+        from salaah.radio import StationBox
+        box = StationBox(w, bare)
+        box.setFixedSize(screen.boxes[0].size())
+        box.show()
+        settle()
+        self.addCleanup(box.deleteLater)
+        self.assertGreater(self.marked_in(box, 0.15, 0.60), 300,
+                           "a station with no artwork has a blank square")
+
+    def test_the_logos_are_stencils_rather_than_pictures(self):
+        """The thing the mat relies on, checked on the files that ship.
+
+        Only the alpha of each one is used: the colour is thrown away and the ink painted
+        through the shape. A file saved as flat artwork -- white on black with no alpha, the
+        way all six arrived -- would draw as a solid block the size of the whole square,
+        which is the failure this catches before it leaves here rather than on the mat.
+        """
+        folder = ASSETS / "content" / "radio" / "logos"
+        files = sorted(folder.glob("*.png"))
+        self.assertTrue(files, "no artwork ships at all")
+        for path in files:
+            with self.subTest(path.name):
+                im = QtGui.QImage(str(path))
+                self.assertFalse(im.isNull())
+                self.assertTrue(im.hasAlphaChannel(), "no alpha, so nothing to stencil")
+                corners = [im.pixel(0, 0), im.pixel(im.width() - 1, 0),
+                           im.pixel(0, im.height() - 1),
+                           im.pixel(im.width() - 1, im.height() - 1)]
+                self.assertTrue(any(QtGui.QColor.fromRgba(c).alpha() < 20 for c in corners),
+                                "every corner is solid, so the field was kept as artwork")
+                step = max(1, im.width() // 60)
+                solid = [QtGui.QColor.fromRgba(im.pixel(x, y))
+                         for y in range(0, im.height(), step)
+                         for x in range(0, im.width(), step)
+                         if QtGui.QColor.fromRgba(im.pixel(x, y)).alpha() > 200]
+                self.assertTrue(solid, "nothing in it is solid")
+                self.assertTrue(all(c.red() > 240 and c.green() > 240 and c.blue() > 240
+                                    for c in solid),
+                                "the artwork is coloured, so the stencil would tint nothing")
+                self.assertIn(path.stem, (folder / "README.md").read_text(encoding="utf-8"),
+                              "ships with the mat and nothing beside it says where it is from")
 
     def test_they_are_arranged_in_a_block_rather_than_a_column(self):
         """Four stations go two by two, not four down the screen. The point of squares."""
@@ -3222,6 +3437,29 @@ class RadioTest(unittest.TestCase):
                                  "not an address a player can open")
                 self.assertNotIn(station["key"], seen, "two stations share a key")
                 seen.add(station["key"])
+
+    def test_the_two_harry_sent_are_on_the_list_at_the_addresses_he_sent(self):
+        """Typed out in full rather than checked for roughly, because an address is the whole
+        of what a station is here: a character wrong in one is a square that does nothing, and
+        nothing in this container can tell the difference by listening."""
+        w = self.window()
+        by_key = {s["key"]: s for s in w.stations.items}
+        for key, url in (("buzz-islam", "https://tunein.buzzislam.com/radio/8000/radio.mp3"),
+                         ("radio-ikhlas", "https://radio.canstream.co.uk:8050/live.mp3")):
+            with self.subTest(key):
+                self.assertIn(key, by_key, "the station was not added")
+                self.assertEqual(url, by_key[key]["url"])
+
+    def test_every_station_on_the_list_has_artwork(self):
+        """Six stations and six logos, which is what makes "no text needed underneath" a
+        thing the screen can do. A seventh added without artwork is not a fault -- it falls
+        back to its name -- but it should be noticed here rather than on the mat."""
+        w = self.window()
+        for station in w.stations.items:
+            with self.subTest(station["name"]):
+                self.assertTrue(station["logo"],
+                                f"no logos/{station['key']}.png for this one")
+                self.assertTrue(Path(station["logo"]).is_file())
 
     def test_the_list_is_not_claimed_to_be_checked(self):
         """Nothing on it has been heard on a mat. The machine the list was assembled on
