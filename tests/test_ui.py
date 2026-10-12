@@ -4782,16 +4782,21 @@ class SleepTest(unittest.TestCase):
         """The panels are the bulk of it, but the sky animating several times a second and the
         clock redrawing the times cost something too, and nobody can see either of them."""
         w = self.window()
-        skies = [w.mosque] + ([w.welcome_mosque] if w.welcome is not None else [])
+        # Past the front door first. It is one picture since 1.76 -- no sky, no clock on a
+        # dome -- so the mat has to be on the mosque for there to be anything to stop.
+        w.leave_welcome()
+        w.veil.stop()
+        settle()
+        skies = w.every_sky()
         self.assertTrue(w.clock.isActive())
         self.assertTrue(any(s.flutter.isActive() for s in skies))
         self.press(w)
         self.assertFalse(w.clock.isActive(), "the ten-second clock is still running")
         self.assertFalse(any(s.flutter.isActive() for s in skies), "the sky is still animating")
         self.press(w)
-        # It wakes at the front door, whose drawing brings its own sky and runs no clock for
-        # one. So what has to come back is the ten-second clock -- the thing that keeps the
-        # times right -- and no sky anywhere may still be running.
+        # It wakes at the front door, which is one picture with nothing moving on it. So what
+        # has to come back is the ten-second clock -- the thing that keeps the times right --
+        # and no sky on a screen nobody is looking at may be running.
         self.assertTrue(w.clock.isActive())
         self.assertFalse(any(s.flutter.isActive() for s in skies if not s.isVisible()),
                          "a sky is animating on a screen nobody is looking at")
@@ -6771,8 +6776,8 @@ class BannerTest(unittest.TestCase):
 
     def test_the_knowledge_corner_has_a_banner_too(self):
         w = self.window()
-        self.assertEqual(4, len(w.banner_labels),
-                         "the mosque, the front door, the corner and Settings")
+        self.assertEqual(3, len(w.banner_labels),
+                         "the mosque, the corner and Settings -- the front door carries no strip")
 
     def test_both_banners_say_the_same_thing(self):
         w = self.window()
@@ -6833,8 +6838,8 @@ class VolumeEverywhereTest(unittest.TestCase):
         """There were briefly two within a centimetre of each other in the Qur'an: one in the
         banner and one in the row under it. The banner's is the one that stayed."""
         w = self.window()
-        self.assertEqual(4, len(w.volume_bars),
-                         "the mosque, the front door, the corner and Settings")
+        self.assertEqual(3, len(w.volume_bars),
+                         "the mosque, the corner and Settings -- the front door carries no strip")
         w.open_surah(2)
         settle()
         from salaah.qt import QtWidgets as Q
@@ -7193,7 +7198,7 @@ class TwoMosquesTest(unittest.TestCase):
 
         All of them again since 1.64, the kalima menu included."""
         sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size()
-                 for f in ["mosque", "welcome", "kalima"] + [f"prayers/{p}" for p in PRAYERS]}
+                 for f in ["mosque", "kalima"] + [f"prayers/{p}" for p in PRAYERS]}
         self.assertEqual(1, len(sizes), f"the drawings are not all one size: {sizes}")
 
     def test_the_arch_menu_has_no_bar_of_its_own_stealing_height(self):
@@ -8279,83 +8284,6 @@ class MovingMuezzinTest(unittest.TestCase):
         self.assertEqual(1, len(w.findChildren(CallBox)), "the first box was left behind")
 
 
-class WelcomeScreenTest(unittest.TestCase):
-    """The front door: the mosque with MySalaah across it, which the mat opens on."""
-
-    def window(self, mode="dark"):
-        w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme=mode, recitation=False, place="Bury"),
-                       scale=1.0, save_settings=False, aspect=None)
-        w.resize(1920, 1080)
-        w.show()
-        w.tick()
-        settle()
-        self.addCleanup(lambda: shut(w))
-        return w
-
-    def test_the_mat_opens_on_it(self):
-        w = self.window()
-        self.assertIsNotNone(w.welcome, "the welcome drawing was not found")
-        self.assertIs(w.welcome, w.stack.currentWidget())
-
-    def test_it_has_one_opening_with_the_name_across_it(self):
-        w = self.window()
-        self.assertEqual(["enter"], [a.prayer for a in w.welcome_mosque.arches])
-        box = w.welcome_mosque.arches[0].box
-        self.assertGreater(box.width(), box.height() * 2,
-                           "the opening is a wide panel, not one of the upright arches")
-        # Against the building rather than the canvas. The drawing is widened to the screen's
-        # shape with bars of its own sky either side, and those are not part of the front.
-        self.assertGreater(box.width(), w.welcome_mosque.picture.width() * 0.4,
-                           "and it spans most of the front")
-
-    def test_touching_it_goes_through_to_the_mosque(self):
-        w = self.window()
-        middle = w.welcome_mosque.arch_centre("enter")
-        self.assertIsNotNone(middle)
-        self.assertEqual("enter", w.welcome_mosque.arch_at(middle), "the middle is not the panel")
-        w.welcome_mosque.chosen.emit("enter")
-        settle()
-        self.assertIs(w.home, w.stack.currentWidget(), "it did not go in")
-
-    def test_the_rest_of_the_mat_still_comes_back_to_the_mosque(self):
-        """Main screen means the five arches, not back out to the front door: that is the
-        screen the mat is for, and a call to prayer lands there too."""
-        w = self.window()
-        w.welcome_mosque.chosen.emit("enter")
-        settle()
-        w.open_settings()
-        settle()
-        w.go_home()
-        settle()
-        self.assertIs(w.welcome, w.stack.currentWidget())
-
-    def test_it_keeps_the_clock_but_lights_no_prayer(self):
-        w = self.window()
-        front = w.welcome_mosque
-        self.assertTrue(front.time_text, "no time on the dome")
-        self.assertEqual(w.mosque.time_text, front.time_text, "the two clocks disagree")
-        self.assertIsNone(front.lit, "the front door should not be picking a prayer")
-        self.assertFalse(front.idle_glow, "and should not be glowing its minarets either")
-
-    def test_with_no_welcome_drawing_the_mat_opens_on_the_mosque_as_it_did(self):
-        """The screen is an extra, not a thing the mat depends on."""
-        import shutil, tempfile
-        spare = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(spare, ignore_errors=True))
-        shutil.copytree(ASSETS, spare / "assets", symlinks=True)
-        shutil.rmtree(spare / "assets" / "welcome")
-        w = MainWindow(load(spare / "assets"), available_packs(spare / "assets"),
-                       Settings(theme="dark", recitation=False, place="Bury"),
-                       scale=1.0, save_settings=False, aspect=None)
-        w.resize(1920, 1080)
-        w.show()
-        settle()
-        self.addCleanup(lambda: shut(w))
-        self.assertIsNone(w.welcome)
-        self.assertIs(w.home, w.stack.currentWidget())
-
-
 class CleanArtworkTest(unittest.TestCase):
     """The drawings are two-tone. The first pair had a glow painted round every line, and where
     the sky was knocked out from under it a grey fringe was left standing on the black."""
@@ -8375,7 +8303,7 @@ class CleanArtworkTest(unittest.TestCase):
         return mid, solid
 
     def test_the_drawings_are_black_and_white_and_not_much_in_between(self):
-        for folder in ("mosque", "kalima", "welcome"):
+        for folder in ("mosque", "kalima"):
             mid, solid = self.solid_shades(folder)
             self.assertGreater(solid, 1000, folder)
             share = mid / solid
@@ -8390,7 +8318,8 @@ class CleanArtworkTest(unittest.TestCase):
         The kalima menu rejoined them in 1.64; it was the last of the old artwork, and for one
         version it was left out of this with a note saying why.
         """
-        folders = ["mosque", "welcome", "kalima"] + [f"prayers/{p}" for p in PRAYERS]
+        # The front door was one of these until 1.76, when it stopped being a mosque.
+        folders = ["mosque", "kalima"] + [f"prayers/{p}" for p in PRAYERS]
         sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size() for f in folders}
         self.assertEqual(1, len(sizes), f"the mosques are drawn at different sizes: {sizes}")
         shape = next(iter(sizes))
@@ -8513,204 +8442,15 @@ class ArtworkCacheTest(unittest.TestCase):
         self.assertEqual(was, again.picture.size(), "same canvas, different drawing")
 
 
-class MovingFrontDoorTest(unittest.TestCase):
-    """The front door is a little film, not a still. Everything measured on this screen -- the
-    panel you touch, the box the clock sits in -- came off the still, so the two have to stay
-    the same canvas and the film has to sit exactly on top of it."""
+class BannerLeadsWithThePinTest(unittest.TestCase):
+    """What the black strip across the top says, and in what order: a pin, the place in blue,
+    then the five prayer times.
 
-    def window(self, mode="dark"):
-        w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme=mode, recitation=False, place="Bury"),
-                       scale=1.0, save_settings=False, aspect=None)
-        w.resize(1920, 1080)
-        w.show()
-        w.tick()
-        settle()
-        self.addCleanup(lambda: shut(w))
-        return w
-
-    def test_the_front_door_has_a_film_and_the_other_two_mosques_do_not(self):
-        w = self.window()
-        self.assertTrue((ASSETS / "welcome" / "mosque.gif").is_file())
-        self.assertIsNotNone(w.welcome_mosque.film, "the front door is showing the still")
-        self.assertGreater(w.welcome_mosque.film.frameCount(), 1)
-        self.assertIsNone(w.mosque.film, "the five prayers should not be animated")
-        w.open_section("kalima")
-        settle()
-        self.assertIsNone(w.arch_menus["kalima"].mosque.film, "nor should the kalima")
-
-    def test_it_runs_while_the_screen_is_up_and_stops_when_it_is_not(self):
-        w = self.window()
-        front = w.welcome_mosque
-        running = QtGui.QMovie.MovieState.Running
-        self.assertEqual(running, front.film.state(), "not playing on the screen it is on")
-        w.leave_welcome()
-        settle()
-        self.assertNotEqual(running, front.film.state(),
-                            "still playing with the mosque up in front of it")
-
-    def test_the_film_is_the_same_canvas_as_the_still(self):
-        """Every box on this screen was measured against the still."""
-        w = self.window()
-        front = w.welcome_mosque
-        front.film.jumpToFrame(0)
-        self.assertEqual(front.picture.size(), front.film.currentPixmap().size())
-
-    def test_a_film_on_a_different_canvas_is_refused(self):
-        """Rather than shown stretched, which would slide the drawing out of step with the
-        places you can touch."""
-        import shutil, tempfile
-        from PIL import Image
-        from salaah import mosque
-        spare = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(spare, ignore_errors=True))
-        shutil.copytree(ASSETS / "welcome", spare / "welcome")
-        # Every frame resized, not just the first: resize() hands back one frame, and a
-        # one-frame film is refused for being a still rather than for being the wrong size --
-        # so the test passed without the size check ever running.
-        from PIL import ImageSequence
-        with Image.open(ASSETS / "welcome" / "mosque.gif") as source:
-            frames = [f.convert("P").resize((400, 300))
-                      for f in ImageSequence.Iterator(source)]
-        frames[0].save(spare / "welcome" / "mosque.gif", save_all=True,
-                       append_images=frames[1:], loop=0, duration=100)
-        with Image.open(spare / "welcome" / "mosque.gif") as check:
-            self.assertGreater(getattr(check, "n_frames", 1), 1, "the stand-in is not a film")
-        screen = mosque.MosqueScreen(spare, folder="welcome")
-        self.addCleanup(lambda: (screen.deleteLater(), APP.processEvents()))
-        self.assertIsNone(screen.film, "a film of the wrong size was accepted")
-        self.assertTrue(screen.ready, "and the still should still be shown")
-
-    def test_the_frames_are_different_pictures_on_the_screen(self):
-        w = self.window()
-        front = w.welcome_mosque
-        front.sky.birds = []
-        front.sky.stars = []            # they twinkle, and would make every grab differ
-        seen = []
-        for i in range(front.film.frameCount()):
-            front.film.jumpToFrame(i)
-            settle()
-            image = front.grab().toImage()
-            seen.append(tuple(image.pixel(x, y)
-                              for y in range(0, image.height(), 11)
-                              for x in range(0, image.width(), 11)))
-        self.assertGreater(len(set(seen)), 2,
-                           f"the film has {front.film.frameCount()} frames but only "
-                           f"{len(set(seen))} of them reach the screen")
-
-    def test_the_dome_still_hides_the_sky_behind_it(self):
-        """The film has no transparency of its own. Drawn instead of the still it would either
-        paint over the stars everywhere or let them through the dome the clock sits on; laid
-        over it, the still goes on doing the masking."""
-        w = self.window()
-        front = w.welcome_mosque
-        front.sky.birds = []
-        front.set_sky(False, 0.5)
-        scaled, origin, scale = front.placement()
-        box = front.clock_box
-        front.set_time("")
-        # A thick field of stars laid right across the dome rather than the handful the sky
-        # happens to put there. With the real ones, so few land on the dome that the difference
-        # was inside the tolerance and the test passed with the masking removed.
-        stars = [(x / 60.0, y / 60.0, 1.0, 0.0) for x in range(20, 45) for y in range(20, 40)]
-        self.assertGreater(len(stars), 300)
-
-        def dome_pixels():
-            settle()
-            image = front.grab().toImage()
-            return sum(1 for y in range(origin.y() + int((box.y() + 20) * scale),
-                                        origin.y() + int((box.y() + box.height() - 20) * scale), 2)
-                       for x in range(origin.x() + int((box.x() + 20) * scale),
-                                      origin.x() + int((box.x() + box.width() - 20) * scale), 2)
-                       if QtGui.QColor(image.pixel(x, y)).lightness() > 120)
-        front.sky.stars = []
-        bare = dome_pixels()
-        front.sky.stars = stars
-        starry = dome_pixels()
-        self.assertLessEqual(starry, bare + 12,
-                             f"{starry - bare} star pixels are showing through the dome")
-        self.assertGreater(len(stars), 0, "the stars were put there to be masked")
-
-
-    def test_the_film_moves_without_burying_the_sky_behind_it(self):
-        """REVERSED IN 1.62. This said the drawing brought its own sky and the app painted none,
-        which was true of the drawing it was written for. Harry's new animation has no sun, moon
-        or stars in it and he asked for the app's, so the sky is cut out of every frame.
-
-        The thing worth testing is therefore the opposite one, and it is the thing that would
-        actually go wrong: a film is a rectangle, and a frame with the sky painted into it would
-        bury the moon behind a black box while the still underneath looked perfectly right.
-        """
-        w = self.window()
-        front = w.welcome_mosque
-        self.assertTrue(front.own_sky, "the front door is not asking for a sky")
-        self.assertIsNotNone(front.film, "there is no film to check")
-        for frame in range(0, front.film.frameCount(), 7):
-            with self.subTest(frame):
-                front.film.jumpToFrame(frame)
-                picture = front.film.currentPixmap()
-                self.assertTrue(picture.hasAlphaChannel(),
-                                f"frame {frame} has no see-through sky at all")
-                corner = picture.toImage().pixelColor(2, 2)
-                self.assertEqual(0, corner.alpha(),
-                                 f"frame {frame} paints over the corner of the sky")
-
-    def test_the_time_is_still_on_the_dome(self):
-        """The one thing Harry asked for from the new drawing. It is written dark on it, where
-        the old one was written light: that dome is a solid shape and the old one was a hole."""
-        w = self.window()
-        w.tick()                         # what puts the time on the dome
-        settle()
-        front = w.welcome_mosque
-        self.assertTrue(front.clock_dark, "the numbers would be white on a white dome")
-        self.assertRegex(front.time_text, r"^\d{1,2}:\d{2}$", "there is no time on the dome")
-        self.assertTrue(front.clock_box.isValid() and front.clock_box.width() > 100)
-
-    def window(self, **settings):
-        w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(**{"theme": "dark", "recitation": False, "place": "Bury",
-                                   "sleep_after": 1, **settings}),
-                       scale=1.0, save_settings=False, aspect=None)
-        w.resize(1920, 1080)
-        w.show()
-        settle()
-        self.addCleanup(lambda: shut(w))
-        return w
-
-    def test_it_wakes_at_the_front_door_not_where_it_was_left(self):
-        w = self.window()
-        w.leave_welcome()
-        w.open_settings()
-        settle()
-        self.assertIs(w.settings_screen, w.stack.currentWidget())
-        w.maybe_sleep()
-        settle()
-        self.assertTrue(w.asleep, "it should have gone to sleep")
-        w.wake()
-        settle()
-        self.assertFalse(w.asleep)
-        self.assertIs(w.welcome, w.stack.currentWidget(),
-                      "it came back on yesterday's screen")
-
-    def test_waking_mid_prayer_stays_where_it_was(self):
-        """A prayer on screen is the one thing that must not be walked away from: the call
-        wakes the mat and then takes it home itself."""
-        w = self.window()
-        w.leave_welcome()
-        entry = w.school.prayers["fajr"][0]
-        w.start("fajr", entry)
-        settle()
-        self.assertTrue(w.playing)
-        was = w.stack.currentWidget()
-        w.maybe_sleep()
-        w.asleep = True                      # a prayer keeps it awake, so put it under by hand
-        w.wake()
-        settle()
-        self.assertIs(was, w.stack.currentWidget(), "it walked out of a prayer")
-
-
-class FrontDoorBannerTest(unittest.TestCase):
-    """The front door wears the same strip as the mosque, and the strip now leads with a pin."""
+    Measured on the FRONT DOOR until 1.76, which is where the strip was first put and the
+    first place anybody saw it. The front door is one picture now and carries no strip at all,
+    so the mosque behind it is where these are read -- the same strip, built by the same
+    make_banner, and the one every other screen gets a copy of.
+    """
 
     def window(self, **settings):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
@@ -8719,6 +8459,8 @@ class FrontDoorBannerTest(unittest.TestCase):
                        scale=1.0, save_settings=False, aspect=None)
         w.resize(1920, 1080)
         w.show()
+        w.leave_welcome()          # the strip lives on the mosque, not on the front door
+        w.veil.stop()
         w.tick()
         settle()
         self.addCleanup(lambda: shut(w))
@@ -8730,9 +8472,9 @@ class FrontDoorBannerTest(unittest.TestCase):
         self.assertEqual(1, len(strips), "one strip, no more and no fewer")
         return strips[0]
 
-    def test_the_front_door_has_the_same_strip_as_the_mosque(self):
+    def test_the_strip_names_the_place_and_all_five_prayers(self):
         w = self.window()
-        front = self.strip(w, w.welcome)
+        front = self.strip(w, w.home)
         said = [x for x in front.findChildren(QtWidgets.QLabel)
                 if x.objectName() == "bannerText"]
         self.assertEqual(1, len(said))
@@ -8740,12 +8482,12 @@ class FrontDoorBannerTest(unittest.TestCase):
         for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
             self.assertIn(w.t(f"prayer.{prayer}"), said[0].text(), prayer)
         self.assertEqual(1, len(front.findChildren(QtWidgets.QSlider)), "and how loud it is")
-        self.assertEqual(0, front.mapTo(w.welcome, QtCore.QPoint(0, 0)).y(),
+        self.assertEqual(0, front.mapTo(w.home, QtCore.QPoint(0, 0)).y(),
                          "the strip is the top of the screen")
 
     def test_the_pin_comes_before_the_place(self):
         w = self.window()
-        front = self.strip(w, w.welcome)
+        front = self.strip(w, w.home)
         pins = [x for x in front.findChildren(QtWidgets.QLabel) if x.objectName() == "bannerPin"]
         self.assertEqual(1, len(pins), "no pin on the strip")
         pin, words = pins[0], next(x for x in front.findChildren(QtWidgets.QLabel)
@@ -8764,7 +8506,7 @@ class FrontDoorBannerTest(unittest.TestCase):
     def test_the_place_is_written_in_blue_and_the_times_are_not(self):
         from salaah.ui import BANNER_BLUE
         w = self.window()
-        said = next(x for x in w.welcome.findChildren(QtWidgets.QLabel)
+        said = next(x for x in w.home.findChildren(QtWidgets.QLabel)
                     if x.objectName() == "bannerText").text()
         self.assertIn(f'<span style="color:{BANNER_BLUE}">Bury</span>', said)
         after = said.split("</span>", 1)[1]
@@ -8784,7 +8526,7 @@ class FrontDoorBannerTest(unittest.TestCase):
         mistake, and only the pixels say."""
         from salaah.ui import BANNER_BLUE
         w = self.window()
-        front = self.strip(w, w.welcome)
+        front = self.strip(w, w.home)
         words = next(x for x in front.findChildren(QtWidgets.QLabel)
                      if x.objectName() == "bannerText")
         image = words.grab().toImage()
@@ -9113,62 +8855,6 @@ class BannerStripTest(unittest.TestCase):
                                 "squeezed when the room came back")
 
 
-class WalkIntoTheNameTest(unittest.TestCase):
-    """Touching MySalaah walks into the name, the way touching an arch walks into the arch."""
-
-    def window(self):
-        w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme="dark", recitation=False, place="Bury"),
-                       scale=1.0, save_settings=False, aspect=None)
-        w.resize(1920, 1080)
-        w.show()
-        settle()
-        self.addCleanup(lambda: shut(w))
-        return w
-
-    def test_touching_the_name_starts_a_walk(self):
-        w = self.window()
-        self.assertFalse(w.veil.running)
-        w.welcome_mosque.chosen.emit("enter")
-        settle()
-        self.assertTrue(w.veil.running, "nothing is walking anywhere")
-        self.assertIs(w.home, w.stack.currentWidget(),
-                      "the screen changes first; the walk is only laid over it")
-
-    def test_the_walk_heads_for_the_name_and_not_the_middle_of_the_screen(self):
-        w = self.window()
-        panel = w.welcome_mosque.arch_centre("enter")
-        w.welcome_mosque.chosen.emit("enter")
-        settle()
-        aimed = w.veil.focus * w.veil.COARSE
-        self.assertLess(abs(aimed.x() - panel.x()), 30, "not aimed at the name across the front")
-        self.assertLess(abs(aimed.y() - (panel.y() + w.welcome.height() - w.welcome_mosque.height())),
-                        60, "not aimed at the right height")
-
-    def test_it_ends_on_the_mosque_even_if_the_walk_is_cut_short(self):
-        """The animation is never what decides which screen you are on."""
-        w = self.window()
-        w.welcome_mosque.chosen.emit("enter")
-        settle()
-        w.veil.stop()
-        settle()
-        self.assertFalse(w.veil.running)
-        self.assertIs(w.home, w.stack.currentWidget())
-
-    def test_going_in_from_anywhere_else_does_not_start_a_walk(self):
-        """Only the front door walks into the name. Coming back from Settings, or a prayer
-        falling due, should not blow the mosque up in somebody's face."""
-        w = self.window()
-        w.leave_welcome()
-        w.veil.stop()
-        settle()
-        w.open_settings()
-        settle()
-        w.leave_welcome()
-        settle()
-        self.assertFalse(w.veil.running, "it walked in from a screen that is not the front door")
-
-
 class SixTileMenuTest(unittest.TestCase):
     """The 7in menu: six tiles, two across and three down, filling the screen with no heading."""
 
@@ -9347,7 +9033,9 @@ class SettingsFromTheTileTest(unittest.TestCase):
     def test_no_cog_on_any_strip_when_the_small_screen_is_there(self):
         from salaah.mosque import GearButton
         w = self.window()
-        for page in (w.welcome, w.home, w.corner_page):
+        # The front door is not in this list: it has carried no strip since 1.76, so there
+        # is nothing on it for a cog to be on.
+        for page in (w.home, w.corner_page):
             strips = [x for x in page.findChildren(QtWidgets.QWidget)
                       if x.objectName() == "banner"]
             for strip in strips:
@@ -9396,6 +9084,10 @@ class VolumeSliderLookTest(unittest.TestCase):
         return w
 
     def showing(self, w):
+        # Past the front door: it is one picture since 1.76, with no strip and so no slider.
+        w.leave_welcome()
+        w.veil.stop()
+        settle()
         bars = [b for b, _ in w.volume_bars if b.isVisible()]
         self.assertTrue(bars, "no slider is on screen")
         return bars[0]
@@ -9406,7 +9098,10 @@ class VolumeSliderLookTest(unittest.TestCase):
             self.assertFalse(read.isVisible(), "the figure is still on the strip")
         # Anything else on the strip that prints one -- a hidden label still answers text(),
         # so only what is actually on screen counts.
-        said = " ".join(x.text() for x in w.welcome.findChildren(QtWidgets.QLabel)
+        w.leave_welcome()
+        w.veil.stop()
+        settle()
+        said = " ".join(x.text() for x in w.home.findChildren(QtWidgets.QLabel)
                         if x.text() and x.isVisible())
         self.assertNotIn("%", said, "a percentage is still printed on the strip")
 
@@ -9426,7 +9121,7 @@ class VolumeSliderLookTest(unittest.TestCase):
     def test_it_still_fits_inside_the_strip(self):
         w = self.window()
         bar = self.showing(w)
-        strip = next(x for x in w.welcome.findChildren(QtWidgets.QWidget)
+        strip = next(x for x in w.home.findChildren(QtWidgets.QWidget)
                      if x.objectName() == "banner")
         self.assertLessEqual(bar.height(), strip.height(),
                              "the slider is taller than the strip it sits in")
@@ -9438,98 +9133,6 @@ class VolumeSliderLookTest(unittest.TestCase):
         self.assertEqual(25, w.settings.volume)
         for bar, _ in w.volume_bars:
             self.assertEqual(25, bar.value(), "the sliders came out of step")
-
-
-class FrontDoorFillsTheScreenTest(unittest.TestCase):
-    """The drawing carried about a fifth of its height in empty sky. Cut to the shape of the
-    screen, it fills it: palms on both edges, the base on the floor, the moon under the strip."""
-
-    def window(self):
-        w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme="dark", recitation=False, place="Bury"),
-                       scale=1.0, save_settings=False, aspect=None, side=True)
-        w.resize(1920, 1080)
-        w.show()
-        w.side.resize(600, 1024)
-        w.side.show()
-        w.tick()
-        settle()
-        self.addCleanup(lambda: shut(w))
-        return w
-
-    def test_there_are_no_black_bars_round_the_picture(self):
-        w = self.window()
-        front = w.welcome_mosque
-        scaled, origin, _ = front.placement()
-        self.assertLessEqual(origin.x(), 8, f"{origin.x()}px of black either side")
-        self.assertLessEqual(origin.y(), 8, f"{origin.y()}px of black above and below")
-        self.assertGreaterEqual(scaled.width(), front.width() - 8, "it does not reach the sides")
-        self.assertGreaterEqual(scaled.height(), front.height() - 8, "it does not fill the height")
-
-    def test_the_sky_above_the_drawing_is_where_the_moon_goes(self):
-        """CHANGED IN 1.62. This used to insist the drawing began within a twelfth of the top,
-        because empty canvas above it was black nobody could do anything with.
-
-        Harry's new one starts a fifth of the way down, and that space is not empty: it is the
-        sky he asked to have populated, and the moon, the sun and the stars are painted into it.
-        So what has to be true is not that there is no sky above the building but that the app's
-        sky REACHES it -- the gap has to be see-through all the way across, and the moon has to
-        land inside it rather than behind the dome.
-        """
-        image = QtGui.QImage(str(ASSETS / "welcome" / "mosque.png"))
-        top = bottom = None
-        for y in range(image.height()):
-            if any(QtGui.QColor(image.pixelColor(x, y)).alpha() > 40
-                   for x in range(0, image.width(), 5)):
-                top = y if top is None else top
-                bottom = y
-        self.assertIsNotNone(top)
-        self.assertGreater(bottom, image.height() * 0.92,
-                           f"{image.height()-bottom}px of empty space below it")
-        for y in range(0, top, 7):
-            clear = sum(1 for x in range(0, image.width(), 5)
-                        if QtGui.QColor(image.pixelColor(x, y)).alpha() == 0)
-            self.assertEqual(len(range(0, image.width(), 5)), clear,
-                             f"row {y} above the building is not see-through")
-        w = self.window()
-        front = w.welcome_mosque
-        scaled, origin, _ = front.placement()
-        # At the top of its arc -- the middle of the day or the middle of the night -- the body
-        # has to be clear of the building. Not at the ends of it: there the sun is rising or
-        # setting and goes down behind the mosque, which is what rising and setting look like
-        # and is how it has always behaved on the two mosques behind this one.
-        front.set_sky(False, 0.5)
-        centre, radius = front.sky_body(scaled, origin)
-        roof = origin.y() + scaled.height() * (top / image.height())
-        self.assertLess(centre.y() + radius, roof,
-                        f"at its highest the moon is at y {centre.y():.0f}, and the building "
-                        f"starts at {roof:.0f}")
-
-    def test_the_picture_is_cut_to_the_shape_of_the_screen(self):
-        w = self.window()
-        front = w.welcome_mosque
-        self.assertLess(abs(front.picture.width() / front.picture.height()
-                            - front.width() / front.height()), 0.05,
-                        "the drawing is not the shape of the screen it has to fill")
-
-    def test_the_film_was_cut_the_same_way(self):
-        w = self.window()
-        front = w.welcome_mosque
-        self.assertIsNotNone(front.film, "the film was lost in the recut")
-        front.film.jumpToFrame(0)
-        self.assertEqual(front.picture.size(), front.film.currentPixmap().size())
-
-    def test_the_name_is_still_where_it_can_be_touched(self):
-        """The boxes were measured on the old canvas. Cut the picture and forget to rebuild
-        them and the panel you touch is somewhere else entirely."""
-        w = self.window()
-        front = w.welcome_mosque
-        middle = front.arch_centre("enter")
-        self.assertIsNotNone(middle)
-        self.assertEqual("enter", front.arch_at(middle))
-        box = front.arches[0].box
-        self.assertGreater(box.y(), front.picture.height() * 0.45, "the panel is too high up")
-        self.assertLess(box.bottom(), front.picture.height(), "the panel runs off the bottom")
 
 
 class DuaMenuTest(unittest.TestCase):
@@ -10937,26 +10540,32 @@ class CommunityColumnTest(unittest.TestCase):
 
     # -- the header ---------------------------------------------------------------------------
 
-    def test_the_header_is_the_name_of_the_thing(self):
+    def test_there_is_no_heading_and_no_way_out_but_the_seven_inch_menu(self):
+        """Harry: "remove the text 'MySalaah Community' and remove 'Back' button completely".
+
+        The heading said what the picture says, and the button was a second way out of a
+        screen the 7" panel can already leave -- the same reason the radio lost its in 1.75.
+        Swept rather than named, because what matters is that nothing of that kind is left on
+        the page, not that two particular attributes have gone.
+        """
         w = self.window()
         self.opened(w)
-        self.assertEqual("MySalaah Community", w.world_title.text())
+        said = " ".join(x.text() for x in w.world_page.findChildren(QtWidgets.QLabel)
+                        if x.isVisible())
+        self.assertNotIn("MySalaah Community", said)
+        buttons = [x.text() for x in w.world_page.findChildren(QtWidgets.QPushButton)
+                   if x.isVisible()]
+        self.assertEqual([], buttons, "there is still a button on the world screen")
 
-    def test_it_is_the_name_in_every_language(self):
-        """A brand is not translated. Every pack carries it as it is written."""
-        for lang in full_packs(available_packs(ASSETS)):
-            with self.subTest(lang):
-                w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                               Settings(theme="dark", place="Bury", lang=lang),
-                               scale=1.0, save_settings=False, aspect=None, side=True)
-                w.resize(1024, 600)
-                w.show()
-                w.tick()
-                settle()
-                self.addCleanup(lambda x=w: shut(x))
-                w.open_corner("world")
-                settle()
-                self.assertEqual("MySalaah Community", w.world_title.text())
+    def test_the_way_out_is_the_seven_inch_menu(self):
+        """Which is what lets the Back button go. Touching a tile on the small screen has to
+        leave the world behind."""
+        w = self.window()
+        self.opened(w)
+        w.chose_on_the_small_screen("wudu")
+        settle()
+        self.assertIsNot(w.world_page, w.corner_screen.currentWidget(),
+                         "the 7in menu could not get off the world screen")
 
     # -- the count ---------------------------------------------------------------------------
 
@@ -11064,13 +10673,14 @@ class CommunityColumnTest(unittest.TestCase):
             self.assertNotIn(elsewhere, whole, f"{elsewhere} appears somewhere on the page")
 
     def test_the_list_stops_before_it_runs_out_of_page(self):
-        """Thirty-one mats must not push the Back button off the bottom."""
+        """Thirty-one mats must not run off the bottom of the page. It used to be the Back
+        button they would have pushed off; that went in 1.76, and the column is still the
+        thing that has to know when to stop."""
         w = self.window()
         self.pretend(w, tuple((10 + i, 20 + i * 3, "", i == 0) for i in range(31)))
         screen = self.opened(w)
         self.assertEqual("31", screen.count.text(), "the count should still be the truth")
         self.assertLessEqual(len(screen.pips), screen.ROWS)
-        self.assertTrue(w.world_back_button.isVisible())
         self.assertLessEqual(screen.column.height(), w.world_page.height(),
                              "the column is taller than the page it is on")
 
@@ -11137,19 +10747,6 @@ class ThumbButtonsTest(unittest.TestCase):
 
     SIZES = ((1024, 600), (1280, 720), (1920, 1080))
 
-    def test_the_world_back_button_is_twice_the_height_of_a_plain_one(self):
-        for size in self.SIZES:
-            with self.subTest(f"{size[0]}x{size[1]}"):
-                w = self.window(size)
-                plain = self.plain_back(w).height()
-                w.open_world()
-                settle()
-                big = w.world_back_button
-                self.assertGreater(big.height(), plain * 1.8,
-                                   f"{big.height()}px against a plain {plain}px")
-                self.assertGreaterEqual(big.width(), big.height(),
-                                        "taller than it is wide is not a square")
-
     def test_the_hadith_back_button_is_the_same(self):
         for size in self.SIZES:
             with self.subTest(f"{size[0]}x{size[1]}"):
@@ -11208,19 +10805,161 @@ class ThumbButtonsTest(unittest.TestCase):
         w.open_wifi()
         settle()
         self.assertEqual("backButton", w.wifi_screen.leave.objectName())
-        w.open_world()
+        w.open_corner("hadith")
         settle()
-        self.assertEqual("bigBack", w.world_back_button.objectName())
+        self.assertEqual("bigBack", w.soon_back_button.objectName())
         # And the plain one is still the small size beside the big one.
-        self.assertLess(plain.height(), w.world_back_button.height() * 0.7)
+        self.assertLess(plain.height(), w.soon_back_button.height() * 0.7)
 
 
-class WorldHeadingTest(unittest.TestCase):
-    """Where the name plate sits on the world screen. It was centred over the whole page, which
-    once the Active column took the right-hand side left it floating above nothing in
-    particular. Harry asked for it on the left, over the globe."""
+class TheFrontDoorIsOnePictureTest(unittest.TestCase):
+    """The screen the mat opens on.
 
-    def window(self, size=(1024, 600)):
+    It was a mosque with MySalaah across its front, a moving sky behind it, a clock on its
+    dome and the black strip of prayer times above. Harry replaced the lot with one drawn
+    mark: "remove the main default page with this one, dont add banner or anything, keep as
+    is". So the test of it is that there is nothing else on it -- and that it still goes in.
+    """
+
+    def window(self, size=(1920, 1080), aspect=16 / 9, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=False, place="Bury", **settings),
+                       scale=1.0, save_settings=False, aspect=aspect)
+        w.resize(*size)
+        w.show()
+        w.veil.stop()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_the_mat_opens_on_it(self):
+        w = self.window()
+        self.assertIsNotNone(w.welcome, "there is no front door at all")
+        self.assertIs(w.welcome, w.stack.currentWidget())
+
+    def test_there_is_nothing_on_it_but_the_picture(self):
+        """No banner, which is the one Harry named, and nothing else either: the strip carries
+        the place, the five prayer times, a volume slider and a gear, and all four of them went
+        with it."""
+        w = self.window()
+        self.assertEqual([], w.welcome.findChildren(QtWidgets.QWidget),
+                         "something has been put on the front door")
+        shot = w.welcome.grab().toImage()
+        # The corners are the field the mark was drawn on, and nothing is allowed to sit in
+        # them: a banner would have put a black strip across the top of a white screen or the
+        # other way about, and either shows up here.
+        corners = [shot.pixelColor(2, 2), shot.pixelColor(w.welcome.width() - 3, 2),
+                   shot.pixelColor(2, w.welcome.height() - 3),
+                   shot.pixelColor(w.welcome.width() - 3, w.welcome.height() - 3)]
+        self.assertEqual(1, len({c.name() for c in corners}),
+                         f"the four corners are {[c.name() for c in corners]}")
+
+    def test_it_is_the_picture_that_ships_rather_than_anything_drawn_here(self):
+        w = self.window()
+        picture = ASSETS / "welcome" / "front.png"
+        self.assertTrue(picture.is_file(), "the front door's picture does not ship")
+        want = QtGui.QImage(str(picture))
+        shot = w.welcome.grab().toImage().scaled(
+            want.width(), want.height(), Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation)
+        step = max(1, want.width() // 120)
+        same = agree = 0
+        for y in range(0, want.height(), step):
+            for x in range(0, want.width(), step):
+                agree += 1
+                a, b = QtGui.QColor(want.pixel(x, y)), QtGui.QColor(shot.pixel(x, y))
+                same += abs(a.lightness() - b.lightness()) < 60
+        self.assertGreater(same / agree, 0.97,
+                           f"what is on the screen matches the file in {same / agree:.0%} "
+                           f"of it, so it is not that picture")
+
+    @staticmethod
+    def mark_in(image) -> tuple[int, int]:
+        """How wide and how tall the drawn mark is, measured off whatever it is drawn on."""
+        field = QtGui.QColor(image.pixel(0, 0)).lightness()
+        step = max(1, image.width() // 200)
+        on = [(x, y) for y in range(0, image.height(), step)
+              for x in range(0, image.width(), step)
+              if abs(QtGui.QColor(image.pixel(x, y)).lightness() - field) > 60]
+        xs, ys = [p[0] for p in on], [p[1] for p in on]
+        return max(xs) - min(xs), max(ys) - min(ys)
+
+    def test_the_picture_is_not_stretched_to_fit_a_screen_it_does_not_match(self):
+        """The mat is 16:9 and so is the picture, so on the mat this cannot be seen at all --
+        and it cannot be seen at the edges of the screen either, because the mark is drawn on
+        a field and a bar of that field down the side of it looks like more field. The only
+        place it shows is in the mark's own proportions, so that is what is measured, on two
+        panels that are not 16:9.
+
+        Measured: the mark in the file is 528x624, a ratio of 0.846, and the drawn mark comes
+        within 0.009 of it at every size tried. Stretching it to fill a 1024x600 panel instead
+        would put it out by 0.035, and a 800x480 one by 0.057, so the bar is 0.02.
+        """
+        want = self.mark_in(QtGui.QImage(str(ASSETS / "welcome" / "front.png")))
+        for size in ((1024, 600), (800, 480)):
+            with self.subTest(f"{size[0]}x{size[1]}"):
+                # aspect=None, or the app letterboxes the whole window to 16:9 before the
+                # front door is asked to draw anything and there is nothing left to get wrong.
+                w = self.window(size, aspect=None)
+                drawn = self.mark_in(w.welcome.grab().toImage())
+                self.assertAlmostEqual(drawn[0] / drawn[1], want[0] / want[1], delta=0.02,
+                                       msg=f"the mark is drawn {drawn[0]}x{drawn[1]} from a "
+                                           f"picture whose mark is {want[0]}x{want[1]}")
+
+    def test_touching_it_anywhere_goes_in(self):
+        """It is one picture rather than a mosque with an opening to find, so there is no
+        wrong place to press."""
+        for where in ((40, 40), (960, 540), (1880, 1040)):
+            with self.subTest(where):
+                w = self.window()
+                QtTest_click(w.welcome, *where)
+                settle()
+                self.assertIs(w.home, w.stack.currentWidget(),
+                              "touching the front door did not go in")
+
+    def test_no_picture_means_no_front_door_rather_than_a_black_screen(self):
+        """The picture arrives in a release, so a mat part way through an update has a front
+        door with nothing behind it. Two halves: it declines to build one, and the mat then
+        opens on the mosque with the five arches."""
+        w = self.window()
+        with tempfile.TemporaryDirectory() as empty:
+            w.assets = Path(empty)
+            self.assertIsNone(w.build_welcome(),
+                              "a front door was built with no picture behind it")
+        from salaah.ui import MainWindow as MW
+        with mock.patch.object(MW, "build_welcome", lambda self: None):
+            bare = self.window()
+            self.assertIsNone(bare.welcome)
+            self.assertIs(bare.home, bare.stack.currentWidget())
+
+
+def QtTest_click(widget, x, y) -> None:
+    """A press at a point in [widget]. Spelled out rather than QTest, which the two bindings
+    expose under different module names."""
+    here = QtCore.QPointF(x, y)
+    event = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress, here,
+                              QtCore.QPointF(widget.mapToGlobal(QtCore.QPoint(x, y))),
+                              Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                              Qt.KeyboardModifier.NoModifier)
+    QtWidgets.QApplication.sendEvent(widget, event)
+
+
+class TheGlobeTakesTheWholePageTest(unittest.TestCase):
+    """What was a heading, a globe and a Back button is now a globe.
+
+    The name plate went through two rounds before it went altogether: centred over the whole
+    page, then moved left over the globe at Harry's asking, then taken off with the Back
+    button in 1.76 -- "remove the text 'MySalaah Community' and remove 'Back' button
+    completely and make spinning globe 25% bigger". The two rows between them were most of
+    what the globe has gained.
+    """
+
+    # Measured on the 1.75 layout, at 1920x1080 with the 7" panel attached: the drawn globe
+    # was 769px across. A quarter bigger than that is 961, which is the bar below.
+    WAS = 769
+    MORE = 1.25
+
+    def window(self, size=(1920, 1080)):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="dark", place="Bury"),
                        scale=1.0, save_settings=False, aspect=None, side=True)
@@ -11233,33 +10972,52 @@ class WorldHeadingTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         w.open_corner("world")
         settle()
+        settle()
         return w
 
-    def test_the_plate_is_against_the_left_of_the_page(self):
+    def test_the_globe_is_a_quarter_bigger_than_it_was(self):
+        w = self.window()
+        side = w.world_screen.world.circle()[2]
+        self.assertGreaterEqual(side, int(self.WAS * self.MORE),
+                                f"the globe is {side}px across; it was {self.WAS}px with the "
+                                f"heading and the button on the page, and a quarter bigger "
+                                f"than that is {int(self.WAS * self.MORE)}px")
+
+    def test_it_is_as_big_as_the_page_will_let_it_be(self):
+        """Which is the reason it got bigger: the globe's size is whatever height is left over
+        after everything else on the page, and there is nothing else on the page now.
+
+        A number out of the layout would only be the arithmetic read back, so the globe is
+        measured against the PAGE it is drawn on -- the thing the rows were taken off.
+        """
         for size in ((1024, 600), (1920, 1080)):
             with self.subTest(f"{size[0]}x{size[1]}"):
                 w = self.window(size)
-                plate = w.world_title
-                page = w.world_page
-                left = plate.mapTo(page, QtCore.QPoint(0, 0)).x()
-                middle = plate.mapTo(page, plate.rect().center()).x()
-                self.assertLess(left, page.width() * 0.1,
-                                f"the plate starts {left}px in on a {page.width()}px page")
-                self.assertLess(middle, page.width() * 0.45,
-                                "the plate is still sitting in the middle of the page")
+                side = w.world_screen.world.circle()[2]
+                self.assertGreater(side, w.world_page.height() * 0.9,
+                                   f"{side}px of a {w.world_page.height()}px page")
 
-    def test_it_is_over_the_globe_rather_than_the_column(self):
+    def test_the_tally_column_keeps_its_room(self):
+        """The globe is bigger because it took the room two rows above and below it were
+        using, not because it took the column's.
+
+        What is measured is where the two SIT, not what is painted: Qt clips a widget's
+        painting to its own box, so a globe told to draw itself wider than its widget is
+        quietly cut off at the edge rather than appearing over the column. The thing that
+        could really go wrong is the layout -- the column squeezed to nothing, or hidden
+        altogether with the heading it stood next to.
+        """
         w = self.window()
-        plate = w.world_title
-        page = w.world_page
         globe = w.world_screen.world
-        plate_middle = plate.mapTo(page, plate.rect().center()).x()
-        column_left = w.world_screen.column.mapTo(page, QtCore.QPoint(0, 0)).x()
-        globe_left, _, side = globe.circle()
-        globe_middle = globe.mapTo(page, QtCore.QPoint(globe_left + side // 2, 0)).x()
-        self.assertLess(plate_middle, column_left, "the heading has drifted over the column")
-        self.assertLess(abs(plate_middle - globe_middle), page.width() * 0.5,
-                        "the heading is nowhere near the globe it heads")
+        column = w.world_screen.column
+        self.assertTrue(column.isVisible(), "the column went with the heading")
+        self.assertGreater(column.width(), w.px(100), "the column has been squeezed thin")
+        globe_right = globe.mapTo(w.world_page, QtCore.QPoint(globe.width(), 0)).x()
+        column_left = column.mapTo(w.world_page, QtCore.QPoint(0, 0)).x()
+        self.assertLessEqual(globe_right, column_left,
+                             "the globe's box now runs under the Active column")
+        self.assertLessEqual(column.mapTo(w.world_page, QtCore.QPoint(column.width(), 0)).x(),
+                             w.world_page.width(), "the column runs off the page")
 
 
 class DuaPlayTest(unittest.TestCase):
@@ -11598,163 +11356,6 @@ class PrayerPlateTest(unittest.TestCase):
                         f"{gap}px apart on a {w.width()}px screen is not beside each other")
 
 
-class NewFrontDoorTest(unittest.TestCase):
-    """Harry's new drawing, which the mat now opens on, and the one job it has: the time.
-
-    Three things about it differ from the two mosques behind it, and all three are measured off
-    the rendered screen rather than read back out of mosque.json. The file is only what the
-    drawing says about itself, so a test that reads it proves the file agrees with itself and
-    nothing else.
-    """
-
-    def window(self, mode="dark"):
-        w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme=mode, recitation=False, place="Bury"),
-                       scale=1.0, save_settings=False, aspect=None)
-        w.resize(1920, 1080)
-        w.show()
-        w.tick()
-        settle()
-        self.addCleanup(lambda: shut(w))
-        return w
-
-    def front(self, w):
-        front = w.welcome_mosque
-        self.assertIs(w.welcome, w.stack.currentWidget(), "the mat did not open on the front door")
-        # The film is sixty frames of walking figures and breathing lettering, and -- since
-        # 1.62 -- the app's own stars twinkle behind it on their own clock. Both held still, so
-        # that what differs between two grabs is the time and only the time. Before 1.62 only
-        # the film needed holding: the drawing brought its own sky and the app painted none.
-        if front.film is not None:
-            front.film.stop()
-            front.film.jumpToFrame(0)
-        front.flutter.stop()
-        held = front.sky.now()
-        frozen = mock.patch.object(type(front.sky), "now", staticmethod(lambda: held))
-        frozen.start()
-        self.addCleanup(frozen.stop)
-        settle()
-        return front
-
-    @staticmethod
-    def moved(front, before, after, step=2):
-        """Which pixels differ between two clock readings: (x0, y0, x1, y1), or None."""
-        front.set_time(before)
-        settle()
-        one = front.grab().toImage()
-        front.set_time(after)
-        settle()
-        two = front.grab().toImage()
-        xs, ys = [], []
-        for y in range(0, one.height(), step):
-            for x in range(0, one.width(), step):
-                if one.pixel(x, y) != two.pixel(x, y):
-                    xs.append(x)
-                    ys.append(y)
-        return (min(xs), min(ys), max(xs), max(ys)) if xs else None
-
-    def test_the_time_is_written_on_the_dome_and_nowhere_else(self):
-        """Where the numbers land is worked out from the drawing, and this is the check that it
-        landed on the dome: the only part of the picture that changes when the clock does sits
-        above the doorway and across the middle of it, which is where a dome is."""
-        w = self.window()
-        front = self.front(w)
-        box = self.moved(front, "00:00", "18:48")
-        self.assertIsNotNone(box, "the clock is not being drawn at all")
-        x0, y0, x1, y1 = box
-        door = front.arch_centre("enter")
-        self.assertIsNotNone(door, "the name panel is missing, so there is nothing to go in by")
-        self.assertLess(y1, door.y(), f"the time is drawn at y {y1}, below the doorway at {door.y()}")
-        middle = (x0 + x1) // 2
-        self.assertLess(abs(middle - front.width() // 2), front.width() * 0.1,
-                        f"the time is off to one side, centred at x {middle}")
-        self.assertGreater(x1 - x0, front.width() * 0.04, "the numbers are too small to read")
-        self.assertLess(x1 - x0, front.width() * 0.5, "the numbers are spread across the building")
-
-    def test_the_numbers_stand_out_from_the_dome_on_either_screen(self):
-        """The dome is a solid shape in this drawing rather than an outline, so the numbers on
-        it have to be the opposite of whatever it is -- and the whole drawing inverts with the
-        theme, so both ways round need checking."""
-        for mode, dome_is_light in (("dark", True), ("light", False)):
-            with self.subTest(mode):
-                w = self.window(mode)
-                front = self.front(w)
-                box = self.moved(front, "00:00", "18:48")
-                self.assertIsNotNone(box, f"{mode}: no clock on the dome")
-                x0, y0, x1, y1 = box
-                front.set_time("18:48")
-                settle()
-                shot = front.grab().toImage()
-                ink, dome = [], []
-                for y in range(y0, y1 + 1):
-                    for x in range(x0, x1 + 1):
-                        c = shot.pixelColor(x, y)
-                        ink.append((c.red() + c.green() + c.blue()) / 3)
-                # The dome either side of the numbers, in the band they sit in.
-                for y in range(y0, y1 + 1):
-                    for x in (max(0, x0 - 40), min(shot.width() - 1, x1 + 40)):
-                        c = shot.pixelColor(x, y)
-                        dome.append((c.red() + c.green() + c.blue()) / 3)
-                darkest = min(ink)
-                lightest = max(ink)
-                around = sum(dome) / len(dome)
-                if dome_is_light:
-                    self.assertGreater(around, 170, f"{mode}: the dome is not light")
-                    self.assertLess(darkest, 80, f"{mode}: the numbers are not dark on it")
-                else:
-                    self.assertLess(around, 90, f"{mode}: the dome is not dark")
-                    self.assertGreater(lightest, 170, f"{mode}: the numbers are not light on it")
-
-    def test_the_app_paints_the_sky_behind_the_front_door(self):
-        """REVERSED IN 1.62, and worth saying why rather than quietly rewriting it.
-
-        The drawing this replaced had a sun, a moon and stars drawn into it, all moving, so the
-        app painted none: a second moon beside the one already there would have been worse than
-        none. Harry's new drawing has none of them -- "there is no star, birds or sun on this
-        one, i want you to populate the sky like the others according to time of day" -- so the
-        sky is cut out of it and the app paints behind it again, exactly as it does on the
-        mosque. The old test is not wrong about the old drawing; it is about a drawing that is
-        no longer there.
-        """
-        w = self.window()
-        front = self.front(w)
-        self.assertTrue(front.own_sky, "the front door is not asking for a sky")
-        self.assertTrue(front.isVisible(), "and this is with the screen up, not hidden")
-        # The proof it is really coming through: take the stars away and the picture changes.
-        front.set_sky(False, 0.5)
-        stars = list(front.sky.stars)
-        self.assertGreater(len(stars), 20, "there are stars to have shown")
-        front.sky.stars = []
-        front.update()
-        settle()
-        bare = front.grab().toImage()
-        front.sky.stars = stars
-        front.update()
-        settle()
-        starry = front.grab().toImage()
-        showing = sum(1 for y in range(0, front.height(), 2)
-                      for x in range(0, front.width(), 2)
-                      if (QtGui.QColor(starry.pixel(x, y)).lightness()
-                          - QtGui.QColor(bare.pixel(x, y)).lightness()) > 30)
-        self.assertGreater(showing, 10, "none of the app's stars reach the screen")
-
-    def test_the_drawing_fills_the_screen_side_to_side(self):
-        """It arrived narrower than the screen and sat in the middle with a black bar either
-        side. The bars are now part of the drawing, cut from its own sky, so they invert with
-        it and are not there to see."""
-        w = self.window()
-        front = self.front(w)
-        shown = front.picture.size()
-        self.assertGreater(shown.width() / shown.height(), 1.8,
-                           f"the drawing is {shown.width()}x{shown.height()}, which will letterbox")
-        shot = front.grab().toImage()
-        band = front.height() // 3
-        edge = [shot.pixelColor(x, band) for x in range(0, 12)]
-        levels = {(c.red() + c.green() + c.blue()) // 3 for c in edge}
-        self.assertEqual(1, len(levels),
-                         "the far edge of the screen is not one flat colour, so a bar shows")
-
-
 class DuaMenuSwapTest(unittest.TestCase):
     """Harry redrew the du'a menu: the General du'as square has gone and a 6 Kalima square is
     in its place. The kalima are not a kind of du'a, so the tile has to leave the du'as
@@ -11925,104 +11526,6 @@ class EveryWayBackTest(unittest.TestCase):
         beside = QtGui.QImage(str(tile.path.with_name("quran.png")))
         self.assertEqual(beside.size(), shot.size(),
                          "it is a different size to the five tiles beside it")
-
-
-class WholeFrontDoorTest(unittest.TestCase):
-    """Harry: the whole of the main page opens the prayers, not just the name across its front.
-
-    The name panel still works and is still what the walk zooms towards; what changed is that
-    the sky, the palm trees and the people walking past count too.
-    """
-
-    def window(self):
-        w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme="dark", recitation=False, place="Bury"),
-                       scale=1.0, save_settings=False, aspect=None, side=True)
-        w.resize(1920, 1080)
-        w.show()
-        w.side.resize(600, 1024)
-        w.side.show()
-        w.tick()
-        settle()
-        self.addCleanup(lambda: shut(w))
-        return w
-
-    @staticmethod
-    def touch(screen, point):
-        ev = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress, QtCore.QPointF(point),
-                               Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
-                               Qt.KeyboardModifier.NoModifier)
-        screen.mousePressEvent(ev)
-        settle()
-
-    def corners(self, front):
-        """Four places on the drawing that are not the name panel, by construction: a box round
-        the panel is worked out and the points are taken outside it."""
-        door = front.arch_centre("enter")
-        self.assertIsNotNone(door)
-        wide, tall = front.width(), front.height()
-        return {
-            "the top left sky": QtCore.QPoint(20, 20),
-            "the top right sky": QtCore.QPoint(wide - 20, 20),
-            "the far left, level with the door": QtCore.QPoint(8, door.y()),
-            "the bottom right": QtCore.QPoint(wide - 8, tall - 8),
-        }
-
-    def test_a_touch_anywhere_on_it_opens_the_prayers(self):
-        w = self.window()
-        front = w.welcome_mosque
-        for where, point in self.corners(front).items():
-            with self.subTest(where):
-                w.stack.setCurrentWidget(w.welcome)
-                settle()
-                self.touch(front, point)
-                self.assertIs(w.home, w.stack.currentWidget(),
-                              f"touching {where} did not open the prayers")
-
-    def test_the_name_across_it_still_works_and_is_still_what_the_walk_aims_at(self):
-        w = self.window()
-        front = w.welcome_mosque
-        door = front.arch_centre("enter")
-        w.stack.setCurrentWidget(w.welcome)
-        settle()
-        self.touch(front, door)
-        self.assertIs(w.home, w.stack.currentWidget())
-        self.assertEqual("enter", front.arch_at(door),
-                         "the name panel is no longer a panel, only a screen")
-
-    def test_the_menus_did_not_become_touchable_all_over(self):
-        """On the five arches and the six, the arch IS the choice. A touch on the sky there
-        would pick a prayer nobody aimed at -- which is the whole reason this is a flag and
-        not a change to every mosque on the mat."""
-        w = self.window()
-        self.assertTrue(w.welcome_mosque.anywhere)
-        for name, screen in [("the prayers", w.mosque)] + \
-                [(f"the {k} menu", m.mosque) for k, m in w.arch_menus.items()]:
-            with self.subTest(name):
-                self.assertFalse(screen.anywhere, f"{name} would open on a touch anywhere")
-        sky = QtCore.QPoint(20, 20)
-        self.assertIsNone(w.mosque.arch_at(sky), "the test aimed at an arch, not at the sky")
-        w.stack.setCurrentWidget(w.home)
-        settle()
-        self.touch(w.mosque, sky)
-        self.assertIs(w.home, w.stack.currentWidget(), "the sky started a prayer")
-
-    def test_the_salaah_tile_lands_on_the_prayers_and_not_on_the_main_page(self):
-        w = self.window()
-        tile = next(t for t in w.side.corner.tiles if t.name == "salaah")
-        tile.click()
-        settle()
-        self.assertIs(w.home, w.stack.currentWidget())
-        self.assertIsNot(w.welcome, w.stack.currentWidget())
-
-    def test_menu_still_means_the_main_page(self):
-        """The Salaah tile moved; the buttons labelled Menu did not."""
-        w = self.window()
-        w.open_corner("quran")
-        settle()
-        w.go_home()
-        settle()
-        self.assertIs(w.welcome, w.stack.currentWidget())
 
 
 class SayingsMenuTest(unittest.TestCase):
@@ -13998,8 +13501,10 @@ class EveryMosqueOpensOnTheRightSkyTest(unittest.TestCase):
         thing anybody sees.
         """
         w = self.window(tick=False)
-        for name, screen in (("the front door", getattr(w, "welcome_mosque", None)),
-                             ("the kalima", w.arch_menus["kalima"].mosque)):
+        # The front door was in this list until 1.76, when it stopped being a mosque with a
+        # sky behind it and became one picture. The kalima is the remaining drawing that is
+        # built at startup and has to have the right sky before the first tick.
+        for name, screen in (("the kalima", w.arch_menus["kalima"].mosque),):
             with self.subTest(name):
                 self.assertIsNotNone(screen, f"{name}: no drawing to look at")
                 self.assertFalse(screen.sun_up,
@@ -14583,8 +14088,12 @@ class CallKeepsTheStripTest(unittest.TestCase):
         leaving it: during the call it is the one thing worth seeing behind it."""
         w = self.window()
         self.called(w)
-        # Whatever page the call landed on -- it goes home, and home is the front door,
-        # which carries the same strip as the mosque behind it.
+        # The call goes home, and home is the front door, which has carried no strip since
+        # 1.76 -- so the mat is walked through it to the mosque, which is the screen the strip
+        # is actually read off.
+        w.leave_welcome()
+        w.veil.stop()
+        settle()
         page = w.stack.currentWidget()
         bar = next(c for c in page.findChildren(QtWidgets.QWidget)
                    if c.objectName() == "banner")

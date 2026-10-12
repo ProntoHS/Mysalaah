@@ -2538,7 +2538,9 @@ class RecutArtworkTest(unittest.TestCase):
 
     @property
     def folders(self):
-        return ["mosque", "kalima", "welcome"] + [f"prayers/{p}" for p in PRAYERS]
+        # "welcome" was on this list until 1.76. The front door is one picture now rather than
+        # a mosque with a sky behind it, and it has no mosque.json to be the shape of anything.
+        return ["mosque", "kalima"] + [f"prayers/{p}" for p in PRAYERS]
 
     def described(self, folder):
         import json

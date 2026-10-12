@@ -452,6 +452,65 @@ class BigButton(QtWidgets.QPushButton):
         lay.addStretch(1)
 
 
+class FrontDoor(QtWidgets.QWidget):
+    """The screen the mat opens on: one picture, and touching it goes in.
+
+    It was a mosque with MySalaah across its front until 1.76 -- the same drawing machinery as
+    the other two mosques, with the sky moving behind it, the clock on its dome and the black
+    strip of prayer times above. Harry replaced the lot with a drawn mark, and asked for
+    nothing to be added to it: "dont add banner or anything, keep as is".
+
+    SO IT DOES NOT FOLLOW THE THEME, which is the one place this parts company with every
+    other picture on the mat. Everything else the mat draws is ink on paper and turns itself
+    inside out after dark; this is a mark on a black field, and it stays that way at noon.
+    That is a reading of "keep as is" rather than a law of nature -- making it flip is a few
+    lines, and the comment is here so the next person knows it was a choice.
+
+    Nothing is cached. The picture is scaled on every paint, which is a repaint when the
+    window is resized and no other time: this screen has no clock, no sky and no animation,
+    so it is drawn once and sits there.
+    """
+
+    chosen = Signal(str)
+
+    def __init__(self, picture: Path):
+        super().__init__()
+        self.sheet = QtGui.QPixmap(str(picture))
+        self.setObjectName("frontDoor")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAutoFillBackground(True)
+        # The field the mark is drawn on, taken from the picture's own top-left corner rather
+        # than written down here: whatever is behind the mark fills the rest of the screen, so
+        # a screen that is not exactly the picture's shape has no bar down the side of it.
+        back = QtGui.QColor("black")
+        if not self.sheet.isNull():
+            back = QtGui.QColor(self.sheet.toImage().pixel(0, 0))
+        self.back = back
+        pal = self.palette()
+        pal.setColor(QtGui.QPalette.ColorRole.Window, back)
+        self.setPalette(pal)
+
+    @property
+    def ready(self) -> bool:
+        return not self.sheet.isNull()
+
+    def paintEvent(self, _):
+        if self.sheet.isNull():
+            return
+        p = QtGui.QPainter(self)
+        p.fillRect(self.rect(), self.back)
+        p.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
+        # Whole, not cropped: the mark keeps its proportions and whatever is left over at the
+        # edges is the field it was drawn on, so there is nothing to see in the difference.
+        shown = self.sheet.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                  Qt.TransformationMode.SmoothTransformation)
+        p.drawPixmap((self.width() - shown.width()) // 2,
+                     (self.height() - shown.height()) // 2, shown)
+
+    def mousePressEvent(self, _):
+        self.chosen.emit("enter")
+
+
 class TopBar(QtWidgets.QWidget):
     """The row across the top of the prayer screen. Whatever sits at its ends, the prayer's
     name in Arabic stays in the middle of the screen: it is placed by hand, not by a layout,
@@ -1374,32 +1433,28 @@ class MainWindow(QtWidgets.QWidget):
     # Home: five prayers, big enough to tap while kneeling
 
     def build_welcome(self):
-        """The screen the mat opens on: the mosque with MySalaah across its front.
+        """The screen the mat opens on: Harry's mark, and touching it goes in.
 
-        The same drawing machinery as the other two mosques -- one opening instead of five or
-        six, and touching it goes in. None if the drawing is not there, and then the mat opens
-        on the mosque as it always did, rather than on an empty screen.
+        The whole screen and nothing else -- no banner, no clock, no sky. It was a mosque with
+        a moving sky and the prayer times across the top until 1.76, and Harry replaced it with
+        one picture and asked for nothing to be put back on it. See FrontDoor.
+
+        None if the picture is not on this mat, and then the mat opens on the mosque with the
+        five arches rather than on an empty screen. That matters more than it looks: the
+        picture arrives in a release, so a mat part way through an update meets the old screen.
         """
-        folder = self.assets / "welcome"
-        if not (folder / "mosque.json").is_file():
+        picture = self.assets / "welcome" / "front.png"
+        if not picture.is_file():
             return None
-        screen = MosqueScreen(self.assets, Fonts.english_family, folder="welcome",
-                              idle_glow=False, anywhere=True)
+        screen = FrontDoor(picture)
         if not screen.ready:
             screen.deleteLater()
             return None
         screen.chosen.connect(self.leave_welcome)
-        self.welcome_mosque = screen
-        self.catch_up_with_the_sky(screen)
-        # The same strip as the mosque behind it, so the place and the five times are there
-        # before anything is touched.
-        page = QtWidgets.QWidget()
-        lay = QtWidgets.QVBoxLayout(page)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(0)
-        lay.addWidget(self.make_banner(gear=True))
-        lay.addWidget(screen, 1)
-        return page
+        # There is no mosque on the front door any more, so nothing here to keep a sky or a
+        # clock for. The two places that look for one take None for an answer.
+        self.welcome_mosque = None
+        return screen
 
     def leave_welcome(self, _which: str = "") -> None:
         """MySalaah was touched. In to the mosque, walking into the name on the way.
@@ -1709,20 +1764,18 @@ class MainWindow(QtWidgets.QWidget):
         page, lay = self.page("", "")
         blank = next(x for x in page.findChildren(QtWidgets.QLabel) if x.objectName() == "h1")
         blank.hide()
-        plate = QtWidgets.QHBoxLayout()
-        # Left, not centred. The globe sits to the left of the page now that the column is on
-        # the right, and a heading centred over the whole width floated away from the thing it
-        # was heading.
-        self.world_title = QtWidgets.QLabel(self.t("corner.world"))
-        self.world_title.setObjectName("namePlate")
-        self.world_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        plate.addWidget(self.world_title)
-        plate.addStretch(1)
-        lay.insertLayout(0, plate)
 
-        # Tight. The globe is square and the screen is not, so its size is whatever height is
-        # left over after everything else on the page -- and on a 7" panel there is not much
-        # to go round. Every row that can share another row does.
+        # NOTHING ON THE PAGE BUT THE GLOBE AND THE TALLY BESIDE IT, as of 1.76. The heading
+        # ("MySalaah Community") and the Back button have both gone at Harry's asking, and the
+        # globe has the room they were taking: the two rows between them were about 215 points
+        # of a 1008-point screen, and the globe's size is whatever height is left over after
+        # everything else on the page, so taking them off is most of the 25% he asked for.
+        #
+        # The way out is the 7" panel, which is showing the menu the whole time this is up --
+        # the same reason the radio screen could lose its Back button in 1.75.
+        #
+        # Tight margins for the same reason: every point not spent on the edge of the page is
+        # a point of globe. On a 7" panel there is not much to go round at all.
         lay.setContentsMargins(self.px(28), self.px(12), self.px(28), self.px(12))
         lay.setSpacing(self.px(6))
 
@@ -1730,18 +1783,6 @@ class MainWindow(QtWidgets.QWidget):
         if not screen.there:
             page.deleteLater()
             return None
-
-        back = no_focus(QtWidgets.QPushButton(self.t("corner.back")))
-        back.setObjectName("backButton")
-        back.setObjectName("bigBack")
-        back.clicked.connect(self.go_home)
-        self.world_back_button = back
-        # On the same row as the words under the globe, and the words stay centred on the page
-        # rather than being shoved off centre by the button beside them.
-        foot = QtWidgets.QHBoxLayout()
-        foot.addWidget(back, 0, Qt.AlignmentFlag.AlignLeft)
-        foot.addStretch(1)
-        lay.addLayout(foot)
         self.world_page = page
         return screen
 
@@ -1859,8 +1900,8 @@ class MainWindow(QtWidgets.QWidget):
         self.stack.setCurrentWidget(self.corner_page)
 
     def open_world(self) -> None:
-        self.world_title.setText(self.t("corner.world"))
-        self.world_back_button.setText(self.t("corner.back"))
+        # Nothing left on the page to relabel -- the heading and the Back button went in
+        # 1.76 -- but the words beside the globe follow the language, and retell writes them.
         self.world_screen.retell()
         self.corner_screen.setCurrentWidget(self.world_page)
         self.stack.setCurrentWidget(self.corner_page)
