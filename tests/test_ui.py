@@ -2971,10 +2971,9 @@ class RadioTest(unittest.TestCase):
         self.assertTrue(screen.scroll.isVisible())
         self.assertFalse(screen.offline.isVisible())
         self.assertEqual(len(w.stations.items), len(screen.rows_for))
-        said = [screen.rows.itemAt(i).widget().text() for i in range(len(screen.rows_for))]
-        for station in w.stations.items:
-            self.assertTrue(any(station["name"] in t for t in said),
-                            f"{station['name']} is not on the screen")
+        self.assertEqual([s["name"] for s in w.stations.items],
+                         [b.station["name"] for b in screen.boxes],
+                         "the squares are not the stations, in order")
 
     # Playing one
 
@@ -3024,9 +3023,9 @@ class RadioTest(unittest.TestCase):
             screen.look()
             if screen.silent is not None:
                 break
-        row = screen.rows.itemAt(0).widget()
-        self.assertIn(w.t("radio.silent"), row.text(),
-                      f"the row says {row.text()!r} of a station that never answered")
+        box = screen.boxes[0]
+        self.assertEqual(w.t("radio.silent"), box.about,
+                         f"the square says {box.about!r} of a station that never answered")
         self.assertIsNone(screen.playing, "it is still shown as playing")
         # And it stays said. The first version worked this out from `playing` as the row was
         # drawn, so the message lasted exactly one repaint: the next fill -- a resize, a
@@ -3034,9 +3033,8 @@ class RadioTest(unittest.TestCase):
         # though nothing had happened.
         screen.fill()
         settle()
-        row = screen.rows.itemAt(0).widget()
-        self.assertIn(w.t("radio.silent"), row.text(),
-                      "the message was wiped by the next repaint")
+        self.assertEqual(w.t("radio.silent"), screen.boxes[0].about,
+                         "the message was wiped by the next repaint")
         screen.touched(screen.rows_for[-1])
         settle()
         self.assertIsNone(screen.silent, "pressing another station left the old message up")
@@ -3108,6 +3106,108 @@ class RadioTest(unittest.TestCase):
         settle()
         self.assertTrue(w.asleep, "the mat would not go to sleep with the radio on")
         self.assertTrue(screen.player.playing, "sleep stopped the sound as well as the screens")
+
+    # Squares rather than rows
+
+    @staticmethod
+    def ink_in(box, colour, tol=40):
+        shot = box.grab().toImage()
+        want = QtGui.QColor(colour)
+        return sum(1 for y in range(shot.height()) for x in range(shot.width())
+                   if all(abs(a - b) < tol for a, b in
+                          (lambda c: ((c.red(), want.red()), (c.green(), want.green()),
+                                      (c.blue(), want.blue())))(
+                              QtGui.QColor(shot.pixel(x, y)))))
+
+    def test_a_station_is_a_square(self):
+        """Harry: "instead of presenting them as a list, use square boxes with a bold white
+        border"."""
+        w = self.window()
+        screen = self.screen(w)
+        self.assertTrue(screen.boxes, "no squares at all")
+        for box in screen.boxes:
+            with self.subTest(box.station["name"]):
+                self.assertEqual(box.width(), box.height(),
+                                 f"{box.width()}x{box.height()} is not a square")
+                self.assertGreater(box.width(), w.px(200), "too small to press")
+        self.assertEqual(1, len({b.size() for b in screen.boxes}),
+                         "the squares are not all the same size")
+
+    def test_the_border_is_bold_and_the_colour_of_the_lettering(self):
+        """White on the night screen, black by day -- the same rule as everything else the
+        mat draws. A white line on white paper would be no line at all."""
+        from salaah import theme
+        for mode, edge in (("dark", "#FFFFFF"), ("light", "#000000")):
+            with self.subTest(mode):
+                w = self.window(theme=mode)
+                screen = self.screen(w)
+                box = screen.boxes[-1]          # not the one that might be playing
+                shot = box.grab().toImage()
+                middle = box.width() // 2
+                # Down the left-hand edge, through the border and into the square.
+                run = [QtGui.QColor(shot.pixel(x, middle)) for x in range(0, box.width() // 4)]
+                want = QtGui.QColor(edge)
+
+                def is_edge(c):
+                    return (abs(c.red() - want.red()) < 40 and abs(c.green() - want.green()) < 40
+                            and abs(c.blue() - want.blue()) < 40)
+
+                # The line itself: the unbroken run where it starts, not every pixel of that
+                # colour across the square -- further in are the letters, which are the same
+                # colour and would make any border look thick enough.
+                thick, started = 0, False
+                for c in run:
+                    if is_edge(c):
+                        started, thick = True, thick + 1
+                    elif started:
+                        break
+                self.assertGreaterEqual(thick, w.px(4),
+                                        f"{mode}: the border is {thick}px of {edge}")
+                self.assertLessEqual(thick, w.px(16), f"{mode}: that is a frame, not a border")
+
+    def test_the_one_playing_is_red_and_the_others_are_not(self):
+        from salaah.ui import BRICK
+        w = self.window()
+        screen = self.screen(w)
+        screen.player.player = self.fake_player()
+        screen.touched(screen.rows_for[0])
+        settle()
+        lit = self.ink_in(screen.boxes[0], BRICK)
+        self.assertGreater(lit, screen.boxes[0].width() ** 2 * 0.4,
+                           "the square that is playing is not red")
+        for box in screen.boxes[1:]:
+            with self.subTest(box.station["name"]):
+                self.assertLess(self.ink_in(box, BRICK), box.width() ** 2 * 0.05,
+                                "a square that is not playing has gone red")
+
+    def test_the_name_is_drawn_on_the_square(self):
+        """The square is painted rather than built out of labels, so this is the check that
+        anything is written on it at all."""
+        w = self.window()
+        screen = self.screen(w)
+        for box in screen.boxes:
+            with self.subTest(box.station["name"]):
+                shot = box.grab().toImage()
+                # Well inside the border, and only the top of the square, which is where the
+                # NAME goes. Scanning the whole thing counts the border and the line
+                # underneath, so it would pass with the name left off altogether.
+                pad = w.px(44)
+                ink = sum(1 for y in range(pad, int(box.height() * 0.55))
+                          for x in range(pad, box.width() - pad)
+                          if QtGui.QColor(shot.pixel(x, y)).lightness() > 160)
+                self.assertGreater(ink, 500, "the station's name is not on its square")
+
+    def test_they_are_arranged_in_a_block_rather_than_a_column(self):
+        """Four stations go two by two, not four down the screen. The point of squares."""
+        w = self.window()
+        screen = self.screen(w)
+        self.assertGreaterEqual(len(screen.boxes), 4, "this needs four to say anything")
+        tops = {b.mapTo(screen, QtCore.QPoint(0, 0)).y() for b in screen.boxes}
+        lefts = {b.mapTo(screen, QtCore.QPoint(0, 0)).x() for b in screen.boxes}
+        self.assertGreater(len(lefts), 1, "they are in a single column")
+        self.assertGreater(len(tops), 1, "they are in a single row")
+        self.assertEqual(len(screen.boxes), len(tops) * len(lefts),
+                         "the block has a hole in it")
 
     # The list itself
 

@@ -31,10 +31,108 @@ quiet. tools/check_stations.py is how that is found out before somebody's child 
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 from .audio import Stream
-from .qt import QtCore, QtWidgets, Qt, Signal
+from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
+
+# A station's square, at 1080p: how big it is allowed to get, and how little it may shrink
+# to before the grid gives up a column instead. The number of columns follows from those two
+# and how many stations there are -- see RadioScreen.across.
+BOX_MOST = 400
+BOX_LEAST = 240
+BOX_GAP = 24
+# The white line round a square, and how round its corners are. Bold, as asked: this is the
+# same look as the tiles on the 7" menu, which is where somebody has just come from.
+BOX_EDGE = 6
+BOX_ROUND = 18
+
+
+class StationBox(QtWidgets.QAbstractButton):
+    """One station: a square with a bold white border and its name in the middle.
+
+    Painted rather than built out of a styled QPushButton with a label or two inside it,
+    because there are three things to draw and they have to stay inside a square at whatever
+    size the grid hands it: the name, which can be two words or four and has to wrap; the
+    line under it saying what the station carries; and, in place of that line, the word that
+    it is not answering. A stylesheet cannot wrap a button's text, and a button with labels
+    laid out inside it stops being one thing to press.
+
+    Red when it is playing -- the colour the mat uses for the thing happening now, the same
+    as a lit prayer arch or a station's row before this was squares.
+    """
+
+    def __init__(self, window, station: dict):
+        super().__init__()
+        self.win = window
+        self.station = station
+        self.about = station.get("about", "")
+        self.setCheckable(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+    def say(self, about: str) -> None:
+        """The line under the name: what it carries, or that it is not answering."""
+        if about != self.about:
+            self.about = about
+            self.update()
+
+    def paintEvent(self, _):
+        # Imported here rather than at the top: ui imports this module, so a plain import
+        # would close the circle. The same dodge duaboard uses for ARABIC_ONLY.
+        from .theme import palette
+        from .ui import BRICK
+        c = palette()
+        p = QtGui.QPainter(self)
+        p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        edge = max(2, self.win.px(BOX_EDGE))
+        box = QtCore.QRectF(self.rect()).adjusted(edge / 2, edge / 2, -edge / 2, -edge / 2)
+        pen = QtGui.QPen(QtGui.QColor(c.ink))
+        pen.setWidthF(edge)
+        p.setPen(pen)
+        p.setBrush(QtGui.QColor(BRICK) if self.isChecked()
+                   else QtGui.QColor(c.pressed if self.isDown() else c.paper))
+        p.drawRoundedRect(box, self.win.px(BOX_ROUND), self.win.px(BOX_ROUND))
+
+        room = box.adjusted(edge * 2, edge * 2, -edge * 2, -edge * 2)
+        ink = QtGui.QColor("white") if self.isChecked() else QtGui.QColor(c.ink)
+        quiet = QtGui.QColor("#F0D6D3") if self.isChecked() else QtGui.QColor(c.soft)
+
+        # The name as large as it will go in the top two thirds, the line underneath in the
+        # bottom third. Fitted rather than set, because "Islam Media Central" and "Nasheeds"
+        # are not the same length and a size that suits one wastes the square on the other.
+        name = QtCore.QRectF(room.x(), room.y(), room.width(), room.height() * 0.66)
+        under = QtCore.QRectF(room.x(), room.bottom() - room.height() * 0.30,
+                              room.width(), room.height() * 0.30)
+        p.setPen(ink)
+        p.setFont(self.fitted(self.station["name"], name, bold=True,
+                              most=int(room.height() * 0.22)))
+        p.drawText(name, int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap),
+                   self.station["name"])
+        if self.about:
+            p.setPen(quiet)
+            p.setFont(self.fitted(self.about, under, bold=False,
+                                  most=int(room.height() * 0.11)))
+            p.drawText(under, int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop
+                                  | Qt.TextFlag.TextWordWrap), self.about)
+
+    def fitted(self, words: str, where: QtCore.QRectF, bold: bool, most: int) -> QtGui.QFont:
+        """The largest size that puts [words] inside [where], wrapped, and no larger."""
+        font = QtGui.QFont(self.win.pack_face())
+        font.setBold(bold)
+        size = max(10, most)
+        while size > 10:
+            font.setPixelSize(size)
+            metrics = QtGui.QFontMetrics(font)
+            needs = metrics.boundingRect(where.toRect(),
+                                         int(Qt.AlignmentFlag.AlignCenter
+                                             | Qt.TextFlag.TextWordWrap), words)
+            if needs.height() <= where.height() and needs.width() <= where.width():
+                break
+            size -= 2
+        font.setPixelSize(size)
+        return font
 
 
 class Stations:
@@ -106,6 +204,8 @@ class RadioScreen(QtWidgets.QWidget):
         # that tried showed the message for one repaint and then lost it again.
         self.silent: dict | None = None
         self.rows_for: list[dict] = []
+        self.boxes: list[StationBox] = []
+        self.columns = 0
         # What the mat could reach when it was last asked. True to begin with: a screen that
         # opens saying "connect to Wi-Fi" and then fills in with stations a second later
         # looks broken, where one that lists them and then says it cannot reach them reads
@@ -137,9 +237,17 @@ class RadioScreen(QtWidgets.QWidget):
         self.scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         inner = QtWidgets.QWidget()
-        self.rows = QtWidgets.QVBoxLayout(inner)
-        self.rows.setContentsMargins(window.px(20), window.px(10), window.px(20), window.px(20))
-        self.rows.setSpacing(window.px(10))
+        inner.setObjectName("radioRoot")
+        # A grid of squares rather than a list of rows, as Harry asked. Centred, and with
+        # the rows pushed to the top: four stations in a two-by-two block belong under the
+        # heading, not spread down an empty screen.
+        held = QtWidgets.QVBoxLayout(inner)
+        held.setContentsMargins(window.px(20), window.px(16), window.px(20), window.px(20))
+        self.rows = QtWidgets.QGridLayout()
+        self.rows.setSpacing(window.px(BOX_GAP))
+        self.rows.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        held.addLayout(self.rows)
+        held.addStretch(1)
         self.scroll.setWidget(inner)
         outer.addWidget(self.scroll, 1)
 
@@ -209,21 +317,54 @@ class RadioScreen(QtWidgets.QWidget):
         if was != self.reachable:
             self.fill()
 
+    def across(self, how_many: int) -> int:
+        """How many squares to a row.
+
+        As square an arrangement as the stations allow -- four go two by two, nine go three
+        by three -- and then as many as the screen can take at a size worth pressing. The
+        block is squarer than a single row of eight would be, and it grows down the screen
+        rather than off the side of it as the list gets longer.
+        """
+        if how_many < 1:
+            return 1
+        tidy = math.ceil(math.sqrt(how_many))
+        room = max(self.width() - self.win.px(40), self.win.px(BOX_LEAST))
+        fits = max(1, (room + self.win.px(BOX_GAP))
+                   // (self.win.px(BOX_LEAST) + self.win.px(BOX_GAP)))
+        return max(1, min(tidy, fits))
+
+    def size_the_boxes(self) -> None:
+        """Every square the same size, as large as the row allows and no larger."""
+        if not self.boxes:
+            return
+        across = self.across(len(self.boxes))
+        room = max(self.width() - self.win.px(40), self.win.px(BOX_LEAST))
+        side = (room - self.win.px(BOX_GAP) * (across - 1)) // across
+        side = max(self.win.px(BOX_LEAST), min(self.win.px(BOX_MOST), side))
+        for box in self.boxes:
+            box.setFixedSize(side, side)
+        # And laid out again if the number of columns has changed under a resize.
+        if across != self.columns:
+            self.columns = across
+            for i, box in enumerate(self.boxes):
+                self.rows.addWidget(box, i // across, i % across)
+
     def fill(self) -> None:
         while self.rows.count():
             old = self.rows.takeAt(0)
             if old.widget() is not None:
                 old.widget().deleteLater()
+        self.boxes = []
+        self.columns = 0
         self.rows_for = self.stations.items
-        for station in self.rows_for:
-            row = QtWidgets.QPushButton(self.said(station))
-            row.setObjectName("nasheedRow")      # the same wide row the shelf used
-            row.setCursor(Qt.CursorShape.PointingHandCursor)
-            row.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            row.setCheckable(True)
-            row.clicked.connect(lambda _=False, s=station: self.touched(s))
-            self.rows.addWidget(row)
-        self.rows.addStretch(1)
+        across = self.across(len(self.rows_for))
+        for i, station in enumerate(self.rows_for):
+            box = StationBox(self.win, station)
+            box.clicked.connect(lambda _=False, s=station: self.touched(s))
+            self.rows.addWidget(box, i // across, i % across)
+            self.boxes.append(box)
+        self.columns = across
+        self.size_the_boxes()
         here = self.online() and bool(self.rows_for)
         self.scroll.setVisible(here)
         self.offline.setVisible(not here)
@@ -238,16 +379,13 @@ class RadioScreen(QtWidgets.QWidget):
         return f"{station['name']}\n{about}" if about else station["name"]
 
     def mark(self) -> None:
-        """Show which row is playing, and whichever one is not answering."""
-        for i, station in enumerate(self.rows_for):
-            row = self.rows.itemAt(i).widget()
-            if row is None:
-                continue
-            row.setChecked(station is self.playing)
-            said = self.said(station)
-            if station is self.silent:
-                said = f"{station['name']}\n{self.win.t('radio.silent')}"
-            row.setText(said)
+        """Show which square is playing, and whichever one is not answering."""
+        for box in self.boxes:
+            station = box.station
+            box.setChecked(station is self.playing)
+            box.say(self.win.t("radio.silent") if station is self.silent
+                    else station.get("about", ""))
+            box.update()
 
     # Playing one
 
@@ -313,6 +451,11 @@ class RadioScreen(QtWidgets.QWidget):
         self.fill()
         self.ask_the_network()
         super().showEvent(ev)
+
+    def resizeEvent(self, ev):
+        # The squares are sized from the screen, so a different screen is a different size.
+        super().resizeEvent(ev)
+        self.size_the_boxes()
 
     def hideEvent(self, ev):
         """Walking off this screen stops the station -- unless the mat is going to sleep.
