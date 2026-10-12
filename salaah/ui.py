@@ -13,6 +13,7 @@ from .backlight import Backlight
 from .audio import Call, Recitation, Timings, clamp_volume
 from .audio import Span
 from .content import PRAYERS, Content, LanguagePack, StepRef, UnitEntry
+from .filmsheet import turn_inside_out
 from .mosque import ArchButton, ArchShape, GearButton, MosqueScreen, ZoomVeil
 from .prayer_times import Place, current_prayer, day_fraction, next_prayer, times_for
 from .pages import TextPage, build_pages
@@ -453,59 +454,104 @@ class BigButton(QtWidgets.QPushButton):
 
 
 class FrontDoor(QtWidgets.QWidget):
-    """The screen the mat opens on: one picture, and touching it goes in.
+    """The screen the mat opens on: one moving picture, and touching it goes in.
 
     It was a mosque with MySalaah across its front until 1.76 -- the same drawing machinery as
     the other two mosques, with the sky moving behind it, the clock on its dome and the black
-    strip of prayer times above. Harry replaced the lot with a drawn mark, and asked for
+    strip of prayer times above. Harry replaced the lot with his own mark, and asked for
     nothing to be added to it: "dont add banner or anything, keep as is".
 
-    SO IT DOES NOT FOLLOW THE THEME, which is the one place this parts company with every
-    other picture on the mat. Everything else the mat draws is ink on paper and turns itself
-    inside out after dark; this is a mark on a black field, and it stays that way at noon.
-    That is a reading of "keep as is" rather than a law of nature -- making it flip is a few
-    lines, and the comment is here so the next person knows it was a choice.
+    WHAT IT DOES. The word "My" turns over through the seven languages the mat speaks -- My,
+    Ma, Mi, صلاتي, میری نماز, मेरी, 我的 -- resting a beat on each and crossing to the next over
+    three frames, while the Kaaba and the crescent stand still. Seven seconds round. None of
+    that is known here: it is a film, and this plays it.
 
-    Nothing is cached. The picture is scaled on every paint, which is a repaint when the
-    window is resized and no other time: this screen has no clock, no sky and no animation,
-    so it is drawn once and sits there.
+    IT FOLLOWS THE THEME, like every other drawing on the mat. Harry sent it twice, once black
+    on white and once white on black, and the two are the same pixels inverted -- so the light
+    one ships and the dark screen gets it turned over, which is one blit and no second file to
+    keep in step. See filmsheet.turn_inside_out, which is the same inversion the menu sheets
+    use, and tools/make_front_film.py for how the film is cut.
+
+    Nothing is cached. The frame is scaled as it is drawn, which on a 1080p mat is ten scalings
+    a second of a 1600x900 picture; the version that kept them cost a menu 135MB (see
+    filmsheet.draw_themed) and this screen is up for longer than any menu.
     """
 
     chosen = Signal(str)
 
-    def __init__(self, picture: Path):
+    def __init__(self, picture: Path, film: Path | None = None):
         super().__init__()
-        self.sheet = QtGui.QPixmap(str(picture))
+        self.sheet = QtGui.QPixmap(str(picture)) if picture.is_file() else QtGui.QPixmap()
+        self.film: QtGui.QMovie | None = None
+        if film is not None and film.is_file():
+            movie = QtGui.QMovie(str(film))
+            if movie.isValid() and movie.frameCount() > 1:
+                movie.setParent(self)
+                # A bound method rather than a lambda, for the reason the call box and the
+                # turning globe both learned it: a lambda holding this widget outlives it, and
+                # a frame arriving after the widget has gone took one of the two Qt kits down.
+                movie.frameChanged.connect(self.turned)
+                self.film = movie
         self.setObjectName("frontDoor")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAutoFillBackground(True)
-        # The field the mark is drawn on, taken from the picture's own top-left corner rather
-        # than written down here: whatever is behind the mark fills the rest of the screen, so
-        # a screen that is not exactly the picture's shape has no bar down the side of it.
-        back = QtGui.QColor("black")
-        if not self.sheet.isNull():
-            back = QtGui.QColor(self.sheet.toImage().pixel(0, 0))
-        self.back = back
-        pal = self.palette()
-        pal.setColor(QtGui.QPalette.ColorRole.Window, back)
-        self.setPalette(pal)
 
     @property
     def ready(self) -> bool:
-        return not self.sheet.isNull()
+        """A film, or failing that a still. Either is a front door; neither is not."""
+        return self.film is not None or not self.sheet.isNull()
+
+    @property
+    def moving(self) -> bool:
+        return self.film is not None
+
+    def turned(self, _frame: int) -> None:
+        self.update()
+
+    def now(self) -> QtGui.QPixmap:
+        """The frame to draw: the film's, or the still it falls back to."""
+        if self.film is not None:
+            frame = self.film.currentPixmap()
+            if not frame.isNull():
+                return frame
+        return self.sheet
 
     def paintEvent(self, _):
-        if self.sheet.isNull():
+        shown = self.now()
+        if shown.isNull():
             return
         p = QtGui.QPainter(self)
-        p.fillRect(self.rect(), self.back)
+        # The field first, in the colour it was drawn on, so a screen that is not the film's
+        # shape has no bar down the side of it -- and so the inversion below takes the whole
+        # screen rather than leaving a white edge round a black picture.
+        p.fillRect(self.rect(), QtGui.QColor("white"))
         p.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
-        # Whole, not cropped: the mark keeps its proportions and whatever is left over at the
-        # edges is the field it was drawn on, so there is nothing to see in the difference.
-        shown = self.sheet.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
-                                  Qt.TransformationMode.SmoothTransformation)
+        # Whole, not cropped: the mark keeps the proportions it was drawn in.
+        shown = shown.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                             Qt.TransformationMode.SmoothTransformation)
         p.drawPixmap((self.width() - shown.width()) // 2,
                      (self.height() - shown.height()) // 2, shown)
+        if theme.palette().dark:
+            turn_inside_out(p, self.rect())
+
+    def start(self) -> None:
+        if self.film is not None:
+            self.film.start()
+
+    def stop(self) -> None:
+        if self.film is not None:
+            self.film.stop()
+
+    def showEvent(self, ev):
+        self.start()
+        super().showEvent(ev)
+
+    def hideEvent(self, ev):
+        # Off screen means stopped, the same rule the turning globe follows: a film left
+        # running is a timer waking the Pi ten times a second to repaint something nobody is
+        # looking at -- and this screen is the one the mat goes to sleep on.
+        self.stop()
+        super().hideEvent(ev)
 
     def mousePressEvent(self, _):
         self.chosen.emit("enter")
@@ -1437,16 +1483,17 @@ class MainWindow(QtWidgets.QWidget):
 
         The whole screen and nothing else -- no banner, no clock, no sky. It was a mosque with
         a moving sky and the prayer times across the top until 1.76, and Harry replaced it with
-        one picture and asked for nothing to be put back on it. See FrontDoor.
+        his own drawing and asked for nothing to be put back on it. See FrontDoor.
 
-        None if the picture is not on this mat, and then the mat opens on the mosque with the
-        five arches rather than on an empty screen. That matters more than it looks: the
-        picture arrives in a release, so a mat part way through an update meets the old screen.
+        The film if there is one, the still if there is not, and None if there is neither --
+        and then the mat opens on the mosque with the five arches rather than on an empty
+        screen. That matters more than it looks: both arrive in a release, so a mat part way
+        through an update meets whichever of the three it has.
         """
-        picture = self.assets / "welcome" / "front.png"
-        if not picture.is_file():
+        folder = self.assets / "welcome"
+        if not (folder / "front.gif").is_file() and not (folder / "front.png").is_file():
             return None
-        screen = FrontDoor(picture)
+        screen = FrontDoor(folder / "front.png", folder / "front.gif")
         if not screen.ready:
             screen.deleteLater()
             return None

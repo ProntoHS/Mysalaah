@@ -10812,18 +10812,19 @@ class ThumbButtonsTest(unittest.TestCase):
         self.assertLess(plain.height(), w.soon_back_button.height() * 0.7)
 
 
-class TheFrontDoorIsOnePictureTest(unittest.TestCase):
+class TheFrontDoorIsOneFilmTest(unittest.TestCase):
     """The screen the mat opens on.
 
     It was a mosque with MySalaah across its front, a moving sky behind it, a clock on its
-    dome and the black strip of prayer times above. Harry replaced the lot with one drawn
-    mark: "remove the main default page with this one, dont add banner or anything, keep as
-    is". So the test of it is that there is nothing else on it -- and that it still goes in.
+    dome and the black strip of prayer times above. Harry replaced the lot with his own
+    drawing: "remove the main default page with this one, dont add banner or anything, keep as
+    is" -- and then, the same evening, "i gave you an image, i wanted an animation". So the
+    tests of it are that there is nothing else on it, that it moves, and that it goes in.
     """
 
-    def window(self, size=(1920, 1080), aspect=16 / 9, **settings):
+    def window(self, size=(1920, 1080), aspect=16 / 9, theme="light", **settings):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme="light", recitation=False, place="Bury", **settings),
+                       Settings(theme=theme, recitation=False, place="Bury", **settings),
                        scale=1.0, save_settings=False, aspect=aspect)
         w.resize(*size)
         w.show()
@@ -10836,6 +10837,163 @@ class TheFrontDoorIsOnePictureTest(unittest.TestCase):
         w = self.window()
         self.assertIsNotNone(w.welcome, "there is no front door at all")
         self.assertIs(w.welcome, w.stack.currentWidget())
+
+    # It moves
+
+    def at(self, w, frame: int):
+        """The screen with the film wound to [frame]. QMovie will only step forward."""
+        film = w.welcome.film
+        for _ in range(film.frameCount() + 1):
+            if film.currentFrameNumber() == frame:
+                break
+            film.jumpToNextFrame()
+        else:
+            self.fail(f"the film would not wind to frame {frame}")
+        settle()
+        return w.welcome.grab().toImage()
+
+    def test_it_is_a_film_and_not_a_still(self):
+        """Harry: "i gave you an image, i wanted an animation"."""
+        w = self.window()
+        self.assertTrue(w.welcome.moving, "the front door is a still picture")
+        self.assertGreater(w.welcome.film.frameCount(), 1)
+
+    def test_the_screen_really_changes_as_it_runs(self):
+        """Off the screen rather than off the frame number: a film can be running, counting
+        its frames, and painting the same thing every time."""
+        w = self.window()
+        self.assertNotEqual(self.pixels(self.at(w, 0)), self.pixels(self.at(w, 12)),
+                            "the screen is the same picture at both ends of it")
+
+    @staticmethod
+    def pixels(image) -> bytes:
+        """A picture as something two of them can be compared by. Encoded rather than read
+        out of the image's own buffer, which is the one place the two Qt kits differ in the
+        hand -- PySide gives a memoryview and PyQt6 a sip.voidptr."""
+        hold = QtCore.QBuffer()
+        hold.open(QtCore.QIODevice.OpenModeFlag.WriteOnly)
+        image.save(hold, "PNG")
+        return bytes(hold.data())
+
+    @staticmethod
+    def timing() -> list[int]:
+        """How long each frame of the shipped film is held for, in milliseconds."""
+        from PIL import Image, ImageSequence
+        with Image.open(ASSETS / "welcome" / "front.gif") as film:
+            return [f.info.get("duration", 100) for f in ImageSequence.Iterator(film)]
+
+    def test_a_new_frame_asks_the_screen_to_redraw(self):
+        """The one thing a grab cannot see.
+
+        Grabbing a widget paints it whether or not anything asked it to, so every other test
+        here would pass on a front door that advances its film and never repaints -- which on
+        the mat is a frozen picture over a running film. So nothing is grabbed: the paints are
+        counted as they arrive, and the film is stepped on with nobody watching.
+        """
+        w = self.window()
+        seen = []
+
+        class Counter(QtCore.QObject):
+            def eventFilter(self, _obj, event):
+                if event.type() == QtCore.QEvent.Type.Paint:
+                    seen.append(1)
+                return False
+
+        count = Counter()
+        w.welcome.installEventFilter(count)
+        self.addCleanup(lambda: w.welcome.removeEventFilter(count))
+        settle()
+        seen.clear()
+        self.assertEqual(0, len(seen), "the front door is repainting with nothing happening")
+        w.welcome.film.jumpToNextFrame()
+        settle()
+        self.assertTrue(seen, "a new frame arrived and the screen was not asked to redraw")
+
+    def test_it_rests_on_seven_different_pictures(self):
+        """The word turns over through the seven languages the mat speaks, resting a beat on
+        each. Counted rather than read: the long-held frames are found by their own timing and
+        then compared with each other, so this says there are seven distinct things to see
+        without claiming to know which languages they are.
+        """
+        w = self.window()
+        held = self.timing()
+        rests = [n for n, ms in enumerate(held) if ms == max(held)]
+        self.assertEqual(7, len(rests),
+                         f"the film rests {len(rests)} times, not seven: {held}")
+        self.assertEqual(7, len({self.pixels(self.at(w, n)) for n in rests}),
+                         "two of the seven it rests on are the same picture")
+
+    def test_the_pauses_are_kept_rather_than_flattened(self):
+        """The thing a careless re-encode loses. It holds each language for most of a second
+        and crosses to the next over three quick frames; written out with one duration for all
+        twenty-eight it becomes a flicker with no pauses in it."""
+        held = self.timing()
+        self.assertGreater(len(set(held)), 1, "every frame is held for the same time")
+        self.assertGreater(max(held), min(held) * 3,
+                           f"there is no pause worth the name in {sorted(set(held))}")
+
+    def test_it_stops_when_it_is_not_on_the_screen(self):
+        """A film left running is a timer waking the Pi ten times a second to repaint
+        something nobody is looking at -- and this is the screen the mat sleeps on."""
+        w = self.window()
+        running = QtGui.QMovie.MovieState.Running
+        self.assertEqual(running, w.welcome.film.state(), "not playing on the screen it is on")
+        w.leave_welcome()
+        w.veil.stop()
+        settle()
+        self.assertNotEqual(running, w.welcome.film.state(),
+                            "still playing with the mosque up in front of it")
+        w.go_home()
+        settle()
+        self.assertEqual(running, w.welcome.film.state(), "it did not start again")
+
+    def test_after_dark_it_is_the_same_film_turned_over(self):
+        """Harry sent it twice, black on white and white on black, and the two are the same
+        pixels inverted -- so one ships and the mat turns it over, the way it does with every
+        other drawing it has. Checked on the screen: the night picture has to be the day
+        picture's negative, not merely darker.
+        """
+        day = self.at(self.window(theme="light"), 0)
+        night = self.at(self.window(theme="dark"), 0)
+        self.assertEqual(day.size(), night.size())
+        step = max(1, day.width() // 120)
+        out = [abs(255 - QtGui.QColor(day.pixel(x, y)).lightness()
+                   - QtGui.QColor(night.pixel(x, y)).lightness())
+               for y in range(0, day.height(), step)
+               for x in range(0, day.width(), step)]
+        self.assertLess(max(out), 12,
+                        f"the night screen is not the day screen inverted; worst pixel is "
+                        f"{max(out)} of 255 out")
+
+    def test_the_still_it_falls_back_to_is_one_it_rests_on(self):
+        """Not a half-crossfade. A mat whose film is missing shows this instead, and two words
+        fading through each other is not a thing to leave on a screen."""
+        w = self.window()
+        held = self.timing()
+        rests = [n for n, ms in enumerate(held) if ms == max(held)]
+        still = QtGui.QImage(str(ASSETS / "welcome" / "front.png"))
+        self.assertFalse(still.isNull(), "there is no still to fall back to")
+        # Sampled rather than compared byte for byte: the still comes off the disk and the
+        # frame out of a QMovie, and two images of the same picture from two sources agree
+        # about every pixel and about nothing else -- format, palette, metadata.
+        off = []
+        for n in rests:
+            self.at(w, n)
+            off.append(self.how_far(still, w.welcome.film.currentPixmap().toImage()))
+        self.assertLess(min(off), 4,
+                        f"the still is not one of the pictures the film rests on; the "
+                        f"nearest is {min(off)} of 255 out")
+
+    @staticmethod
+    def how_far(a, b) -> int:
+        """The worst a sampled pixel differs between two pictures of the same size."""
+        if a.size() != b.size():
+            return 255
+        step = max(1, a.width() // 150)
+        return max(abs(QtGui.QColor(a.pixel(x, y)).lightness()
+                       - QtGui.QColor(b.pixel(x, y)).lightness())
+                   for y in range(0, a.height(), step)
+                   for x in range(0, a.width(), step))
 
     def test_there_is_nothing_on_it_but_the_picture(self):
         """No banner, which is the one Harry named, and nothing else either: the strip carries
@@ -10854,11 +11012,14 @@ class TheFrontDoorIsOnePictureTest(unittest.TestCase):
         self.assertEqual(1, len({c.name() for c in corners}),
                          f"the four corners are {[c.name() for c in corners]}")
 
-    def test_it_is_the_picture_that_ships_rather_than_anything_drawn_here(self):
+    def test_it_is_the_drawing_that_ships_rather_than_anything_drawn_here(self):
+        """Against the frame the film is actually showing, not against a file chosen by name:
+        the two could agree about the still and disagree about everything else."""
         w = self.window()
-        picture = ASSETS / "welcome" / "front.png"
-        self.assertTrue(picture.is_file(), "the front door's picture does not ship")
-        want = QtGui.QImage(str(picture))
+        self.assertTrue((ASSETS / "welcome" / "front.gif").is_file(),
+                        "the front door's film does not ship")
+        want = w.welcome.now().toImage()
+        self.assertFalse(want.isNull(), "the front door has no frame to draw")
         shot = w.welcome.grab().toImage().scaled(
             want.width(), want.height(), Qt.AspectRatioMode.IgnoreAspectRatio,
             Qt.TransformationMode.SmoothTransformation)

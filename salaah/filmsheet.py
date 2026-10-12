@@ -25,6 +25,21 @@ from .knowledge import Tile
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .theme import palette
 
+def turn_inside_out(painter, where: QtCore.QRect) -> None:
+    """Invert what has been painted into [where]. How the mat turns a drawing over after dark.
+
+    White over the top in Difference mode gives |255 - pixel|, which is exactly inversion and
+    costs no memory at all -- see draw_themed for what the memory-keeping version cost.
+
+    Its own function because two things need it and they must not drift: the menu sheets, which
+    invert one tile-covered picture, and the front door, which inverts a whole screen.
+    """
+    was = painter.compositionMode()
+    painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Difference)
+    painter.fillRect(where, QtGui.QColor("white"))
+    painter.setCompositionMode(was)
+
+
 def draw_themed(painter, film, where: QtCore.QRect) -> None:
     """Draw this frame of [film] into [where], turned inside out if the screen is dark.
 
@@ -45,10 +60,7 @@ def draw_themed(painter, film, where: QtCore.QRect) -> None:
     painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
     painter.drawPixmap(where, source)
     if palette().dark:
-        was = painter.compositionMode()
-        painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Difference)
-        painter.fillRect(where, QtGui.QColor("white"))
-        painter.setCompositionMode(was)
+        turn_inside_out(painter, where)
 
 
 class FilmSheet(QtWidgets.QWidget):
