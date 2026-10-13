@@ -2893,15 +2893,7 @@ class MenusAreDrawnInEveryLanguageTest(unittest.TestCase):
         self.assertEqual(described["films"]["en"], FilmSheet.sheet_for(described, "sw"))
         self.assertEqual(described["films"]["en"], FilmSheet.sheet_for(described, ""))
 
-    def test_one_set_of_boxes_serves_them_all(self):
-        """The claim that lets there be one menu.json for seven films.
-
-        Every sheet was drawn to the same grid. This measures how far the tiles actually move
-        between the English drawing and each of the others -- it was seven pixels at worst on
-        a 304px tile, a fiftieth of a tile and a fraction of a fingertip. If a redrawn sheet
-        ever shifts its grid, the touch targets would quietly stop matching the pictures and
-        nothing else would notice.
-        """
+    def test_every_film_is_the_size_the_boxes_were_cut_at(self):
         from PIL import Image
         for folder, attr in self.MENUS:
             described = self.described(folder)
@@ -2911,6 +2903,48 @@ class MenusAreDrawnInEveryLanguageTest(unittest.TestCase):
                     with Image.open(ASSETS / folder / name) as film:
                         self.assertEqual((wide, tall), film.size,
                                          f"{name} is not the size the boxes were cut at")
+
+    def test_one_set_of_boxes_serves_them_all(self):
+        """The claim that lets there be one menu.json for seven films.
+
+        Every sheet was drawn to the same grid, and the boxes in menu.json were cut from the
+        English one. So this cuts every OTHER language's film with the same cutter and asks
+        how far its tiles land from those boxes. If a redrawn sheet ever shifts its grid, the
+        touch targets quietly stop matching the pictures -- a child presses Travel and gets
+        Forgiveness -- and nothing else on the mat would notice.
+
+        It used to say all this and measure only that the films were the right SIZE, which is
+        a weaker thing that a shifted grid passes. It was rewritten when Harry sent five
+        redrawn du'a films, which is exactly the moment the real check is worth having.
+
+        Measured today: nothing at all in the du'a and 7in menus, and seven pixels at worst in
+        the hadith menu, on a 304px tile -- a fiftieth of a tile and a fraction of a fingertip.
+        Twelve is the bar.
+        """
+        try:
+            import scipy  # noqa: F401
+        except ImportError:                                   # pragma: no cover
+            self.skipTest("the tile cutter needs SciPy, which is a build-time thing")
+        import sys as _sys
+        _sys.path.insert(0, str(ASSETS.parent / "tools"))
+        from build_tiles import tiles_in
+        from PIL import Image
+        for folder, attr in self.MENUS + (("knowledge", ""),):
+            described = self.described(folder)
+            want = described["tiles"]
+            for lang, name in sorted(described["films"].items()):
+                with self.subTest(f"{folder} {lang}"):
+                    with Image.open(ASSETS / folder / name) as film:
+                        film.seek(0)
+                        found = tiles_in(film.convert("RGBA"))
+                    self.assertEqual(len(want), len(found),
+                                     f"{name} has {len(found)} tiles and the menu has "
+                                     f"{len(want)}")
+                    for (box_name, box), cut in zip(want.items(), found):
+                        moved = max(abs(a - b) for a, b in zip(box, list(cut)))
+                        self.assertLess(moved, 12,
+                                        f"{name}: {box_name} is cut at {list(cut)} where the "
+                                        f"menu says {box}, {moved}px out")
 
     def test_the_tiles_still_open_their_own_sections_in_another_language(self):
         """A film per language must not mean a menu per language: the same eighteen names,
