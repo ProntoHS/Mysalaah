@@ -43,6 +43,12 @@ from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 BOX_MOST = 400
 BOX_LEAST = 240
 BOX_GAP = 24
+# What is kept clear down each side of the block, at 1080p. It was 20 while there were four
+# squares to a row and they were capped at 400, so the block came nowhere near the edges and
+# the number never had to be right. Five to a row is decided by the width, so it does: at 20
+# the ten squares came within 22 points of both edges and read as a grid run off the screen
+# rather than a block standing on it.
+BOX_SIDE_ROOM = 40
 # The white line round a square, and how round its corners are. Bold, as asked: this is the
 # same look as the tiles on the 7" menu, which is where somebody has just come from.
 BOX_EDGE = 6
@@ -329,7 +335,8 @@ class RadioScreen(QtWidgets.QWidget):
         # below, so eight squares are a block in the middle of the screen and not a block
         # pushed against the top of it.
         held = QtWidgets.QVBoxLayout(inner)
-        held.setContentsMargins(window.px(20), window.px(20), window.px(20), window.px(20))
+        held.setContentsMargins(window.px(BOX_SIDE_ROOM), window.px(20),
+                                window.px(BOX_SIDE_ROOM), window.px(20))
         self.rows = QtWidgets.QGridLayout()
         self.rows.setSpacing(window.px(BOX_GAP))
         self.rows.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
@@ -425,7 +432,8 @@ class RadioScreen(QtWidgets.QWidget):
         if how_many < 1:
             return 1
         tidy = math.ceil(math.sqrt(how_many))
-        room = max(self.width() - self.win.px(40), self.win.px(BOX_LEAST))
+        room = max(self.width() - self.win.px(2 * BOX_SIDE_ROOM),
+                   self.win.px(BOX_LEAST))
         fits = max(1, (room + self.win.px(BOX_GAP))
                    // (self.win.px(BOX_LEAST) + self.win.px(BOX_GAP)))
         whole = next((n for n in range(tidy, min(how_many, 2 * tidy) + 1)
@@ -437,7 +445,8 @@ class RadioScreen(QtWidgets.QWidget):
         if not self.boxes:
             return
         across = self.across(len(self.boxes))
-        room = max(self.width() - self.win.px(40), self.win.px(BOX_LEAST))
+        room = max(self.width() - self.win.px(2 * BOX_SIDE_ROOM),
+                   self.win.px(BOX_LEAST))
         side = (room - self.win.px(BOX_GAP) * (across - 1)) // across
         side = max(self.win.px(BOX_LEAST), min(self.win.px(BOX_MOST), side))
         for box in self.boxes:

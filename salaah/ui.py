@@ -3393,7 +3393,12 @@ class MainWindow(QtWidgets.QWidget):
 
         head = QtWidgets.QHBoxLayout()
         head.setContentsMargins(0, 0, self.px(48), 0)
-        cog = GearButton(self.px(44), QtGui.QColor(BRICK))   # the one that was pressed to get here
+        # The cog that was pressed to get here, twice the size it was and in the ink of the
+        # screen rather than the red everything you press is in. Harry asked for "white":
+        # white is what the ink is on the night screen he was looking at, and on the day
+        # screen -- which this page is white paper on -- a white cog would be no cog at all.
+        # None is GearButton's way of saying "whatever colour the lettering is".
+        cog = GearButton(self.px(88), None)
         cog.setToolTip(self.t("settings.title"))
         head.addWidget(cog)
         head.addStretch(1)
@@ -3426,7 +3431,13 @@ class MainWindow(QtWidgets.QWidget):
         outer.addLayout(scrolled, 1)
 
         def section(column: QtWidgets.QVBoxLayout, key: str, hint: str = "") -> None:
-            column.addSpacing(self.px(14))
+            # The air above a heading, 14 points until 1.78 and 6 since. The cog at the top of
+            # this page doubled in size at Harry's asking and took 44 points of screen with
+            # it, which on a 1920x1080 monitor is the difference between this page fitting and
+            # this page scrolling -- and it was already within 28 points of scrolling before.
+            # Six gaps give the 48 back. Nothing is squeezed by it: the headings, the hints and
+            # the rows of choices are all the size they were, standing a little closer.
+            column.addSpacing(self.px(6))
             heading = QtWidgets.QLabel(self.t(key))
             heading.setObjectName("settingHead")
             column.addWidget(heading)

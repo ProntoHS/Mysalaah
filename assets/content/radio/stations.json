@@ -76,6 +76,24 @@
       "country": "GB",
       "lang": "en",
       "source": "sent by Harry; the one address on this list that is plain http, so it is the one stream nobody could encrypt even if they wanted to"
+    },
+    {
+      "key": "inspire-fm",
+      "name": "Inspire FM",
+      "url": "https://listen-inspirefm.sharp-stream.com/inspirefm.mp3",
+      "about": "Positively inspiring the community",
+      "country": "GB",
+      "lang": "en",
+      "source": "sent by Harry"
+    },
+    {
+      "key": "ramadan-fm",
+      "name": "Ramadan FM",
+      "url": "https://streams.radio.co/s184506ded/listen",
+      "about": "Community radio",
+      "country": "GB",
+      "lang": "en",
+      "source": "sent by Harry"
     }
   ]
 }

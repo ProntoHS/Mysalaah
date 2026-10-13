@@ -1771,6 +1771,50 @@ class SettingsFootTest(unittest.TestCase):
                         f"{lang} at {size}: {button.text()!r} squeezed to {button.height()} "
                         f"of {wanted}")
 
+    def test_the_cog_at_the_top_is_the_ink_of_the_screen_and_twice_its_old_size(self):
+        """Harry: "the red settings logo icon, make it white font colour and twice as big".
+
+        White is what the ink is on the night screen he was looking at. It is not what the ink
+        is on the day screen, which this page is white paper on, so the cog takes the lettering
+        colour rather than the word white -- which gives him white where he asked for it and a
+        cog you can see where he did not.
+        """
+        from salaah.mosque import GearButton
+        from salaah.ui import BRICK
+        for mode, want in (("dark", "#FFFFFF"), ("light", "#000000")):
+            with self.subTest(mode):
+                w = self.window(lang="en", theme=mode)
+                w.stack.setCurrentWidget(w.settings_screen)
+                settle()
+                cogs = [c for c in w.settings_screen.findChildren(GearButton)
+                        if c.isVisible()]
+                self.assertEqual(1, len(cogs), "one cog on the Settings page")
+                cog = cogs[0]
+                # 44 points until 1.78, so twice it is 88. Drawn rather than read off the
+                # attribute: the colour can be set and the brush never use it.
+                self.assertEqual(w.px(88), cog.height(),
+                                 f"the cog is {cog.height()}px; twice the old 44 is "
+                                 f"{w.px(88)}px")
+                shot = cog.grab().toImage()
+                ink = QtGui.QColor(want)
+                drawn = sum(1 for y in range(cog.height()) for x in range(cog.width())
+                            if all(abs(a - b) < 30 for a, b in
+                                   (lambda c: ((c.red(), ink.red()), (c.green(), ink.green()),
+                                               (c.blue(), ink.blue())))(
+                                       QtGui.QColor(shot.pixel(x, y)))))
+                self.assertGreater(drawn, cog.width() ** 2 * 0.2,
+                                   f"{mode}: the cog is not drawn in {want}")
+                red = QtGui.QColor(BRICK)
+                still_red = sum(1 for y in range(0, cog.height(), 2)
+                                for x in range(0, cog.width(), 2)
+                                if abs(QtGui.QColor(shot.pixel(x, y)).red() - red.red()) < 30
+                                and abs(QtGui.QColor(shot.pixel(x, y)).green()
+                                        - red.green()) < 30
+                                and abs(QtGui.QColor(shot.pixel(x, y)).blue()
+                                        - red.blue()) < 30)
+                self.assertLess(still_red, (cog.width() // 2) ** 2 * 0.05,
+                                f"{mode}: the cog is still red")
+
     def test_the_mats_own_screen_needs_no_scrolling(self):
         w = self.window(lang="en")
         w.resize(1920, 1200)
@@ -3008,18 +3052,49 @@ class RadioTest(unittest.TestCase):
                          "the 7in menu could not get off the radio screen")
         self.assertFalse(screen.player.playing, "it left the station playing behind it")
 
-    def test_eight_stations_go_four_and_four_with_no_gap(self):
-        """A block with a corner missing reads as a station having failed to load. Eight
-        rounded up to the square root is three a row, which is three, three and two."""
+    def test_ten_stations_go_five_and_five(self):
+        """Harry: "this will make 10 in total, shrink the others slight to fit these, 5 top,
+        5 bottom, centred".
+
+        Which is what the block arithmetic already does -- ten rounded up to the square root
+        is four, and four leaves a gap, so it takes the next count that divides ten evenly --
+        and this is here so it cannot quietly stop doing it.
+        """
         w = self.window()
         screen = self.screen(w)
-        self.assertEqual(8, len(screen.boxes), "the list is no longer eight stations")
-        self.assertEqual(4, screen.across(8))
-        for how_many, want in ((4, 2), (6, 3), (8, 4), (9, 3), (12, 4), (16, 4)):
+        self.assertEqual(10, len(screen.boxes), "the list is no longer ten stations")
+        self.assertEqual(5, screen.across(10))
+        tops = sorted({b.mapTo(screen, QtCore.QPoint(0, 0)).y() for b in screen.boxes})
+        self.assertEqual(2, len(tops), "they are not in two rows")
+        for row in tops:
+            across = [b for b in screen.boxes
+                      if b.mapTo(screen, QtCore.QPoint(0, 0)).y() == row]
+            self.assertEqual(5, len(across), "that row is not five squares")
+        for how_many, want in ((4, 2), (6, 3), (8, 4), (9, 3), (10, 5), (12, 4), (16, 4)):
             with self.subTest(how_many):
                 across = screen.across(how_many)
                 self.assertEqual(want, across)
                 self.assertEqual(0, how_many % across, "that leaves a gap in the block")
+
+    def test_the_squares_shrink_to_make_room_for_ten(self):
+        """"shrink the others slight to fit these". They were at the biggest a square is ever
+        allowed when there were eight of them, four to a row; five to a row means the row is
+        the thing that decides, and they come down to fit it."""
+        from salaah.radio import BOX_MOST, BOX_LEAST
+        w = self.window()
+        screen = self.screen(w)
+        side = screen.boxes[0].width()
+        self.assertLess(side, w.px(BOX_MOST), "the squares did not shrink at all")
+        self.assertGreater(side, w.px(BOX_LEAST), "they shrank past what is worth pressing")
+        # And it stands on the screen rather than running off it. Five to a row is decided
+        # by the width, which is the first time the gutter has had to be right: at the 20
+        # points the block was laid out with when there were four to a row, ten squares came
+        # within 22 points of both edges. Measured at 40 each side now, so 30 is the bar.
+        lefts = [b.mapTo(screen, QtCore.QPoint(0, 0)).x() for b in screen.boxes]
+        self.assertGreaterEqual(min(lefts), w.px(30),
+                                f"the block starts {min(lefts)}px from the edge")
+        self.assertLessEqual(max(lefts) + side, screen.width() - w.px(30),
+                             "the right-hand column is hard against the edge of the screen")
 
     def test_online_the_stations_are_listed(self):
         w = self.window(online=True)
@@ -3383,8 +3458,14 @@ class RadioTest(unittest.TestCase):
                 self.assertGreater(same, 0.75,
                                    f"what is on the square matches the logo in {same:.0%} of "
                                    f"it, which is nearer a name than that logo")
-                self.assertAlmostEqual(drawn[1], want[1], delta=0.08,
-                                       msg="the logo has been stretched out of shape")
+                # Relative, not absolute. These marks run from 0.85 wide-to-tall to nearly
+                # five, and a fixed allowance that is generous for a square one is punishing
+                # for a wordmark: Inspire FM's is 4.79 in the file and measures 4.89 off a
+                # silhouette twenty-eight squares across, which is two per cent out and was
+                # failing a tolerance that let a square logo off six.
+                self.assertLess(abs(drawn[1] / want[1] - 1), 0.06,
+                                f"the logo is drawn {drawn[1]:.2f} wide to tall from a file "
+                                f"that is {want[1]:.2f}: it has been stretched out of shape")
 
     def test_the_logo_is_stencilled_in_the_ink_of_the_day(self):
         """Black on the white screen, white on the black one, and white over the red of the
@@ -3503,7 +3584,10 @@ class RadioTest(unittest.TestCase):
         for key, url in (("buzz-islam", "https://tunein.buzzislam.com/radio/8000/radio.mp3"),
                          ("radio-ikhlas", "https://radio.canstream.co.uk:8050/live.mp3"),
                          ("radio-seerah", "https://icecast.maxxwave.co.uk/radioseerah"),
-                         ("unity-fm", "http://live.canstream.co.uk:8000/unity.mp3")):
+                         ("unity-fm", "http://live.canstream.co.uk:8000/unity.mp3"),
+                         ("inspire-fm",
+                          "https://listen-inspirefm.sharp-stream.com/inspirefm.mp3"),
+                         ("ramadan-fm", "https://streams.radio.co/s184506ded/listen")):
             with self.subTest(key):
                 self.assertIn(key, by_key, "the station was not added")
                 self.assertEqual(url, by_key[key]["url"])
