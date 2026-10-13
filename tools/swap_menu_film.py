@@ -116,8 +116,12 @@ def swap(folder: Path, lang: str, sheet: Path, force: bool = False) -> int:
     for name, (x0, y0, x1, y1) in described["tiles"].items():
         apart = np.abs(now[:, y0:y1, x0:x1] - before[:, y0:y1, x0:x1])
         if apart.max() > 0:
-            share = (apart > 0).mean() * 100
-            print(f"    {name}: redrawn, {share:.1f}% of it differs")
+            # Counted, not rounded. Fixing the ghost of an English word left under a
+            # translation moves a few dozen pixels from black to white -- four hundredths of
+            # one per cent of the tile -- and the first version of this line printed that as
+            # "0.0% of it differs", which reads as nothing at all. A count cannot do that.
+            print(f"    {name}: redrawn, {int((apart > 0).sum()):,} pixels across "
+                  f"{len(keep)} frames, worst {int(apart.max())} of 255")
 
     hold = out.stat().st_size
     keep[0].save(out, save_all=True, append_images=keep[1:], loop=0,

@@ -4896,6 +4896,70 @@ class SleepTest(unittest.TestCase):
         self.assertFalse(w.asleep)
         self.assertEqual([False, True], w.outputs.calls, "the screens went off, then back on")
 
+    def test_the_ring_coming_within_reach_wakes_the_mat(self):
+        """Harry: "when the mysalaah ring is turned [on] as it will look for the pi, could we
+        wake it up this way also?"
+
+        Switching the ring on makes the Pi create an input device for it, and buttons.py
+        reports the new list within a couple of seconds. Reaching for the ring is the same
+        intention as reaching for the power button, and it saves crossing the room to a mat on
+        the floor.
+        """
+        w = self.window()
+        self.press(w)
+        self.assertTrue(w.asleep)
+        w.on_devices(["MySalaah Ring"])
+        APP.processEvents()
+        self.assertFalse(w.asleep, "the ring connected and the mat stayed dark")
+        self.assertEqual([False, True], w.outputs.calls, "the screens did not come back on")
+
+    def test_a_ring_going_away_does_not_wake_it(self):
+        """A ring switched off, or carried out of range, must not light the mat on its way
+        out. It is a name APPEARING that means somebody has picked the ring up."""
+        w = self.window(sleep_after=0)
+        w.on_devices(["MySalaah Ring"])
+        APP.processEvents()
+        self.press(w)
+        self.assertTrue(w.asleep)
+        w.on_devices([])
+        APP.processEvents()
+        self.assertTrue(w.asleep, "the ring disconnecting woke the mat")
+        w.on_devices(["MySalaah Ring"])
+        APP.processEvents()
+        self.assertFalse(w.asleep, "and it would not wake when the ring came back")
+
+    def test_the_same_ring_reported_again_does_not_wake_it(self):
+        """buttons.py reports the whole list whenever anything in it changes, so a second
+        device joining says the first one's name again. That is not the first one arriving."""
+        w = self.window()
+        w.on_devices(["MySalaah Ring"])
+        APP.processEvents()
+        self.press(w)
+        self.assertTrue(w.asleep)
+        w.on_devices(["MySalaah Ring"])
+        APP.processEvents()
+        self.assertTrue(w.asleep, "a list that said nothing new woke the mat")
+
+    def test_a_press_on_the_ring_wakes_it_too(self):
+        """A press on the ring did nothing at all on a sleeping mat: it restarted the idle
+        clock and fell through to move(), which returns at once when no prayer is running --
+        and sleep ends the prayer on its way out. So a child with the ring in their hand had no
+        way of turning the mat on with it, which is the thing they are holding.
+
+        The press is also stopped from carrying on into the mat, but that is a guard and not
+        something this can check: nothing below it in on_button does anything on a mat that
+        has just woken. Taking the guard out breaks no test, which is said here rather than
+        left for somebody to discover by deleting it.
+        """
+        w = self.window()
+        self.press(w)
+        self.assertTrue(w.asleep)
+        w.on_button("next")
+        APP.processEvents()
+        self.assertFalse(w.asleep, "the ring was pressed and the mat stayed dark")
+        self.assertEqual([False, True], w.outputs.calls, "the screens did not come back on")
+        self.assertIs(w.welcome, w.stack.currentWidget(), "it did not come up at the front door")
+
     def test_asleep_nothing_is_still_drawing_the_screens(self):
         """The panels are the bulk of it, but the sky animating several times a second and the
         clock redrawing the times cost something too, and nobody can see either of them."""

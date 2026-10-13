@@ -3119,6 +3119,21 @@ class MainWindow(QtWidgets.QWidget):
         self.move(action)
 
     def on_button(self, action: str) -> None:
+        # Asleep, a press on the ring wakes the mat and does nothing else. It used to restart
+        # the idle clock and fall through to move(), which returns at once on a sleeping mat --
+        # so what a child pressing the ring on a dark mat actually got was nothing at all. The
+        # ring is the thing that is in their hand; it should be able to turn the mat on, the
+        # same as switching it on does in on_devices. The press that turns a thing on is not
+        # also a press on what it turns on, which is the rule a phone follows.
+        #
+        # The return is a guard rather than something you could see today: move() leaves at
+        # once when no prayer is running, and sleep ends the prayer on its way out, so there
+        # is currently nothing below here for a waking press to fall into. Sabotaging the
+        # return changes no test, which is how that was established rather than assumed. It
+        # stays because the next screen wired into on_button would be the one it mattered for.
+        if self.asleep:
+            self.wake()
+            return
         self.stir()
         if self.qibla_open:
             self.compass_screen.skip()             # a press always goes straight on
@@ -3139,10 +3154,28 @@ class MainWindow(QtWidgets.QWidget):
             self.timing_screen.press(action == NEXT)
 
     def on_devices(self, names: list) -> None:
+        """The list of Bluetooth buttons the mat can see has changed.
+
+        A NAME THAT WAS NOT THERE BEFORE WAKES THE MAT, which is Harry's: "when the mysalaah
+        ring is turned [on] as it will look for the pi, could we wake it up this way also?"
+
+        It can, and this is where: switching the ring on makes the Pi create an input device
+        for it, buttons.py notices within two seconds and reports the new list, and arriving
+        here is the mat being told the ring has come looking. Reaching for the ring is the
+        same intention as reaching for the power button, and it saves crossing the room.
+
+        A name APPEARING, not merely the list changing: a ring switched off, or carried out of
+        range, must not wake the mat on its way out. And a ring that reconnects on its own in
+        the night will light the mat up -- there is no telling that apart from somebody picking
+        it up, and it costs a few minutes of screen before the idle clock puts it back to sleep.
+        """
+        came = [n for n in names if n not in self.device_names]
         self.device_names = list(names)
         self.update_status()
         if hasattr(self, "devices_label"):
             self.devices_label.setText(self.devices_text())
+        if came and self.asleep:
+            self.wake()
 
     def update_status(self) -> None:
         connected = bool(self.device_names)
