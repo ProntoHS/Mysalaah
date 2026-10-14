@@ -180,8 +180,6 @@
     "settings.figure": "Qui est montré",
     "settings.font": "Caractères arabes",
     "settings.font_hint": "Les trois affichent toutes les voyelles. Choisissez celui qui se lit le plus facilement à l'écran.",
-    "settings.inset": "Bord de l'écran",
-    "settings.inset_hint": "Si le moniteur coupe un bord, ceci garde cette marge libre tout autour.",
     "settings.installed": "Installed",
     "settings.language": "Langue",
     "settings.main_screen": "Écran principal",

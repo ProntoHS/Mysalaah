@@ -294,15 +294,25 @@ class UiTest(unittest.TestCase):
     def test_drawing_area_keeps_its_shape(self):
         from salaah.content import available_packs, load
         from salaah.settings import Settings as S
-        for size, inset in (((1920, 1080), 0), ((1280, 1024), 0), ((1920, 1200), 0), ((1920, 1080), 40)):
-            win = MainWindow(load(ASSETS), available_packs(ASSETS), S(theme="light", recitation=False), 1.0, False, inset=inset)
+        # The fourth size used to be the same screen with a 40px inset, which was the
+        # "Edge of the screen" setting. That went in 1.81 and the box is now simply the
+        # largest 16:9 rectangle the screen will hold, whatever shape the screen is.
+        for size in ((1920, 1080), (1280, 1024), (1920, 1200), (1024, 600)):
+            win = MainWindow(load(ASSETS), available_packs(ASSETS), S(theme="light", recitation=False), 1.0, False)
             win.resize(*size)
             win.show()
             APP.processEvents()
             box = win.content_box()
             self.assertAlmostEqual(16 / 9, box.width() / box.height(), places=2, msg=str(size))
-            self.assertLessEqual(box.bottom(), size[1] - inset, "nothing runs off the bottom")
-            self.assertLessEqual(box.right(), size[0] - inset, "nothing runs off the side")
+            self.assertLessEqual(box.bottom(), size[1], "nothing runs off the bottom")
+            self.assertLessEqual(box.right(), size[0], "nothing runs off the side")
+            # And it is the LARGEST such box, which is what taking the inset out means: it
+            # fills the screen in one direction or the other, with the letterboxing only
+            # where the screen is not 16:9. Without this the test passes on a box inset by
+            # any amount at all, which is what it was measuring until 1.81.
+            self.assertTrue(box.width() == size[0] or box.height() == size[1],
+                            f"{size}: the box is {box.width()}x{box.height()}, which touches "
+                            f"neither pair of edges")
             self.assertEqual(box, win.stack.geometry())
             win.shutdown()
             win.close()
@@ -1627,9 +1637,9 @@ class TranslationScreenTest(unittest.TestCase):
         """
         w = self.window()
         boxes = w.settings_screen.findChildren(QtWidgets.QComboBox)
-        self.assertEqual(4, len(boxes),
-                         "pickers, not rows of circles: the language, the screen mode, the "
-                         "Arabic lettering and how much edge")
+        self.assertEqual(3, len(boxes),
+                         "pickers, not rows of circles: the language, the screen mode and "
+                         "the Arabic lettering")
         picker = w.language_picker
         labels = [picker.itemText(i) for i in range(picker.count())]
         for want in ("English", "Français", "اردو", "Arabic only"):
@@ -6915,9 +6925,13 @@ class SwitchTest(unittest.TestCase):
         self.assertIn(w.t("settings.off"), said)
 
     def test_the_choices_with_more_than_two_answers_are_not_switches(self):
-        """A switch is for yes or no. Who is shown, the school, which lettering and how much
-        edge all have more than two answers, so none of them may become a switch -- a switch
-        cannot say "40 px". Circles for the short lists, a picker for the wordy ones."""
+        """A switch is for yes or no. Who is shown, the school, which lettering and which
+        screen mode all have more than two answers, so none of them may become a switch --
+        a switch cannot say "Clear naskh". Circles for the short lists, a picker for the
+        wordy ones.
+
+        "How much edge" was the fourth of these until 1.81, when the row went altogether.
+        """
         w = self.window()
         circles = [b for b in w.settings_screen.findChildren(QtWidgets.QRadioButton)
                    if b.objectName() == "choice"]
@@ -6925,10 +6939,10 @@ class SwitchTest(unittest.TestCase):
         pickers = [b for b in w.settings_screen.findChildren(QtWidgets.QComboBox)
                    if b.objectName() == "picker"]
         said = {b.itemText(i) for b in pickers for i in range(b.count())}
-        for px in ("0 px", "20 px", "40 px", "60 px"):
-            self.assertIn(px, said, "how much edge is not a yes-or-no question")
         for face in ("Traditional", "Clear naskh", "Noto naskh"):
             self.assertIn(face, said, "the lettering is not a yes-or-no question")
+        for mode in ("Light: black on white", "Dark: white on black"):
+            self.assertIn(mode, said, "the screen mode is not a yes-or-no question")
 
     def test_a_switch_is_one_target_rather_than_two_small_ones(self):
         """The point of the change: a finger has one thing to hit, and it is big enough to hit."""
@@ -7336,6 +7350,23 @@ class TwoMosquesTest(unittest.TestCase):
             found[name] = (sum(xs) // len(xs), top)
         return found
 
+    def measured(self, w, tries=12):
+        """landmarks(), given time to become measurable.
+
+        Not a lowered bar: it still fails if the drawing never appears, and every number it
+        then checks is checked as strictly as before. It is a wait, and it is here because
+        this test failed once in a full run and passed on its own twice and in the next full
+        run -- the signature settle() describes in its own docstring, a grab taken before the
+        queued work behind it had finished. Five rounds of events is enough on an idle machine
+        and is not a promise; a drawing that is actually there arrives within one or two more.
+        """
+        for _ in range(tries):
+            found = self.landmarks(w)
+            if found is not None:
+                return found
+            settle()
+        return None
+
     def test_the_minarets_and_dome_land_in_the_same_place_across_the_family(self):
         """Every mosque on the mat is the same building drawn again, so the minarets and the
         dome have to land on the same pixels wherever you are.
@@ -7348,8 +7379,8 @@ class TwoMosquesTest(unittest.TestCase):
         w = self.window()
         w.stack.setCurrentWidget(w.home)
         settle()
-        mosque = self.landmarks(w)
-        self.assertIsNotNone(mosque)
+        mosque = self.measured(w)
+        self.assertIsNotNone(mosque, "nothing measurable on the mosque itself")
 
         def compare(what, found):
             self.assertIsNotNone(found, f"{what}: nothing measurable on screen")
@@ -7367,12 +7398,12 @@ class TwoMosquesTest(unittest.TestCase):
                 page.sky.birds = []
                 page.sky.stars = []
                 settle()
-                compare(prayer, self.landmarks(w))
+                compare(prayer, self.measured(w))
 
         with self.subTest("the kalima menu"):
             w.open_corner("kalima")
             settle()
-            compare("the kalima menu", self.landmarks(w))
+            compare("the kalima menu", self.measured(w))
 
     def test_every_drawing_is_one_size(self):
         """A drawing of another size does not get clipped -- MosqueScreen scales it to fit --
@@ -7472,16 +7503,24 @@ class SettingsScreenTest(unittest.TestCase):
         settle()
         self.assertEqual(other, w.settings.arabic_font, "picking a face did not change it")
 
-    def test_the_edge_is_a_picker_and_picking_changes_it(self):
-        w = self.window(inset=0)
-        box = w.inset_picker
-        self.assertIsInstance(box, QtWidgets.QComboBox)
-        values = [box.itemData(i) for i in range(box.count())]
-        self.assertEqual(["0", "20", "40", "60"], values)
-        self.assertEqual("0", box.itemData(box.currentIndex()), "it starts on the setting")
-        box.activated.emit(values.index("40"))
-        settle()
-        self.assertEqual(40, w.settings.inset, "picking an edge did not change it")
+    def test_the_edge_of_the_screen_row_has_gone(self):
+        """Harry: "get rid of edge of the screen option completely - not needed". It was a
+        remedy for a monitor that cuts its edges off, which is a television's problem; a Pi
+        that ever meets one has overscan settings of its own in config.txt.
+
+        Checked on the screen rather than on the attribute, because the point of taking it out
+        was the room it was using: a row that is gone from the object and still drawn is a row
+        that still costs 115 points of a page with none to spare.
+        """
+        w = self.window()
+        self.assertFalse(hasattr(w, "inset_picker"), "the picker is still built")
+        said = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
+                if x.isVisible()]
+        self.assertNotIn("Edge of the screen", said)
+        for words in said:
+            self.assertNotIn("cuts off an edge", words, "its explanation is still on the page")
+        from salaah.settings import Settings
+        self.assertFalse(hasattr(Settings(), "inset"), "the setting itself is still there")
 
     def test_the_ring_has_a_filled_circle_that_follows_the_connection(self):
         from salaah.ui import BRICK, MINT
@@ -8380,6 +8419,12 @@ class MovingMuezzinTest(unittest.TestCase):
         whatever is playing."""
         w = self.window()
         box = self.box(w)
+        # Stopped before it is stepped. The film is playing -- the test above insists on it --
+        # and settle() gives its own timer a chance to run, so a frame asked for by number can
+        # have moved on by the time the grab happens. Two grabs then land on one frame and the
+        # count of different pictures comes up short. It failed that way once in a full suite
+        # and passed three times out of three on its own, which is what a race looks like.
+        box.drawing.film.stop()
         drawn = []
         for i in range(box.drawing.film.frameCount()):
             box.drawing.film.jumpToFrame(i)
@@ -11023,8 +11068,15 @@ class TheFrontDoorIsOneFilmTest(unittest.TestCase):
     # It moves
 
     def at(self, w, frame: int):
-        """The screen with the film wound to [frame]. QMovie will only step forward."""
+        """The screen with the film wound to [frame]. QMovie will only step forward.
+
+        Stopped first, and left stopped. A running film advances on its own timer, and settle()
+        is an invitation for that timer to fire -- so the frame grabbed would not always be the
+        frame asked for. No test here looks at the film's state after calling this; the two
+        that care about whether it is running never do.
+        """
         film = w.welcome.film
+        film.stop()
         for _ in range(film.frameCount() + 1):
             if film.currentFrameNumber() == frame:
                 break

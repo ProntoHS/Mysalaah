@@ -180,8 +180,6 @@
     "settings.figure": "Who is shown",
     "settings.font": "Arabic lettering",
     "settings.font_hint": "All three show the vowel marks in full. Pick whichever is easiest to read on the screen.",
-    "settings.inset": "Edge of the screen",
-    "settings.inset_hint": "If the monitor cuts off an edge, this keeps that much clear all the way round.",
     "settings.installed": "Installed",
     "settings.language": "Language",
     "settings.main_screen": "Main screen",

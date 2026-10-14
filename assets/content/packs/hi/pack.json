@@ -182,8 +182,6 @@
     "settings.figure": "कौन दिखाया जाए",
     "settings.font": "अरबी लिखाई",
     "settings.font_hint": "तीनों में सारे एराब पूरे दिखते हैं। जो स्क्रीन पर सबसे आसानी से पढ़ी जाए, वह चुनें।",
-    "settings.inset": "स्क्रीन का किनारा",
-    "settings.inset_hint": "अगर मॉनिटर कोई किनारा काट देता है, तो यह चारों तरफ़ उतनी जगह खाली छोड़ देता है।",
     "settings.installed": "इंस्टॉल हो गया",
     "settings.language": "भाषा",
     "settings.main_screen": "मुख्य स्क्रीन",

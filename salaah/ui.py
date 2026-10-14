@@ -733,10 +733,9 @@ class MainWindow(QtWidgets.QWidget):
 
     def __init__(self, content: Content, packs: dict[str, LanguagePack], settings: Settings,
                  scale: float = 1.0, save_settings: bool = True, aspect: float | None = 16 / 9,
-                 inset: int = 0, compass=None, side: bool = False):
+                 compass=None, side: bool = False):
         super().__init__()
         self.aspect = aspect
-        self.inset = inset
         Fonts.load(content.root)
         self.assets = content.root
         self.arch_shape = ArchShape(content.root)
@@ -837,10 +836,14 @@ class MainWindow(QtWidgets.QWidget):
         self.stir()
 
     def content_box(self) -> QtCore.QRect:
-        """The area the app draws in: the largest box of the right shape that fits, inset a
-        little if the monitor is cutting off the edges."""
-        w = max(1, self.width() - 2 * self.inset)
-        h = max(1, self.height() - 2 * self.inset)
+        """The area the app draws in: the largest box of the right shape that fits.
+
+        It used to be inset by a few pixels for a monitor that cut its edges off, set from a
+        row in Settings. That went in 1.81 -- see settings.py for why -- and the box is now
+        simply the screen.
+        """
+        w = max(1, self.width())
+        h = max(1, self.height())
         if self.aspect:
             if w / h > self.aspect:
                 w = int(h * self.aspect)
@@ -3543,11 +3546,6 @@ class MainWindow(QtWidgets.QWidget):
                 "" if self.backlight.available else self.t("settings.brightness_veil"))
         right.addLayout(self.brightness_slider())
 
-        section(right, "settings.inset")
-        self.inset_picker = self.dropdown([(str(v), f"{v} px") for v in (0, 20, 40, 60)],
-                                          str(self.settings.inset), self.set_inset)
-        right.addWidget(self.inset_picker)
-
         section(right, "settings.cursor")
         right.addLayout(self.switch_row(self.settings.cursor,
                                         lambda yes: self.set_cursor("1" if yes else "0"),
@@ -4033,12 +4031,6 @@ class MainWindow(QtWidgets.QWidget):
                 bar.setValue(loud)
                 bar.blockSignals(was)
             read.setText(f"{loud}%")
-
-    def set_inset(self, value: str) -> None:
-        self.settings.inset = int(value)
-        self.inset = int(value)
-        self.persist()
-        self.resizeEvent(QtGui.QResizeEvent(self.size(), self.size()))
 
     def set_font(self, key: str) -> None:
         self.settings.arabic_font = key

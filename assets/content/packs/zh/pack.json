@@ -182,8 +182,6 @@
     "settings.figure": "显示谁",
     "settings.font": "阿拉伯文字体",
     "settings.font_hint": "三种都完整显示元音符号。选屏幕上最易读的一种。",
-    "settings.inset": "屏幕边缘",
-    "settings.inset_hint": "若显示器切掉了边缘，此项在四周留出相应的空白。",
     "settings.installed": "已安装",
     "settings.language": "语言",
     "settings.main_screen": "主屏幕",

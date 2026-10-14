@@ -182,8 +182,6 @@
     "settings.figure": "Quién aparece",
     "settings.font": "Letra árabe",
     "settings.font_hint": "Las tres muestran todas las vocales. Elige la que se lea mejor en la pantalla.",
-    "settings.inset": "Borde de la pantalla",
-    "settings.inset_hint": "Si el monitor corta un borde, esto deja ese margen libre por todos los lados.",
     "settings.installed": "Instalado",
     "settings.language": "Idioma",
     "settings.main_screen": "Pantalla principal",

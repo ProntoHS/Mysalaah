@@ -180,8 +180,6 @@
     "settings.figure": "کون دکھایا جائے",
     "settings.font": "عربی خط",
     "settings.font_hint": "تینوں میں تمام اعراب موجود ہیں۔ جو اسکرین پر سب سے آسانی سے پڑھا جائے وہ چنیں۔",
-    "settings.inset": "اسکرین کا کنارہ",
-    "settings.inset_hint": "اگر مانیٹر کنارہ کاٹ دے تو یہ چاروں طرف اتنی جگہ خالی رکھتا ہے۔",
     "settings.installed": "Installed",
     "settings.language": "زبان",
     "settings.main_screen": "مرکزی اسکرین",

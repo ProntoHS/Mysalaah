@@ -34,7 +34,12 @@ class Settings:
                               # sitting down, the wu'du standing at a basin -- and because the
                               # steps give the words less room, so the sizes differ: see
                               # wudu.WUDU_SIZES against reading.TEXT_STEPS.
-    inset: int = 0  # pixels kept clear on every edge, if the monitor cuts them off
+    # "inset" -- pixels kept clear on every edge for a monitor that cut them off -- went in
+    # 1.81. Harry: "get rid of edge of the screen option completely - not needed". It was a
+    # remedy for overscan, which is a television's problem rather than a monitor's, and the
+    # mat has a monitor. A screen that ever does cut its edges off has the Pi's own overscan
+    # settings in /boot/firmware/config.txt, which is where that belongs. Old settings.json
+    # files may still carry the key; load() ignores what it does not know, so it just goes.
     main_output: str = ""  # the screen the words went on last time, e.g. HDMI-A-1
     side_output: str = ""  # the 7" posture screen last time; both are worked out if they are wrong
     recitation: bool = True  # play the recorded recitation and follow the words in red
