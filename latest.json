@@ -2,9 +2,9 @@
   "release": {
     "version": "1.84",
     "url": "https://github.com/ProntoHS/Mysalaah/releases/download/v1.84/salaah-1.84.zip",
-    "sha256": "9d892cd5cb1678770d40f729ebd1d991091f4446149b8e6ca578a32aff255cc1",
-    "bytes": 49099400,
+    "sha256": "9386412db47a7a1c29c7471e369b3033eacd109c28dea049bdc053a8854dd8b3",
+    "bytes": 68900347,
     "notes": ""
   },
-  "signature": "HTWtH8ilT1ZWN0lGqTnYTySUN4td/WoPidJ6oM8vgg1bBGF5w9dmquRIaBavCmJXPOqVF2oKvVYfEszcXKBMCw=="
+  "signature": "S6TYF6B7q5rjXqSb4SpJCZ+hX+WciO1bNlyhQ8GWtWNJ05cnsFn2aMU6AIS9x+VYkukLGeAyJeulb8/QjEu3Dg=="
 }
