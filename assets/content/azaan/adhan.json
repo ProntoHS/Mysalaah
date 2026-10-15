@@ -13,7 +13,10 @@
         "ur": "اللہ سب سے بڑا ہے، اللہ سب سے بڑا ہے",
         "es": "Allah es el más grande, Allah es el más grande",
         "zh": "真主至大，真主至大",
-        "hi": "अल्लाह सबसे बड़ा है, अल्लाह सबसे बड़ा है"
+        "hi": "अल्लाह सबसे बड़ा है, अल्लाह सबसे बड़ा है",
+        "ru": "Аллах велик, Аллах велик",
+        "pt": "Allah é o maior, Allah é o maior",
+        "bn": "আল্লাহ সর্বশ্রেষ্ঠ, আল্লাহ সর্বশ্রেষ্ঠ"
       }
     },
     {
@@ -26,7 +29,10 @@
         "ur": "میں گواہی دیتا ہوں کہ اللہ کے سوا کوئی معبود نہیں",
         "es": "Atestiguo que no hay dios sino Allah",
         "zh": "我作证，除真主外别无应受崇拜者",
-        "hi": "मैं गवाही देता हूँ कि अल्लाह के सिवा कोई माबूद नहीं"
+        "hi": "मैं गवाही देता हूँ कि अल्लाह के सिवा कोई माबूद नहीं",
+        "ru": "Свидетельствую, что нет бога, кроме Аллаха",
+        "pt": "Testemunho que não há deus senão Allah",
+        "bn": "আমি সাক্ষ্য দিচ্ছি যে আল্লাহ ছাড়া কোনো ইলাহ নেই"
       }
     },
     {
@@ -39,7 +45,10 @@
         "ur": "میں گواہی دیتا ہوں کہ محمد اللہ کے رسول ہیں",
         "es": "Atestiguo que Muhammad es el Mensajero de Allah",
         "zh": "我作证，穆罕默德是真主的使者",
-        "hi": "मैं गवाही देता हूँ कि मुहम्मद अल्लाह के रसूल हैं"
+        "hi": "मैं गवाही देता हूँ कि मुहम्मद अल्लाह के रसूल हैं",
+        "ru": "Свидетельствую, что Мухаммад — посланник Аллаха",
+        "pt": "Testemunho que Muhammad é o Mensageiro de Allah",
+        "bn": "আমি সাক্ষ্য দিচ্ছি যে মুহাম্মাদ আল্লাহর রাসূল"
       }
     },
     {
@@ -52,7 +61,10 @@
         "ur": "نماز کی طرف آؤ",
         "es": "Venid a la oración",
         "zh": "快来礼拜",
-        "hi": "नमाज़ की ओर आओ"
+        "hi": "नमाज़ की ओर आओ",
+        "ru": "Спешите на молитву",
+        "pt": "Vinde à oração",
+        "bn": "নামাজের জন্য এসো"
       }
     },
     {
@@ -65,7 +77,10 @@
         "ur": "کامیابی کی طرف آؤ",
         "es": "Venid al éxito",
         "zh": "快来成功",
-        "hi": "सफलता की ओर आओ"
+        "hi": "सफलता की ओर आओ",
+        "ru": "Спешите к успеху",
+        "pt": "Vinde ao sucesso",
+        "bn": "কল্যাণের জন্য এসো"
       }
     },
     {
@@ -78,7 +93,10 @@
         "ur": "نماز نیند سے بہتر ہے",
         "es": "La oración es mejor que el sueño",
         "zh": "礼拜胜于睡眠",
-        "hi": "नमाज़ नींद से बेहतर है"
+        "hi": "नमाज़ नींद से बेहतर है",
+        "ru": "Молитва лучше сна",
+        "pt": "A oração é melhor do que o sono",
+        "bn": "ঘুমের চেয়ে নামাজ উত্তম"
       }
     },
     {
@@ -91,14 +109,43 @@
         "ur": "اللہ کے سوا کوئی معبود نہیں",
         "es": "No hay dios sino Allah",
         "zh": "除真主外别无应受崇拜者",
-        "hi": "अल्लाह के सिवा कोई माबूद नहीं"
+        "hi": "अल्लाह के सिवा कोई माबूद नहीं",
+        "ru": "Нет бога, кроме Аллаха",
+        "pt": "Não há deus senão Allah",
+        "bn": "আল্লাহ ছাড়া কোনো ইলাহ নেই"
       }
     }
   ],
   "calls": {
-    "ordinary": ["takbir", "takbir", "shahada", "shahada", "risala", "risala",
-                 "salah", "salah", "falah", "falah", "takbir", "tahlil"],
-    "fajr": ["takbir", "takbir", "shahada", "shahada", "risala", "risala",
-             "salah", "salah", "falah", "falah", "nawm", "nawm", "takbir", "tahlil"]
+    "ordinary": [
+      "takbir",
+      "takbir",
+      "shahada",
+      "shahada",
+      "risala",
+      "risala",
+      "salah",
+      "salah",
+      "falah",
+      "falah",
+      "takbir",
+      "tahlil"
+    ],
+    "fajr": [
+      "takbir",
+      "takbir",
+      "shahada",
+      "shahada",
+      "risala",
+      "risala",
+      "salah",
+      "salah",
+      "falah",
+      "falah",
+      "nawm",
+      "nawm",
+      "takbir",
+      "tahlil"
+    ]
   }
 }

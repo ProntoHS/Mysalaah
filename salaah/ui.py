@@ -73,14 +73,14 @@ AMBER = "#C08A2E"
 # a 1920x1080 monitor in every language the mat speaks? Chinese is the one that decides it, by
 # about 100 points over English, because CJK glyphs carry more line height at the same size.
 # Raise any of these and the test that measures all seven languages will say so.
-SET_HEAD = 40           # a section heading
-SET_HINT = 26           # the small print under one, where there still is any
-SET_VALUE = 32          # a setting's current value, and the words beside the switches
-SET_PICKER = 34         # the dropdowns, and the rows inside them when open
-SET_PICKER_TALL = 55    # how tall a dropdown is, which the text size alone does not set
-SET_CHOICE = 34         # a row of circles to choose between
-SET_KNOB = 38           # the circle itself
-SET_PILL = 34           # the four boxes in the two-column block, on this page only
+SET_HEAD = 37           # a section heading
+SET_HINT = 24           # the small print under one, where there still is any
+SET_VALUE = 29          # a setting's current value, and the words beside the switches
+SET_PICKER = 31         # the dropdowns, and the rows inside them when open
+SET_PICKER_TALL = 51    # how tall a dropdown is, which the text size alone does not set
+SET_CHOICE = 31         # a row of circles to choose between
+SET_KNOB = 35           # the circle itself
+SET_PILL = 31           # the four boxes in the two-column block, on this page only
 
 # The posture screen has no backlight of its own, so it is dimmed by drawing a black film over
 # it. These ease that off: matched one-for-one to the slider it runs ahead of the monitor, which
@@ -1577,22 +1577,31 @@ class MainWindow(QtWidgets.QWidget):
             self.veil.start(*walk)
 
     def name_the_arches(self) -> None:
-        """The five prayers' names across the main mosque, from the pack.
+        """The five prayers' names across the main mosque, from the pack -- unless the drawing
+        has them already.
 
-        They used to be drawn into the picture, which made them English wherever the mat was
-        set -- the one screen that could not follow the language, and the first one anybody
-        sees. Harry's new drawing has empty arches, so the names come from here: the pack's
-        word in the pack's own face, and the one whose time it is goes green on its own.
+        Three versions of this screen now. The first mosque had the names drawn into it, which
+        made them English wherever the mat was set: the one screen that could not follow the
+        language, and the first one anybody sees. 1.63 replaced it with empty arches and the
+        app wrote the names from the pack. For 1.84 Harry drew the mosque again ten times over,
+        once per language, with the names printed in -- so the language follows the picture
+        instead, and the app must keep its hands off: writing a second word over his would show
+        both.
+
+        The names in the pack are still live and still matter -- they are on the prayer pages,
+        the call box, the times banner and the dome -- so there is a test that the pack says
+        what the drawings say, arch by arch, in all ten languages.
         """
         mosque = getattr(self, "mosque", None)
-        if mosque is None or not mosque.ready:
+        if mosque is None or not mosque.ready or mosque.own_names:
             return
         mosque.set_labels({p: ("", self.t(f"prayer.{p}")) for p in PRAYERS}, self.pack_face())
 
     def build_home(self) -> QtWidgets.QWidget:
         """The mosque: an arch per prayer, the time on the dome, and the prayer whose time it is
         lit up. If the picture is missing for any reason, fall back to plain buttons."""
-        self.mosque = MosqueScreen(self.assets, Fonts.english_family)
+        self.mosque = MosqueScreen(self.assets, Fonts.english_family,
+                                   lang=self.settings.lang, rtl=self.pack.rtl)
         if not self.mosque.ready:
             return self.build_plain_home()
         self.mosque.chosen.connect(self.enter_prayer)
@@ -3561,6 +3570,28 @@ class MainWindow(QtWidgets.QWidget):
             self.speaker_name = named
             self.refresh_attached()
 
+    def wrappable(self, label: "QtWidgets.QLabel") -> None:
+        """Let a value in the two-column block wrap, and let it give way.
+
+        Without this the block's label column gets squeezed to nothing by a long value. A plain
+        QLabel asks for its whole text on one line as a MINIMUM, so "На этом коврике нет
+        Bluetooth" demanded 420 points and left the four boxes 253 to share -- which is how
+        "MySalaah Ring" came out as "ySalaah Rir" in Russian, and, it turns out, had been losing
+        its first and last letters in French and Portuguese since 1.83 without anybody looking.
+        A wrapping label asks for one word, so the boxes get what they need and a long value
+        takes a second line instead.
+
+        One line, not two. This also set the horizontal policy to Ignored, and the four pill
+        buttons had their widths pinned to their own sizeHint besides -- three fixes for one
+        fault, each of which cured it on its own. Measured at 1920x1200, 1920x1080, 1280x800
+        and 1024x600: with only the wrapping, nothing is clipped at any of them; with the
+        wrapping taken away, Russian loses 43 points and Spanish 13. So the wrapping is the fix
+        and the other two were decoration -- and worse than decoration, because while any one
+        of them stood, breaking the others changed nothing and no test could tell which was
+        doing the work.
+        """
+        label.setWordWrap(True)
+
     def devices_text(self) -> str:
         """The value beside the ring. The speaker is not in it -- see ring_names."""
         names = self.ring_names()
@@ -3774,7 +3805,7 @@ class MainWindow(QtWidgets.QWidget):
         # is a heading with its control under it; this one has no heading, so without a gap of
         # its own the first row reads as though it belonged to the setting above it -- which on
         # the first render was "Mouse pointer", with a green circle apparently answering it.
-        right.addSpacing(self.px(30))
+        right.addSpacing(self.px(24))
         self.attached = QtWidgets.QGridLayout()
         self.attached.setContentsMargins(0, 0, 0, 0)
         self.attached.setHorizontalSpacing(self.px(14))
@@ -3793,6 +3824,7 @@ class MainWindow(QtWidgets.QWidget):
         self.attached.addWidget(self.ring_button, 0, 1, Qt.AlignmentFlag.AlignVCenter)
         self.devices_label = QtWidgets.QLabel(self.devices_text())
         self.devices_label.setObjectName("settingValue")
+        self.wrappable(self.devices_label)
         self.attached.addWidget(self.devices_label, 0, 2, Qt.AlignmentFlag.AlignVCenter)
         self.attached.setRowMinimumHeight(0, self.ring_button.sizeHint().height())
 
@@ -3806,6 +3838,7 @@ class MainWindow(QtWidgets.QWidget):
         self.attached.addWidget(self.bt_button, 1, 1, Qt.AlignmentFlag.AlignVCenter)
         self.bt_value = QtWidgets.QLabel("")
         self.bt_value.setObjectName("settingValue")
+        self.wrappable(self.bt_value)
         self.attached.addWidget(self.bt_value, 1, 2, Qt.AlignmentFlag.AlignVCenter)
         self.attached.setRowMinimumHeight(1, self.bt_button.sizeHint().height())
 
@@ -3821,6 +3854,7 @@ class MainWindow(QtWidgets.QWidget):
         self.attached.addWidget(self.wifi_button, 2, 1, Qt.AlignmentFlag.AlignVCenter)
         self.wifi_value = QtWidgets.QLabel("")
         self.wifi_value.setObjectName("settingValue")
+        self.wrappable(self.wifi_value)
         self.attached.addWidget(self.wifi_value, 2, 2, Qt.AlignmentFlag.AlignVCenter)
         self.attached.setRowMinimumHeight(2, self.wifi_button.sizeHint().height())
 
@@ -3835,6 +3869,7 @@ class MainWindow(QtWidgets.QWidget):
         self.attached.addWidget(self.place_button, 3, 1, Qt.AlignmentFlag.AlignVCenter)
         self.place_label = QtWidgets.QLabel(self.settings.place or "")
         self.place_label.setObjectName("settingValue")
+        self.wrappable(self.place_label)
         self.attached.addWidget(self.place_label, 3, 2, Qt.AlignmentFlag.AlignVCenter)
         self.attached.setRowMinimumHeight(3, self.place_button.sizeHint().height())
 

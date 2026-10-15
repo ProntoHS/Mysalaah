@@ -31,13 +31,22 @@ FONTS = {
 }
 DEFAULT_FONT = "scheherazade"
 
-# Faces for scripts the system font cannot be relied on to have. Raspberry Pi OS ships neither
-# Chinese nor Devanagari, so without these the meaning column would come out as empty boxes.
-# Each is cut down to only the characters its translation uses, which is why they are a few
-# hundred kilobytes rather than the ten megabytes a whole CJK face would cost.
+# Faces for scripts the system font cannot be relied on to have. Raspberry Pi OS ships none of
+# Chinese, Devanagari or Bengali, so without these the words would come out as empty boxes --
+# and only on the device, never on a desktop that happens to have the fonts.
+# Each is cut down to only the characters it needs, which is why they are a few hundred
+# kilobytes rather than the ten megabytes a whole CJK face would cost.
+#
+# BENGALI IS CUT TO THE WHOLE OF ITS BLOCK rather than to the characters in use, unlike the
+# other two. It is an Indic script: its conjuncts are built by the font's own substitution
+# rules out of letters that may not appear on screen themselves, so cutting to "the characters
+# the words use" is cutting to the wrong set -- and the block entire costs 124 KB, which is
+# cheaper than finding out the hard way which conjunct is missing. GSUB, GPOS and GDEF are
+# kept for the same reason: without them the letters arrive but do not join up.
 SCRIPT_FONTS = {
     "han": "NotoSansSC-Subset.ttf",
     "devanagari": "NotoSansDevanagari-Subset.ttf",
+    "bengali": "NotoSansBengali-Subset.ttf",
 }
 
 
@@ -268,11 +277,23 @@ class Fonts:
         Chosen from the letters themselves rather than from the language, so a translation added
         later gets the right face without anything here being changed, and so a bundled face is
         only used where the system one would have failed.
+
+        BY WEIGHT, NOT BY FIRST MATCH. The Indic scripts share their punctuation: Bengali ends
+        a sentence with U+0964 DEVANAGARI DANDA, which lives in the Devanagari block and is the
+        right character to use. Taking the first script seen therefore sent a screenful of
+        Bengali to the Devanagari face on the strength of one full stop -- and silently, because
+        Qt substitutes a face that has the glyphs rather than drawing boxes, so it looked right
+        in a test and would have come out wrong on a mat with no Bengali font of its own.
+        Counting cannot be fooled that way: fifty-five Bengali letters outvote one danda.
         """
-        if any(is_han(ch) for ch in text):
-            return cls.scripts.get("han") or cls.english_family
-        if any("ऀ" <= ch <= "ॿ" for ch in text):
-            return cls.scripts.get("devanagari") or cls.english_family
+        counts = {
+            "han": sum(1 for ch in text if is_han(ch)),
+            "devanagari": sum(1 for ch in text if "ऀ" <= ch <= "ॿ"),
+            "bengali": sum(1 for ch in text if "ঀ" <= ch <= "৿"),
+        }
+        script, how_many = max(counts.items(), key=lambda pair: pair[1])
+        if how_many:
+            return cls.scripts.get(script) or cls.english_family
         return cls.english_family
 
 

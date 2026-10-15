@@ -49,16 +49,6 @@
       ]
     }
   },
-  "text": {
-    "number": [
-      0.659,
-      0.659
-    ],
-    "label": [
-      0.659,
-      0.9306
-    ]
-  },
   "clock": {
     "box": [
       559,
@@ -81,5 +71,18 @@
       1171,
       277
     ]
-  }
+  },
+  "images": {
+    "en": "mosque.png",
+    "fr": "mosque.fr.png",
+    "es": "mosque.es.png",
+    "ur": "mosque.ur.png",
+    "hi": "mosque.hi.png",
+    "zh": "mosque.zh.png",
+    "ar": "mosque.ar.png",
+    "bn": "mosque.bn.png",
+    "ru": "mosque.ru.png",
+    "pt": "mosque.pt.png"
+  },
+  "names": "drawn"
 }

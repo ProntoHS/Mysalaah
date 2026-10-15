@@ -8,7 +8,7 @@
   "hasTransliteration": false,
   "transliterationScript": "Latn",
   "reviewedBy": null,
-  "translationSource": "The menu headings are transcribed from Harry's own Arabic menu drawings, tile by tile. Everything else falls back to English on purpose: this is the Arabic-only setting, where the point is the scripture rather than the chrome, and inventing a couple of hundred interface strings in a language nobody here can check would put unreviewed Arabic on the screen for no gain. DRAFT -- no reviewer.",
+  "translationSource": "The menu headings and the five prayer names are transcribed from Harry's own Arabic drawings, tile by tile and arch by arch. Everything else falls back to English on purpose: this is the Arabic-only setting, where the point is the scripture rather than the chrome, and inventing a couple of hundred interface strings in a language nobody here can check would put unreviewed Arabic on the screen for no gain. DRAFT -- no reviewer.",
   "ui": {
     "saying.faith": "الإيمان",
     "saying.prayer": "الصلاة",
@@ -47,7 +47,12 @@
     "dua.knowledge": "العلم",
     "dua.kalima": "الكلمات الست",
     "settings.arabic_only": "العربية فقط",
-    "settings.restarting": "تتم إعادة التشغيل لتطبيق التغيير…"
+    "settings.restarting": "تتم إعادة التشغيل لتطبيق التغيير…",
+    "prayer.fajr": "الفجر",
+    "prayer.dhuhr": "الظهر",
+    "prayer.asr": "العصر",
+    "prayer.maghrib": "المغرب",
+    "prayer.isha": "العشاء"
   },
   "transliteration": {},
   "translation": {}
