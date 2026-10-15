@@ -10451,6 +10451,346 @@ class WifiCircleTest(unittest.TestCase):
         self.assertEqual(MINT, w.wifi_dot.color.name().upper(), "the circle kept a stale answer")
 
 
+class BluetoothScreenTest(unittest.TestCase):
+    """The Bluetooth screen and the circle beside its row in Settings.
+
+    Harry: "i want a Bluetooth button that will allow users to connect wireless audio
+    speakers/headset if they wish too. the button should be located in settings page underneath
+    the wifi. use the same filled circle either red or green if connected."
+
+    Driven against a fake bluetoothctl. The container has no adapter, no BlueZ and no sound
+    card, so the recordings are what his mat printed on 14 October 2026 -- see BluetoothTest in
+    test_core, which these share their shape with.
+    """
+
+    SHOW = ("Controller 2C:CF:67:F0:AA:5F (public)\n\tName: mysalaah\n\tPowered: yes\n"
+            "\tPairable: yes\n"
+            "\tUUID: Audio Source              (0000110a-0000-1000-8000-00805f9b34fb)\n")
+    RING = ("Device F4:6E:48:77:80:60 (public)\n\tName: ATG-SJL\n\tClass: 0x00000540\n"
+            "\tIcon: input-keyboard\n\tPaired: yes\n\tTrusted: yes\n\tConnected: yes\n")
+    SPEAKER = ("Device 11:22:33:44:55:66 (public)\n\tName: XinYi\n\tClass: 0x00240414\n"
+               "\tIcon: audio-card\n\tPaired: yes\n\tTrusted: yes\n\tConnected: {live}\n"
+               "\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)\n")
+    SCAN = ("Discovery started\n"
+            "[NEW] Device 11:22:33:44:55:66 XinYi\n"
+            "[CHG] Device 11:22:33:44:55:66 RSSI: -47\n"
+            "[CHG] Device 11:22:33:44:55:66 Class: 0x00240414\n"
+            "[NEW] Device AA:BB:CC:DD:EE:FF AA-BB-CC-DD-EE-FF\n"
+            "[CHG] Device AA:BB:CC:DD:EE:FF RSSI: -88\n"
+            "[NEW] Device F4:6E:48:77:80:60 ATG-SJL\n"
+            "[CHG] Device F4:6E:48:77:80:60 RSSI: -40\n")
+    WPCTL = ("Audio\n ├─ Sinks:\n"
+             " │      56. Built-in Audio Digital Stereo (HDMI) [vol: 0.95]\n"
+             " │  *   79. XinYi                               [vol: 0.40]\n │  \n")
+
+    def window(self, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def sound(self, speaker_on=True, adapter=True, connect=(0, "Connection successful\n", "")):
+        """A Sound that answers the way the mat did, with a note of what was asked."""
+        from salaah.bluetooth import Sound
+        asked = []
+        live = "yes" if speaker_on else "no"
+        connected = "Device F4:6E:48:77:80:60 ATG-SJL\n" + (
+            "Device 11:22:33:44:55:66 XinYi\n" if speaker_on else "")
+
+        def runner(args, timeout=None):
+            asked.append(list(args))
+            # Matched on membership, not on args[0]. A scan is asked for as
+            # ["--timeout", "10", "scan", "on"], so a branch keyed on the first word never
+            # fired and every row in these tests was coming from the remembered-devices list
+            # instead -- which made the scan fixture below dead weight and several of these
+            # tests weaker than they read.
+            if "show" in args:
+                return (0, self.SHOW, "") if adapter else (0, "No default controller\n", "")
+            if "scan" in args:
+                return 0, self.SCAN, ""
+            if "devices" in args:
+                return 0, (connected if len(args) > 1 else
+                           "Device F4:6E:48:77:80:60 ATG-SJL\n"
+                           "Device 11:22:33:44:55:66 XinYi\n"), ""
+            if "info" in args:
+                return 0, (self.RING if args[1].startswith("F4")
+                           else self.SPEAKER.format(live=live)), ""
+            if "connect" in args:
+                return connect
+            return 0, "", ""
+
+        s = Sound(runner=runner, outputs=lambda a, timeout=None: (0, self.WPCTL, ""))
+        s.asked = asked
+        return s
+
+    def opened(self, w, **kw):
+        """The Bluetooth screen, open, with its first look round finished."""
+        w.open_bluetooth()
+        settle()
+        screen = w.bt_screen
+        screen.sound = self.sound(**kw)
+        screen.look()
+        self.wait(screen)
+        return screen
+
+    def wait(self, screen):
+        for _ in range(6):
+            settle()
+            if screen.errand is not None:
+                screen.errand.wait(5000)
+            settle()
+
+    def circle(self, w, **kw):
+        from salaah.bluetooth import Sound
+        w.sound = self.sound(**kw)
+        w.open_settings()
+        settle()
+        if getattr(w, "bt_errand", None) is not None:
+            w.bt_errand.wait(5000)
+        settle()
+        return w.bt_dot.color.name().upper()
+
+    # -- the row Harry asked for --------------------------------------------------------------
+
+    def test_there_is_a_bluetooth_row_in_settings_underneath_the_wifi_one(self):
+        w = self.window()
+        w.open_settings()
+        settle()
+        self.assertTrue(w.bt_button.isVisible(), "no way to Bluetooth from Settings")
+        # Underneath, not beside: compared on where they actually landed on the screen rather
+        # than on the order they were added, which is what "underneath" means to somebody
+        # looking at it.
+        wifi_at = w.wifi_button.mapTo(w.settings_screen, QtCore.QPoint(0, 0)).y()
+        bt_at = w.bt_button.mapTo(w.settings_screen, QtCore.QPoint(0, 0)).y()
+        self.assertGreater(bt_at, wifi_at,
+                           f"the Bluetooth row is at {bt_at}, the Wi-Fi row at {wifi_at}")
+
+    def test_it_carries_the_same_filled_circle_as_the_wifi_row(self):
+        w = self.window()
+        w.open_settings()
+        settle()
+        self.assertEqual(type(w.wifi_dot), type(w.bt_dot), "a different kind of circle")
+        self.assertEqual(w.wifi_dot.size(), w.bt_dot.size(), "a different size of circle")
+
+    def test_the_row_opens_the_screen_without_leaving_the_app(self):
+        w = self.window()
+        w.open_settings()
+        settle()
+        w.bt_button.click()
+        settle()
+        self.assertIs(w.bt_page, w.stack.currentWidget())
+
+    def test_it_wears_the_same_strip_as_every_other_screen(self):
+        w = self.window()
+        w.open_bluetooth()
+        settle()
+        strips = [x for x in w.bt_page.findChildren(QtWidgets.QWidget)
+                  if x.objectName() == "banner"]
+        self.assertTrue(strips, "the Bluetooth screen has no strip")
+        home = [b for b in w.bt_page.findChildren(QtWidgets.QPushButton)
+                if b.objectName() == "mainScreen"]
+        self.assertTrue(home, "no way back to the mat from the Bluetooth screen")
+
+    # -- the circle ---------------------------------------------------------------------------
+
+    def test_green_when_a_speaker_is_connected(self):
+        from salaah.ui import MINT
+        w = self.window()
+        self.assertEqual(MINT, self.circle(w, speaker_on=True))
+        self.assertIn("XinYi", w.bt_dot.toolTip())
+
+    def test_red_when_only_the_ring_is_connected(self):
+        """The one that would be easy to get wrong. The ring is Bluetooth and is connected
+        nearly always; a circle that counted links would be green on a mat with no speaker."""
+        from salaah.ui import BRICK
+        w = self.window()
+        self.assertEqual(BRICK, self.circle(w, speaker_on=False))
+
+    def test_red_and_a_different_word_when_the_mat_has_no_bluetooth(self):
+        from salaah.ui import BRICK
+        w = self.window()
+        self.assertEqual(BRICK, self.circle(w, adapter=False))
+        self.assertEqual(w.t("bt.no_adapter"), w.bt_dot.toolTip())
+
+    def test_opening_settings_twice_quickly_starts_one_errand(self):
+        w = self.window()
+        w.sound = self.sound()
+        w.open_settings()
+        first = w.bt_errand
+        w.open_settings()
+        self.assertIs(first, w.bt_errand, "a second errand was started over the first")
+        if first is not None:
+            first.wait(5000)
+        settle()
+
+    def test_connecting_a_speaker_repaints_the_circle_without_reopening_settings(self):
+        from salaah.ui import BRICK, MINT
+        w = self.window()
+        self.assertEqual(BRICK, self.circle(w, speaker_on=False))
+        screen = self.opened(w, speaker_on=False)
+        w.sound = self.sound(speaker_on=True)       # as if it had just connected
+        screen.changed.emit()
+        settle()
+        if getattr(w, "bt_errand", None) is not None:
+            w.bt_errand.wait(5000)
+        settle()
+        self.assertEqual(MINT, w.bt_dot.color.name().upper(),
+                         "Settings still shows the old answer")
+
+    # -- the list -----------------------------------------------------------------------------
+
+    def test_a_speaker_that_was_found_gets_a_row(self):
+        w = self.window()
+        screen = self.opened(w)
+        names = [r.device.shown for r in screen.device_rows()]
+        self.assertIn("XinYi", names, f"listed {names}")
+
+    def test_a_thing_with_no_name_but_its_own_address_is_left_out(self):
+        """Mostly fitness bands and tyre sensors. Eleven rows of hexadecimal is a list somebody
+        gives up on before reaching the speaker underneath it."""
+        w = self.window()
+        screen = self.opened(w)
+        shown = [r.device.shown for r in screen.device_rows()]
+        self.assertNotIn("AA:BB:CC:DD:EE:FF", shown, f"listed {shown}")
+        self.assertNotIn("AA-BB-CC-DD-EE-FF", shown, f"listed {shown}")
+
+    def test_the_ring_is_in_the_list_but_is_not_marked_as_making_a_noise(self):
+        """Hiding it would be a lie about what the mat has connected. Marking it as audio would
+        put it above the speaker in the list."""
+        w = self.window()
+        screen = self.opened(w)
+        rows = {r.device.shown: r.device for r in screen.device_rows()}
+        self.assertIn("ATG-SJL", rows, f"listed {list(rows)}")
+        self.assertFalse(rows["ATG-SJL"].audio, "the ring is marked as a speaker")
+        self.assertTrue(rows["XinYi"].audio)
+
+    def test_the_connected_speaker_is_offered_first(self):
+        w = self.window()
+        screen = self.opened(w)
+        self.assertEqual("XinYi", screen.device_rows()[0].device.shown)
+
+    def test_tapping_a_speaker_connects_it(self):
+        w = self.window()
+        screen = self.opened(w, speaker_on=False)
+        row = next(r for r in screen.device_rows() if r.device.shown == "XinYi")
+        row.click()
+        self.wait(screen)
+        asked = [a for a in screen.sound.asked if a[0] == "connect"]
+        self.assertEqual([["connect", "11:22:33:44:55:66"]], asked)
+
+    def test_tapping_the_connected_one_disconnects_it_rather_than_connecting_it_again(self):
+        w = self.window()
+        screen = self.opened(w, speaker_on=True)
+        row = next(r for r in screen.device_rows() if r.device.shown == "XinYi")
+        self.assertTrue(row.device.connected, "the fixture did not report it connected")
+        row.click()
+        self.wait(screen)
+        verbs = [a[0] for a in screen.sound.asked if a[0] in ("connect", "disconnect")]
+        self.assertIn("disconnect", verbs)
+        self.assertNotIn("connect", verbs)
+
+    def test_a_speaker_that_is_switched_off_is_told_about_in_words(self):
+        w = self.window()
+        screen = self.opened(w, speaker_on=False,
+                             connect=(1, "", "Failed to connect: "
+                                            "org.bluez.Error.ConnectionAttemptFailed "
+                                            "br-connection-page-timeout"))
+        row = next(r for r in screen.device_rows() if r.device.shown == "XinYi")
+        row.click()
+        self.wait(screen)
+        self.assertEqual(w.t("bt.why.off"), screen.saying.text())
+        self.assertNotEqual("bt.why.off", screen.saying.text(), "the key leaked onto the screen")
+
+    def test_the_corner_says_where_the_sound_is_going(self):
+        w = self.window()
+        screen = self.opened(w, speaker_on=True)
+        self.assertIn("XinYi", screen.where.text())
+
+    def test_it_says_so_plainly_when_no_speaker_is_connected(self):
+        w = self.window()
+        screen = self.opened(w, speaker_on=False)
+        self.assertEqual(w.t("bt.off"), screen.where.text())
+
+    # -- the words ----------------------------------------------------------------------------
+
+    def test_every_language_that_has_the_wifi_wording_has_this_wording_too(self):
+        """Arabic is a partial pack with no wifi.* either and falls back to English, which is
+        the design. Any pack that does carry the Wi-Fi words must carry these."""
+        keys = ("bt.row", "bt.title", "bt.again", "bt.looking", "bt.none", "bt.off",
+                "bt.no_adapter", "bt.connected", "bt.connecting", "bt.disconnecting",
+                "bt.saved", "bt.this_one", "bt.sound_goes",
+                "bt.why.adapter", "bt.why.already", "bt.why.busy", "bt.why.missing",
+                "bt.why.no_audio", "bt.why.off", "bt.why.permission", "bt.why.refused",
+                "bt.why.slow", "bt.why.unknown")
+        for lang, pack in full_packs(available_packs(ASSETS)).items():
+            if "wifi.row" not in pack.ui:
+                continue
+            for key in keys:
+                self.assertTrue(pack.ui.get(key, "").strip(), f"{lang} is missing {key}")
+
+    def test_the_lines_that_name_a_device_keep_the_place_to_put_the_name(self):
+        for lang, pack in full_packs(available_packs(ASSETS)).items():
+            if "wifi.row" not in pack.ui:
+                continue
+            for key in ("bt.connected", "bt.connecting", "bt.disconnecting", "bt.sound_goes"):
+                self.assertIn("{name}", pack.ui.get(key, ""), f"{lang}: {key}")
+
+    def test_the_row_fits_a_common_monitor_in_every_language(self):
+        """Settings was 80px short of a 1920x1080 screen before the rows taken out in 1.81
+        bought it back, and this spends some of that. Checked in every language because the
+        wording is a different length in each."""
+        for lang in sorted(full_packs(available_packs(ASSETS))):
+            with self.subTest(lang):
+                w = self.window(lang=lang)
+                w.resize(1920, 1080)
+                w.stack.setCurrentWidget(w.settings_screen)
+                settle()
+                self.assertEqual(0, w.settings_scroll.verticalScrollBar().maximum(),
+                                 "Settings now scrolls on a 1920x1080 monitor")
+                self.assertTrue(w.bt_button.isVisible())
+                self.assertGreaterEqual(
+                    w.bt_button.height(), w.bt_button.minimumSizeHint().height() - 1,
+                    f"{lang}: the Bluetooth row is squeezed to {w.bt_button.height()} "
+                    f"of {w.bt_button.minimumSizeHint().height()}")
+
+    # -- the things it must not do ------------------------------------------------------------
+
+    def test_it_does_not_open_during_a_prayer(self):
+        """The big screen is busy and the touch is almost certainly a stray knee."""
+        w = self.window()
+        # `playing` is "there is a session AND the prayer screen is the one showing", so it is
+        # put into that state rather than set -- a flag that could be set would not be the same
+        # question the real thing asks.
+        w.start("dhuhr", w.school.prayers["dhuhr"][0])
+        settle()
+        self.assertTrue(w.playing, "the mat is not in a prayer, so this proves nothing")
+        was = w.stack.currentWidget()
+        w.open_bluetooth()
+        settle()
+        self.assertIs(was, w.stack.currentWidget())
+        self.assertIsNone(getattr(w, "bt_screen", None),
+                          "the screen was built mid-prayer")
+
+    def test_connecting_a_speaker_never_touches_the_ring(self):
+        """The ring is on the same adapter. Pairing a speaker must not cost somebody the button
+        they pray with."""
+        w = self.window()
+        screen = self.opened(w, speaker_on=False)
+        row = next(r for r in screen.device_rows() if r.device.shown == "XinYi")
+        row.click()
+        self.wait(screen)
+        meddling = [a for a in screen.sound.asked
+                    if "F4:6E:48:77:80:60" in a and a[0] not in ("info", "devices")]
+        self.assertEqual([], meddling, f"it reached for the ring: {meddling}")
+
+
 class CalledWordsTest(unittest.TestCase):
     """How large the call is written.
 

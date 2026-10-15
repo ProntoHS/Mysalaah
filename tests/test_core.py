@@ -2878,6 +2878,379 @@ class WifiTest(unittest.TestCase):
         self.assertEqual("missing", w.join("Net", "x")[1])
 
 
+class BluetoothTest(unittest.TestCase):
+    """Pairing a speaker, tested against recorded bluetoothctl output on a machine with no
+    Bluetooth adapter, no BlueZ and no sound card.
+
+    The recordings below are what Harry's mat actually printed on 14 October 2026, including
+    the ring it already knows about and the speaker he connected by hand. Everything goes
+    through a runner that can be swapped, so real bluetoothctl is never needed.
+    """
+
+    # straight from the mat, trimmed to the lines that are read
+    REAL_SHOW = ("Controller 2C:CF:67:F0:AA:5F (public)\n"
+                 "\tName: mysalaah\n"
+                 "\tAlias: mysalaah\n"
+                 "\tPowered: yes\n"
+                 "\tPowerState: on\n"
+                 "\tDiscoverable: no\n"
+                 "\tPairable: yes\n"
+                 "\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)\n"
+                 "\tUUID: Audio Source              (0000110a-0000-1000-8000-00805f9b34fb)\n"
+                 "\tRoles: central\n"
+                 "\tRoles: peripheral\n")
+
+    # the ring: the one device the mat knew about before any of this
+    RING = ("Device F4:6E:48:77:80:60 (public)\n"
+            "\tName: ATG-SJL\n"
+            "\tAlias: ATG-SJL\n"
+            "\tClass: 0x00000540\n"
+            "\tIcon: input-keyboard\n"
+            "\tPaired: yes\n"
+            "\tBonded: yes\n"
+            "\tTrusted: yes\n"
+            "\tConnected: yes\n"
+            "\tUUID: Human Interface Device    (00001124-0000-1000-8000-00805f9b34fb)\n")
+
+    SPEAKER = ("Device 11:22:33:44:55:66 (public)\n"
+               "\tName: XinYi\n"
+               "\tAlias: XinYi\n"
+               "\tClass: 0x00240414\n"
+               "\tIcon: audio-card\n"
+               "\tPaired: yes\n"
+               "\tBonded: yes\n"
+               "\tTrusted: yes\n"
+               "\tConnected: yes\n"
+               "\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)\n"
+               "\tUUID: A/V Remote Control        (0000110e-0000-1000-8000-00805f9b34fb)\n")
+
+    # what wpctl printed with the speaker connected -- the star had moved to it on its own,
+    # which is the measurement that settled whether the app has to route audio. It does not.
+    REAL_WPCTL = (
+        "Audio\n"
+        " ├─ Devices:\n"
+        " │      48. Built-in Audio                      [alsa]\n"
+        " │  \n"
+        " ├─ Sinks:\n"
+        " │      35. Built-in Audio Digital Stereo (HDMI) [vol: 1.00]\n"
+        " │      56. Built-in Audio Digital Stereo (HDMI) [vol: 0.95]\n"
+        " │  *   79. XinYi                               [vol: 0.40]\n"
+        " │  \n"
+        " ├─ Sources:\n"
+        " │  \n"
+        "Video\n"
+        " ├─ Sinks:\n"
+        " │  *   12. A Camera Somewhere                  [vol: 1.00]\n")
+
+    SCAN = ("Discovery started\n"
+            "[CHG] Controller 2C:CF:67:F0:AA:5F Discovering: yes\n"
+            "[NEW] Device 11:22:33:44:55:66 XinYi\n"
+            "[CHG] Device 11:22:33:44:55:66 RSSI: -47\n"
+            "[CHG] Device 11:22:33:44:55:66 Class: 0x00240414\n"
+            "[CHG] Device 11:22:33:44:55:66 Icon: audio-card\n"
+            "[NEW] Device AA:BB:CC:DD:EE:FF AA-BB-CC-DD-EE-FF\n"
+            "[CHG] Device AA:BB:CC:DD:EE:FF RSSI: -88\n"
+            "[NEW] Device 77:88:99:AA:BB:CC Harry's Phone\n"
+            "[CHG] Device 77:88:99:AA:BB:CC Class: 0x005a020c\n"
+            "[CHG] Device 77:88:99:AA:BB:CC RSSI: -55\n")
+
+    def sound(self, replies, wpctl=""):
+        """A Sound whose bluetoothctl is a lookup table, and a note of what was asked."""
+        from salaah.bluetooth import Sound
+        asked = []
+
+        def runner(args, timeout=None):
+            asked.append(list(args))
+            for match, answer in replies:
+                if all(m in args for m in match):
+                    return answer
+            return 1, "", "unexpected"
+
+        s = Sound(runner=runner, outputs=lambda a, timeout=None: (0, wpctl, ""))
+        s.asked = asked
+        return s
+
+    def both(self):
+        """The mat as it stood with the speaker connected: the ring and the speaker."""
+        return self.sound([
+            (["show"], (0, self.REAL_SHOW, "")),
+            (["devices", "Connected"],
+             (0, "Device F4:6E:48:77:80:60 ATG-SJL\nDevice 11:22:33:44:55:66 XinYi\n", "")),
+            (["devices"],
+             (0, "Device F4:6E:48:77:80:60 ATG-SJL\nDevice 11:22:33:44:55:66 XinYi\n", "")),
+            (["info", "F4:6E:48:77:80:60"], (0, self.RING, "")),
+            (["info", "11:22:33:44:55:66"], (0, self.SPEAKER, "")),
+        ], wpctl=self.REAL_WPCTL)
+
+    # -- what the circle in Settings reads ---------------------------------------------------
+
+    def test_the_ring_on_its_own_does_not_count_as_a_speaker(self):
+        """The whole point of asking what each thing IS. The ring is Bluetooth, it is connected
+        nearly always, and a circle that counted links would sit green on a mat with no speaker
+        in the building."""
+        only_ring = self.sound([
+            (["show"], (0, self.REAL_SHOW, "")),
+            (["devices", "Connected"], (0, "Device F4:6E:48:77:80:60 ATG-SJL\n", "")),
+            (["devices"], (0, "Device F4:6E:48:77:80:60 ATG-SJL\n", "")),
+            (["info", "F4:6E:48:77:80:60"], (0, self.RING, "")),
+        ])
+        self.assertIsNone(only_ring.speaking(), "the ring turned the circle green")
+
+    def test_a_speaker_beside_the_ring_is_the_one_that_is_found(self):
+        found = self.both().speaking()
+        self.assertIsNotNone(found, "the speaker was not noticed")
+        self.assertEqual("XinYi", found.name)
+
+    def test_the_ring_reads_as_not_audio_and_the_speaker_reads_as_audio(self):
+        from salaah.bluetooth import read_info
+        self.assertIs(False, read_info("F4:6E:48:77:80:60", self.RING).audio)
+        self.assertIs(True, read_info("11:22:33:44:55:66", self.SPEAKER).audio)
+
+    def test_nothing_connected_is_a_different_answer_from_no_adapter(self):
+        quiet = self.sound([(["show"], (0, self.REAL_SHOW, "")),
+                            (["devices"], (0, "", ""))])
+        self.assertTrue(quiet.there(), "the controller is there and powered")
+        self.assertIsNone(quiet.speaking())
+        gone = self.sound([(["show"], (0, "No default controller available\n", ""))])
+        self.assertFalse(gone.there())
+
+    def test_an_adapter_that_is_switched_off_is_not_offered(self):
+        """Powered: no can find nothing, and saying so is better than an empty list."""
+        off = self.sound([(["show"], (0, self.REAL_SHOW.replace("Powered: yes",
+                                                                "Powered: no"), ""))])
+        self.assertFalse(off.there())
+
+    # -- the capital that cost an evening ----------------------------------------------------
+
+    def test_the_connected_filter_is_asked_for_with_the_capital(self):
+        """`bluetoothctl devices connected` came back "Invalid argument connected" on the mat.
+        It is a filter name, matched case-sensitively, not a flag."""
+        s = self.both()
+        s.connected()
+        asked = [a for a in s.asked if a[:1] == ["devices"] and len(a) > 1]
+        self.assertTrue(asked, "the connected list was never asked for")
+        self.assertEqual(["devices", "Connected"], asked[0],
+                         "spelt the way the mat rejected")
+
+    # -- looking round -----------------------------------------------------------------------
+
+    def test_a_scan_reads_names_classes_and_signal_out_of_one_transcript(self):
+        """One command rather than twenty: asking `info` about every device found would be
+        several seconds on a screen somebody is standing at."""
+        from salaah.bluetooth import read_scan
+        seen = read_scan(self.SCAN)
+        self.assertEqual("XinYi", seen["11:22:33:44:55:66"].name)
+        self.assertEqual(-47, seen["11:22:33:44:55:66"].strength)
+        self.assertIs(True, seen["11:22:33:44:55:66"].audio)
+
+    def test_a_phone_is_not_a_speaker(self):
+        """Class 0x005a020c is a phone. It can be in the list; it must not be marked as the
+        thing that makes a noise, or the row sorting puts it above the speaker."""
+        from salaah.bluetooth import read_scan
+        self.assertIs(False, read_scan(self.SCAN)["77:88:99:AA:BB:CC"].audio)
+
+    def test_a_thing_with_no_name_but_its_own_address_is_marked_nameless(self):
+        from salaah.bluetooth import read_scan
+        seen = read_scan(self.SCAN)
+        self.assertTrue(seen["AA:BB:CC:DD:EE:FF"].nameless)
+        self.assertFalse(seen["11:22:33:44:55:66"].nameless)
+
+    def test_a_paired_speaker_that_says_nothing_still_appears(self):
+        """The one somebody is usually looking for. A scan that heard nothing from it would
+        otherwise leave it out of its own list."""
+        quiet_scan = self.sound([
+            (["scan"], (0, "Discovery started\n", "")),
+            (["show"], (0, self.REAL_SHOW, "")),
+            (["devices", "Connected"], (0, "", "")),
+            (["devices"], (0, "Device 11:22:33:44:55:66 XinYi\n", "")),
+            (["info", "11:22:33:44:55:66"], (0, self.SPEAKER, "")),
+        ])
+        names = [d.name for d in quiet_scan.look(seconds=1)]
+        self.assertEqual(["XinYi"], names)
+
+    def test_what_bluez_knows_beats_what_was_overheard_but_the_signal_is_kept(self):
+        """`info` is BlueZ's own record; RSSI only ever comes from the scan. Taking one or the
+        other wholesale loses something either way."""
+        s = self.sound([
+            (["scan"], (0, self.SCAN, "")),
+            (["show"], (0, self.REAL_SHOW, "")),
+            (["devices", "Connected"], (0, "", "")),
+            (["devices"], (0, "Device 11:22:33:44:55:66 XinYi\n", "")),
+            (["info", "11:22:33:44:55:66"], (0, self.SPEAKER, "")),
+        ])
+        speaker = next(d for d in s.look(seconds=1) if d.mac == "11:22:33:44:55:66")
+        self.assertTrue(speaker.paired, "the paired flag only `info` has was dropped")
+        self.assertEqual(-47, speaker.strength, "the signal only the scan has was dropped")
+
+    def test_the_connected_one_is_offered_first(self):
+        s = self.both()
+        order = [d.name for d in s.look(seconds=1)]
+        self.assertEqual("XinYi", order[0], f"listed {order}")
+
+    # -- connecting --------------------------------------------------------------------------
+
+    def test_connecting_pairs_trusts_and_connects_in_that_order(self):
+        """Trusted on purpose: an untrusted speaker has to be connected by hand after every
+        restart, and this mat is switched off at the wall."""
+        s = self.sound([
+            (["info"], (0, self.SPEAKER.replace("Paired: yes", "Paired: no")
+                         .replace("Bonded: yes", "Bonded: no"), "")),
+            (["pair"], (0, "Pairing successful\n", "")),
+            (["trust"], (0, "Changing 11:22:33:44:55:66 trust succeeded\n", "")),
+            (["connect"], (0, "Connection successful\n", "")),
+        ])
+        ok, why = s.connect("11:22:33:44:55:66")
+        self.assertTrue(ok, why)
+        verbs = [a[0] for a in s.asked if a[0] in ("pair", "trust", "connect")]
+        self.assertEqual(["pair", "trust", "connect"], verbs)
+
+    def test_a_speaker_already_paired_is_not_paired_again(self):
+        s = self.sound([
+            (["info"], (0, self.SPEAKER, "")),
+            (["trust"], (0, "succeeded\n", "")),
+            (["connect"], (0, "Connection successful\n", "")),
+        ])
+        self.assertTrue(s.connect("11:22:33:44:55:66")[0])
+        self.assertNotIn("pair", [a[0] for a in s.asked])
+
+    def test_already_paired_coming_back_as_an_error_does_not_stop_the_connect(self):
+        """BlueZ says AlreadyExists for a device it is already bonded to. That is not a failure
+        worth showing anybody -- the right thing is to carry on to the connect."""
+        s = self.sound([
+            (["info"], (0, self.SPEAKER.replace("Paired: yes", "Paired: no")
+                         .replace("Bonded: yes", "Bonded: no"), "")),
+            (["pair"], (1, "", "Failed to pair: org.bluez.Error.AlreadyExists")),
+            (["trust"], (0, "succeeded\n", "")),
+            (["connect"], (0, "Connection successful\n", "")),
+        ])
+        ok, why = s.connect("11:22:33:44:55:66")
+        self.assertTrue(ok, f"gave up on AlreadyExists: {why}")
+
+    def test_a_speaker_that_is_switched_off_says_so_rather_than_unknown(self):
+        s = self.sound([
+            (["info"], (0, self.SPEAKER.replace("Paired: yes", "Paired: no")
+                         .replace("Bonded: yes", "Bonded: no"), "")),
+            (["pair"], (1, "", "Failed to pair: org.bluez.Error.ConnectionAttemptFailed "
+                              "br-connection-page-timeout")),
+        ])
+        ok, why = s.connect("11:22:33:44:55:66")
+        self.assertFalse(ok)
+        self.assertEqual("off", why)
+
+    def test_a_device_that_wants_a_pin_comes_back_refused_rather_than_hanging(self):
+        """This screen does not type a number and does not pretend to. A speaker pairs without
+        one; a device that insists gets a plain answer instead of a frozen mat."""
+        s = self.sound([
+            (["info"], (0, self.SPEAKER.replace("Paired: yes", "Paired: no")
+                         .replace("Bonded: yes", "Bonded: no"), "")),
+            (["pair"], (1, "", "Failed to pair: org.bluez.Error.AuthenticationFailed")),
+        ])
+        self.assertEqual("refused", s.connect("11:22:33:44:55:66")[1])
+
+    def test_bluetoothctl_missing_altogether_is_a_refusal_not_a_crash(self):
+        s = self.sound([([], (127, "", "bluetoothctl is not installed"))])
+        self.assertFalse(s.there())
+        self.assertEqual([], s.look(seconds=1))
+        self.assertEqual("missing", s.connect("11:22:33:44:55:66")[1])
+
+    def test_a_connect_that_times_out_is_told_apart_from_one_that_failed(self):
+        s = self.sound([
+            (["info"], (0, self.SPEAKER, "")),
+            (["trust"], (0, "", "")),
+            (["connect"], (124, "", "bluetoothctl did not answer")),
+        ])
+        self.assertEqual("slow", s.connect("11:22:33:44:55:66")[1])
+
+    def test_a_success_bluez_reports_with_a_non_zero_exit_is_believed(self):
+        """It has been known to say the thing worked and still exit badly. Where it says so in
+        words, the words win -- otherwise a connected speaker reads as a failure."""
+        s = self.sound([
+            (["info"], (0, self.SPEAKER, "")),
+            (["trust"], (0, "", "")),
+            (["connect"], (1, "Connection successful\n", "")),
+        ])
+        self.assertTrue(s.connect("11:22:33:44:55:66")[0])
+
+    def test_nothing_here_ever_disconnects_the_ring(self):
+        """The ring is on the same adapter. Connecting a speaker must not cost somebody the
+        button they pray with."""
+        s = self.sound([
+            (["info"], (0, self.SPEAKER, "")),
+            (["trust"], (0, "", "")),
+            (["connect"], (0, "Connection successful\n", "")),
+        ])
+        s.connect("11:22:33:44:55:66")
+        meddling = [a for a in s.asked
+                    if a[0] in ("disconnect", "remove", "untrust", "power", "block")]
+        self.assertEqual([], meddling, f"it touched something it should not: {meddling}")
+        self.assertFalse(any("F4:6E:48:77:80:60" in a for a in s.asked),
+                         "it named the ring")
+
+    # -- where the sound goes ----------------------------------------------------------------
+
+    def test_the_starred_sink_is_read_out_of_what_the_mat_printed(self):
+        self.assertEqual("XinYi", self.both().sound_goes_to())
+
+    def test_the_video_block_has_a_star_of_its_own_and_is_not_mistaken_for_sound(self):
+        """wpctl prints the same headings for video. Taking the last starred line would name a
+        camera as the thing the recitation is coming out of."""
+        from salaah.bluetooth import default_sink
+        no_default = self.REAL_WPCTL.replace(" │  *   79.", " │      79.")
+        self.assertEqual("", default_sink(no_default))
+
+    def test_the_hdmi_default_reads_as_the_screen_not_the_speaker(self):
+        """The speaker is listed FIRST here and the star is on the HDMI below it.
+
+        The mat's own output has the two HDMI sinks under identical names, so starring one of
+        them and reading the other gives the same answer either way -- with the star ignored
+        altogether this test still passed. Putting the speaker above the starred line is what
+        makes the star the only thing that can produce the right answer.
+        """
+        from salaah.bluetooth import default_sink
+        on_hdmi = ("Audio\n ├─ Sinks:\n"
+                   " │      79. XinYi                               [vol: 0.40]\n"
+                   " │  *   56. Built-in Audio Digital Stereo (HDMI) [vol: 0.95]\n"
+                   " │  \n ├─ Sources:\n")
+        self.assertEqual("Built-in Audio Digital Stereo (HDMI)", default_sink(on_hdmi))
+
+    def test_wpctl_missing_or_broken_costs_nothing(self):
+        """Decoration, and deliberately so: the mat moves its own default. Every failure here
+        is an empty string, never an exception on the way to the screen.
+
+        The third case is the one that makes the exit code worth checking at all. A wpctl that
+        is simply absent prints nothing a sink could be read out of, so reading its output
+        anyway would still give "" -- that case cannot tell whether the code is looked at. One
+        that FAILS HALFWAY has printed a listing and then given up, and trusting it would put a
+        stale name on the screen under a line that says the sound is going there.
+        """
+        from salaah.bluetooth import Sound, default_sink
+        gone = Sound(runner=lambda a, timeout=None: (0, "", ""),
+                     outputs=lambda a, timeout=None: (127, "", "wpctl is not installed"))
+        self.assertEqual("", gone.sound_goes_to())
+        self.assertEqual("", default_sink(""))
+        self.assertEqual("", default_sink("nothing like wpctl output at all"))
+
+        half = Sound(runner=lambda a, timeout=None: (0, "", ""),
+                     outputs=lambda a, timeout=None: (1, self.REAL_WPCTL,
+                                                      "error: connection lost"))
+        self.assertEqual("", half.sound_goes_to(),
+                         "a wpctl that failed was believed anyway")
+
+    def test_colour_codes_in_the_middle_of_a_name_are_taken_out(self):
+        """bluetoothctl paints its output when it thinks it has a terminal, and the escapes
+        land inside the names.
+
+        The escapes are put AROUND THE NAME here, not just on the [NEW] tag at the start of the
+        line. A fixture that only painted the tag passed with the stripping taken out
+        altogether -- the reading starts at the word "Device", so anything before it never
+        mattered, and the test was proving nothing.
+        """
+        from salaah.bluetooth import pairs_in, tidy
+        painted = ("\x1b[0;92m[\x1b[0;92mNEW\x1b[0;92m]\x1b[0m Device "
+                   "11:22:33:44:55:66 \x1b[0;93mXinYi\x1b[0m\n")
+        self.assertEqual([("11:22:33:44:55:66", "XinYi")], pairs_in(tidy(painted)))
+
+
 class EscapeHatchTest(unittest.TestCase):
     """The way onto a network when the wifi screen itself is what is broken.
 

@@ -1021,6 +1021,14 @@ class MainWindow(QtWidgets.QWidget):
         errand = getattr(self, "wifi_errand", None)
         if errand is not None:
             errand.wait(5000)
+        # The same for Bluetooth, which has two: the one that paints the circle in Settings, and
+        # the screen's own, which can be ten seconds into a scan when somebody closes the lid.
+        errand = getattr(self, "bt_errand", None)
+        if errand is not None:
+            errand.wait(5000)
+        screen = getattr(self, "bt_screen", None)
+        if screen is not None:
+            screen.shutdown()
         if self.side is not None:
             self.side.close_screens()
             self.side.close()
@@ -3305,10 +3313,36 @@ class MainWindow(QtWidgets.QWidget):
             self.stack.addWidget(page)
         self.stack.setCurrentWidget(self.wifi_page)
 
+    def open_bluetooth(self) -> None:
+        """Go to the Bluetooth screen. Not while praying: the big screen is busy and the touch
+        is almost certainly a stray knee."""
+        if self.playing or self.asleep:
+            return
+        self.stir()
+        if getattr(self, "bt_screen", None) is None:
+            from .btscreen import BluetoothScreen
+            screen = BluetoothScreen(self)
+            screen.leave.clicked.connect(self.open_settings)
+            # Connecting a speaker on that screen is the one thing that changes the circle on
+            # this one, so it says so rather than leaving Settings to find out next time it
+            # happens to be opened.
+            screen.changed.connect(self.ask_the_speaker)
+            self.bt_screen = screen
+            page = QtWidgets.QWidget()
+            lay = QtWidgets.QVBoxLayout(page)
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.setSpacing(0)
+            lay.addWidget(self.make_banner(gear=False, home=True))
+            lay.addWidget(screen, 1)
+            self.bt_page = page
+            self.stack.addWidget(page)
+        self.stack.setCurrentWidget(self.bt_page)
+
     def open_settings(self) -> None:
         self.devices_label.setText(self.devices_text())
         self.update_status()
         self.ask_the_radio()
+        self.ask_the_speaker()
         self.stack.setCurrentWidget(self.settings_screen)
 
     # -- the Wi-Fi circle in Settings ------------------------------------------------------
@@ -3377,6 +3411,63 @@ class MainWindow(QtWidgets.QWidget):
             colour, said = MINT, self.t("wifi.joined", name=name)
         self.wifi_dot.set_color(colour)
         self.wifi_dot.setToolTip(said)
+
+    # -- the Bluetooth circle in Settings ---------------------------------------------------
+
+    def ask_the_speaker(self) -> None:
+        """Find out whether a speaker is connected, for the circle beside the row.
+
+        The same shape as ask_the_radio and for the same reason: bluetoothctl takes a moment,
+        and a Settings screen that froze while it opened would be its own bug. One errand at a
+        time -- opening Settings twice quickly should not start two.
+        """
+        if getattr(self, "bt_dot", None) is None or getattr(self, "bt_errand", None):
+            return
+        from .bluetooth import Sound
+        from .wifiscreen import Errand
+        if getattr(self, "sound", None) is None:
+            self.sound = Sound()
+        sound = self.sound
+
+        def look():
+            # No further than it needs to go: a mat with no controller is not asked what it has
+            # connected. False means "no Bluetooth on this mat", which is a different answer
+            # from None, "nothing connected", and gets different words for the same red circle.
+            if not sound.there():
+                return False
+            return sound.speaking()
+
+        errand = Errand(look)
+        errand.done.connect(self.speaker_answered)
+        errand.finished.connect(self.speaker_errand_finished)
+        self.bt_errand = errand
+        errand.start()
+
+    def speaker_answered(self, answer) -> None:
+        self.show_bt_state(False if isinstance(answer, Exception) else answer)
+
+    def speaker_errand_finished(self) -> None:
+        errand, self.bt_errand = getattr(self, "bt_errand", None), None
+        if errand is not None:
+            errand.deleteLater()
+
+    def show_bt_state(self, speaker) -> None:
+        """Green when a speaker is connected, red when not.
+
+        It asks what the connected thing IS, not how many there are. The ring is Bluetooth too
+        and is nearly always connected; a circle that counted links would sit green on a mat
+        with no speaker within a mile of it, which is a confident wrong answer.
+        """
+        if getattr(self, "bt_dot", None) is None:
+            return
+        if speaker is False:
+            colour, said = BRICK, self.t("bt.no_adapter")
+        elif speaker is None:
+            colour, said = BRICK, self.t("bt.off")
+        else:
+            colour, said = MINT, self.t("bt.connected", name=speaker.shown)
+        self.bt_dot.set_color(colour)
+        self.bt_dot.setToolTip(said)
 
     def devices_text(self) -> str:
         if not self.device_names:
@@ -3595,6 +3686,24 @@ class MainWindow(QtWidgets.QWidget):
         wifi_row.addWidget(self.place_label, 0, Qt.AlignmentFlag.AlignVCenter)
         wifi_row.addStretch(1)
         right.addLayout(wifi_row)
+
+        # Bluetooth, directly under Wi-Fi as Harry asked, with the same filled circle: green
+        # when a speaker or a headset is connected, red when the sound is coming out of the
+        # screen. A row of its own rather than a third button on the line above, because that
+        # line is already Wi-Fi and Where, and a row that is about sound is about neither.
+        #
+        # The circle answers "is there a speaker", not "is Bluetooth connected to anything" --
+        # the ring is on this adapter too and is nearly always connected. See show_bt_state.
+        bt_row = QtWidgets.QHBoxLayout()
+        bt_row.setSpacing(self.px(14))
+        self.bt_dot = Dot(self.px(28))
+        bt_row.addWidget(self.bt_dot, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.bt_button = no_focus(QtWidgets.QPushButton(self.t("bt.row")))
+        self.bt_button.setObjectName("pill")
+        self.bt_button.clicked.connect(self.open_bluetooth)
+        bt_row.addWidget(self.bt_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        bt_row.addStretch(1)
+        right.addLayout(bt_row)
         right.addStretch(1)
 
         # No way out to the desktop: the mat is the product, and there is nothing behind it to

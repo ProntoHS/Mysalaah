@@ -105,6 +105,8 @@ def main() -> int:
 
     # 2. What is connected NOW -- the ring should be in here
     known = say("everything it knows about", ["bluetoothctl", "devices"])
+    # The capital is not optional. `devices connected` came back "Invalid argument connected"
+    # on the mat: it is a filter name, matched case-sensitively, not a flag.
     live = say("everything connected right now", ["bluetoothctl", "devices", "Connected"])
     if not live.strip() or live.startswith("("):
         # Older BlueZ has no "devices Connected"; fall back to asking each one.
@@ -114,9 +116,12 @@ def main() -> int:
 
     # 3. Where does sound go. This is the half that decides whether the app has to do
     #    anything at all once a speaker is connected.
-    say("the sound server", ["pactl", "info"])
+    # wpctl first: Harry's mat has no pactl at all (the PulseAudio command-line tools are not
+    # on this image) and wpctl is what answered. pactl is still asked for, because a different
+    # mat may have it and not the other.
+    say("the outputs, as wireplumber sees them", ["wpctl", "status"])
+    say("the sound server, if pactl is here at all", ["pactl", "info"])
     say("the outputs it offers", ["pactl", "list", "short", "sinks"])
-    say("the same, if this is a wireplumber mat", ["wpctl", "status"])
     say("ALSA's own cards", ["aplay", "-l"])
     print("\n--- which players are installed " + "-" * 31)
     for player in ("mpg123", "ffplay", "mpv", "cvlc", "paplay"):
@@ -137,9 +142,10 @@ def main() -> int:
 
     print("\n" + "=" * 70)
     print("Done. Nothing was paired, disconnected or switched over.")
-    print("If a speaker is already paired to this Pi, connect it by hand and run this")
-    print("again -- what matters is whether 'pactl info' then names it as the default,")
-    print("because that is what decides whether the app has to route anything itself.")
+    print("The line to read is the STARRED sink under 'Sinks:' in the wpctl block: that is")
+    print("where the sound is going. On 14 Oct 2026 a speaker connected by hand took the star")
+    print("on its own and mpg123 followed it, which is why the app routes nothing itself.")
+    print("If that ever stops being true on a mat, this is the output that shows it.")
     print("=" * 70)
     return 0
 
