@@ -5,6 +5,10 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# Recitations the owner has a right to read and the mat has no right to pass on. The same
+# folder the Qur'an and the du'as use for the same reason -- see salaah/quran.py.
+PRIVATE = Path.home() / ".salaah" / "content"
+
 SCHEMA = 1
 PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"]
 POSTURES = ["standing", "ruku", "sujood", "sitting", "salam"]
@@ -118,9 +122,19 @@ def available_figures(root: Path) -> list[str]:
     return [DEFAULT_FIGURE] + [name for name in extra if name != DEFAULT_FIGURE]
 
 
-def load_translations(root: Path) -> dict[str, Translation]:
+def load_translations(root: Path, private: Path | None = None) -> dict[str, Translation]:
+    """The prayer's recitations in each language, from the assets and from this mat's own.
+
+    The bundled wordings are written for this app on purpose -- plain and free of any
+    translator's copyright -- which is why a published translation must never be dropped into
+    assets/content/translations. A family may still want one on their own mat, so a file in
+    ~/.salaah/content/translations is read too, after the bundled ones and winning over them,
+    exactly like the Qur'an and the du'as. Nothing there is in the repository or in a release.
+    """
     out = {}
-    for f in sorted((root / "content" / "translations").glob("*.json")):
+    rooms = [root / "content" / "translations"]
+    rooms.append((Path(private) if private is not None else PRIVATE) / "translations")
+    for f in sorted(x for room in rooms for x in sorted(room.glob("*.json"))):
         try:
             d = _read(f)
             out[d["lang"]] = Translation(

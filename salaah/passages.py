@@ -19,7 +19,7 @@ passage is opened.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .audio import WHOLE, Span
@@ -33,6 +33,17 @@ ARABIC_CAP = 150
 
 SECTIONS = ("duas", "kalima")
 RTL = ("ur",)
+
+# Every language the mat can show a meaning in, in the order they are offered. A language only
+# appears on a section's list when something in that section actually has a line in it.
+ORDER = ("en", "fr", "ur", "es", "zh", "hi", "ru", "pt", "bn")
+
+# Meanings the owner has a right to read but the mat has no right to pass on, laid over the
+# bundled ones. Same folder, same file names: ~/.salaah/content/duas/duas.json holds the same
+# items keyed the same way, and only their `text` is taken from it -- never the Arabic, never a
+# recording, never the word times. A translation under copyright can sit there, on one mat, for
+# one family, without ever entering the repository or a signed release.
+PRIVATE = Path.home() / ".salaah" / "content"
 
 # The play button, as a glyph rather than a word: the reader's bar is crowded enough.
 PLAY = "\u25b6"
@@ -78,11 +89,15 @@ class Passage:
 class Passages:
     """One section read off the disk, and whether its words have been checked."""
 
-    def __init__(self, assets: Path, section: str, folder: str = "duas"):
+    def __init__(self, assets: Path, section: str, folder: str = "duas",
+                 private: Path | None = None):
         # The folder is separate from the section because content/duas already holds a
         # hadith.json -- the thirty-eight du'as lifted out of hadith, which is a build
         # intermediate and not a section of the mat. The sayings have a folder of their own.
         self.path = Path(assets) / "content" / folder / f"{section}.json"
+        # Taken as an argument so a test can point it somewhere harmless rather than at the
+        # home folder of whoever is running the tests.
+        self.mine = (Path(private) if private is not None else PRIVATE) / folder / f"{section}.json"
         self.section = section
         self._items: list[Passage] | None = None
         self._reviewed = True
@@ -130,13 +145,37 @@ class Passages:
                             )[:len(str(row["arabic"]).split())],
                 estimated=bool(row.get("estimated", True)),
             ))
+        self.lay_mine_over_it()
         return self._items
+
+    def lay_mine_over_it(self) -> None:
+        """Add this mat's own meanings to the bundled ones, matched by key.
+
+        Only the meanings. The Arabic, the transliteration, the recording and the word times
+        stay as they were shipped, whatever the private file says about them -- a translation
+        is a thing to add, and the scripture it sits under is not.
+
+        A key the bundled file has not got is ignored rather than added: these are meanings
+        FOR the pieces on the mat, and a passage with a meaning and no Arabic would be a row
+        that opens on nothing.
+        """
+        try:
+            raw = json.loads(self.mine.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        rows = raw if isinstance(raw, list) else raw.get("items", [])
+        extra = {str(r.get("key", "")): {k: str(v) for k, v in (r.get("text") or {}).items() if v}
+                 for r in rows if isinstance(r, dict)}
+        if not any(extra.values()):
+            return
+        self._items = [replace(item, text={**item.text, **extra[item.key]})
+                       if extra.get(item.key) else item
+                       for item in (self._items or [])]
 
     def languages(self) -> tuple:
         """Every language any passage in this section has a meaning in, in the app's order."""
-        order = ("en", "fr", "ur", "es", "zh")
         have = {lang for item in self.items for lang, text in item.text.items() if text}
-        return tuple(lang for lang in order if lang in have)
+        return tuple(lang for lang in ORDER if lang in have)
 
     def at(self, index: int) -> Passage | None:
         return self.items[index] if 0 <= index < len(self.items) else None

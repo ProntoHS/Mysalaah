@@ -40,7 +40,23 @@ def turn_inside_out(painter, where: QtCore.QRect) -> None:
     painter.setCompositionMode(was)
 
 
-def draw_themed(painter, film, where: QtCore.QRect) -> None:
+def see_through(pix: "QtGui.QPixmap") -> bool:
+    """Whether this drawing lets the page show through it anywhere.
+
+    Asked once per film rather than once per frame: it is a pass over the pixels, which is
+    nothing at load and would be everything at twelve frames a second.
+    """
+    if pix.isNull() or not pix.hasAlphaChannel():
+        return False
+    image = pix.toImage().convertToFormat(QtGui.QImage.Format.Format_ARGB32)
+    for y in range(0, image.height(), 4):
+        for x in range(0, image.width(), 4):
+            if (image.pixel(x, y) >> 24) < 250:
+                return True
+    return False
+
+
+def draw_themed(painter, film, where: QtCore.QRect, clear: bool = False) -> None:
     """Draw this frame of [film] into [where], turned inside out if the screen is dark.
 
     Nothing is kept. The first version of this cached each frame scaled and inverted, which
@@ -53,11 +69,24 @@ def draw_themed(painter, film, where: QtCore.QRect) -> None:
     So the frame is drawn straight, scaled by the raster engine, and the inversion is one more
     blit: white over the top in Difference mode gives |255 - pixel|, which is exactly inversion
     and costs no memory at all.
+
+    Two ways of inverting, then, and which one is right depends on the drawing. The white-over-the-top
+    trick inverts the RECTANGLE, which is exactly the drawing when the drawing fills it -- and
+    is wrong the moment it does not. Harry's 1.84 menus are drawn on a see-through ground, so
+    after dark the trick was inverting the page showing through them and the 7in menu came up as
+    a white sheet: caught by a test that samples the bottom corner, which is clear in his
+    drawing and was reading 255 where it wanted under 30. For those, the frame itself is
+    inverted instead -- render.invert leaves transparency alone -- which costs a pass over the
+    pixels and is why it is not done for the big opaque sheets.
     """
     source = film.currentPixmap()
     if source.isNull() or where.isEmpty():
         return
     painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
+    if palette().dark and clear:
+        from .render import invert
+        painter.drawPixmap(where, invert(source))
+        return
     painter.drawPixmap(where, source)
     if palette().dark:
         turn_inside_out(painter, where)
@@ -111,6 +140,11 @@ class FilmSheet(QtWidgets.QWidget):
         film.setParent(self)
         film.frameChanged.connect(self.next_frame)
         self.film = film
+        # Whether this sheet lets the page show through it, settled once here off the first
+        # frame -- see draw_themed for why the answer changes how it is turned inside out after
+        # dark. Harry's 1.84 menus are drawn on a clear ground; everything before them is not.
+        film.jumpToFrame(0)
+        self.clear = see_through(film.currentPixmap())
 
         for name in names:
             tile = Tile(window.images, where / f"{name}.png", name, quiet=True)
@@ -177,7 +211,7 @@ class FilmSheet(QtWidgets.QWidget):
         p = QtGui.QPainter(self)
         p.fillRect(self.rect(), QtGui.QColor(palette().paper))
         if self.film is not None:
-            draw_themed(p, self.film, self.placement()[0])
+            draw_themed(p, self.film, self.placement()[0], self.clear)
 
     def follow_theme(self) -> None:
         self.update()
