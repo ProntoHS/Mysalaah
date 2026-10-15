@@ -52,8 +52,27 @@ DEFAULT_URL = "https://raw.githubusercontent.com/ProntoHS/Mysalaah/main/latest.j
 TIMEOUT = 20            # seconds for any one request
 TRIES = 3               # attempts at a download before giving up: home wifi drops things
 PAUSE = 1.0             # seconds between attempts
-MOST = 64 * 1024 * 1024  # the largest release we will pull down: a runaway file is a full disk
 CHUNK = 64 * 1024
+
+# The largest release this version will pull down. A runaway file is a full disk on a Pi, and
+# a full disk is a mat that will not start, so there has to be a number -- but the number has
+# to leave room for the artwork to grow, and 64 MiB did not.
+#
+# 1.84 went out at 68.9 MB, over that cap, and every mat refused it: "the download is far
+# larger than it should be", which was the guard doing exactly its job. Raised here, and the
+# films re-packed in the same version so the release came back down to about 52 MB.
+#
+# THE CAP THAT BINDS IS THE ONE IN THE CODE A MAT IS ALREADY RUNNING, not this one. A mat on
+# 1.84 or 1.85 has 64 MiB compiled into it and will refuse anything bigger however large this
+# number is -- the new value only takes effect once a mat has installed a version that carries
+# it, which it can only do if that release fits under the OLD cap. So FIELD_CAP below is the
+# number releases are actually checked against, and it stays until no mat is left on 1.85 or
+# earlier. Raising this one buys headroom for later; it does not buy any today.
+MOST = 256 * 1024 * 1024
+
+# The smallest cap any mat in the field is running. Releases are tested against this, not
+# against MOST -- see tests/test_core.py, which refuses a release that comes close to it.
+FIELD_CAP = 64 * 1024 * 1024
 
 # What an update replaces. run.sh is not in the list on purpose: it is the guard that puts the
 # old version back, so it cannot be one of the things a bad release can break.
