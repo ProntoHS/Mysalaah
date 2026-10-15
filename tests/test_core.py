@@ -4007,10 +4007,15 @@ class ArabicOnlyPackTest(unittest.TestCase):
         """The fallback is what makes a partial pack safe, so it is tested rather than assumed:
         a key Arabic has not got must come back in English, not as the bare key."""
         english = self.packs["en"]
-        self.assertNotIn("settings.school", self.pack.ui, "the pack has grown past its purpose")
-        self.assertEqual(english.ui["settings.school"],
-                         self.pack.t("settings.school", english))
-        self.assertTrue(self.pack.t("settings.school", english).strip())
+        # settings.language stands for "a key English has and Arabic has not". It was
+        # settings.school until 1.83, when the school picker and its wording went -- a test
+        # that leans on a particular key has to move when that key does, so this one names a
+        # setting the page is built around rather than one that was on its way out.
+        self.assertNotIn("settings.language", self.pack.ui,
+                         "the pack has grown past its purpose")
+        self.assertEqual(english.ui["settings.language"],
+                         self.pack.t("settings.language", english))
+        self.assertTrue(self.pack.t("settings.language", english).strip())
 
     def test_it_says_nobody_has_checked_it(self):
         raw = json.loads((ASSETS / "content" / "packs" / ARABIC_ONLY / "pack.json")

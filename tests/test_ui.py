@@ -871,7 +871,9 @@ class UiTest(unittest.TestCase):
         # question from whether the page has two columns at all.
         heads = [x for x in screen.findChildren(QtWidgets.QLabel)
                  if x.objectName() == "settingHead" and x.isVisible()]
-        self.assertGreater(len(heads), 8, "every setting has a heading")
+        # Seven since 1.83: the school picker's heading went with the picker, and the ring's
+        # went when the ring moved into the two-column block, which has no heading of its own.
+        self.assertGreaterEqual(len(heads), 7, "every setting has a heading")
         middle = screen.width() / 2
         lefts = [x for x in heads if x.mapTo(screen, x.rect().center()).x() < middle]
         rights = [x for x in heads if x.mapTo(screen, x.rect().center()).x() >= middle]
@@ -880,8 +882,9 @@ class UiTest(unittest.TestCase):
         choices = [b for b in screen.findChildren(QtWidgets.QRadioButton)
                    if b.objectName() == "choice"]
         self.assertTrue(any(b.isChecked() for b in choices), "the ones in use are filled in")
-        self.assertEqual(1, len(screen.findChildren(GearButton)),
-                         "a cog for the heading, and none on the banner: it would lead here")
+        self.assertEqual([], screen.findChildren(GearButton),
+                         "no cog: not on the banner, which would lead here, and not at the "
+                         "top of the page either since 1.83")
 
         home = next(b for b in screen.findChildren(QtWidgets.QPushButton)
                     if b.objectName() == "mainScreen")
@@ -891,7 +894,17 @@ class UiTest(unittest.TestCase):
         self.assertIs(w.welcome, w.stack.currentWidget(), "it goes back to the mosque")
         self.shot("10-settings")
 
-    def test_only_two_settings_keep_their_explanation(self):
+    def test_only_one_setting_keeps_its_explanation(self):
+        """The Arabic lettering, and nothing else.
+
+        It was two until 1.83, when the note under "Play the recitation" went -- Harry: "remove
+        the text under 'Play the recitation' explaining, not required." The lettering keeps its
+        note because it is the one setting whose three choices a person cannot tell apart by
+        name: they are three fonts, and the note says what they have in common.
+
+        The monitor here is one that does as it is told, so the brightness explanation -- which
+        only appears on a screen that refuses to dim -- is not in the count.
+        """
         w = self.win
         w.backlight = FakeMonitor(answers=True)      # a monitor that does as it is told
         w.rebuild()
@@ -899,7 +912,7 @@ class UiTest(unittest.TestCase):
         APP.processEvents()
         hints = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
                  if x.objectName() == "settingHint"]
-        self.assertEqual(2, len(hints), "only the recitation and the lettering are explained")
+        self.assertEqual(1, len(hints), f"only the lettering is explained, found {hints}")
 
     def test_settings_and_button_status(self):
         from salaah.ui import BRICK, MINT
@@ -1781,49 +1794,31 @@ class SettingsFootTest(unittest.TestCase):
                         f"{lang} at {size}: {button.text()!r} squeezed to {button.height()} "
                         f"of {wanted}")
 
-    def test_the_cog_at_the_top_is_the_ink_of_the_screen_and_twice_its_old_size(self):
-        """Harry: "the red settings logo icon, make it white font colour and twice as big".
+    def test_there_is_no_cog_on_the_settings_page_at_all(self):
+        """Harry: "remove settings icon ... completely. this should free up space".
 
-        White is what the ink is on the night screen he was looking at. It is not what the ink
-        is on the day screen, which this page is white paper on, so the cog takes the lettering
-        colour rather than the word white -- which gives him white where he asked for it and a
-        cog you can see where he did not.
+        It was a picture of the button that had just been pressed to get here: it said where
+        you were and did nothing. Twice its old size since 1.78, it was spending 88 points of
+        a page that was three pixels off scrolling on a 1920x1080 monitor.
+
+        The cog on the MAIN screen's banner is a different thing and has to survive this --
+        without it there is no way into Settings at all -- so it is checked here rather than
+        left to the test that draws the banner.
         """
         from salaah.mosque import GearButton
-        from salaah.ui import BRICK
-        for mode, want in (("dark", "#FFFFFF"), ("light", "#000000")):
+        for mode in ("dark", "light"):
             with self.subTest(mode):
                 w = self.window(lang="en", theme=mode)
                 w.stack.setCurrentWidget(w.settings_screen)
                 settle()
                 cogs = [c for c in w.settings_screen.findChildren(GearButton)
                         if c.isVisible()]
-                self.assertEqual(1, len(cogs), "one cog on the Settings page")
-                cog = cogs[0]
-                # 44 points until 1.78, so twice it is 88. Drawn rather than read off the
-                # attribute: the colour can be set and the brush never use it.
-                self.assertEqual(w.px(88), cog.height(),
-                                 f"the cog is {cog.height()}px; twice the old 44 is "
-                                 f"{w.px(88)}px")
-                shot = cog.grab().toImage()
-                ink = QtGui.QColor(want)
-                drawn = sum(1 for y in range(cog.height()) for x in range(cog.width())
-                            if all(abs(a - b) < 30 for a, b in
-                                   (lambda c: ((c.red(), ink.red()), (c.green(), ink.green()),
-                                               (c.blue(), ink.blue())))(
-                                       QtGui.QColor(shot.pixel(x, y)))))
-                self.assertGreater(drawn, cog.width() ** 2 * 0.2,
-                                   f"{mode}: the cog is not drawn in {want}")
-                red = QtGui.QColor(BRICK)
-                still_red = sum(1 for y in range(0, cog.height(), 2)
-                                for x in range(0, cog.width(), 2)
-                                if abs(QtGui.QColor(shot.pixel(x, y)).red() - red.red()) < 30
-                                and abs(QtGui.QColor(shot.pixel(x, y)).green()
-                                        - red.green()) < 30
-                                and abs(QtGui.QColor(shot.pixel(x, y)).blue()
-                                        - red.blue()) < 30)
-                self.assertLess(still_red, (cog.width() // 2) ** 2 * 0.05,
-                                f"{mode}: the cog is still red")
+                self.assertEqual([], cogs, "there is still a cog on the Settings page")
+                # Built, not shown: go_home lands on the front door rather than the mosque, so
+                # asking for a visible one here would be asking the wrong question. That the
+                # main screen's banner carries exactly one is what matters.
+                ways_in = w.home.findChildren(GearButton)
+                self.assertTrue(ways_in, "no cog on the main screen: Settings is unreachable")
 
     def test_the_mats_own_screen_needs_no_scrolling(self):
         w = self.window(lang="en")
@@ -4258,8 +4253,10 @@ class ArabicOnlyOnTheScreenTest(unittest.TestCase):
     def test_the_words_the_mat_has_no_arabic_for_still_say_something(self):
         """The pack is partial on purpose, so the fallback is what stops Settings going blank."""
         w = self.window()
-        self.assertTrue(w.t("settings.school").strip())
-        self.assertNotEqual("settings.school", w.t("settings.school"))
+        # A key the Arabic pack has not got. It was settings.school until 1.83 took the school
+        # picker out; settings.language is one the page cannot do without, so it will not go.
+        self.assertTrue(w.t("settings.language").strip())
+        self.assertNotEqual("settings.language", w.t("settings.language"))
 
 
 class PersonalTranslationTest(unittest.TestCase):
@@ -4608,11 +4605,24 @@ class SettingsTidiedTest(unittest.TestCase):
         self.assertTrue([x for x in words if "Qibla" in x], "the Qibla section went with it")
         self.assertTrue([x for x in words if "118" in x], "the bearing should still be shown")
 
-    def test_the_recitation_hint_no_longer_points_at_a_button_that_is_gone(self):
+    def test_the_note_under_the_recitation_switch_is_gone_wording_and_all(self):
+        """Harry: "remove the text under 'Play the recitation' explaining, not required."
+
+        Three wrapped lines describing what a switch called "Play the recitation" does. Checked
+        in the packs as well as on the screen, because wording nothing shows is wording seven
+        packs carry and a translator keeps translating -- the same tidy-up the "Edge of the
+        screen" row got when it went in 1.81.
+        """
         for lang, pack in full_packs(available_packs(ASSETS)).items():
-            hint = pack.ui.get("settings.recitation_hint", "")
-            self.assertNotIn("ring", hint.lower().replace("during", ""),
-                             f"{lang}: the hint still sends you to the tap-timings button")
+            self.assertNotIn("settings.recitation_hint", pack.ui,
+                             f"{lang} still carries the wording")
+        w = self.window()
+        w.stack.setCurrentWidget(w.settings_screen)
+        settle()
+        hints = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
+                 if x.objectName() == "settingHint" and x.isVisible()]
+        self.assertFalse([h for h in hints if "recit" in h.lower()],
+                         f"a note about the recitation is still on the page: {hints}")
 
 
 class ScriptFontsTest(unittest.TestCase):
@@ -7525,9 +7535,14 @@ class SettingsScreenTest(unittest.TestCase):
     def test_the_ring_has_a_filled_circle_that_follows_the_connection(self):
         from salaah.ui import BRICK, MINT
         w = self.window()
+        # The ring is named on a box in the two-column block since 1.83, not on a heading over
+        # a row of its own. Checked where it now is rather than dropped: what matters is that
+        # the mat still calls it by Harry's name for it.
+        boxes = [b.text() for b in w.settings_screen.findChildren(QtWidgets.QPushButton)
+                 if b.objectName() == "pill"]
+        self.assertIn("MySalaah Ring", boxes)
         heads = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
                  if x.objectName() == "settingHead"]
-        self.assertIn("MySalaah Ring", heads)
         self.assertNotIn("Bluetooth buttons", heads)
 
         self.assertEqual(BRICK, w.ring_dot.color.name().upper(), "red with nothing paired")
@@ -7550,7 +7565,15 @@ class SettingsScreenTest(unittest.TestCase):
         self.assertTrue(dot.isVisible() and words.isVisible())
         gap = words.mapTo(w, words.rect().center()).x() - dot.mapTo(w, dot.rect().center()).x()
         self.assertGreater(gap, 0, "the circle goes before the words")
-        self.assertLess(gap, w.px(400), "and beside them, not across the page")
+        # Measured to the NAME now, not to the value. Since 1.83 the row is circle, box, value
+        # in three columns, so the value sits a box-width further out and the old 400 was
+        # measuring across a column that did not used to be there. What the circle has to be
+        # beside is the thing it is answering about, which is the box with the name on it.
+        named = w.ring_button
+        near = named.mapTo(w, named.rect().center()).x() - dot.mapTo(w, dot.rect().center()).x()
+        self.assertGreater(near, 0, "the circle goes before the name")
+        self.assertLess(near, w.px(400), "and beside it, not across the page")
+        self.assertLess(gap, w.px(900), "the value is still on the same line, not a page away")
         middle = dot.grab().toImage().pixel(dot.width() // 2, dot.height() // 2)
         self.assertEqual(MINT, QtGui.QColor(middle).name().upper(),
                          "the circle is solid, not an outline")
@@ -10559,18 +10582,25 @@ class BluetoothScreenTest(unittest.TestCase):
 
     # -- the row Harry asked for --------------------------------------------------------------
 
-    def test_there_is_a_bluetooth_row_in_settings_underneath_the_wifi_one(self):
+    def test_the_four_things_the_mat_attaches_to_are_in_the_order_harry_listed(self):
+        """Harry, 1.82: "the button should be located in settings page underneath the wifi".
+        Harry, 1.83: "on left side we will have MySalaah Ring, Bluetooth, Wi-Fi, Location".
+
+        The second one moved Bluetooth above Wi-Fi, so this test was turned round rather than
+        deleted: what it is for is that the order on the screen is the order Harry asked for,
+        and the order he asked for changed. Read off where the boxes actually landed, not off
+        the order they were added in.
+        """
         w = self.window()
         w.open_settings()
         settle()
-        self.assertTrue(w.bt_button.isVisible(), "no way to Bluetooth from Settings")
-        # Underneath, not beside: compared on where they actually landed on the screen rather
-        # than on the order they were added, which is what "underneath" means to somebody
-        # looking at it.
-        wifi_at = w.wifi_button.mapTo(w.settings_screen, QtCore.QPoint(0, 0)).y()
-        bt_at = w.bt_button.mapTo(w.settings_screen, QtCore.QPoint(0, 0)).y()
-        self.assertGreater(bt_at, wifi_at,
-                           f"the Bluetooth row is at {bt_at}, the Wi-Fi row at {wifi_at}")
+        for button in (w.ring_button, w.bt_button, w.wifi_button, w.place_button):
+            self.assertTrue(button.isVisible(), f"{button.text()} is not on the page")
+        down = [b.text() for b in sorted(
+            (w.ring_button, w.bt_button, w.wifi_button, w.place_button),
+            key=lambda b: b.mapTo(w.settings_screen, QtCore.QPoint(0, 0)).y())]
+        self.assertEqual([w.t("settings.buttons"), w.t("bt.row"), w.t("wifi.row"),
+                          w.t("place.row")], down, f"they run {down}")
 
     def test_it_carries_the_same_filled_circle_as_the_wifi_row(self):
         w = self.window()
@@ -10789,6 +10819,341 @@ class BluetoothScreenTest(unittest.TestCase):
         meddling = [a for a in screen.sound.asked
                     if "F4:6E:48:77:80:60" in a and a[0] not in ("info", "devices")]
         self.assertEqual([], meddling, f"it reached for the ring: {meddling}")
+
+
+class WhatTheMatIsAttachedToTest(unittest.TestCase):
+    """The two-column block at the foot of Settings, and the space the 1.83 removals bought.
+
+    Harry: "in settings menu when both Bluetooth devices are connected they are being displayed
+    both on a single sentence under 'MySalaah Ring'. i want 2 columns, on left side we will
+    have MySalaah Ring, Bluetooth, Wi-Fi, Location, on their respective right will their chosen
+    / designated value. keep the same box and text look of W-Fi button. retain the filled
+    circles to the left."
+
+    The complaint underneath the layout request is a real fault, and it is the part worth
+    testing hardest: a Bluetooth speaker is an input device as well as a speaker -- A/V Remote
+    Control gives it play, pause and volume keys -- so buttons.py saw the speaker on the same
+    bus as the ring and both names were joined into one sentence under the ring's heading.
+    """
+
+    def window(self, lang="en", theme="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def speaker(self, name="XinYi"):
+        from salaah.bluetooth import Speaker
+        return Speaker(mac="11:22:33:44:55:66", name=name, audio=True, connected=True,
+                       paired=True)
+
+    def filled_in(self, w, ring=("MySalaah Ring",), speaker="XinYi", network="NOVA_26DU_A2"):
+        """The page with something on every line of the block."""
+        w.open_settings()
+        settle()
+        w.on_devices(list(ring))
+        if speaker:
+            w.show_bt_state(self.speaker(speaker))
+        else:
+            w.show_bt_state(None)
+        w.show_wifi_state(network, True)
+        settle()
+        return w
+
+    def boxes(self, w):
+        return (w.ring_button, w.bt_button, w.wifi_button, w.place_button)
+
+    def values(self, w):
+        return (w.devices_label, w.bt_value, w.wifi_value, w.place_label)
+
+    # -- the fault Harry reported ------------------------------------------------------------
+
+    def test_the_speaker_is_not_named_on_the_ring_line_as_well_as_its_own(self):
+        """The whole of what he reported. Both devices arrive through on_devices because both
+        are Bluetooth input devices; only one of them is a ring."""
+        w = self.filled_in(w=self.window(), ring=("MySalaah Ring", "XinYi"), speaker="XinYi")
+        said = w.devices_label.text()
+        self.assertIn("MySalaah Ring", said)
+        self.assertNotIn("XinYi", said, f"the speaker is still on the ring's line: {said!r}")
+        self.assertEqual("XinYi", w.bt_value.text(), "and it should be on its own line")
+
+    def test_two_devices_are_two_lines_and_not_one_sentence(self):
+        w = self.filled_in(w=self.window(), ring=("MySalaah Ring", "XinYi"), speaker="XinYi")
+        for value in self.values(w):
+            self.assertNotIn(",", value.text(),
+                             f"{value.text()!r} is still a list in one box")
+
+    def test_a_speaker_on_its_own_leaves_the_ring_line_saying_nothing_is_connected(self):
+        """The case that catches a filter that merely hides the name: with the speaker taken
+        out there is no ring, and the line has to say so rather than go blank or keep a comma."""
+        w = self.filled_in(w=self.window(), ring=("XinYi",), speaker="XinYi")
+        self.assertEqual(w.t("settings.no_buttons"), w.devices_label.text())
+
+    def test_the_rings_circle_is_red_when_only_the_speaker_is_connected(self):
+        from salaah.ui import BRICK, MINT
+        w = self.filled_in(w=self.window(), ring=("XinYi",), speaker="XinYi")
+        self.assertEqual(BRICK, w.ring_dot.color.name().upper(),
+                         "the ring's circle is green with no ring connected")
+        w.on_devices(["XinYi", "MySalaah Ring"])
+        settle()
+        self.assertEqual(MINT, w.ring_dot.color.name().upper(),
+                         "and green again once the ring is actually there")
+
+    def test_the_main_screens_circle_still_counts_the_speaker_as_a_button(self):
+        """The other side of the same coin, and the reason there are two lists rather than one.
+        A speaker's media keys really do work as a button -- pressing one advances the prayer
+        -- so the circle that asks "is there a button" must not be narrowed along with the one
+        that asks "is the ring here"."""
+        from salaah.ui import MINT
+        w = self.window()
+        w.open_settings()
+        settle()
+        w.show_bt_state(self.speaker())
+        w.on_devices(["XinYi"])
+        settle()
+        self.assertEqual(MINT, w.dot.color.name().upper(),
+                         "the main screen says no button on a mat whose speaker is a button")
+
+    def test_nothing_is_filtered_before_a_speaker_is_known(self):
+        """A mat that has not been asked about Bluetooth yet keeps every name, so the worst
+        case is what 1.82 did rather than a ring that has gone missing."""
+        w = self.window()
+        w.open_settings()
+        settle()
+        w.speaker_name = ""
+        w.on_devices(["MySalaah Ring", "Some Speaker"])
+        settle()
+        self.assertIn("MySalaah Ring", w.devices_label.text())
+        self.assertIn("Some Speaker", w.devices_label.text())
+
+    # -- the two columns -----------------------------------------------------------------------
+
+    def test_the_values_line_up_in_a_column_of_their_own(self):
+        """The point of the two columns. In four separate rows each value began wherever the
+        label before it happened to end, which is the mess this replaced."""
+        w = self.filled_in(self.window())
+        edges = {v.objectName() + str(i): v.mapTo(w, QtCore.QPoint(0, 0)).x()
+                 for i, v in enumerate(self.values(w))}
+        self.assertEqual(1, len(set(edges.values())),
+                         f"the values start at different places: {edges}")
+
+    def test_every_value_is_to_the_right_of_its_own_label(self):
+        w = self.filled_in(self.window())
+        for box, value in zip(self.boxes(w), self.values(w)):
+            with self.subTest(box.text()):
+                self.assertGreater(value.mapTo(w, QtCore.QPoint(0, 0)).x(),
+                                   box.mapTo(w, QtCore.QPoint(0, 0)).x(),
+                                   "the value is not on the right of its label")
+                # On the same line, not merely to the right of it somewhere below.
+                self.assertLess(
+                    abs(value.mapTo(w, value.rect().center()).y()
+                        - box.mapTo(w, box.rect().center()).y()),
+                    w.px(20), "the value is not level with its label")
+
+    def test_each_line_says_what_that_thing_has_got(self):
+        w = self.filled_in(self.window())
+        self.assertEqual("MySalaah Ring", w.devices_label.text())
+        self.assertEqual("XinYi", w.bt_value.text())
+        self.assertEqual("NOVA_26DU_A2", w.wifi_value.text())
+        self.assertEqual("Bury", w.place_label.text())
+
+    def test_an_empty_line_says_so_rather_than_going_blank(self):
+        w = self.window()
+        w.open_settings()
+        settle()
+        w.on_devices([])
+        w.show_bt_state(None)
+        w.show_wifi_state("", False)
+        settle()
+        for value in (w.devices_label, w.bt_value, w.wifi_value):
+            self.assertTrue(value.text().strip(),
+                            "a line with nothing on it should say nothing is connected")
+
+    def test_the_labels_wear_the_wifi_buttons_look(self):
+        """Harry: "keep the same box and text look of W-Fi button". The Wi-Fi button is a
+        pill, so all four are, and they are checked against each other rather than against a
+        remembered style name."""
+        w = self.filled_in(self.window())
+        for box in self.boxes(w):
+            with self.subTest(box.text()):
+                self.assertEqual("pill", box.objectName())
+                self.assertEqual(w.wifi_button.font().pixelSize(), box.font().pixelSize())
+                self.assertEqual(w.wifi_button.height(), box.height())
+
+    def test_the_three_that_can_be_connected_keep_their_filled_circle(self):
+        """Harry: "retain the filled circles to the left". Drawn, not styled, so the middle
+        pixel is what is looked at."""
+        from salaah.ui import MINT
+        w = self.filled_in(self.window())
+        for dot in (w.ring_dot, w.bt_dot, w.wifi_dot):
+            self.assertTrue(dot.isVisible())
+            middle = dot.grab().toImage().pixel(dot.width() // 2, dot.height() // 2)
+            self.assertEqual(MINT, QtGui.QColor(middle).name().upper(),
+                             "the circle is not filled in")
+            self.assertLess(dot.mapTo(w, dot.rect().center()).x(),
+                            w.ring_button.mapTo(w, QtCore.QPoint(0, 0)).x(),
+                            "the circle is not to the left of the labels")
+
+    def test_the_location_line_has_no_circle_because_it_has_no_answer(self):
+        """A location is not a thing that is either connected or not, and an always-green
+        circle would be saying nothing in the shape of an answer.
+
+        Asked of the grid rather than measured in pixels. The first try compared the circle's
+        top edge with the label's and allowed 20 pixels between them; a circle put on this line
+        sat 22 below, being 28 tall in a 72-tall row, so the sabotage walked straight through a
+        tolerance that had been guessed rather than measured. Which cell a widget is in is a
+        thing the layout knows exactly.
+        """
+        w = self.filled_in(self.window())
+        from salaah.ui import Dot
+        rows = {"ring": 0, "bluetooth": 1, "wifi": 2, "location": 3}
+        for name, at in rows.items():
+            cell = w.attached.itemAtPosition(at, 0)
+            if name == "location":
+                self.assertIsNone(cell, "there is something in the Location line's circle cell")
+            else:
+                self.assertIsNotNone(cell, f"the {name} line has lost its circle")
+                self.assertIsInstance(cell.widget(), Dot)
+        # And the label really is the thing on that row, so row 3 is the Location line.
+        self.assertIs(w.place_button, w.attached.itemAtPosition(3, 1).widget())
+
+    def test_every_label_opens_the_screen_that_sets_it(self):
+        """All four look pressable, so all four are. The ring and Bluetooth share a screen --
+        the ring IS a Bluetooth device, and that is where it would be reconnected."""
+        w = self.window()
+        for box, page in ((w.ring_button, "bt_page"), (w.bt_button, "bt_page"),
+                          (w.wifi_button, "wifi_page"), (w.place_button, "place_page")):
+            with self.subTest(box.text()):
+                w.open_settings()
+                settle()
+                box.click()
+                settle()
+                self.assertIs(getattr(w, page), w.stack.currentWidget(),
+                              f"{box.text()} did not open {page}")
+
+    # -- what went, and the room it bought ------------------------------------------------------
+
+    def test_the_school_picker_is_gone_wording_and_all(self):
+        """Harry: "remove ... school and hanifi text option completely". One school ships, so
+        it was a heading over a single filled circle: a question with one answer."""
+        w = self.window()
+        w.open_settings()
+        settle()
+        words = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
+                 if x.isVisible()]
+        words += [b.text() for b in w.settings_screen.findChildren(QtWidgets.QRadioButton)
+                  if b.isVisible()]
+        # Case-insensitively, and the bare keys too. Put the picker back with the wording
+        # already taken out of the packs and it shows "settings.school" and "school.hanafi" --
+        # which a check for "School" and "Hanafi" sailed past, so the first version of this
+        # test let a restored picker through.
+        showing = " ".join(words).lower()
+        for mark in ("school", "hanafi"):
+            self.assertNotIn(mark, showing, f"the school row is still on the page: {words}")
+        for lang, pack in full_packs(available_packs(ASSETS)).items():
+            self.assertNotIn("settings.school", pack.ui, f"{lang} still carries the wording")
+            self.assertNotIn("school.hanafi", pack.ui, f"{lang} still carries the wording")
+        # The setting itself stays: it is what picks the prayer times, and a mat whose
+        # settings.json named another school would still be obeyed if its file existed.
+        self.assertEqual("hanafi", w.school.id)
+        self.assertFalse(hasattr(w, "set_school"), "the dead setter is still here")
+
+    def test_settings_is_set_larger_than_it_was(self):
+        """Harry: "increase font sizes to take advantage of extra room now". Measured against
+        the sizes the page carried up to 1.82 rather than against the constants, which would
+        be the measurement that produced the value."""
+        w = self.window()
+        w.open_settings()
+        settle()
+        was = {"settingHead": 30, "settingValue": 24}
+        for name, before in was.items():
+            found = {x.font().pixelSize() for x
+                     in w.settings_screen.findChildren(QtWidgets.QLabel)
+                     if x.objectName() == name and x.isVisible()}
+            self.assertTrue(found, f"nothing on the page is a {name}")
+            for size in found:
+                self.assertGreater(size, w.px(before),
+                                   f"{name} is {size}px; it was {w.px(before)}px")
+        radios = {b.font().pixelSize() for b
+                  in w.settings_screen.findChildren(QtWidgets.QRadioButton) if b.isVisible()}
+        self.assertTrue(all(s > w.px(26) for s in radios), f"the choices are still {radios}")
+
+    def test_the_larger_type_is_kept_to_this_page(self):
+        """#pill is worn on the Wi-Fi, Bluetooth, radio and place screens too, and those have
+        their own room to answer for, so the rise is scoped to Settings."""
+        w = self.window()
+        w.open_settings()
+        settle()
+        here = w.wifi_button.font().pixelSize()
+        w.open_wifi()
+        settle()
+        elsewhere = {b.font().pixelSize() for b
+                     in w.wifi_screen.findChildren(QtWidgets.QPushButton)
+                     if b.objectName() == "pill"}
+        self.assertTrue(elsewhere, "no pills on the Wi-Fi screen to compare with")
+        self.assertTrue(all(s < here for s in elsewhere),
+                        f"the Wi-Fi screen's pills grew too: {elsewhere} against {here}")
+
+    def test_it_still_fits_a_common_monitor_in_every_language(self):
+        """The measurement the type sizes were chosen against, and the one that will object if
+        anybody raises them again. Chinese is the language that decides it -- CJK glyphs carry
+        more line height than Latin at the same size, so English has room to spare at the size
+        Chinese can just afford.
+
+        1920x1080 rather than the mat's own 1920x1200, because that is the screen that has
+        least to give, and with a monitor that refuses to dim -- which puts a three-line
+        explanation under the brightness slider that a working monitor does not.
+        """
+        for lang in sorted(full_packs(available_packs(ASSETS))):
+            with self.subTest(lang):
+                w = self.window(lang=lang)
+                w.resize(1920, 1080)
+                w.stack.setCurrentWidget(w.settings_screen)
+                settle()
+                self.assertEqual(0, w.settings_scroll.verticalScrollBar().maximum(),
+                                 "Settings scrolls on a 1920x1080 monitor")
+                for box in self.boxes(w):
+                    self.assertGreaterEqual(
+                        box.height(), box.minimumSizeHint().height() - 1,
+                        f"{lang}: {box.text()!r} is squeezed to {box.height()} of "
+                        f"{box.minimumSizeHint().height()}")
+
+    def test_the_two_columns_are_near_enough_the_same_length(self):
+        """What bought most of the room. The left column ended two thirds of the way up while
+        the right ran past the bottom of a 1920x1080 screen, so the page could not be set larger
+        however much white space was showing. Mouse pointer moved across to even them up.
+
+        The threshold is measured, not guessed. Balanced, the columns differ by 66 points in
+        English and 85 in Chinese, against a body 880 tall -- ratios of 0.075 and 0.097. With
+        Mouse pointer back on the right they differ by 175 and 205, ratios of 0.199 and 0.233.
+        0.15 sits between the two with room either side; the first version of this test allowed
+        0.35 and so passed in both arrangements, which is to say it measured nothing.
+        """
+        w = self.window()
+        w.resize(1920, 1080)
+        w.stack.setCurrentWidget(w.settings_screen)
+        settle()
+        body = w.settings_scroll.widget()
+        middle = body.width() / 2
+        lows = {"left": 0, "right": 0}
+        for kind in (QtWidgets.QLabel, QtWidgets.QComboBox, QtWidgets.QRadioButton,
+                     QtWidgets.QPushButton):
+            for x in body.findChildren(kind):
+                if not x.isVisible():
+                    continue
+                spot = x.mapTo(body, QtCore.QPoint(0, x.height()))
+                side = "left" if x.mapTo(body, x.rect().center()).x() < middle else "right"
+                lows[side] = max(lows[side], spot.y())
+        self.assertTrue(lows["left"] and lows["right"], f"one column is empty: {lows}")
+        self.assertLess(abs(lows["left"] - lows["right"]), body.height() * 0.15,
+                        f"the columns are badly uneven: {lows}")
 
 
 class CalledWordsTest(unittest.TestCase):

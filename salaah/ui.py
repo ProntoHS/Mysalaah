@@ -66,6 +66,22 @@ BRICK = "#B4443A"
 # is the state the mat actually spent an evening in.
 AMBER = "#C08A2E"
 
+# How large the Settings page is set. Raised together in 1.83 -- Harry: "increase font sizes to
+# take advantage of extra room now" -- with the room coming from the cog, the school picker and
+# the recitation note, all three of which went in the same version. They live here rather than
+# inline because they have to be chosen together against one question: does the page still fit
+# a 1920x1080 monitor in every language the mat speaks? Chinese is the one that decides it, by
+# about 100 points over English, because CJK glyphs carry more line height at the same size.
+# Raise any of these and the test that measures all seven languages will say so.
+SET_HEAD = 40           # a section heading
+SET_HINT = 26           # the small print under one, where there still is any
+SET_VALUE = 32          # a setting's current value, and the words beside the switches
+SET_PICKER = 34         # the dropdowns, and the rows inside them when open
+SET_PICKER_TALL = 55    # how tall a dropdown is, which the text size alone does not set
+SET_CHOICE = 34         # a row of circles to choose between
+SET_KNOB = 38           # the circle itself
+SET_PILL = 34           # the four boxes in the two-column block, on this page only
+
 # The posture screen has no backlight of its own, so it is dimmed by drawing a black film over
 # it. These ease that off: matched one-for-one to the slider it runs ahead of the monitor, which
 # dims for real. 0.6 was picked by looking at the two screens side by side, not by arithmetic.
@@ -766,6 +782,10 @@ class MainWindow(QtWidgets.QWidget):
         self.kind: str = ""          # the unit being prayed: farz, sunnah, nafl or witr
         self.title = ""
         self.device_names: list[str] = []
+        # The connected speaker's name, when one is known. It is the one thing that tells a
+        # ring's input device apart from a speaker's media keys, which arrive on the same bus
+        # under the same kind of name -- see ring_names.
+        self.speaker_name: str = ""
 
         self.bridge = Bridge()
         self.bridge.action.connect(self.on_button)
@@ -1139,6 +1159,17 @@ class MainWindow(QtWidgets.QWidget):
     def stylesheet(self) -> str:
         px = self.px
         c = self.colours()
+        # How large the words on the Settings page are set. Named, and in one place, because
+        # they were raised together in 1.83 and have to be judged together: the page either
+        # fits a 1920x1080 monitor in all seven languages or it does not, and raising any one
+        # of these is what spends the margin. Chinese is the language that decides -- CJK
+        # glyphs carry more line height than Latin at the same size, so English has room to
+        # spare at the size Chinese can just afford. The test that measures all seven is what
+        # these numbers were chosen against; raise one and it will say so.
+        head, hint, value = px(SET_HEAD), px(SET_HINT), px(SET_VALUE)
+        pick, pick_tall = px(SET_PICKER), px(SET_PICKER_TALL)
+        choice, knob, knob_round = px(SET_CHOICE), px(SET_KNOB), px(SET_KNOB // 2 + 3)
+        pill_text, pill_pad = px(SET_PILL), px(14)
         return f"""
             QWidget {{ background:{c.paper}; color:{c.ink}; font-size:{px(24)}px;
                        font-family:'{self.pack_face()}'; }}
@@ -1223,12 +1254,18 @@ class MainWindow(QtWidgets.QWidget):
             QScrollArea#listScroll QScrollBar::sub-line:vertical {{ height:0; }}
             QScrollArea#listScroll QScrollBar::add-page:vertical,
             QScrollArea#listScroll QScrollBar::sub-page:vertical {{ background:transparent; }}
-            QLabel#settingHead {{ font-size:{px(30)}px; font-weight:bold; color:{c.strong}; }}
-            QLabel#settingHint {{ font-size:{px(20)}px; color:{c.hint}; }}
-            QLabel#settingValue {{ font-size:{px(24)}px; font-weight:bold; color:{c.strong}; }}
-            QComboBox#picker {{ background:{c.paper}; color:{c.strong}; font-size:{px(26)}px;
+            /* Settings is set larger since 1.83. Harry: "increase font sizes to take
+               advantage of extra room now" -- the room being what the cog, the school picker
+               and the recitation note gave back. The rise is close to the same proportion on
+               every part of the page, so the hierarchy is unchanged, and it is sized to the
+               language that needs the most height rather than to English: see the test that
+               measures all seven. */
+            QLabel#settingHead {{ font-size:{head}px; font-weight:bold; color:{c.strong}; }}
+            QLabel#settingHint {{ font-size:{hint}px; color:{c.hint}; }}
+            QLabel#settingValue {{ font-size:{value}px; font-weight:bold; color:{c.strong}; }}
+            QComboBox#picker {{ background:{c.paper}; color:{c.strong}; font-size:{pick}px;
                                  border:{px(3)}px solid {c.strong}; border-radius:{px(10)}px;
-                                 padding:{px(8)}px {px(16)}px; min-height:{px(44)}px; }}
+                                 padding:{px(8)}px {px(16)}px; min-height:{pick_tall}px; }}
             QComboBox#picker::drop-down {{ width:{px(46)}px; border:none; }}
             QComboBox#picker::down-arrow {{ image:none; width:0; height:0;
                                             border-left:{px(11)}px solid transparent;
@@ -1236,16 +1273,22 @@ class MainWindow(QtWidgets.QWidget):
                                             border-top:{px(14)}px solid {c.strong};
                                             margin-right:{px(14)}px; }}
             QComboBox#picker QAbstractItemView {{ background:{c.paper}; color:{c.strong};
-                                                  font-size:{px(26)}px;
+                                                  font-size:{pick}px;
                                                   border:{px(3)}px solid {c.strong};
                                                   selection-background-color:{c.pale};
                                                   selection-color:{c.strong}; }}
-            QRadioButton#choice {{ font-size:{px(26)}px; font-weight:bold; color:{c.strong};
+            QRadioButton#choice {{ font-size:{choice}px; font-weight:bold; color:{c.strong};
                                    spacing:{px(14)}px; padding:{px(6)}px 0; }}
-            QRadioButton#choice::indicator {{ width:{px(30)}px; height:{px(30)}px;
+            QRadioButton#choice::indicator {{ width:{knob}px; height:{knob}px;
                                               border:{px(3)}px solid {c.strong};
-                                              border-radius:{px(18)}px; background:{c.paper}; }}
+                                              border-radius:{knob_round}px; background:{c.paper}; }}
             QRadioButton#choice::indicator:checked {{ background:{c.strong}; }}
+            /* The four boxes in the two-column block. #pill is worn on the Wi-Fi, Bluetooth,
+               radio and place screens too, and those have their own room to answer for, so the
+               larger size is scoped to this page rather than applied to every pill on the
+               mat. */
+            QWidget#settingsRoot QPushButton#pill {{ font-size:{pill_text}px;
+                                                     padding:{pill_pad}px {px(30)}px; }}
             QPushButton#mainScreen {{ background:{BRICK}; color:white; border:none;
                                       border-radius:{px(8)}px; font-size:{px(28)}px;
                                       font-weight:bold; padding:{px(12)}px {px(30)}px; }}
@@ -3188,15 +3231,45 @@ class MainWindow(QtWidgets.QWidget):
         if came and self.asleep:
             self.wake()
 
+    def ring_names(self) -> list[str]:
+        """The Bluetooth input devices that are a ring rather than a speaker.
+
+        A Bluetooth speaker is an input device too: A/V Remote Control gives it play, pause and
+        volume keys, so buttons.py sees it on the same bus as the ring and reports both. Until
+        1.83 both names landed in one sentence under "MySalaah Ring", which is what Harry
+        reported -- "when both Bluetooth devices are connected they are being displayed both on
+        a single sentence". The speaker has a line of its own now, so it comes out of this one.
+
+        Matched by name, because the name is what the two sources have in common: the kernel
+        gives the input device a name and BlueZ gives the same device the same name. If no
+        speaker is known -- nothing connected, or Settings not opened yet -- nothing is taken
+        out, so the worst case is the old behaviour rather than a ring that has gone missing.
+        """
+        speaker = (getattr(self, "speaker_name", "") or "").strip()
+        # Compared whole, not as a substring. An empty speaker name then matches nothing and
+        # the list comes back untouched, which is what "no speaker known yet" has to do -- so
+        # there is no guard above this for the empty case; it would be a line with no effect.
+        # A substring test would do the opposite and drop everything, every name containing "".
+        return [n for n in self.device_names if n.strip() != speaker]
+
     def update_status(self) -> None:
-        connected = bool(self.device_names)
-        said = self.t("button.connected") if connected else self.t("button.disconnected")
-        # Both circles: the one in the main screen's bar and the one beside the ring in
-        # settings. Written in one place so they cannot disagree about what is connected.
-        for dot in (getattr(self, "dot", None), getattr(self, "ring_dot", None)):
-            if dot is not None:
-                dot.set_color(MINT if connected else BRICK)
-                dot.setToolTip(said)
+        # The main screen's circle asks "is there a button", and a speaker's media keys are a
+        # working button, so it counts every input device. The one beside the ring in Settings
+        # asks "is the ring here", so it counts only the ones that are not the speaker. The two
+        # questions have different answers on a mat with a speaker and no ring, which is why
+        # there are now two lists rather than one.
+        any_button = bool(self.device_names)
+        ring_here = bool(self.ring_names())
+        said = self.t("button.connected") if any_button else self.t("button.disconnected")
+        dot = getattr(self, "dot", None)
+        if dot is not None:
+            dot.set_color(MINT if any_button else BRICK)
+            dot.setToolTip(said)
+        ring = getattr(self, "ring_dot", None)
+        if ring is not None:
+            ring.set_color(MINT if ring_here else BRICK)
+            ring.setToolTip(self.t("button.connected") if ring_here
+                            else self.t("button.disconnected"))
 
     def eventFilter(self, obj, ev):
         # Anything a person does puts off going to sleep. Touches and presses both, because a
@@ -3339,8 +3412,7 @@ class MainWindow(QtWidgets.QWidget):
         self.stack.setCurrentWidget(self.bt_page)
 
     def open_settings(self) -> None:
-        self.devices_label.setText(self.devices_text())
-        self.update_status()
+        self.refresh_attached()
         self.ask_the_radio()
         self.ask_the_speaker()
         self.stack.setCurrentWidget(self.settings_screen)
@@ -3403,14 +3475,23 @@ class MainWindow(QtWidgets.QWidget):
             return
         if name is None:
             colour, said = BRICK, self.t("wifi.no_card")
+            value = self.t("wifi.no_card")
         elif not name:
             colour, said = BRICK, self.t("wifi.offline")
+            value = self.t("wifi.offline")
         elif not online:
             colour, said = AMBER, self.t("why.no_internet")
+            # The network's name, because that is the "designated value" of this row, with the
+            # amber circle beside it carrying the part the name cannot say. Writing the whole
+            # sentence here instead would make this the only row whose value is a complaint.
+            value = name
         else:
             colour, said = MINT, self.t("wifi.joined", name=name)
+            value = name
         self.wifi_dot.set_color(colour)
         self.wifi_dot.setToolTip(said)
+        if getattr(self, "wifi_value", None) is not None:
+            self.wifi_value.setText(value)
 
     # -- the Bluetooth circle in Settings ---------------------------------------------------
 
@@ -3462,17 +3543,42 @@ class MainWindow(QtWidgets.QWidget):
             return
         if speaker is False:
             colour, said = BRICK, self.t("bt.no_adapter")
+            value, named = self.t("bt.no_adapter"), ""
         elif speaker is None:
             colour, said = BRICK, self.t("bt.off")
+            value, named = self.t("bt.off"), ""
         else:
             colour, said = MINT, self.t("bt.connected", name=speaker.shown)
+            value, named = speaker.shown, speaker.name or ""
         self.bt_dot.set_color(colour)
         self.bt_dot.setToolTip(said)
+        if getattr(self, "bt_value", None) is not None:
+            self.bt_value.setText(value)
+        # Which speaker is connected is also what decides whether the line above this one is
+        # naming a ring or naming the speaker twice, so the ring's line is rewritten from the
+        # same answer rather than waiting for the next time Settings happens to be opened.
+        if named != getattr(self, "speaker_name", ""):
+            self.speaker_name = named
+            self.refresh_attached()
 
     def devices_text(self) -> str:
-        if not self.device_names:
+        """The value beside the ring. The speaker is not in it -- see ring_names."""
+        names = self.ring_names()
+        if not names:
             return self.t("settings.no_buttons")
-        return ", ".join(self.device_names)
+        return ", ".join(names)
+
+    def refresh_attached(self) -> None:
+        """Rewrite the values in the two-column block from what the mat currently has.
+
+        One place, so the four lines cannot disagree about what is connected: whichever of them
+        has just been answered, all four are written from the same reading.
+        """
+        if getattr(self, "devices_label", None) is not None:
+            self.devices_label.setText(self.devices_text())
+        if getattr(self, "place_label", None) is not None:
+            self.place_label.setText(self.settings.place or "")
+        self.update_status()
 
     def pills(self, options: list[tuple[str, str]], current: str, on_pick) -> QtWidgets.QHBoxLayout:
         row = QtWidgets.QHBoxLayout()
@@ -3518,18 +3624,13 @@ class MainWindow(QtWidgets.QWidget):
         outer.setContentsMargins(self.px(48), self.px(12), 0, 0)
         outer.setSpacing(self.px(6))
 
-        head = QtWidgets.QHBoxLayout()
-        head.setContentsMargins(0, 0, self.px(48), 0)
-        # The cog that was pressed to get here, twice the size it was and in the ink of the
-        # screen rather than the red everything you press is in. Harry asked for "white":
-        # white is what the ink is on the night screen he was looking at, and on the day
-        # screen -- which this page is white paper on -- a white cog would be no cog at all.
-        # None is GearButton's way of saying "whatever colour the lettering is".
-        cog = GearButton(self.px(88), None)
-        cog.setToolTip(self.t("settings.title"))
-        head.addWidget(cog)
-        head.addStretch(1)
-        outer.addLayout(head)
+        # No cog at the top any more. It went in 1.83 -- Harry: "remove settings icon ...
+        # completely. this should free up space". It was a picture of the button you had just
+        # pressed to get here, so it told you where you were and did nothing, and at the size
+        # it had grown to it was spending 88 points of a page that was three pixels off
+        # scrolling on a 1920x1080 monitor. The cog on the main screen's banner is the one that
+        # matters and is untouched; this page's banner never had one, because it would be a
+        # button back to the screen you are already on.
 
         # The two columns go in a scroller. On a 1920x1200 screen everything fits and no
         # scrollbar appears; on a shorter screen it scrolls rather than squeezing the rows of
@@ -3577,10 +3678,14 @@ class MainWindow(QtWidgets.QWidget):
         # Left column. No prayer times and no place here: the main screen carries both across
         # its banner, so this was saying it twice and spending the top third of the column on
         # it. Where to set the location is in the README instead.
-        section(left, "settings.school")
-        left.addLayout(self.circles(
-            [(sid, self.t(f"school.{sid}")) for sid in sorted(self.content.schools)],
-            self.school.id, self.set_school))
+        #
+        # The school picker was the first thing in this column until 1.83. Harry: "remove ...
+        # school and hanifi text option completely". There is one school on the mat --
+        # assets/content/schools/hanafi.json and nothing else -- so it was a heading reading
+        # "School" over a single filled circle reading "Hanafi", which asks a question with one
+        # answer. The setting itself is untouched and still decides the prayer times (see the
+        # `school` property); only the row that could not change it has gone. If a second school
+        # is ever added, this is where its picker goes back, and school.<id> is the wording.
 
         # One language picker, and no second one under it. "Translation beside Arabic" used to
         # live here and it has gone: it asked the same question as this row, so the mat could
@@ -3611,11 +3716,20 @@ class MainWindow(QtWidgets.QWidget):
             [(mode, self.t(f"settings.theme_{mode}")) for mode in theme.MODES],
             self.settings.theme if self.settings.theme in theme.MODES else "auto", self.set_theme)
         left.addWidget(self.theme_picker)
+
+        section(left, "settings.cursor")
+        left.addLayout(self.switch_row(self.settings.cursor,
+                                       lambda yes: self.set_cursor("1" if yes else "0"),
+                                       "cursorSwitch"))
         left.addStretch(1)
 
         # Right column
         if self.timings:
-            section(right, "settings.recitation", self.t("settings.recitation_hint"))
+            # No explanation under it since 1.83. Harry: "remove the text under 'Play the
+            # recitation' explaining, not required." It was three wrapped lines describing what
+            # a switch called "Play the recitation" does, which is the kind of note that is only
+            # read once and is in the way every time after.
+            section(right, "settings.recitation")
             right.addLayout(self.switch_row(
                 self.settings.recitation,
                 lambda yes: self.set_recitation("1" if yes else "0"), "recitationSwitch"))
@@ -3637,73 +3751,94 @@ class MainWindow(QtWidgets.QWidget):
                 "" if self.backlight.available else self.t("settings.brightness_veil"))
         right.addLayout(self.brightness_slider())
 
-        section(right, "settings.cursor")
-        right.addLayout(self.switch_row(self.settings.cursor,
-                                        lambda yes: self.set_cursor("1" if yes else "0"),
-                                        "cursorSwitch"))
-
         if QIBLA:
             self.qibla_settings(right, section)
 
-        # The ring, with the same green-or-red circle the main screen carries in its bar, so
-        # whether it is connected is read at a glance rather than from the words beside it.
-        section(right, "settings.buttons")
-        ring = QtWidgets.QHBoxLayout()
-        ring.setSpacing(self.px(14))
+        # What the mat is attached to, in two columns: what it is on the left, what it has got
+        # on the right. Harry: "i want 2 columns, on left side we will have MySalaah Ring,
+        # Bluetooth, Wi-Fi, Location, on their respective right will their chosen / designated
+        # value. keep the same box and text look of W-Fi button. retain the filled circles to
+        # the left."
+        #
+        # A grid rather than four rows of boxes, because the point of the two columns is that
+        # the values line up with each other -- in four separate rows each value started
+        # wherever the label before it happened to end, which is the mess this replaces. The
+        # four labels wear the Wi-Fi button's look because that is what Harry asked for and
+        # because all four now do the same thing: they open the screen that sets that setting.
+        #
+        # THE RING AND BLUETOOTH BOTH OPEN THE BLUETOOTH SCREEN. The ring IS a Bluetooth
+        # device, and that screen is where it is listed and where it would be reconnected, so
+        # a label that looks pressable and leads nowhere seemed the worse of the two. Say the
+        # word and the ring's label becomes an unpressable box in the same style.
+        # More air above this than between two ordinary sections. Every other block on the page
+        # is a heading with its control under it; this one has no heading, so without a gap of
+        # its own the first row reads as though it belonged to the setting above it -- which on
+        # the first render was "Mouse pointer", with a green circle apparently answering it.
+        right.addSpacing(self.px(30))
+        self.attached = QtWidgets.QGridLayout()
+        self.attached.setContentsMargins(0, 0, 0, 0)
+        self.attached.setHorizontalSpacing(self.px(14))
+        self.attached.setVerticalSpacing(self.px(6))
+        # The value column takes the slack, so the labels stay in a column of their own width
+        # instead of being pushed about by however long a network name happens to be.
+        self.attached.setColumnStretch(2, 1)
+
+        # The ring. The circle is the same green-or-red one the main screen carries in its bar,
+        # so whether it is connected is read at a glance rather than off the words beside it.
         self.ring_dot = Dot(self.px(28))
-        ring.addWidget(self.ring_dot, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.ring_button = no_focus(QtWidgets.QPushButton(self.t("settings.buttons")))
+        self.ring_button.setObjectName("pill")
+        self.ring_button.clicked.connect(self.open_bluetooth)
+        self.attached.addWidget(self.ring_dot, 0, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.attached.addWidget(self.ring_button, 0, 1, Qt.AlignmentFlag.AlignVCenter)
         self.devices_label = QtWidgets.QLabel(self.devices_text())
         self.devices_label.setObjectName("settingValue")
-        ring.addWidget(self.devices_label, 0, Qt.AlignmentFlag.AlignVCenter)
-        ring.addStretch(1)
-        right.addLayout(ring)
+        self.attached.addWidget(self.devices_label, 0, 2, Qt.AlignmentFlag.AlignVCenter)
+        self.attached.setRowMinimumHeight(0, self.ring_button.sizeHint().height())
+
+        # Bluetooth. The circle answers "is there a speaker", not "is Bluetooth connected to
+        # anything" -- the ring is on this adapter too and is nearly always connected.
+        self.bt_dot = Dot(self.px(28))
+        self.bt_button = no_focus(QtWidgets.QPushButton(self.t("bt.row")))
+        self.bt_button.setObjectName("pill")
+        self.bt_button.clicked.connect(self.open_bluetooth)
+        self.attached.addWidget(self.bt_dot, 1, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.attached.addWidget(self.bt_button, 1, 1, Qt.AlignmentFlag.AlignVCenter)
+        self.bt_value = QtWidgets.QLabel("")
+        self.bt_value.setObjectName("settingValue")
+        self.attached.addWidget(self.bt_value, 1, 2, Qt.AlignmentFlag.AlignVCenter)
+        self.attached.setRowMinimumHeight(1, self.bt_button.sizeHint().height())
 
         # Wi-Fi. A row here rather than a box that appears over whatever is on the mat: this
         # screen shows prayer times in a room, and a dialog seizing it mid-prayer would be
         # worse than no wifi. The only thing that offers it unprompted is the line where
         # something actually failed for want of a network.
-        wifi_row = QtWidgets.QHBoxLayout()
-        wifi_row.setSpacing(self.px(14))
         self.wifi_dot = Dot(self.px(28))
-        wifi_row.addWidget(self.wifi_dot, 0, Qt.AlignmentFlag.AlignVCenter)
         self.wifi_button = no_focus(QtWidgets.QPushButton(self.t("wifi.row")))
         self.wifi_button.setObjectName("pill")
         self.wifi_button.clicked.connect(self.open_wifi)
-        wifi_row.addWidget(self.wifi_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        # Where the mat is, on the same line. Until this existed the coordinates were whatever
-        # was in the settings file and there was no way to change them -- carry the mat anywhere
-        # and it kept showing Bury's times with nothing to say so.
-        #
-        # Both on one row rather than two because two put a 1920x1080 monitor 41px into
-        # scrolling, which a test caught. They belong together anyway: both are about where the
-        # mat is and what it can reach.
+        self.attached.addWidget(self.wifi_dot, 2, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.attached.addWidget(self.wifi_button, 2, 1, Qt.AlignmentFlag.AlignVCenter)
+        self.wifi_value = QtWidgets.QLabel("")
+        self.wifi_value.setObjectName("settingValue")
+        self.attached.addWidget(self.wifi_value, 2, 2, Qt.AlignmentFlag.AlignVCenter)
+        self.attached.setRowMinimumHeight(2, self.wifi_button.sizeHint().height())
+
+        # Where the mat is. Until this existed the coordinates were whatever was in the settings
+        # file and there was no way to change them -- carry the mat anywhere and it kept showing
+        # Bury's times with nothing to say so. No circle: unlike the three above it, a location
+        # is not a thing that is either connected or not, and an always-green circle would be
+        # saying nothing in the shape of an answer.
         self.place_button = no_focus(QtWidgets.QPushButton(self.t("place.row")))
         self.place_button.setObjectName("pill")
         self.place_button.clicked.connect(self.open_place)
-        wifi_row.addWidget(self.place_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.attached.addWidget(self.place_button, 3, 1, Qt.AlignmentFlag.AlignVCenter)
         self.place_label = QtWidgets.QLabel(self.settings.place or "")
         self.place_label.setObjectName("settingValue")
-        wifi_row.addWidget(self.place_label, 0, Qt.AlignmentFlag.AlignVCenter)
-        wifi_row.addStretch(1)
-        right.addLayout(wifi_row)
+        self.attached.addWidget(self.place_label, 3, 2, Qt.AlignmentFlag.AlignVCenter)
+        self.attached.setRowMinimumHeight(3, self.place_button.sizeHint().height())
 
-        # Bluetooth, directly under Wi-Fi as Harry asked, with the same filled circle: green
-        # when a speaker or a headset is connected, red when the sound is coming out of the
-        # screen. A row of its own rather than a third button on the line above, because that
-        # line is already Wi-Fi and Where, and a row that is about sound is about neither.
-        #
-        # The circle answers "is there a speaker", not "is Bluetooth connected to anything" --
-        # the ring is on this adapter too and is nearly always connected. See show_bt_state.
-        bt_row = QtWidgets.QHBoxLayout()
-        bt_row.setSpacing(self.px(14))
-        self.bt_dot = Dot(self.px(28))
-        bt_row.addWidget(self.bt_dot, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.bt_button = no_focus(QtWidgets.QPushButton(self.t("bt.row")))
-        self.bt_button.setObjectName("pill")
-        self.bt_button.clicked.connect(self.open_bluetooth)
-        bt_row.addWidget(self.bt_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        bt_row.addStretch(1)
-        right.addLayout(bt_row)
+        right.addLayout(self.attached)
         right.addStretch(1)
 
         # No way out to the desktop: the mat is the product, and there is nothing behind it to
@@ -4153,12 +4288,10 @@ class MainWindow(QtWidgets.QWidget):
     # sitting ended with the mat on the desktop. The setting is written to the disk first, so
     # the new process comes up with the choice already made.
 
-    def set_school(self, sid: str) -> None:
-        if sid == self.settings.school:
-            return
-        self.settings.school = sid
-        self.persist()
-        self.say_and_start_again("settings.school")
+    # set_school went with the picker in 1.83. Nothing called it once the row was gone, and the
+    # mat has one school. `settings.school` is still read -- see the `school` property -- so a
+    # settings.json naming another one would still be obeyed if the file for it existed, which
+    # is why the setting stayed and only the control that could not change it went.
 
     def language_choices(self) -> list[tuple[str, str]]:
         """The rows of the language picker: the packs, and Arabic on the end.
