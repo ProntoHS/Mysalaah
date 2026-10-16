@@ -495,8 +495,28 @@ class FrontDoor(QtWidgets.QWidget):
 
     chosen = Signal(str)
 
+    THANKS_HEIGHT = 0.020     # of the screen's height. 21px on a 1080 screen, 24 on the mat's
+                              # 1200: there to be read in a photograph and when somebody looks
+                              # for it, not from standing at the mat.
+    THANKS_FLOOR = 11         # never smaller than this, whatever the screen
+    THANKS_MARGIN = 0.022     # clear of the bottom edge by about the same again
+
     def __init__(self, picture: Path, film: Path | None = None):
         super().__init__()
+        # Who the words on the mat belong to, across the foot of the screen. Harry asked for
+        # this screen to carry it: it is the one the mat shows most -- it is what is up while
+        # the mat is idle and what it goes to sleep on -- so a publisher's name here is seen
+        # more than anywhere else on the device, and a photograph of the mat carries it.
+        #
+        # Drawn by the app rather than baked into the artwork, which would be ten re-exports
+        # now and ten more every time a source changed, with no way to tell that the picture
+        # and the files had drifted apart.
+        #
+        # NO BUTTON, and that is deliberate. A press anywhere on this screen goes in -- see
+        # mousePressEvent -- so a control here would be a small rectangle that does something
+        # else in the middle of a screen that means "go in", on the screen that gets touched
+        # without being looked at to wake the mat. The full list is a tap away in Settings.
+        self.thanks = ""
         self.sheet = QtGui.QPixmap(str(picture)) if picture.is_file() else QtGui.QPixmap()
         self.film: QtGui.QMovie | None = None
         if film is not None and film.is_file():
@@ -549,6 +569,34 @@ class FrontDoor(QtWidgets.QWidget):
                      (self.height() - shown.height()) // 2, shown)
         if theme.palette().dark:
             turn_inside_out(p, self.rect())
+        self.draw_thanks(p)
+
+    def say_thanks(self, said: str) -> None:
+        """The acknowledgement to carry. Empty for none, and then nothing is drawn."""
+        if said != self.thanks:
+            self.thanks = said
+            self.update()
+
+    def draw_thanks(self, p: QtGui.QPainter) -> None:
+        """AFTER the inversion, not before it.
+
+        Everything else on this screen is drawn and then turned inside out for a dark screen,
+        because the artwork ships one way round and is inverted for the other. Text drawn
+        before that would be inverted with it -- white would come out black on the dark screen
+        and the line would vanish into the black ground it was meant to sit on. So it is drawn
+        last, in the colour it is to be: white after dark, black by day.
+        """
+        if not self.thanks:
+            return
+        size = max(self.THANKS_FLOOR, int(self.height() * self.THANKS_HEIGHT))
+        font = QtGui.QFont(self.font())
+        font.setPixelSize(size)
+        p.setFont(font)
+        p.setPen(QtGui.QColor("white") if theme.palette().dark else QtGui.QColor("black"))
+        margin = int(self.height() * self.THANKS_MARGIN)
+        where = QtCore.QRect(0, self.height() - margin - size * 2, self.width(), size * 2)
+        p.drawText(where, int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom),
+                   self.thanks)
 
     def start(self) -> None:
         if self.film is not None:
@@ -1263,6 +1311,9 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#settingHead {{ font-size:{head}px; font-weight:bold; color:{c.strong}; }}
             QLabel#settingHint {{ font-size:{hint}px; color:{c.hint}; }}
             QLabel#settingValue {{ font-size:{value}px; font-weight:bold; color:{c.strong}; }}
+            QLabel#sourceWhat {{ font-size:{value}px; font-weight:bold; color:{c.strong}; }}
+            QLabel#sourceWho {{ font-size:{value}px; color:{c.strong}; }}
+            QLabel#sourceNote {{ font-size:{hint}px; color:{c.hint}; }}
             QComboBox#picker {{ background:{c.paper}; color:{c.strong}; font-size:{pick}px;
                                  border:{px(3)}px solid {c.strong}; border-radius:{px(10)}px;
                                  padding:{px(8)}px {px(16)}px; min-height:{pick_tall}px; }}
@@ -1369,6 +1420,9 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#surahArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                   font-size:{px(34)}px; color:{c.strong}; }}
             QLabel#readerTitle {{ font-size:{px(30)}px; font-weight:bold; color:{c.strong}; }}
+            /* Whose translation is on the page. Quieter than the surah's name beside it: it is
+               there to be read once and then not to compete with the text. */
+            QLabel#readerCredit {{ font-size:{px(19)}px; color:{c.hint}; }}
             /* The same metrics as the Back button beside it, so the pair reads as a pair.
                Its width is matched to Back's at runtime too, because "Back" is a different
                length in every language and the glyph is always one character wide. */
@@ -1552,6 +1606,10 @@ class MainWindow(QtWidgets.QWidget):
             screen.deleteLater()
             return None
         screen.chosen.connect(self.leave_welcome)
+        # Read off the texts that are actually installed rather than written down here, so the
+        # line cannot say one thing while the mat holds another. See salaah/sources.py.
+        from . import sources
+        screen.say_thanks(sources.short(self.quran))
         # There is no mosque on the front door any more, so nothing here to keep a sky or a
         # clock for. The two places that look for one take None for an answer.
         self.welcome_mosque = None
@@ -3420,6 +3478,81 @@ class MainWindow(QtWidgets.QWidget):
             self.stack.addWidget(page)
         self.stack.setCurrentWidget(self.bt_page)
 
+    def open_sources(self) -> None:
+        """Who the words on this mat belong to, in full.
+
+        Built fresh each time it is opened rather than once and kept. It is read off the files
+        that are installed, and a mat can gain or lose a translation between one opening and
+        the next -- a family putting their own Qur'an translation on it is exactly the case
+        this page exists to be honest about.
+
+        Its own row in Settings, not tucked inside an "about" box. A publisher asked how their
+        work would be credited, and "two taps down a submenu" is a poor answer to give them.
+        """
+        if self.playing or self.asleep:
+            return
+        self.stir()
+        from . import sources
+        page = QtWidgets.QWidget()
+        lay = QtWidgets.QVBoxLayout(page)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        lay.addWidget(self.make_banner(gear=False, home=True))
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setObjectName("sourcesScroll")
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        inside = QtWidgets.QWidget()
+        rows = QtWidgets.QVBoxLayout(inside)
+        rows.setContentsMargins(self.px(40), self.px(24), self.px(40), self.px(32))
+        rows.setSpacing(self.px(6))
+
+        head = QtWidgets.QLabel(self.t("sources.title"))
+        head.setObjectName("settingHead")
+        head.setWordWrap(True)
+        rows.addWidget(head)
+        said = QtWidgets.QLabel(self.t("sources.said"))
+        said.setObjectName("settingHint")
+        said.setWordWrap(True)
+        rows.addWidget(said)
+        rows.addSpacing(self.px(16))
+
+        for credit in sources.everything(self.assets, self.quran):
+            what = QtWidgets.QLabel(credit.what + (f"  —  {self.t('sources.this_mat')}"
+                                                   if credit.private else ""))
+            what.setObjectName("sourceWhat")
+            what.setWordWrap(True)
+            rows.addWidget(what)
+            who = QtWidgets.QLabel(credit.line())
+            who.setObjectName("sourceWho")
+            who.setWordWrap(True)
+            rows.addWidget(who)
+            if credit.note:
+                note = QtWidgets.QLabel(credit.note)
+                note.setObjectName("sourceNote")
+                note.setWordWrap(True)
+                rows.addWidget(note)
+            rows.addSpacing(self.px(12))
+
+        rows.addSpacing(self.px(8))
+        for key in ("sources.unaltered", "sources.not_endorsed"):
+            small = QtWidgets.QLabel(self.t(key))
+            small.setObjectName("sourceNote")
+            small.setWordWrap(True)
+            rows.addWidget(small)
+            rows.addSpacing(self.px(6))
+        rows.addStretch(1)
+        scroll.setWidget(inside)
+        lay.addWidget(scroll, 1)
+
+        if getattr(self, "sources_page", None) is not None:
+            self.stack.removeWidget(self.sources_page)
+            self.sources_page.deleteLater()
+        self.sources_page = page
+        self.stack.addWidget(page)
+        self.stack.setCurrentWidget(page)
+
     def open_settings(self) -> None:
         self.refresh_attached()
         self.ask_the_radio()
@@ -3752,6 +3885,21 @@ class MainWindow(QtWidgets.QWidget):
         left.addLayout(self.switch_row(self.settings.cursor,
                                        lambda yes: self.set_cursor("1" if yes else "0"),
                                        "cursorSwitch"))
+
+        # Who the words on the mat belong to. Its own row, named plainly, and NOT inside an
+        # "about" box: the publishers whose translations these are asked how they would be
+        # credited, and a credit that has to be hunted for is a poor answer to give them.
+        #
+        # In this column rather than in the block of things the mat is attached to, for two
+        # reasons. It is not a thing with a state -- no circle, no value, it is a way in. And
+        # the block was already the longer of the two columns: adding a fifth row to it put the
+        # right 141 points past the left, which is the imbalance that stops the whole page
+        # being set larger. Here it pays for itself; measured, the two now end 9 points apart.
+        section(left, "settings.sources")
+        self.sources_button = no_focus(QtWidgets.QPushButton(self.t("sources.title")))
+        self.sources_button.setObjectName("pill")
+        self.sources_button.clicked.connect(self.open_sources)
+        left.addWidget(self.sources_button)
         left.addStretch(1)
 
         # Right column

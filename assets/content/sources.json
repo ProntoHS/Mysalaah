@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "about": "Everything on the mat that is somebody else's work, apart from the Qur'an texts. Those carry their own SOURCE.json beside the text, so that a translation added to one mat by hand brings its credit with it -- see salaah/sources.py.",
+  "items": [
+    {
+      "what": "Transliteration of the Qur'an",
+      "publisher": "Tanzil",
+      "where": "tanzil.net",
+      "via": "the quran-json project"
+    },
+    {
+      "what": "Hadith of Sahih al-Bukhari and Sahih Muslim",
+      "publisher": "the hadith-api dataset",
+      "where": "github.com/fawazahmed0/hadith-api",
+      "note": "Public domain (Unlicense). Arabic and English matched to each other by hadith number."
+    },
+    {
+      "what": "Arabic faces: Scheherazade New, Noto Naskh Arabic, Amiri",
+      "publisher": "SIL International and the Amiri project",
+      "note": "SIL Open Font License 1.1."
+    },
+    {
+      "what": "Recitation of the Qur'an, verse by verse",
+      "publisher": "EveryAyah",
+      "where": "everyayah.com",
+      "note": "Fetched when a verse is played; nothing is stored on the mat beyond the verse being read."
+    },
+    {
+      "what": "UK postcode districts, for finding a town",
+      "publisher": "named in the data itself",
+      "note": "The attribution its licence requires is shown on the Location screen."
+    }
+  ]
+}

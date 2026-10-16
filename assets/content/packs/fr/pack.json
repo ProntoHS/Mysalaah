@@ -296,7 +296,13 @@
     "radio.offline": "Le tapis n'est pas connecté à internet. Rejoignez un réseau Wi-Fi pour écouter la radio.",
     "radio.connect": "Connecter le Wi-Fi",
     "radio.silent": "Pas de réponse — essayez une autre station",
-    "radio.empty": "Aucune station pour l'instant."
+    "radio.empty": "Aucune station pour l'instant.",
+    "settings.sources": "Sources",
+    "sources.title": "D'où viennent les textes",
+    "sources.said": "Tout ce qui, sur ce tapis, est l'œuvre de quelqu'un d'autre, et à qui cela appartient. Cette page est lue à partir des fichiers installés : elle ne peut donc pas être en décalage avec les textes qu'elle décrit.",
+    "sources.this_mat": "sur ce tapis uniquement",
+    "sources.unaltered": "Chaque texte est présenté en entier et sans modification. Rien n'est abrégé, reformulé ni corrigé, et aucune publicité n'apparaît sur cet appareil.",
+    "sources.not_endorsed": "Une traduction rend le sens du Coran ; le Coran, c'est l'arabe. Toute erreur dans la présentation d'un texte ici revient à cet appareil, non à l'éditeur ni au traducteur. Les personnes nommées ci-dessus n'ont pas examiné cet appareil et ne le cautionnent pas."
   },
   "transliteration": {},
   "translation": {}

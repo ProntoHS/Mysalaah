@@ -298,6 +298,12 @@
     "radio.offline": "La alfombra no está conectada a internet. Conéctate a una red Wi-Fi para escuchar la radio.",
     "radio.connect": "Conectar Wi-Fi",
     "radio.silent": "No responde — prueba otra emisora",
-    "radio.empty": "Aún no hay emisoras."
+    "radio.empty": "Aún no hay emisoras.",
+    "settings.sources": "Fuentes",
+    "sources.title": "De dónde vienen los textos",
+    "sources.said": "Todo lo que hay en esta alfombra que es obra de otra persona, y a quién pertenece. Esta página se lee de los archivos instalados, así que no puede quedar desfasada respecto a los textos que describe.",
+    "sources.this_mat": "solo en esta alfombra",
+    "sources.unaltered": "Cada texto se muestra íntegro y sin modificar. Nada se abrevia, reescribe ni edita, y en este aparato no aparece ninguna publicidad.",
+    "sources.not_endorsed": "Una traducción transmite el significado del Corán; el Corán es el árabe. Cualquier error en cómo se muestra un texto aquí es de este aparato, no del editor ni del traductor. Las personas nombradas arriba no han revisado este aparato ni lo respaldan."
   }
 }

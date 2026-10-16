@@ -296,7 +296,13 @@
     "radio.offline": "The mat is not connected to the internet. Join a Wi-Fi network to listen to the radio.",
     "radio.connect": "Connect Wi-Fi",
     "radio.silent": "Not answering — try another station",
-    "radio.empty": "No stations yet."
+    "radio.empty": "No stations yet.",
+    "settings.sources": "Sources",
+    "sources.title": "Where the words come from",
+    "sources.said": "Everything on this mat that is somebody else's work, and who it belongs to. This page is read from the files that are installed, so it cannot fall out of step with the text it describes.",
+    "sources.this_mat": "on this mat only",
+    "sources.unaltered": "Every text is shown whole and unaltered. Nothing is abridged, reworded or edited, and no advertising appears anywhere on this device.",
+    "sources.not_endorsed": "A translation conveys the meaning of the Qur'an; the Arabic is the Qur'an. Any mistake in how a text is shown here is this device's, not the publisher's or the translator's. The people named above have not reviewed this device and do not endorse it."
   },
   "transliteration": {},
   "translation": {

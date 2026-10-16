@@ -298,6 +298,12 @@
     "radio.offline": "垫子没有连接互联网。请连接 Wi-Fi 来收听广播。",
     "radio.connect": "连接 Wi-Fi",
     "radio.silent": "无响应 — 试试其他电台",
-    "radio.empty": "暂无电台。"
+    "radio.empty": "暂无电台。",
+    "settings.sources": "来源",
+    "sources.title": "文本的来源",
+    "sources.said": "本拜毯上属于他人作品的一切，以及其归属。本页从已安装的文件中读取，因此不会与所述文本脱节。",
+    "sources.this_mat": "仅在本拜毯上",
+    "sources.unaltered": "每一段文本都完整呈现，未作改动。没有删节、改写或编辑，本设备上也不出现任何广告。",
+    "sources.not_endorsed": "译文传达《古兰经》的意义；《古兰经》是阿拉伯文本身。此处文本呈现上的任何差错皆属本设备，而非出版方或译者。上述各方未审阅本设备，亦不为其背书。"
   }
 }

@@ -262,9 +262,30 @@ class Spread(QtWidgets.QWidget):
     def show_surah(self, verses: list[Verse], rtl_meaning: bool) -> None:
         self.verses = verses
         self.rtl_meaning = rtl_meaning
+        self.face_the_meaning()
         self.at = 0
         self._measured = None
         self.repaginate()
+
+    def face_the_meaning(self) -> None:
+        """Set the meaning column in a face that HAS the letters it is about to draw.
+
+        This was not being done at all. The column was built with the English family and left
+        there, so a Chinese, Hindi or Bengali Qur'an was asked of a Latin face. Nothing looked
+        wrong here, because a desktop has system fonts for all of them and Qt quietly borrows
+        one -- which is the whole reason the mat carries its own: a Pi may have none, and what
+        it cannot draw it draws as a box.
+
+        The prayer screen has always chosen the face this way (see ui.py, Fonts.for_text on the
+        lines about to be shown). The reader simply never did.
+
+        Urdu is the exception the method already knew about: it is written in the Arabic script
+        and takes the Arabic face, reading right to left.
+        """
+        said = "".join(v.meaning for v in self.verses[:40])
+        face = (Fonts.arabic(self.win.settings.arabic_font) if self.rtl_meaning
+                else Fonts.for_text(said))
+        self.parallel.set_meaning_face(face, self.rtl_meaning)
 
     @property
     def translated(self) -> bool:
@@ -507,6 +528,18 @@ class Reader(QtWidgets.QWidget):
         #
         # The room it leaves goes to the title, which was being squeezed by seven buttons.
         self.buttons: dict[str, QtWidgets.QPushButton] = {}
+
+        # Whose translation is on the page, in the room those buttons left behind. On the
+        # screen the text itself is on, which is what a publisher asks for, and in the bar
+        # rather than on the page, so it costs the reading not one line.
+        #
+        # It names the translation being SHOWN, so it changes with the mat's language and is
+        # empty when there is no translation beside the Arabic -- an acknowledgement for a
+        # translation nobody is reading would be worse than none.
+        self.credit = QtWidgets.QLabel("")
+        self.credit.setObjectName("readerCredit")
+        self.credit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        bar.addWidget(self.credit)
         bar.addStretch(1)
 
         # No volume slider here: the banner directly above this row has one, and two of them
@@ -583,7 +616,20 @@ class Reader(QtWidgets.QWidget):
     def reload(self) -> None:
         lang = self.meaning_language()
         self.spread.show_surah(self.quran.verses(self.number, lang), rtl_meaning=(lang in RTL))
+        self.say_credit(lang)
         self.say_where()
+
+    def say_credit(self, lang: str) -> None:
+        """Name whoever made the translation on the page, or say nothing at all.
+
+        Read off the text that is installed rather than from a list here, so a family that has
+        put their own translation on the mat is shown that translation's credit. A translation
+        with no source recorded says nothing here -- the Sources page is where a gap is
+        reported, and a bar is no place to raise it.
+        """
+        from . import sources
+        credit = sources.for_translation(self.quran, lang) if lang else None
+        self.credit.setText(credit.who if credit is not None else "")
 
     def match_buttons(self) -> None:
         """Make the play button the same size as Back beside it.
