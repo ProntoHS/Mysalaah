@@ -2,11 +2,11 @@
  "schema": 1,
  "lang": "es",
  "what": "Spanish translation",
- "translator": "",
- "publisher": "",
- "where": "",
- "via": "the quran-json project",
+ "translator": "Muhammad Isa García",
+ "publisher": "Tanzil",
+ "where": "tanzil.net/trans/es.garcia",
+ "via": "quran-json 3.1.2",
  "private": false,
- "note": "The edition has not been identified. It came through an aggregator that did not name it, and a guess does not belong here.",
+ "note": "",
  "reviewed": false
 }

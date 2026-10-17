@@ -33,7 +33,11 @@ from .theme import palette
 # recordings nobody could legally fill became a handful of stations played off the internet.
 # Reading order off Harry's sheet, which he has now reordered three times -- so this is read
 # off the drawing rather than remembered. Two across, four down.
-TILES = ("quran", "salaah", "hadith", "duas", "wudu", "radio", "settings", "world")
+# Wu'du gave that square up in 1.88. It is now Children, and the wu'du steps are the first
+# thing behind it -- so nothing has been taken away, it has been moved one press deeper to make
+# room for the things meant for a child. The box is the same box; only the drawing in it and
+# the name of it changed. See ui.open_the_children_menu.
+TILES = ("quran", "salaah", "hadith", "duas", "children", "radio", "settings", "world")
 ACROSS = 2
 
 

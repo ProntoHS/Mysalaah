@@ -1,14 +1,63 @@
 The Qur'an text, transliteration and translations in this folder come from quran-json
-version 3.1.2 (https://github.com/risan/quran-json), which carries the Creative Commons
-Attribution-ShareAlike 4.0 International licence.
+version 3.1.2 (https://github.com/risan/quran-json). Every file here is byte-identical to
+that package: 6236 of 6236 verses in the Arabic, in the transliteration, and in each of the
+five translations, checked verse by verse rather than taken on trust.
 
-    Arabic text:      the Noble Qur'an Encyclopedia, https://quranenc.com
-    Transliteration:  Tanzil, https://tanzil.net/trans/en.transliteration
+WHICH EDITION EACH ONE IS
 
-That licence requires attribution, which is why this file exists and why the app names
-the source on screen. It also requires that anything derived from this material is shared
-under the same licence.
+Until October 2026 the five translations were shown on the mat as "source not recorded",
+because the package they came through had been read for its text and not for its README, and
+a plausible name is worse than an admitted gap. They have now been identified twice over, by
+two routes that share no step:
+
+  1. The words. Each text was compared verse by verse against every published edition in the
+     same language in the quran-api dataset (https://github.com/fawazahmed0/quran-api), which
+     takes its editions from tanzil.net and quranenc.com directly and not from quran-json.
+  2. The file. quran-json 3.1.2 names its own sources in its README, and the mat's text is
+     byte-identical to that package at that version.
+
+Both routes gave the same answer for all five, and for the Arabic and the transliteration:
+
+    Arabic (Uthmani)   Noble Qur'an Encyclopedia      quranenc.com
+    Transliteration    Tanzil                         tanzil.net/trans/en.transliteration
+    en                 Saheeh International           tanzil.net/trans/en.sahih
+                       (Umm Muhammad)
+    es                 Muhammad Isa García            tanzil.net/trans/es.garcia
+    fr                 Muhammad Hamidullah            tanzil.net/trans/fr.hamidullah
+    ur                 Abul A'la Maududi              tanzil.net/trans/ur.maududi
+    zh                 Muhammad Makin                 quranenc.com/en/browse/chinese_makin
+
+The margin, which is what makes this an identification rather than a resemblance -- verses
+identical to the named edition, against the closest other edition in that language:
+
+    en    6236 of 6236      next closest  71    (of 52 English editions compared)
+    es    6236 of 6236      next closest  88    (of 7 Spanish)
+    fr    6236 of 6236      next closest 1077   (of 5 French)
+    ur    6236 of 6236      next closest  21    (of 11 Urdu)
+    zh    6236 of 6236      next closest 2232   (of 5 Chinese)
+
+The French and Chinese runners-up are high because they are other digitisations of the same
+translator's work, which is the expected shape of the result and not a doubt about it.
+
+WHAT THAT DOES AND DOES NOT SETTLE
+
+It settles attribution: the mat can now name the translator and the house for every word of
+scripture on it, and salaah/sources.py reads those names off the SOURCE.json beside each text
+so the screen cannot drift from the files.
+
+It does not settle permission. quran-json licenses its own compilation CC BY-SA 4.0, but it
+cannot grant rights over translations it redistributes from Tanzil and the Noble Qur'an
+Encyclopedia, and the terms each translator and publisher sets have not been established
+here. The Chinese translation and the Arabic text are editions of the Noble Qur'an
+Encyclopedia, which is the house whose permission has been asked for and not yet given.
+
+(For the record, that package states its licence twice and not identically: LICENSE.txt and
+the README say CC BY-SA 4.0, while package.json says CC-BY-4.0. The licence file is the one
+quoted above.)
 
 Verified on conversion: 114 surahs, 6236 verses, every surah matching the canonical verse
 count, in Arabic and in all five translations, with no verse left empty. That checks the
 shape of the text, not the words themselves.
+
+Nobody qualified has read a word of any of it. Every SOURCE.json here says reviewed: false
+and will go on saying so until somebody who can read the Arabic says otherwise.

@@ -28,6 +28,7 @@ from .side import SideWindow
 from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .duamenu import DuaMenu, SAYINGS, SAYINGS_ACROSS
+from .game import GameScreen
 from .wudu import WORDS_PX as WUDU_WORDS_PX, Steps, WuduStep
 from .radio import RadioScreen, Stations
 from .duaboard import DuaBoard
@@ -1230,6 +1231,10 @@ class MainWindow(QtWidgets.QWidget):
             QPushButton#pill:checked {{ border-color:{c.lapis}; color:{c.lapis}; background:{c.pale}; }}
             QPushButton#primary {{ background:{LAPIS}; color:white; border:none; border-radius:{px(14)}px;
                                    font-size:{px(34)}px; padding:{px(18)}px {px(48)}px; }}
+            QLabel#gameWhere {{ font-size:{px(26)}px; color:{c.stone};
+                                letter-spacing:{px(2)}px; }}
+            QLabel#gameQuestion {{ font-size:{px(48)}px; font-weight:bold; color:{c.strong}; }}
+            QLabel#gameSaid {{ font-size:{px(30)}px; color:{c.hint}; }}
             QLabel#bigTitle {{ color:{c.ink}; }}
             QLabel#bigDetail {{ color:{c.stone}; }}
             QLabel#h1 {{ font-size:{px(64)}px; font-weight:bold; }}
@@ -1893,6 +1898,25 @@ class MainWindow(QtWidgets.QWidget):
             self.wudu_menu.deleteLater()
             self.wudu_menu = None
 
+        # Children: what the 7in's fifth tile opens since 1.88, where Wu'du used to be. Two
+        # tiles on a sheet drawn for eighteen, because Harry means to fill the rest and a menu
+        # that changes shape as it fills is worse to live with than one that starts roomy.
+        # Only the two that lead somewhere are asked for, so the sixteen empty squares are
+        # drawing and not buttons: a child pressing one gets nothing, which is the truth.
+        self.children_menu = DuaMenu(self, names=("wudu", "game"), folder="children", across=2)
+        if self.children_menu.ready:
+            self.children_menu.chose.connect(self.open_from_the_children_menu)
+            stack.addWidget(self.children_menu)
+        else:
+            self.children_menu.deleteLater()
+            self.children_menu = None
+
+        # The prayer-time game, behind the children's second tile. Back on it returns to the
+        # menu it was opened from rather than to the front door, the same as a wu'du step.
+        self.game_screen = GameScreen(self)
+        self.game_screen.leave.connect(self.open_the_children_menu)
+        stack.addWidget(self.game_screen)
+
         self.wudu_step = WuduStep(self)
         self.wudu_step.back.connect(self.open_the_wudu_steps)
         self.wudu_step.stepped.connect(
@@ -2044,8 +2068,8 @@ class MainWindow(QtWidgets.QWidget):
                 and self.section_lists["hadith"].passages.items):
             self.open_the_kinds_of_saying()
             return
-        if which == "wudu" and getattr(self, "wudu_menu", None) is not None:
-            self.open_the_wudu_steps()
+        if which == "children" and getattr(self, "children_menu", None) is not None:
+            self.open_the_children_menu()
             return
         if which in self.section_lists and self.section_lists[which].passages.items:
             self.open_section(which)
@@ -2180,6 +2204,32 @@ class MainWindow(QtWidgets.QWidget):
         self.hadith_board.to_the_top()
         self.corner_screen.setCurrentWidget(self.hadith_board)
         self.stack.setCurrentWidget(self.corner_page)
+
+    def open_the_children_menu(self) -> None:
+        """Wu'du and the prayer-time game. Where the Children tile lands."""
+        self.corner_screen.setCurrentWidget(self.children_menu)
+        self.stack.setCurrentWidget(self.corner_page)
+
+    def open_from_the_children_menu(self, which: str) -> None:
+        """A tile on the children's own menu. Only the two that lead somewhere are wired up,
+        and each checks its screen is there: a mat with half its assets copied should land on
+        the menu it came from rather than on nothing."""
+        if which == "wudu" and getattr(self, "wudu_menu", None) is not None:
+            self.open_the_wudu_steps()
+        elif which == "game" and getattr(self, "game_screen", None) is not None:
+            self.open_the_game()
+
+    def open_the_game(self) -> None:
+        """The prayer-time game, always from round one -- see GameScreen.start_again."""
+        self.game_screen.start_again()
+        self.corner_screen.setCurrentWidget(self.game_screen)
+        self.stack.setCurrentWidget(self.corner_page)
+
+    @property
+    def game_open(self) -> bool:
+        return (getattr(self, "game_screen", None) is not None
+                and self.stack.currentWidget() is self.corner_page
+                and self.corner_screen.currentWidget() is self.game_screen)
 
     def open_the_wudu_steps(self) -> None:
         """The seven steps. Where the Wu'du tile lands, and where Back on a step returns to."""
@@ -3262,6 +3312,11 @@ class MainWindow(QtWidgets.QWidget):
         if self.timing_open:
             self.timing_press(action)
             return
+        # The game is the screen the note above was waiting for: a press here is the whole of
+        # how it is played, so it must be caught before move(), which only serves a prayer.
+        if self.game_open:
+            self.game_screen.press(action)
+            return
         self.move(action)
 
     @property
@@ -3370,6 +3425,14 @@ class MainWindow(QtWidgets.QWidget):
                         self.timing_screen.leave()
                     else:
                         self.timing_press(NEXT if key in NEXT_KEYS else BACK)
+                return True
+            if self.game_open and (key in NEXT_KEYS or key in BACK_KEYS
+                                   or key == Qt.Key.Key_Escape):
+                if not ev.isAutoRepeat():
+                    if key == Qt.Key.Key_Escape:
+                        self.open_the_children_menu()
+                    else:
+                        self.game_screen.press(NEXT if key in NEXT_KEYS else BACK)
                 return True
             if self.playing:
                 if ev.isAutoRepeat() and (key in NEXT_KEYS or key in BACK_KEYS):

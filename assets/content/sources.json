@@ -5,8 +5,8 @@
     {
       "what": "Transliteration of the Qur'an",
       "publisher": "Tanzil",
-      "where": "tanzil.net",
-      "via": "the quran-json project"
+      "where": "tanzil.net/trans/en.transliteration",
+      "via": "quran-json 3.1.2"
     },
     {
       "what": "Hadith of Sahih al-Bukhari and Sahih Muslim",
