@@ -17,8 +17,7 @@ tell nobody that the mat is missing most of them.
 """
 from __future__ import annotations
 
-from .qt import QtCore, QtWidgets, Qt, Signal
-from .filmsheet import FilmSheet
+from .qt import QtCore, QtWidgets, Signal
 from .knowledge import Tile
 
 # In the order they were drawn: six across, three down. The name is the picture's file name,
@@ -37,44 +36,16 @@ NOT_A_KIND = ("kalima",)
 ACROSS = 6
 
 
-# The eighteen headings on the hadith sheet, in the order Harry drew them: six across, three
-# down. What `cats` says in hadith.json, and the name of each tile's picture.
-#
-# Twelve when the section was built, four across. Harry redrew the sheet with six more on a
-# third row -- marriage, business, justice, greetings, dress, health -- and the first twelve
-# smaller to make room. Read off the drawing rather than remembered: the order here is the
-# order the tiles appear in, and the boxes come out of menu.json, cut from that same sheet.
-#
-# A narration can be filed under several of these at once. `cats` is a list and the board asks
-# whether a heading is in it, which is how the du'as have always worked, so nothing here had to
-# change for it.
-SAYINGS = ("faith", "prayer", "purification", "fasting", "charity", "hajj",
-           "knowledge", "character", "family", "community", "daily", "hereafter",
-           "marriage", "business", "justice", "greetings", "dress", "health")
-SAYINGS_ACROSS = 6
-
-
-def drawn_in(folder, name: str, lang: str):
-    """The picture of this tile in that language, or the English one if it was not drawn.
-
-    The still menus have the same problem the animated ones do: the words are part of the
-    drawing, not text laid over it, so following the language means a different FILE. The
-    animated sheets solve it with a films map in menu.json; a grid of stills has no such file,
-    so the language goes on the end of the name -- step-hands.fr.png beside step-hands.png.
-
-    English keeps the bare name. It is the one every other part of the mat falls back to, and
-    renaming it to step-hands.en.png would have meant every folder of stills needing the full
-    set before any of it worked.
-    """
-    if lang and lang != "en":
-        said = folder / f"{name}.{lang}.png"
-        if said.is_file():
-            return said
-    return folder / f"{name}.png"
+# The twelve headings on the hadith sheet, in the order Harry drew them: four across, three
+# down. What `cat` says in hadith.json, and the name of each tile's picture.
+SAYINGS = ("faith", "prayer", "purification", "fasting",
+           "charity", "hajj", "knowledge", "character",
+           "family", "community", "daily", "hereafter")
+SAYINGS_ACROSS = 4
 
 
 class DuaMenu(QtWidgets.QWidget):
-    """A sheet of tiles filling the big screen: eighteen of them, du'as or hadith headings."""
+    """A sheet of tiles filling the big screen: the du'as' eighteen, or the hadith's twelve."""
 
     chose = Signal(str)
 
@@ -92,32 +63,9 @@ class DuaMenu(QtWidgets.QWidget):
         lay.setContentsMargins(window.px(12), window.px(12), window.px(12), window.px(12))
         lay.setSpacing(window.px(10))
 
-        # Drawn as one moving picture if the folder has one, and as the separate stills if it
-        # does not. The sheet keeps the same Tile objects for its touch targets, so everything
-        # downstream -- the names, the pictures, what a press does -- is the same either way.
-        self.sheet = FilmSheet(window, folder, list(names))
-        if self.sheet.ready:
-            self.sheet.chose.connect(self.chose.emit)
-            lay.setContentsMargins(0, 0, 0, 0)
-            lay.addWidget(self.sheet, 0, 0)
-            self.tiles: list[Tile] = self.sheet.tiles
-            return
-        self.sheet.deleteLater()
-        self.sheet = None
-
-        # The grid follows the app's layout direction, so in Urdu and Arabic the first tile is
-        # the RIGHTMOST one and the row reads right to left.
-        #
-        # 1.59 pinned this to left-to-right. That was mine and it was wrong. The reasoning was
-        # that Harry had drawn the Urdu and Arabic sheets with step 1 on the left like the
-        # others, so mirroring them showed his drawing back to front -- true at the time, and
-        # the wrong conclusion: the right fix was the drawing, not the layout. He has redrawn
-        # both sheets with step 1 on the right, which is how somebody reading Urdu or Arabic
-        # comes to a row of seven things, and they are cut to match. The pin has gone with it.
         self.tiles: list[Tile] = []
         for i, name in enumerate(names):
-            tile = Tile(window.images, drawn_in(window.assets / folder, name,
-                                                window.settings.lang), name)
+            tile = Tile(window.images, window.assets / folder / f"{name}.png", name)
             tile.clicked.connect(lambda _=False, n=name: self.chose.emit(n))
             lay.addWidget(tile, i // across, i % across)
             self.tiles.append(tile)
@@ -129,8 +77,6 @@ class DuaMenu(QtWidgets.QWidget):
         return all(t.path.is_file() for t in self.tiles)
 
     def follow_theme(self) -> None:
-        if self.sheet is not None:
-            self.sheet.follow_theme()
         for tile in self.tiles:
             tile.update()
 

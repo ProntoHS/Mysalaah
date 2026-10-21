@@ -5,10 +5,6 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Recitations the owner has a right to read and the mat has no right to pass on. The same
-# folder the Qur'an and the du'as use for the same reason -- see salaah/quran.py.
-PRIVATE = Path.home() / ".salaah" / "content"
-
 SCHEMA = 1
 PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"]
 POSTURES = ["standing", "ruku", "sujood", "sitting", "salam"]
@@ -122,19 +118,9 @@ def available_figures(root: Path) -> list[str]:
     return [DEFAULT_FIGURE] + [name for name in extra if name != DEFAULT_FIGURE]
 
 
-def load_translations(root: Path, private: Path | None = None) -> dict[str, Translation]:
-    """The prayer's recitations in each language, from the assets and from this mat's own.
-
-    The bundled wordings are written for this app on purpose -- plain and free of any
-    translator's copyright -- which is why a published translation must never be dropped into
-    assets/content/translations. A family may still want one on their own mat, so a file in
-    ~/.salaah/content/translations is read too, after the bundled ones and winning over them,
-    exactly like the Qur'an and the du'as. Nothing there is in the repository or in a release.
-    """
+def load_translations(root: Path) -> dict[str, Translation]:
     out = {}
-    rooms = [root / "content" / "translations"]
-    rooms.append((Path(private) if private is not None else PRIVATE) / "translations")
-    for f in sorted(x for room in rooms for x in sorted(room.glob("*.json"))):
+    for f in sorted((root / "content" / "translations").glob("*.json")):
         try:
             d = _read(f)
             out[d["lang"]] = Translation(
@@ -145,6 +131,20 @@ def load_translations(root: Path, private: Path | None = None) -> dict[str, Tran
         except (OSError, ValueError, KeyError):
             continue
     return out
+
+
+@dataclass(frozen=True)
+class Daily:
+    """What is shown when a prayer finishes: a short passage and a saying, one for each day."""
+    passages: list[dict]
+    sayings: list[dict]
+
+    def for_day(self, day) -> tuple[dict | None, dict | None]:
+        """The same pair all day, a different pair tomorrow."""
+        number = day.toordinal()
+        passage = self.passages[number % len(self.passages)] if self.passages else None
+        saying = self.sayings[number % len(self.sayings)] if self.sayings else None
+        return passage, saying
 
 
 @dataclass(frozen=True)
@@ -179,6 +179,7 @@ class Content:
     schools: dict[str, School]
     arabic: dict[str, list[str]]
     prayer_names: dict[str, str]  # each prayer's name in Arabic
+    daily: Daily
     dhikr: Dhikr
     translations: dict[str, "Translation"] = field(default_factory=dict)
     figures: list[str] = field(default_factory=lambda: [DEFAULT_FIGURE])
@@ -222,6 +223,13 @@ def load(root: Path) -> Content:
                                   d.get("stepOverrides", {}))
     core = _read(c / "core" / "arabic.json")
 
+    def daily(name: str, key: str) -> list[dict]:
+        path = c / "daily" / f"{name}.json"
+        try:
+            return _read(path).get(key, [])
+        except (OSError, ValueError):
+            return []
+
     try:
         after = _read(c / "core" / "dhikr.json")["after_farz"]
         words = core.get("text", {})
@@ -236,7 +244,7 @@ def load(root: Path) -> Content:
         dhikr = Dhikr("", "", [])
 
     return Content(root, steps, units, schools, core.get("text", {}), core.get("prayers", {}),
-                   dhikr,
+                   Daily(daily("quran", "passages"), daily("hadith", "sayings")), dhikr,
                    load_translations(root), available_figures(root))
 
 

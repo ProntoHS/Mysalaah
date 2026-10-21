@@ -32,6 +32,9 @@ def build_parser() -> argparse.ArgumentParser:
                     help="the 7-inch posture screen: 'auto' uses a second screen if one is "
                          "plugged in, 'off' ignores it, 'window' shows it in a 600x1024 window "
                          "to try it on one monitor")
+    ap.add_argument("--inset", type=int, default=None,
+                    help="pixels to keep clear on every edge, if the monitor cuts them off "
+                         "(remembered; also in Settings)")
     ap.add_argument("--compass-stand-in", action="store_true",
                     help="try the Qibla screen without a compass chip: the arrow keys turn it")
     ap.add_argument("--tap-timings", action="store_true",
@@ -79,6 +82,9 @@ def main(argv: list[str] | None = None) -> int:
     use_side = args.side_screen == "window" or (args.side_screen == "auto" and side_screen is not None)
     screen = main_screen.geometry()
     height = 720 if args.windowed else screen.height()
+    if args.inset is not None:
+        settings.inset = max(0, args.inset)
+        settings.save()
     # If somebody has written a network onto the SD card, join it before anything else -- this
     # is the way in when the mat is somewhere new and the screen cannot be reached, and it is
     # the one path that must work when everything else has failed. It never stops the mat
@@ -96,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     compass = find_compass(stand_in=args.compass_stand_in) if QIBLA else NoCompass()
     print(f"compass: {compass.name}", file=sys.stderr)
     win = MainWindow(content, packs, settings, scale=max(0.5, height / 1080),
-                     aspect=aspect, compass=compass, side=use_side)
+                     aspect=aspect, inset=settings.inset, compass=compass, side=use_side)
 
     buttons = None
     if not args.no_buttons:

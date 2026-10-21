@@ -37,7 +37,18 @@ from .theme import palette
 # thing behind it -- so nothing has been taken away, it has been moved one press deeper to make
 # room for the things meant for a child. The box is the same box; only the drawing in it and
 # the name of it changed. See ui.open_the_children_menu.
-TILES = ("quran", "salaah", "hadith", "duas", "children", "radio", "settings", "world")
+#
+# TEN at 1.89, and the grid is a row taller: Learn and Knowledge went in, and the boxes moved
+# with them, so assets/knowledge/menu.json carries new coordinates rather than renamed ones.
+# Reading order off the new sheet again -- Qur'an/Salaah, Hadith/Du'as, Children/Learn,
+# Knowledge/World, Settings/Radio -- which is NOT the old order with two appended: Radio and
+# Settings and World all moved. tools/check_menu_names.py reads the words out of the drawing
+# and refuses this list if it ever drifts from them again.
+#
+# Wu'du came back within reach at 1.89 too, one press behind Knowledge. Harry's new children's
+# sheet has no Wu'du tile on it at all, so without that route it was unreachable from anywhere.
+TILES = ("quran", "salaah", "hadith", "duas", "children", "learn", "knowledge", "world",
+         "settings", "radio")
 ACROSS = 2
 
 

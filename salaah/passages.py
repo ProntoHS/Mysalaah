@@ -19,13 +19,13 @@ passage is opened.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from .audio import WHOLE, Span
 from .mosque import MosqueScreen
 from .qt import QtCore, QtWidgets, Qt, Signal
-from .render import ArrowButton, Fonts, TextBox
+from .render import Fonts, TextBox
 
 # The Arabic is never drawn smaller than this (at 1080p), nor larger.
 ARABIC_FLOOR = 34
@@ -33,17 +33,6 @@ ARABIC_CAP = 150
 
 SECTIONS = ("duas", "kalima")
 RTL = ("ur",)
-
-# Every language the mat can show a meaning in, in the order they are offered. A language only
-# appears on a section's list when something in that section actually has a line in it.
-ORDER = ("en", "fr", "ur", "es", "zh", "hi", "ru", "pt", "bn")
-
-# Meanings the owner has a right to read but the mat has no right to pass on, laid over the
-# bundled ones. Same folder, same file names: ~/.salaah/content/duas/duas.json holds the same
-# items keyed the same way, and only their `text` is taken from it -- never the Arabic, never a
-# recording, never the word times. A translation under copyright can sit there, on one mat, for
-# one family, without ever entering the repository or a signed release.
-PRIVATE = Path.home() / ".salaah" / "content"
 
 # The play button, as a glyph rather than a word: the reader's bar is crowded enough.
 PLAY = "\u25b6"
@@ -89,15 +78,11 @@ class Passage:
 class Passages:
     """One section read off the disk, and whether its words have been checked."""
 
-    def __init__(self, assets: Path, section: str, folder: str = "duas",
-                 private: Path | None = None):
+    def __init__(self, assets: Path, section: str, folder: str = "duas"):
         # The folder is separate from the section because content/duas already holds a
         # hadith.json -- the thirty-eight du'as lifted out of hadith, which is a build
         # intermediate and not a section of the mat. The sayings have a folder of their own.
         self.path = Path(assets) / "content" / folder / f"{section}.json"
-        # Taken as an argument so a test can point it somewhere harmless rather than at the
-        # home folder of whoever is running the tests.
-        self.mine = (Path(private) if private is not None else PRIVATE) / folder / f"{section}.json"
         self.section = section
         self._items: list[Passage] | None = None
         self._reviewed = True
@@ -145,37 +130,13 @@ class Passages:
                             )[:len(str(row["arabic"]).split())],
                 estimated=bool(row.get("estimated", True)),
             ))
-        self.lay_mine_over_it()
         return self._items
-
-    def lay_mine_over_it(self) -> None:
-        """Add this mat's own meanings to the bundled ones, matched by key.
-
-        Only the meanings. The Arabic, the transliteration, the recording and the word times
-        stay as they were shipped, whatever the private file says about them -- a translation
-        is a thing to add, and the scripture it sits under is not.
-
-        A key the bundled file has not got is ignored rather than added: these are meanings
-        FOR the pieces on the mat, and a passage with a meaning and no Arabic would be a row
-        that opens on nothing.
-        """
-        try:
-            raw = json.loads(self.mine.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return
-        rows = raw if isinstance(raw, list) else raw.get("items", [])
-        extra = {str(r.get("key", "")): {k: str(v) for k, v in (r.get("text") or {}).items() if v}
-                 for r in rows if isinstance(r, dict)}
-        if not any(extra.values()):
-            return
-        self._items = [replace(item, text={**item.text, **extra[item.key]})
-                       if extra.get(item.key) else item
-                       for item in (self._items or [])]
 
     def languages(self) -> tuple:
         """Every language any passage in this section has a meaning in, in the app's order."""
+        order = ("en", "fr", "ur", "es", "zh")
         have = {lang for item in self.items for lang, text in item.text.items() if text}
-        return tuple(lang for lang in ORDER if lang in have)
+        return tuple(lang for lang in order if lang in have)
 
     def at(self, index: int) -> Passage | None:
         return self.items[index] if 0 <= index < len(self.items) else None
@@ -322,18 +283,16 @@ class PassageReader(QtWidgets.QWidget):
         bar.addWidget(self.title)
         bar.addStretch(1)
 
-        # The language buttons that sat here have gone, with the matching row on the Qur'an
-        # screen. See the note on ReadingScreen: the mat asks for a language once, in Settings,
-        # and three places to answer it meant a du'a could be read in a language the menu that
-        # opened it was not written in.
+        self.tongues = QtWidgets.QHBoxLayout()
+        self.tongues.setSpacing(self.win.px(6))
         self.buttons: dict[str, QtWidgets.QPushButton] = {}
+        bar.addLayout(self.tongues)
 
-        # Pointing the way the reading goes: in Urdu and Arabic the pair mirrors to the
-        # other side, so the heads turn with it. See ArrowButton in render.py.
-        self.earlier = ArrowButton(False, self.win.pack.rtl)
-        self.later = ArrowButton(True, self.win.pack.rtl)
+        self.earlier = QtWidgets.QPushButton("‹")
+        self.later = QtWidgets.QPushButton("›")
         for b, forward in ((self.earlier, False), (self.later, True)):
             b.setObjectName("turnPage")
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             b.clicked.connect(lambda _=False, f=forward: self.turn(f))
         self.where = QtWidgets.QLabel()
         self.where.setObjectName("readerWhere")
@@ -410,25 +369,29 @@ class PassageReader(QtWidgets.QWidget):
         word = item.word_at(position) if item else None
         self.arabic.set_highlight(None if word is None else (0, word))
 
+    def build_tongues(self) -> None:
+        """The language buttons, made once the section's languages are known."""
+        if self.buttons:
+            return
+        for lang in self.passages.languages():
+            b = QtWidgets.QPushButton(self.win.pack_name(lang))
+            b.setObjectName("tongue")
+            b.setCheckable(True)
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            b.clicked.connect(lambda _=False, l=lang: self.set_language(l))
+            self.buttons[lang] = b
+            self.tongues.addWidget(b)
+
     def open(self, index: int) -> None:
         if getattr(self, "saying", False):
             self.stop_saying()
+        self.build_tongues()
         self.at = max(0, min(index, len(self.passages.items) - 1))
         self.reload()
 
     def language(self) -> str:
-        """Which meaning to show: the mat's language, English if this section has not got it,
-        and "" -- no meaning at all -- when the mat is set to Arabic only.
-
-        One setting decides it. There were three until 1.58: the language, a separate
-        "translation beside Arabic", and a row of buttons on this very bar, all written to
-        different places. See the note on DuaBoard.language(), which makes the same choice so
-        a du'a reads the same on the board and on the page it opens.
-        """
-        from .ui import ARABIC_ONLY
-        wanted = self.win.settings.lang or "en"
-        if wanted == ARABIC_ONLY:
-            return ""
+        """Which meaning to show. The reading language if this section has it, else English."""
+        wanted = self.win.settings.quran_lang or "en"
         return wanted if wanted in self.passages.languages() else "en"
 
     def reload(self) -> None:
@@ -441,31 +404,32 @@ class PassageReader(QtWidgets.QWidget):
             self.say_where()
             return
         lang = self.language()
+        for key, b in self.buttons.items():
+            b.setChecked(key == lang)
         self.title.setText(f"{item.title} · {item.ref}" if item.ref else item.title)
         # The sayings show no Arabic at all. Harry asked for the translation and the play
         # button and nothing else, and a reader that still opened on the Arabic would be the
         # one screen in the section that disagreed with the board in front of it. The Arabic
         # stays in hadith.json, because it is what the wording was checked against and what any
         # reviewer will read first; it is simply not on the glass.
-        #
-        # UNLESS the mat is set to Arabic only, where the translation is the thing not shown.
-        # Hiding both would leave the hadith reader as an empty screen with a play button on
-        # it -- the one place where "no Arabic" and "no meaning" meet, and the Arabic is what
-        # that reader came for.
-        sayings = self.passages.section == "hadith" and lang != ""
+        sayings = self.passages.section == "hadith"
         self.arabic.set_lines([] if sayings else [item.arabic])
         self.arabic.setVisible(not sayings)
         # The du'as show no transliteration; the kalima still do. Same reader, different
         # sections, and the du'as are the ones where it appeared on some and not others.
         self.said.setText("" if self.passages.section in ("duas", "hadith") else item.said)
         self.said.setVisible(self.passages.section not in ("duas", "hadith"))
-        self.meaning.setText(item.meaning(lang) if lang else "")
-        self.meaning.setVisible(bool(lang))
+        self.meaning.setText(item.meaning(lang))
         rtl = lang in RTL
         self.meaning.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.meaning.setLayoutDirection(Qt.LayoutDirection.RightToLeft if rtl
                                         else Qt.LayoutDirection.LeftToRight)
         self.say_where()
+
+    def set_language(self, lang: str) -> None:
+        self.win.settings.quran_lang = lang
+        self.win.persist()
+        self.reload()
 
     def turn(self, forward: bool) -> bool:
         """The next or previous passage. The ring button turns these as it turns pages."""
@@ -508,7 +472,6 @@ class ArchMenu(QtWidgets.QWidget):
         self.setObjectName("archMenu")
         self.mosque = MosqueScreen(self.win.assets, clock_font, folder=folder, idle_glow=False)
         self.mosque.chosen.connect(self.picked)
-        self.number_the_arches()
 
         outer = QtWidgets.QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -518,24 +481,6 @@ class ArchMenu(QtWidgets.QWidget):
         # No bar of its own: the way home is in the banner above, so the mosque gets the
         # whole screen and lines up with the front door's.
         outer.addWidget(self.mosque, 1)
-
-    def number_the_arches(self) -> None:
-        """1 to 6 across the arches, the same in every language.
-
-        Harry's drawing arrives with the arches empty, the way the prayer pages do, but for a
-        different reason and with a different answer. There the words are Sunnah and Fardh and
-        have to follow the mat's language; here they are numbers, and -- his call -- "1 to 10
-        is universal regardless of language", so they are written in the interface face as the
-        plain digits whatever the pack says. Nothing is looked up and nothing is translated.
-
-        Still written by the app rather than drawn in, because that is what lets one builder
-        handle this drawing and the five prayer pages, and because a number knocked out of the
-        artwork cannot be moved if an arch ever does.
-        """
-        if not self.mosque.ready:
-            return
-        self.mosque.set_labels({a.prayer: ("", a.prayer) for a in self.mosque.arches},
-                               Fonts.english_family)
 
     @property
     def ready(self) -> bool:

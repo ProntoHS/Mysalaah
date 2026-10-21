@@ -19,30 +19,13 @@ from __future__ import annotations
 from .audio import WHOLE, Span
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .quran import RTL, Quran, Surah, Verse
-from .render import ArrowButton, Fonts, ParallelText, TextBox, TextSize
+from .render import Fonts, ParallelText, TextBox
 from .theme import palette
 
 # The Arabic is never drawn smaller than this (at 1080p). Fitting more verses on a page by
 # shrinking the script until it cannot be read would be the wrong trade every time.
 FLOOR_PX = 30
 MOST_VERSES = 40          # a page never holds more than this, however short the verses
-
-# The three sizes the A buttons on the reading bar choose between. The first is what the mat
-# has always done; each step after it is half as big again, which is what Harry asked for.
-#
-# They work by raising the FLOOR, not by setting a size. The page already grows its text to
-# fill the room it has, so the thing that decides how big the Arabic comes out is how many
-# verses were put on the page -- and that is settled by how small the words were allowed to
-# get while they were being counted. Lift the floor and fewer verses fit; the page then fills
-# with what is left, larger. It is the same mechanism a printed mushaf uses when it is set in
-# a bigger face: not more ink on the page, but fewer verses on it.
-TEXT_STEPS = (1.0, 1.5, 2.25)
-
-# How tall the largest of the three A buttons is on the reading bar, at 1080p. 64, up from
-# the 52 it was drawn at: Harry wanted it "slightly bigger", and the bar it lives in has the
-# surah's name, a play button and the page arrows in it, so slightly is as far as it goes.
-# The wu'du steps set their own, much larger -- see wudu.py.
-READING_TEXT_SIZE_PX = 64
 
 # Which way a swipe goes. Right-to-left means forward, as it does in every other touch screen
 # the mat's owner uses. An Arabic book turns the other way, so this is the line to change if
@@ -64,16 +47,11 @@ STOP = "\u25a0"
 NUMBER_BOX = 64          # the square's side, before scaling
 NUMBER_LINE = 4          # and how thick its outline is drawn
 
-# The slider down the side of the lists. Four times the 14px a desktop gives it: this is a
+# The slider down the side of the lists. Three times the 14px a desktop gives it: this is a
 # touchscreen, and 14px is a target for a mouse pointer, not for the side of a thumb. The lists
 # resize to whatever the slider leaves, so the rows give up the width rather than the slider
 # sitting on top of them.
-#
-# 42 at first, which was already three times a desktop's, and Harry has asked for it thicker
-# twice since, each time after using it. He is the one dragging it on glass: 84px is about a
-# centimetre and a half on the mat's screen, which is the width of the thumb doing the
-# dragging rather than the width of the line somebody thought looked right.
-LIST_BAR = 84
+LIST_BAR = 42
 
 
 class SurahList(QtWidgets.QWidget):
@@ -93,17 +71,11 @@ class SurahList(QtWidgets.QWidget):
 
         # The way out used to sit here. It is in the banner above this screen now, along with
         # the clock and the prayer times, so it is in the same place wherever you are.
-        # No heading on it. It said "The 114 surahs", which is a caption telling you what you
-        # are already looking at, and Harry asked for it gone -- but for the space it took to
-        # stay, so the first row of surahs does not come up hard against the strip above.
-        # The label is still here and still empty, which is what keeps that space: it is as
-        # tall as a line of the heading's own type, at whatever size the screen is, and it
-        # will follow the type if that ever changes. A fixed number of pixels here would not.
         bar = QtWidgets.QHBoxLayout()
         bar.setContentsMargins(self.win.px(20), self.win.px(10), self.win.px(20), 0)
-        self.title = QtWidgets.QLabel("")
-        self.title.setObjectName("readerTitle")
-        bar.addWidget(self.title)
+        title = QtWidgets.QLabel(self.win.t("corner.surahs"))
+        title.setObjectName("readerTitle")
+        bar.addWidget(title)
         bar.addStretch(1)
         outer.addLayout(bar)
 
@@ -209,83 +181,21 @@ class Spread(QtWidgets.QWidget):
                             rtl=True, by_word=True)
         self.right = TextBox(Fonts.arabic(self.win.settings.arabic_font), FLOOR_PX, 200,
                              rtl=True, by_word=True)
-        self.size_the_boxes()
+        for w in (self.parallel, self.left, self.right):
+            w.scale = self.win.s
         lay.addWidget(self.parallel, 1)
         lay.addWidget(self.left, 1)
         lay.addWidget(self.right, 1)
         self.parallel.hide()
-
-    @property
-    def text_at(self) -> int:
-        """Which of the three sizes is chosen: 0, 1 or 2, whatever the settings file holds."""
-        at = getattr(self.win.settings, "text_step", 0)
-        try:
-            at = int(at)
-        except (TypeError, ValueError):
-            at = 0
-        return max(0, min(at, len(TEXT_STEPS) - 1))
-
-    @property
-    def text_step(self) -> float:
-        """How much larger than usual the Qur'an is set, from the A buttons on the bar."""
-        return TEXT_STEPS[self.text_at]
-
-    def size_the_boxes(self) -> None:
-        """Hand the three text boxes the screen's scale and the chosen size, together.
-
-        One number does both because the boxes already read `scale` for the smallest and the
-        largest they may draw. Lifting it lifts the floor, which is what makes a page hold
-        fewer verses, which is what makes the text come out bigger.
-        """
-        for w in (self.parallel, self.left, self.right):
-            w.scale = self.win.s * self.text_step
-
-    def set_text_step(self, at: int, keep_verse: int | None = None) -> None:
-        """A different size was chosen. Lay the surah out again for it.
-
-        [keep_verse] is an index into the surah to stay with. The pages fall in different
-        places at a different size, so "page 4" means somewhere else afterwards; what the
-        reader cares about is the verse in front of them, not the number of the page it is on.
-        """
-        self.win.settings.text_step = max(0, min(int(at), len(TEXT_STEPS) - 1))
-        if keep_verse is None and self.pages:
-            keep_verse = self.pages[max(0, min(self.at, len(self.pages) - 1))][0]
-        self.size_the_boxes()
-        self.at = 0
-        self._measured = None
-        self.repaginate()
-        if keep_verse is not None:
-            self.go_to(self.page_of(keep_verse))
 
     # What is being read
 
     def show_surah(self, verses: list[Verse], rtl_meaning: bool) -> None:
         self.verses = verses
         self.rtl_meaning = rtl_meaning
-        self.face_the_meaning()
         self.at = 0
         self._measured = None
         self.repaginate()
-
-    def face_the_meaning(self) -> None:
-        """Set the meaning column in a face that HAS the letters it is about to draw.
-
-        This was not being done at all. The column was built with the English family and left
-        there, so a Chinese, Hindi or Bengali Qur'an was asked of a Latin face. Nothing looked
-        wrong here, because a desktop has system fonts for all of them and Qt quietly borrows
-        one -- which is the whole reason the mat carries its own: a Pi may have none, and what
-        it cannot draw it draws as a box.
-
-        The prayer screen has always chosen the face this way (see ui.py, Fonts.for_text on the
-        lines about to be shown). The reader simply never did.
-
-        Urdu is the exception the method already knew about: it is written in the Arabic script
-        and takes the Arabic face, reading right to left.
-        """
-        said = "".join(v.meaning for v in self.verses[:40])
-        face = (Fonts.arabic(self.win.settings.arabic_font) if self.rtl_meaning
-                else Fonts.for_text(said))
-        self.parallel.set_meaning_face(face, self.rtl_meaning)
 
     @property
     def translated(self) -> bool:
@@ -303,7 +213,7 @@ class Spread(QtWidgets.QWidget):
     def repaginate(self) -> None:
         """Work out where each page starts and ends, for the room there is now."""
         key = (self.width(), self.height(), self.translated, len(self.verses),
-               self.win.settings.arabic_font, self.win.s, self.text_step)
+               self.win.settings.arabic_font, self.win.s)
         if self._measured == key:
             return
         self._measured = key
@@ -347,7 +257,7 @@ class Spread(QtWidgets.QWidget):
         return best
 
     def holds(self, start: int, end: int) -> bool:
-        floor = max(1, int(FLOOR_PX * self.win.s * self.text_step))
+        floor = max(1, int(FLOOR_PX * self.win.s))
         some = self.verses[start:end]
         if self.translated:
             self.parallel.arabic = [self.numbered(v) for v in some]
@@ -436,13 +346,6 @@ class Spread(QtWidgets.QWidget):
         self.turned.emit()
         return True
 
-    def page_of(self, index: int) -> int:
-        """Which page the verse at [index] has landed on."""
-        for i, (start, end) in enumerate(self.pages):
-            if start <= index < end:
-                return i
-        return max(0, len(self.pages) - 1)
-
     def go_to(self, page: int) -> None:
         self.at = max(0, min(page, len(self.pages) - 1))
         self.show_page()
@@ -516,30 +419,21 @@ class Reader(QtWidgets.QWidget):
         bar.addWidget(self.title)
         bar.addStretch(1)
 
-        # There was a row of language buttons here -- "Arabic only", "English", "Français" and
-        # the rest -- for setting the meaning beside the Arabic while reading. It has gone.
-        #
-        # It was a third place to answer a question the mat now asks once. Settings had a
-        # language, Settings had a translation, and this bar had its own buttons, and all three
-        # wrote to different places: the surah could be in French while the menu that opened it
-        # was in Urdu. The page follows the mat's language now, and nothing has to be set to
-        # make that happen -- which is also what makes "Arabic only" in Settings reach this
-        # screen, where it opens the Arabic across both pages.
-        #
-        # The room it leaves goes to the title, which was being squeezed by seven buttons.
+        # Which meaning to set beside the Arabic, chosen here rather than buried in Settings:
+        # it is the thing most likely to be changed while reading.
+        self.tongues = QtWidgets.QHBoxLayout()
+        self.tongues.setSpacing(self.win.px(6))
         self.buttons: dict[str, QtWidgets.QPushButton] = {}
-
-        # Whose translation is on the page, in the room those buttons left behind. On the
-        # screen the text itself is on, which is what a publisher asks for, and in the bar
-        # rather than on the page, so it costs the reading not one line.
-        #
-        # It names the translation being SHOWN, so it changes with the mat's language and is
-        # empty when there is no translation beside the Arabic -- an acknowledgement for a
-        # translation nobody is reading would be worse than none.
-        self.credit = QtWidgets.QLabel("")
-        self.credit.setObjectName("readerCredit")
-        self.credit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        bar.addWidget(self.credit)
+        for lang in ("",) + self.quran.languages():
+            b = QtWidgets.QPushButton(self.win.t("quran.arabic_only") if not lang
+                                      else self.win.pack_name(lang))
+            b.setObjectName("tongue")
+            b.setCheckable(True)
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            b.clicked.connect(lambda _=False, l=lang: self.set_language(l))
+            self.buttons[lang] = b
+            self.tongues.addWidget(b)
+        bar.addLayout(self.tongues)
         bar.addStretch(1)
 
         # No volume slider here: the banner directly above this row has one, and two of them
@@ -548,24 +442,11 @@ class Reader(QtWidgets.QWidget):
         # Which page you are on used to be spelled out beside the arrows. It has gone: the
         # arrows say the same thing by greying out at either end, and "Page 1 of 39" was the
         # widest thing in a row that had run out of room.
-        # Pointing the way the reading goes: in Urdu and Arabic the pair mirrors to the
-        # other side, so the heads turn with it. See ArrowButton in render.py.
-        # How large the Qur'an is set, beside the arrows that turn the pages: the two things
-        # you reach for with the page in front of you, in the one place you are already
-        # looking. Before the arrows, so the pair that turns pages stays together at the end.
-        # A size larger than it was drawn at. Not as large as the wu'du steps make it -- they
-        # stand it beside two square buttons at the bottom of an open screen, where this sits
-        # in a bar with a title, a play button and the page arrows, and a row as tall as a
-        # button would push the bar down into the page.
-        self.text_size = TextSize(self.win, getattr(self.win.settings, "text_step", 0),
-                                  tall=READING_TEXT_SIZE_PX)
-        self.text_size.chose.connect(self.resize_text)
-        bar.addWidget(self.text_size, 0, Qt.AlignmentFlag.AlignVCenter)
-        bar.addSpacing(self.win.px(18))
-        self.earlier = ArrowButton(False, self.win.pack.rtl)
-        self.later = ArrowButton(True, self.win.pack.rtl)
+        self.earlier = QtWidgets.QPushButton("‹")
+        self.later = QtWidgets.QPushButton("›")
         for b, forward in ((self.earlier, False), (self.later, True)):
             b.setObjectName("turnPage")
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             b.clicked.connect(lambda _=False, f=forward: self.spread.turn(f))
         bar.addWidget(self.earlier)
         bar.addWidget(self.later)
@@ -599,37 +480,19 @@ class Reader(QtWidgets.QWidget):
             self.title.setText(f"{surah.number}. {surah.name} · {surah.arabic}")
         self.reload()
 
-    def meaning_language(self) -> str:
-        """Which meaning to set beside the Arabic: the mat's own language, or none.
-
-        "" means no meaning, and the spread then opens the Arabic across BOTH pages instead of
-        putting the meaning on the left -- which is what "Arabic only" in Settings comes down
-        to by the time it reaches this screen. The Qur'an has no Arabic translation of itself,
-        so asking for the meaning in Arabic is asking for no meaning.
-        """
-        from .ui import ARABIC_ONLY
-        lang = self.win.settings.lang
-        if lang == ARABIC_ONLY or lang not in self.quran.languages():
-            return ""
-        return lang
-
     def reload(self) -> None:
-        lang = self.meaning_language()
+        lang = self.win.settings.quran_lang
+        if lang and lang not in self.quran.languages():
+            lang = ""
+        for key, b in self.buttons.items():
+            b.setChecked(key == lang)
         self.spread.show_surah(self.quran.verses(self.number, lang), rtl_meaning=(lang in RTL))
-        self.say_credit(lang)
         self.say_where()
 
-    def say_credit(self, lang: str) -> None:
-        """Name whoever made the translation on the page, or say nothing at all.
-
-        Read off the text that is installed rather than from a list here, so a family that has
-        put their own translation on the mat is shown that translation's credit. A translation
-        with no source recorded says nothing here -- the Sources page is where a gap is
-        reported, and a bar is no place to raise it.
-        """
-        from . import sources
-        credit = sources.for_translation(self.quran, lang) if lang else None
-        self.credit.setText(credit.who if credit is not None else "")
+    def set_language(self, lang: str) -> None:
+        self.win.settings.quran_lang = lang
+        self.win.persist()
+        self.reload()
 
     def match_buttons(self) -> None:
         """Make the play button the same size as Back beside it.
@@ -668,40 +531,6 @@ class Reader(QtWidgets.QWidget):
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
         self.match_buttons()
-
-    def follow_scale(self) -> None:
-        """The window changed size and has just been restyled. Catch up with it.
-
-        Two things on this screen are sized FROM other widgets rather than from the
-        stylesheet, so neither can be right until the stylesheet has been applied and laid
-        out: the play button, which is twice the height of Back beside it, and the text boxes,
-        whose floor and ceiling are the screen's scale times the chosen size.
-
-        resizeEvent alone is not enough and was the bug. The scale change is noticed in
-        MainWindow.resizeEvent and the restyle is deferred to the next turn of the event loop,
-        so by the time Back is its new height every resizeEvent has already been and gone --
-        the play button went on sitting at twice the height Back used to be, which at 1280 was
-        a 114-pixel circle beside a 37-pixel button.
-        """
-        self.spread.size_the_boxes()
-        self.spread._measured = None
-        self.match_buttons()
-        self.spread.repaginate()
-        self.say_where()
-
-    def resize_text(self, at: int) -> None:
-        """One of the three A's was touched.
-
-        The page is laid out again at the new size and the setting written down, so the mat
-        opens the next surah -- and starts up tomorrow -- at the size it was left at. Someone
-        who needs the big one needs it every time.
-        """
-        self.spread.set_text_step(at, self.at_verse if self.reciting else None)
-        # The buttons are told as well as asked, so the red one is always the size the page is
-        # actually set at -- including when something other than a finger changes it.
-        self.text_size.set_at(self.spread.text_at)
-        self.say_where()
-        self.win.persist()
 
     def say_where(self) -> None:
         """Only the arrows now: live while there is a page that way, greyed out at the end."""
@@ -801,7 +630,6 @@ class Reader(QtWidgets.QWidget):
             return self.begin_verse()
         if position is None:
             return
-        self.keep_up()
         number = self.spread.verses[self.at_verse].number
         if self.win.word_times.whole_only(self.number, number):
             # One of the twelve where the two texts disagree about where a word ends. Lighting
@@ -810,24 +638,6 @@ class Reader(QtWidgets.QWidget):
             return
         word = self.win.word_times.word_at(self.number, number, position)
         self.spread.highlight_at(self.at_verse, word)
-
-    def keep_up(self) -> None:
-        """Turn the page when the recitation leaves it.
-
-        Without this the reciter walks off the bottom of the page and the lighting simply
-        stops, because highlight_at only lights a verse that is on the page in front of you --
-        so the listener has to turn pages by hand to keep up with a recording. That was just
-        about livable when a surah was a few pages; with the text set large Ya-Sin is thirty
-        four, and it would be the whole of the experience.
-
-        Only while reciting. Someone reading at their own pace, who has turned back a page to
-        look at something, should not be dragged forward.
-        """
-        if not self.reciting:
-            return
-        wanted = self.spread.page_of(self.at_verse)
-        if wanted != self.spread.at:
-            self.spread.go_to(wanted)
 
     def follow_theme(self) -> None:
         self.spread.follow_theme()

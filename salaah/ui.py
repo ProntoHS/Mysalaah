@@ -29,6 +29,8 @@ from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .duamenu import DuaMenu, SAYINGS, SAYINGS_ACROSS
 from .game import GameScreen
+from .kaaba_jigsaw import KaabaJigsawScreen
+from .qibla_quest import QiblaQuestScreen
 from .wudu import WORDS_PX as WUDU_WORDS_PX, Steps, WuduStep
 from .radio import RadioScreen, Stations
 from .duaboard import DuaBoard
@@ -1898,24 +1900,58 @@ class MainWindow(QtWidgets.QWidget):
             self.wudu_menu.deleteLater()
             self.wudu_menu = None
 
-        # Children: what the 7in's fifth tile opens since 1.88, where Wu'du used to be. Two
-        # tiles on a sheet drawn for eighteen, because Harry means to fill the rest and a menu
-        # that changes shape as it fills is worse to live with than one that starts roomy.
-        # Only the two that lead somewhere are asked for, so the sixteen empty squares are
-        # drawing and not buttons: a child pressing one gets nothing, which is the truth.
-        self.children_menu = DuaMenu(self, names=("wudu", "game"), folder="children", across=2)
-        if self.children_menu.ready:
+        # The children's games. The sheet is drawn for eighteen tiles and eleven of them now
+        # carry a game's name and picture, but only the ones BUILT here are asked for, so the
+        # rest are drawing and not buttons: a child pressing one gets nothing, which is the
+        # truth. The alternative -- wiring all eleven and showing "not filled in yet" -- tells
+        # a child they pressed the right thing and the mat let them down.
+        #
+        # WATCH THE TILE NAMES. The sheet Harry drew for 1.89 moved every one of them: the box
+        # the menu used to call "wudu" is now the Prayer Game and the box it called "game" is
+        # Qibla Quest, because Wu'du has gone to the Knowledge menu. assets/children/menu.json
+        # was renamed to follow the pictures, and tools/check_menu_names.py now reads the
+        # words out of the drawing and refuses a menu whose names have drifted from them.
+        self.games: dict[str, QtWidgets.QWidget] = {}
+        for tile, build in (("game", GameScreen),
+                            ("qiblaquest", QiblaQuestScreen),
+                            ("jigsaw", KaabaJigsawScreen)):
+            screen = build(self)
+            # A game whose PICTURE IS THE QUESTION is left off the menu when the picture is
+            # not on the mat -- only the jigsaw says so, and KaabaJigsawScreen.ready explains
+            # why Qibla Quest does not. The others stay and say what is missing on their own
+            # face, which is better than a tile that vanishes for a reason nobody can see.
+            if not getattr(screen, "ready", True):
+                screen.deleteLater()
+                continue
+            screen.leave.connect(self.open_the_children_menu)
+            stack.addWidget(screen)
+            self.games[tile] = screen
+
+        self.children_menu = DuaMenu(self, names=tuple(self.games), folder="children",
+                                     across=6)
+        if self.children_menu.ready and self.games:
             self.children_menu.chose.connect(self.open_from_the_children_menu)
             stack.addWidget(self.children_menu)
         else:
             self.children_menu.deleteLater()
             self.children_menu = None
 
-        # The prayer-time game, behind the children's second tile. Back on it returns to the
-        # menu it was opened from rather than to the front door, the same as a wu'du step.
-        self.game_screen = GameScreen(self)
-        self.game_screen.leave.connect(self.open_the_children_menu)
-        stack.addWidget(self.game_screen)
+        # Knowledge: one tile, Wu'du, on a sheet drawn for eighteen. It is the way back to
+        # the wu'du steps now that the children's menu is eleven games and has no Wu'du on it
+        # -- without this there is no route to them from anywhere in the app.
+        #
+        # The film is Harry's children's launcher with the Prayer Game tile rubbed out, because
+        # the one-tile sheet does not exist yet and the prayer game has moved under Children.
+        # The square it leaves is the drawing's own empty square. When a real Knowledge sheet
+        # arrives it goes in over the top with tools/swap_menu_film.py like any other.
+        self.knowledge_menu = DuaMenu(self, names=("wudu",), folder="knowledge-menu",
+                                      across=1)
+        if self.knowledge_menu.ready and self.wudu_menu is not None:
+            self.knowledge_menu.chose.connect(lambda _: self.open_the_wudu_steps())
+            stack.addWidget(self.knowledge_menu)
+        else:
+            self.knowledge_menu.deleteLater()
+            self.knowledge_menu = None
 
         self.wudu_step = WuduStep(self)
         self.wudu_step.back.connect(self.open_the_wudu_steps)
@@ -2068,6 +2104,9 @@ class MainWindow(QtWidgets.QWidget):
                 and self.section_lists["hadith"].passages.items):
             self.open_the_kinds_of_saying()
             return
+        if which == "knowledge" and getattr(self, "knowledge_menu", None) is not None:
+            self.open_the_knowledge_menu()
+            return
         if which == "children" and getattr(self, "children_menu", None) is not None:
             self.open_the_children_menu()
             return
@@ -2205,31 +2244,47 @@ class MainWindow(QtWidgets.QWidget):
         self.corner_screen.setCurrentWidget(self.hadith_board)
         self.stack.setCurrentWidget(self.corner_page)
 
+    def open_the_knowledge_menu(self) -> None:
+        """Where the Knowledge tile lands: Wu'du, and room for what comes after it."""
+        self.corner_screen.setCurrentWidget(self.knowledge_menu)
+        self.stack.setCurrentWidget(self.corner_page)
+
     def open_the_children_menu(self) -> None:
-        """Wu'du and the prayer-time game. Where the Children tile lands."""
+        """The children's games. Where the Children tile lands."""
         self.corner_screen.setCurrentWidget(self.children_menu)
         self.stack.setCurrentWidget(self.corner_page)
 
     def open_from_the_children_menu(self, which: str) -> None:
-        """A tile on the children's own menu. Only the two that lead somewhere are wired up,
-        and each checks its screen is there: a mat with half its assets copied should land on
-        the menu it came from rather than on nothing."""
-        if which == "wudu" and getattr(self, "wudu_menu", None) is not None:
-            self.open_the_wudu_steps()
-        elif which == "game" and getattr(self, "game_screen", None) is not None:
-            self.open_the_game()
+        """A tile on the children's own menu. Only the games that were built have tiles at
+        all, so an unknown name here means the sheet and the registry have come apart -- do
+        nothing rather than guess, which on this menu would open the wrong game."""
+        if which in self.games:
+            self.open_a_game(which)
 
-    def open_the_game(self) -> None:
-        """The prayer-time game, always from round one -- see GameScreen.start_again."""
-        self.game_screen.start_again()
-        self.corner_screen.setCurrentWidget(self.game_screen)
+    def open_a_game(self, which: str) -> None:
+        """Any of the children's games, always from round one."""
+        screen = self.games[which]
+        screen.start_again()
+        self.corner_screen.setCurrentWidget(screen)
         self.stack.setCurrentWidget(self.corner_page)
 
     @property
+    def game_in_front(self):
+        """Whichever game is on the corner screen now, or None.
+
+        Not "is the prayer game in front" any more. A ring press IS the whole of how a game is
+        played, so this is what decides between playing a game and moving a prayer, and with
+        three games behind the children's menu a press that always went to the prayer game
+        would be a press into a screen nobody is looking at.
+        """
+        if self.stack.currentWidget() is not self.corner_page:
+            return None
+        now = self.corner_screen.currentWidget()
+        return now if now in getattr(self, "games", {}).values() else None
+
+    @property
     def game_open(self) -> bool:
-        return (getattr(self, "game_screen", None) is not None
-                and self.stack.currentWidget() is self.corner_page
-                and self.corner_screen.currentWidget() is self.game_screen)
+        return self.game_in_front is not None
 
     def open_the_wudu_steps(self) -> None:
         """The seven steps. Where the Wu'du tile lands, and where Back on a step returns to."""
@@ -3314,8 +3369,9 @@ class MainWindow(QtWidgets.QWidget):
             return
         # The game is the screen the note above was waiting for: a press here is the whole of
         # how it is played, so it must be caught before move(), which only serves a prayer.
-        if self.game_open:
-            self.game_screen.press(action)
+        playing = self.game_in_front
+        if playing is not None:
+            playing.press(action)
             return
         self.move(action)
 
@@ -3432,7 +3488,7 @@ class MainWindow(QtWidgets.QWidget):
                     if key == Qt.Key.Key_Escape:
                         self.open_the_children_menu()
                     else:
-                        self.game_screen.press(NEXT if key in NEXT_KEYS else BACK)
+                        self.game_in_front.press(NEXT if key in NEXT_KEYS else BACK)
                 return True
             if self.playing:
                 if ev.isAutoRepeat() and (key in NEXT_KEYS or key in BACK_KEYS):

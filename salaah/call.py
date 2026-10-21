@@ -234,16 +234,15 @@ class CallBox(QtWidgets.QDialog):
         self.setObjectName("callBox")
         self.setModal(True)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        # No rounded corners and no border: it covers the screen, so there is no edge for them
-        # to sit on and a white line down the side of a full screen is just a white line.
         self.setStyleSheet(f"""
-            QDialog#callBox {{ background:#000000; }}
+            QDialog#callBox {{ background:#000000; border:{px(3)}px solid #FFFFFF;
+                               border-radius:{px(20)}px; }}
             QDialog#callBox QLabel {{ color:#FFFFFF; background:transparent; }}
-            QLabel#callTitle {{ font-size:{px(52)}px; font-weight:bold; }}
-            QLabel#callMeaning {{ font-size:{px(26)}px; color:#C9C9C9; }}
+            QLabel#callTitle {{ font-size:{px(44)}px; font-weight:bold; }}
+            QLabel#callMeaning {{ font-size:{px(22)}px; color:#C9C9C9; }}
             QDialog#callBox QPushButton {{ background:{BRICK}; color:#FFFFFF; border:none;
                                            border-radius:{px(8)}px; font-size:{px(28)}px;
-                                           font-weight:bold; }}
+                                           font-weight:bold; padding:{px(14)}px {px(34)}px; }}
             QDialog#callBox QPushButton:pressed {{ background:#8E342C; }}
         """)
 
@@ -251,26 +250,9 @@ class CallBox(QtWidgets.QDialog):
         outer.setContentsMargins(px(34), px(20), px(34), px(18))
         outer.setSpacing(px(10))
 
-        # The title, and Stop in the corner beside it.
-        #
-        # The call fills the screen now rather than sitting in a box in the middle of it, and
-        # a button at the bottom of a full screen is a long way from a thumb. Top right, square
-        # and large: it is the only thing on this screen to press, and the one moment somebody
-        # wants it is the moment the mat has started calling out loud in a quiet house.
-        top = QtWidgets.QHBoxLayout()
-        top.setSpacing(px(16))
         head = QtWidgets.QLabel(f"{window.t('call.title')} · {window.t(f'prayer.{prayer}')}")
         head.setObjectName("callTitle")
-        head.setWordWrap(True)
-        top.addWidget(head, 1)
-
-        self.stop_button = QtWidgets.QPushButton(window.t("call.stop"))
-        self.stop_button.setObjectName("callStop")
-        self.stop_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.stop_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.stop_button.clicked.connect(self.accept)
-        top.addWidget(self.stop_button, 0, Qt.AlignmentFlag.AlignTop)
-        outer.addLayout(top)
+        outer.addWidget(head)
 
         body = QtWidgets.QHBoxLayout()
         body.setSpacing(px(32))
@@ -298,23 +280,25 @@ class CallBox(QtWidgets.QDialog):
             lines.addWidget(arabic, 3)
             self.boxes[key] = arabic
 
-            # No meaning at all when the mat is set to Arabic only -- the call is the one
-            # screen where the Arabic is the whole point, and a line of English under each
-            # one is exactly what that setting says not to show.
-            said = QtWidgets.QLabel(row.get("text", {}).get(lang, "") if lang else "")
+            said = QtWidgets.QLabel(row.get("text", {}).get(lang)
+                                    or row.get("text", {}).get("en", ""))
             said.setObjectName("callMeaning")
-            said.setVisible(bool(lang))
             said.setWordWrap(True)
             said.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            said.setLayoutDirection(Qt.LayoutDirection.RightToLeft if lang == "ur"
+            said.setLayoutDirection(Qt.LayoutDirection.RightToLeft if lang in ("ur", "ar")
                                     else Qt.LayoutDirection.LeftToRight)
             said.setContentsMargins(0, 0, 0, px(8))     # the gap goes below the pair, not inside it
             lines.addWidget(said, 0)
         body.addLayout(lines, 5)
         outer.addLayout(body, 1)
 
-        # Nothing along the bottom any more: Stop has gone to the top right, where the thumb
-        # is, and the room it leaves goes to the lines of the call.
+        foot = QtWidgets.QHBoxLayout()
+        foot.addStretch(1)
+        self.stop_button = QtWidgets.QPushButton(window.t("call.stop"))
+        self.stop_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.stop_button.clicked.connect(self.accept)
+        foot.addWidget(self.stop_button)
+        outer.addLayout(foot)
 
         self.follow = QtCore.QTimer(self)
         self.follow.setInterval(self.LINE_TICK)
@@ -323,12 +307,8 @@ class CallBox(QtWidgets.QDialog):
             self.follow.start()
 
     def meaning_language(self) -> str:
-        """The interface language if the call has been translated into it, English if not, and
-        "" -- no meaning under the lines -- when the mat is set to Arabic only."""
-        from .ui import ARABIC_ONLY
+        """The interface language if the call has been translated into it, else English."""
         wanted = getattr(self.win.pack, "lang", "en")
-        if wanted == ARABIC_ONLY:
-            return ""
         rows = self.adhan.words.get("lines", [])
         have = all(row.get("text", {}).get(wanted) for row in rows) if rows else False
         return wanted if have else "en"
@@ -351,48 +331,17 @@ class CallBox(QtWidgets.QDialog):
             box.set_highlight(None)
 
     def fit(self) -> None:
-        """The whole screen but the strip across the top.
-
-        It used to be 88% by 92%, a box sitting on top of the mat with the mat showing round
-        the edge. Harry asked for the full screen and he is right: the call is not a message
-        about something else happening, it IS what the mat is doing, and a margin of prayer
-        times round the outside is the screen arguing with itself. It also buys the Arabic a
-        good deal more room, which is the point of showing it at all.
-
-        The strip stays, though -- "full screen BUT retain the top banner only". It is the one
-        part of the screen that is true wherever you are, and during the call it is the thing
-        worth seeing: where you are, and which prayer the mat has just reached. The call takes
-        everything under it.
-        """
+        """Most of the screen, but not all of it: it is a box on top of the mat, not the mat."""
         parent = self.parentWidget()
         if parent is None:
             return
-        strip = getattr(parent, "banner_height", None)
-        top = strip() if callable(strip) else 0
-        top = max(0, min(int(top), parent.height() // 3))
-        self.resize(parent.width(), parent.height() - top)
-        self.move(parent.x(), parent.y() + top)
-
-    def square_off_the_stop(self) -> None:
-        """Stop is a square, and a big one.
-
-        Sized against the title beside it rather than set in the stylesheet, for the reason the
-        Qur'an screen's play mark is: "Stop" is Arrêter in French and رک جائیں in Urdu, so how
-        wide the word is depends on the language and the face, and is only known once it has
-        been laid out. A fixed size in the stylesheet either clips the long ones or leaves the
-        short ones rattling around.
-        """
-        side = max(self.win.px(92), int(self.height() * 0.11))
-        if self.stop_button.size() != QtCore.QSize(side, side):
-            self.stop_button.setFixedSize(side, side)
-
-    def resizeEvent(self, ev):
-        super().resizeEvent(ev)
-        self.square_off_the_stop()
+        wide, tall = int(parent.width() * 0.88), int(parent.height() * 0.92)
+        self.resize(wide, tall)
+        self.move(parent.x() + (parent.width() - wide) // 2,
+                  parent.y() + (parent.height() - tall) // 2)
 
     def showEvent(self, ev):
         self.fit()
-        self.square_off_the_stop()
         self.drawing.start()
         super().showEvent(ev)
 

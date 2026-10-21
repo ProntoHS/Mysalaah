@@ -16,19 +16,10 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
-# Every language a translation could be offered in, in the order they are offered. A language
-# is only OFFERED when its text is actually on the mat -- languages() looks -- so naming one
-# here costs nothing and leaving one out makes it unofferable. Hindi was left out until 1.84
-# for that second reason: the source the shipped five came from has none, so the mat spoke
-# Hindi with its Qur'an reader empty and no way to fill it.
-LANGS = ("en", "fr", "ur", "es", "zh", "hi", "ru", "pt", "bn")
-
-# Text the owner has a right to read but the mat has no right to pass on. A translation under
-# somebody's copyright can be put here, on one mat, for one family, without ever entering the
-# repository or a signed release -- which is the whole difference between using something and
-# distributing it. Same idea as ~/.salaah/nasheeds, and it is read exactly like the assets
-# folder: an index and one file per surah per language.
-PRIVATE = Path.home() / ".salaah" / "quran"
+# The languages a translation exists for. Hindi is not among them: the source this came from
+# has no Hindi, and showing English to somebody who asked for Hindi would be worse than
+# offering five and saying so.
+LANGS = ("en", "fr", "ur", "es", "zh")
 
 RTL = ("ur",)            # translations that read right to left
 KEEP = 8                 # surahs held in memory at once; a surah is small, a language is not
@@ -55,26 +46,10 @@ class Verse:
 class Quran:
     """The text, read as it is asked for and kept for a moment in case it is asked for again."""
 
-    def __init__(self, assets: Path, private: Path | None = None):
+    def __init__(self, assets: Path):
         self.root = Path(assets) / "content" / "quran"
-        # Where this mat's own licensed text lives, if it has any. Taken as an argument so a
-        # test can point it somewhere harmless rather than at the home folder of whoever is
-        # running the tests.
-        self.private = Path(private) if private is not None else PRIVATE
         self._index: list[Surah] | None = None
         self._verses: OrderedDict[tuple[int, str], list] = OrderedDict()
-
-    def where(self, folder: str, number: int) -> Path | None:
-        """The file holding this surah in this language, private copy first.
-
-        Private first rather than assets first, because a translation somebody has chosen for
-        their own mat is a deliberate act and should win over the one that came in the box.
-        """
-        for root in (self.private, self.root):
-            path = root / folder / f"{number}.json"
-            if path.is_file():
-                return path
-        return None
 
     @property
     def there(self) -> bool:
@@ -99,23 +74,16 @@ class Quran:
         return None
 
     def languages(self) -> tuple:
-        """The translations actually on this mat, in the order they are offered.
-
-        A folder with nothing in it is not a translation: an interrupted copy would otherwise
-        put a language on the list and then show every surah blank.
-        """
-        return tuple(lang for lang in LANGS
-                     if any((root / lang).is_dir() and any((root / lang).glob("*.json"))
-                            for root in (self.private, self.root)))
+        """The translations actually on this mat, in the order they are offered."""
+        return tuple(lang for lang in LANGS if (self.root / lang).is_dir())
 
     def _read(self, folder: str, number: int) -> list:
         key = (number, folder)
         if key in self._verses:
             self._verses.move_to_end(key)
             return self._verses[key]
-        path = self.where(folder, number)
         try:
-            rows = json.loads(path.read_text(encoding="utf-8")) if path else []
+            rows = json.loads((self.root / folder / f"{number}.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             rows = []
         self._verses[key] = rows
