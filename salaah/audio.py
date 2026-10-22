@@ -209,6 +209,33 @@ class Recitation:
 WHOLE = 3600.0
 
 
+# player -> how to say "play this URL, from wherever it is now, at volume V, no window".
+#
+# A live stream is the same players and a shorter command: there is no seeking to a position
+# in something that has no beginning, and no length to stop after. Every one of these takes a
+# URL exactly where it takes a path, which is why the radio needed no new dependency -- the
+# mat already shells out to whichever of them the Pi has.
+#
+# mpg123 is last and only half here: it plays an mp3 stream and cannot play AAC or HLS, which
+# a good many stations use. The other three can, so a mat with any of them installed should
+# use those; find_streamer prefers them for that reason and nothing else.
+STREAMERS = {
+    "ffplay": lambda u, v: ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet",
+                            "-volume", str(v), str(u)],
+    "mpv": lambda u, v: ["mpv", "--no-video", "--really-quiet", f"--volume={v}", str(u)],
+    "cvlc": lambda u, v: ["cvlc", "--intf", "dummy", "--quiet", "--play-and-exit",
+                          f"--gain={v / 100:.2f}", str(u)],
+    "mpg123": lambda u, v: ["mpg123", "-q", "-f", str(int(32768 * (v / 100) ** 2)), str(u)],
+}
+
+
+def find_streamer() -> str | None:
+    for name in STREAMERS:
+        if shutil.which(name):
+            return name
+    return None
+
+
 class Call:
     """Plays a file from beginning to end, once. The call to prayer.
 
@@ -270,3 +297,83 @@ class Call:
                 self._process.kill()
         self._process = None
         self._started = None
+
+
+class Stream:
+    """Plays a live stream, and keeps playing until it is stopped.
+
+    The radio. Its own class rather than a flag on Call, because the two differ in the one
+    way that matters to everything around them: a call ends, and a station does not. Call is
+    watched for the moment it finishes so the notice can close itself; a station finishing is
+    not the end of anything, it is a fault -- the network dropped, or the station went off --
+    and the screen says so rather than quietly going back to how it looked before.
+
+    SETTLE is how that is told apart. A player handed a URL it cannot use dies at once; one
+    that is playing stays up. So a station still sounding a couple of seconds later is a
+    station that answered, and one that is not never did. It is a crude test and it is the
+    right one here: the alternative is parsing four players' error output, which differs
+    between them and between versions, to learn something the exit tells us for nothing.
+    """
+
+    SETTLE = 2.5        # seconds; a stream still going after this answered
+
+    def __init__(self, player: str | None = None, volume: int = 80):
+        self.player = player or find_streamer()
+        self.volume = clamp_volume(volume)
+        self._process: subprocess.Popen | None = None
+        self._started: float | None = None
+        self.url = ""
+
+    @property
+    def available(self) -> bool:
+        return self.player is not None
+
+    @property
+    def playing(self) -> bool:
+        return self._process is not None and self._process.poll() is None
+
+    def play(self, url: str) -> bool:
+        """True if the player started. Whether the STATION answered is answered() below --
+        it cannot be known yet, and a prayer mat should not freeze for two seconds to find
+        out."""
+        self.stop()
+        if not self.available or not str(url).strip():
+            return False
+        if self.volume <= MIN_VOLUME:
+            return False
+        try:
+            self._process = subprocess.Popen(
+                STREAMERS[self.player](str(url).strip(), self.volume),
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL)
+        except OSError:
+            self._process = None
+            return False
+        self._started = time.monotonic()
+        self.url = str(url).strip()
+        return True
+
+    def settling(self) -> bool:
+        """Still within the moment where "not playing" might just mean "not started yet"."""
+        return (self._started is not None
+                and time.monotonic() - self._started < self.SETTLE)
+
+    def answered(self) -> bool | None:
+        """True once a station has been sounding long enough to count, False once the player
+        has given up, and None while it is too early to say."""
+        if self._started is None:
+            return None
+        if self.playing:
+            return True if not self.settling() else None
+        return False
+
+    def stop(self) -> None:
+        if self._process is not None and self._process.poll() is None:
+            self._process.terminate()
+            try:
+                self._process.wait(timeout=0.5)
+            except subprocess.TimeoutExpired:
+                self._process.kill()
+        self._process = None
+        self._started = None
+        self.url = ""
