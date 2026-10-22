@@ -31,14 +31,211 @@ FONTS = {
 }
 DEFAULT_FONT = "scheherazade"
 
-# Faces for scripts the system font cannot be relied on to have. Raspberry Pi OS ships neither
-# Chinese nor Devanagari, so without these the meaning column would come out as empty boxes.
-# Each is cut down to only the characters its translation uses, which is why they are a few
-# hundred kilobytes rather than the ten megabytes a whole CJK face would cost.
+# Faces for scripts the system font cannot be relied on to have. Raspberry Pi OS ships none of
+# Chinese, Devanagari or Bengali, so without these the words would come out as empty boxes --
+# and only on the device, never on a desktop that happens to have the fonts.
+# Each is cut down to only the characters it needs, which is why they are a few hundred
+# kilobytes rather than the ten megabytes a whole CJK face would cost.
+#
+# BENGALI IS CUT TO THE WHOLE OF ITS BLOCK rather than to the characters in use, unlike the
+# other two. It is an Indic script: its conjuncts are built by the font's own substitution
+# rules out of letters that may not appear on screen themselves, so cutting to "the characters
+# the words use" is cutting to the wrong set -- and the block entire costs 124 KB, which is
+# cheaper than finding out the hard way which conjunct is missing. GSUB, GPOS and GDEF are
+# kept for the same reason: without them the letters arrive but do not join up.
 SCRIPT_FONTS = {
     "han": "NotoSansSC-Subset.ttf",
     "devanagari": "NotoSansDevanagari-Subset.ttf",
+    "bengali": "NotoSansBengali-Subset.ttf",
 }
+
+
+class ArrowButton(QtWidgets.QPushButton):
+    """A square-shouldered chevron, drawn rather than typed.
+
+    Every way-back and next on the mat used to be the character "‹" set in whatever face
+    the pack is written in, and that is where it went wrong: a guillemet is punctuation, drawn
+    small and light because it belongs beside words, so in a button the size of a thumb it
+    came out as a speck in a slab. Harry: "the <> text is small where as the button its in is
+    big, make both <> big white bold and use a more angular font".
+
+    There is no angular face to reach for -- the mat falls back to whatever the Pi has -- so
+    the chevron is two straight strokes meeting at a point, painted here. It is as big as we
+    say it is at any screen size, it is the same shape in every language, and the weight is a
+    number rather than whatever the font designer thought a quotation mark should weigh.
+
+    The button itself is still a QPushButton with an objectName, so the box around it -- its
+    colour, its corners, its pressed state -- is the stylesheet's business as it was before.
+    """
+
+    # Of the button's height: how tall the chevron stands, and how thick its strokes are.
+    # The height is the A's cap height on the text-size control beside it, which is what
+    # Harry asked them to match; the weight is measured to read as bold rather than drawn.
+    TALL = 0.52
+    WEIGHT = 0.11
+    REACH = 0.42        # how far out the arms come, as a fraction of the chevron's height
+
+    def __init__(self, forward: bool, rtl: bool = False, parent=None):
+        super().__init__("", parent)
+        # Which way the point faces. In Urdu and Arabic the pair swaps corners, so an arrow
+        # that mirrored its position but not its head would point away from where it goes.
+        self.points_left = forward == rtl
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+    def ink(self) -> QtGui.QColor:
+        """White, and a dead grey when there is nothing that way.
+
+        The same grey the stylesheet gives a disabled page arrow, so a button that is drawn
+        here and a button that is drawn by Qt look alike when neither can be pressed.
+        """
+        return QtGui.QColor("white" if self.isEnabled() else "#555555")
+
+    def paintEvent(self, event):
+        super().paintEvent(event)       # the box, from the stylesheet
+        tall = self.height() * self.TALL
+        if tall < 4:
+            return
+        middle = QtCore.QPointF(self.width() / 2, self.height() / 2)
+        reach = tall * self.REACH
+        tip = middle.x() + (-reach / 2 if self.points_left else reach / 2)
+        back = middle.x() + (reach / 2 if self.points_left else -reach / 2)
+        path = QtGui.QPainterPath()
+        path.moveTo(back, middle.y() - tall / 2)
+        path.lineTo(tip, middle.y())
+        path.lineTo(back, middle.y() + tall / 2)
+        pen = QtGui.QPen(self.ink())
+        pen.setWidthF(max(2.0, self.height() * self.WEIGHT))
+        # Mitred and squared off: a round join rolls the point over into a blob at this
+        # weight, which is the opposite of angular.
+        pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        pen.setCapStyle(Qt.PenCapStyle.SquareCap)
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        painter.setPen(pen)
+        painter.drawPath(path)
+
+
+class TextSize(QtWidgets.QWidget):
+    """Three A's, each larger than the last. Touch one to set the text at that size.
+
+    Used by the Qur'an and by the wu'du steps, which is why it lives here rather than in
+    either of them. What the three sizes MEAN is each screen's own business -- the Qur'an
+    fills a page and can take a half as big again twice over, the wu'du steps have a fixed
+    panel and a paragraph that has to stay in it -- so the multipliers belong there and only
+    the control is shared.
+
+    Drawn rather than pictured. Harry sent it as three screenshots -- small chosen, middle
+    chosen, large chosen -- and three pictures would be three files that do not know what size
+    the screen is, do not turn over with the theme, and would need a fourth and a fifth if the
+    row ever grew. It is three rounded squares and a letter, so it is drawn, the way the
+    settings cog on the banner is. The shape, the proportions and the red are measured off his
+    drawing: boxes 123, 140 and 156 wide standing on one line, and #DC1824 on the chosen one.
+
+    The letter in each box is drawn at the size that box stands for, which is the whole point
+    of the control -- the buttons are a picture of what they do.
+    """
+
+    chose = Signal(int)
+
+    CHOSEN = QtGui.QColor("#DC1824")      # off Harry's drawing
+    RESTING = QtGui.QColor("#565656")
+    WIDTHS = (0.79, 0.90, 1.0)            # of the tallest box, as he drew them
+    HEIGHTS = (0.58, 0.79, 1.0)
+    GAP = 0.09                            # of the tallest box
+    TALL = 52                             # the largest box at 1080p, if nobody says otherwise
+
+    def __init__(self, window, at: int = 0, tall: int = 0):
+        super().__init__()
+        self.win = window
+        self.at = at
+        # How big the largest of the three is, at 1080p. The two screens that use this row
+        # want different answers: beside the wu'du arrows, which are big square buttons, the
+        # row was a trinket, so it stands as tall as they do; on the reading bar it is a
+        # little larger than it was and no more, because the bar it sits in is a bar.
+        self.tall = int(tall) or self.TALL
+        self.pressed: int | None = None
+        self.setObjectName("textSize")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        # Fixed, and sized here rather than left to the layout. A row with a stretch in it
+        # gives a widget whatever is left over, which for this one was a sliver of the first
+        # box and two slivers of the others -- the boxes are drawn to a proportion, so being
+        # handed the wrong shape does not shrink them, it clips them.
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed,
+                           QtWidgets.QSizePolicy.Policy.Fixed)
+        self.setFixedSize(self.sizeHint())
+
+    def sizeHint(self) -> QtCore.QSize:
+        tall = self.win.px(self.tall)
+        wide = sum(int(tall * w) for w in self.WIDTHS) + int(tall * self.GAP) * 2
+        return QtCore.QSize(wide, tall)
+
+    def stand_as_tall_as(self, tall: int) -> None:
+        """Make the largest of the three [tall] pixels high, measured on the screen.
+
+        In screen pixels, not 1080p ones, because what it is being matched to is a button
+        whose height the stylesheet works out -- asking the button is the only way to be the
+        same size as it, and it is asked again after every resize.
+        """
+        tall = int(tall)
+        if tall > 0 and tall != self.height():
+            self.tall = max(1, round(tall / max(0.01, getattr(self.win, "s", 1.0))))
+            self.setFixedSize(self.sizeHint())
+
+    def boxes(self) -> list[QtCore.QRectF]:
+        """Where the three sit: bottom-aligned on one line, growing to the right."""
+        tall = self.height()
+        gap = tall * self.GAP
+        wide = sum(tall * w for w in self.WIDTHS) + gap * 2
+        x = (self.width() - wide) / 2
+        out = []
+        for w, h in zip(self.WIDTHS, self.HEIGHTS):
+            box = QtCore.QRectF(x, self.height() - tall * h, tall * w, tall * h)
+            out.append(box)
+            x += box.width() + gap
+        return out
+
+    def set_at(self, at: int) -> None:
+        if at != self.at:
+            self.at = at
+            self.update()
+
+    def paintEvent(self, _):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        for i, box in enumerate(self.boxes()):
+            colour = QtGui.QColor(self.CHOSEN if i == self.at else self.RESTING)
+            if i == self.pressed:
+                colour = colour.lighter(130)
+            painter.setBrush(colour)
+            painter.drawRoundedRect(box, box.width() * 0.14, box.width() * 0.14)
+            font = QtGui.QFont(Fonts.english_family)
+            font.setWeight(QtGui.QFont.Weight(700))
+            font.setPixelSize(max(8, int(box.height() * 0.58)))
+            painter.setFont(font)
+            painter.setPen(QtGui.QColor("white"))
+            painter.drawText(box, int(Qt.AlignmentFlag.AlignCenter), "A")
+            painter.setPen(Qt.PenStyle.NoPen)
+
+    def which(self, point: QtCore.QPointF) -> int | None:
+        for i, box in enumerate(self.boxes()):
+            if box.contains(point):
+                return i
+        return None
+
+    def mousePressEvent(self, event):
+        self.pressed = self.which(event.position())
+        self.update()
+
+    def mouseReleaseEvent(self, event):
+        was, self.pressed = self.pressed, None
+        self.update()
+        here = self.which(event.position())
+        if here is not None and here == was:
+            self.set_at(here)
+            self.chose.emit(here)
 
 
 class Fonts:
@@ -80,11 +277,23 @@ class Fonts:
         Chosen from the letters themselves rather than from the language, so a translation added
         later gets the right face without anything here being changed, and so a bundled face is
         only used where the system one would have failed.
+
+        BY WEIGHT, NOT BY FIRST MATCH. The Indic scripts share their punctuation: Bengali ends
+        a sentence with U+0964 DEVANAGARI DANDA, which lives in the Devanagari block and is the
+        right character to use. Taking the first script seen therefore sent a screenful of
+        Bengali to the Devanagari face on the strength of one full stop -- and silently, because
+        Qt substitutes a face that has the glyphs rather than drawing boxes, so it looked right
+        in a test and would have come out wrong on a mat with no Bengali font of its own.
+        Counting cannot be fooled that way: fifty-five Bengali letters outvote one danda.
         """
-        if any(is_han(ch) for ch in text):
-            return cls.scripts.get("han") or cls.english_family
-        if any("ऀ" <= ch <= "ॿ" for ch in text):
-            return cls.scripts.get("devanagari") or cls.english_family
+        counts = {
+            "han": sum(1 for ch in text if is_han(ch)),
+            "devanagari": sum(1 for ch in text if "ऀ" <= ch <= "ॿ"),
+            "bengali": sum(1 for ch in text if "ঀ" <= ch <= "৿"),
+        }
+        script, how_many = max(counts.items(), key=lambda pair: pair[1])
+        if how_many:
+            return cls.scripts.get(script) or cls.english_family
         return cls.english_family
 
 
@@ -286,9 +495,9 @@ class TextBox(QtWidgets.QWidget):
         self.highlight_color: str | None = None   # None: the theme's red
         self.lines: list[str] = []
         self.scale = 1.0
-        # Normally the box picks the biggest size its text will fit at. Pinning overrides that, for
-        # when something outside the box has to agree with it -- the daily passages, where the
-        # Arabic and the English underneath are set to one size between them.
+        # Normally the box picks the biggest size its text will fit at. Pinning overrides that,
+        # for when something outside the box has to agree with it: two boxes side by side that
+        # would otherwise be set at different sizes and read as two different voices.
         self.pinned: int | None = None
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
 

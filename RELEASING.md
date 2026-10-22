@@ -192,6 +192,69 @@ new version will not start it puts the old one back without being asked.
 | Two zips in the staging folder | step 0 was skipped; one of them will get attached by mistake |
 | Nothing in `..\salaah-release` to attach | `sign_release.py` refused and said so. Almost always `$v` holding the old version because it was read before step 1 put the new files in. Re-read `$v` and sign again |
 
+## Build it in a clone, never in a folder you happen to have
+
+**1.89 went out broken and the code was never the problem.** It is worth the whole of this
+section because nothing in step 1 would have caught it, and step 0b said the zip was fine.
+
+The changes were unpacked into a folder on the Desktop that was a git clone but whose working
+tree held an **old copy of the app** -- sixteen files from an earlier era, sitting there
+unnoticed. `git add -A` cannot tell "files I just added" from "files that have quietly reverted
+by nineteen versions", so the commit took `ArrowButton` and `TextSize` out of `render.py`, took
+410 lines out of `mosque.py`, 262 out of `reading.py`, 127 out of `passages.py`, and deleted
+`audio.py` altogether. Then a correctly built, correctly signed release was made from it.
+
+The mat downloaded it and died in under a second:
+
+    ImportError: cannot import name 'ArrowButton' from 'salaah.render'
+
+with `ArrowButton` plainly on line 53 of the `render.py` in the repository. The guard rolled it
+back three times and the mat never showed a thing. It was published as 1.90 in the end, because
+the v1.89 tag already had the broken zip on it and replacing an asset under an existing tag
+means the CDN can serve the old bytes against a freshly signed hash -- which the mat refuses,
+correctly, in a way that looks like a different fault entirely.
+
+So:
+
+- **Unpack changes into a fresh clone**, not into a folder that has been on the Desktop for
+  nineteen versions. `git clone` into a path that already exists refuses with
+  `destination path ... already exists and is not an empty directory` -- read that line. It
+  means every command after it ran somewhere you did not choose.
+- **`git status` saying "working tree clean" after unpacking is not reassurance**, it is the
+  alarm. Step 1 says so. It can also mean the tree was committed earlier in a state nobody
+  checked.
+- **Read `git diff --stat` before committing.** A release that adds two games should not be
+  deleting a thousand lines from six files you never opened. One look at the `-` column says
+  more than any test.
+
+## Files left behind on mats
+
+A changes zip **adds and replaces; it never deletes**. A picture or a film taken out of the tree
+stays on every mat that already has it, for good, unless somebody removes it by hand. None of
+them does any harm -- nothing reads them -- but they sit there taking up card, and a stray
+`wudu.png` in `assets/children` is exactly the sort of thing that misleads whoever next reads
+the folder trying to work out what the menu is made of.
+
+So the list, newest first. On the Pi, in the app folder:
+
+    rm assets/knowledge/wudu.png assets/knowledge/kalima.png assets/knowledge/nasheeds.png
+    rm assets/children/wudu.png
+
+**1.89** took all four out of the tree:
+
+- `assets/knowledge/wudu.png` -- the main menu's Wu'du tile, gone since 1.88 when Children took
+  its square. Wu'du is now one press behind Knowledge, which has its own drawing in
+  `assets/knowledge-menu`.
+- `assets/knowledge/kalima.png`, `assets/knowledge/nasheeds.png` -- the six kalima moved to the
+  du'a menu, and Nasheeds became Radio at 1.70. Both stills outlived their tiles by nineteen
+  versions.
+- `assets/children/wudu.png` -- the children's menu is eleven games at 1.89 and has no Wu'du
+  tile on it at all.
+
+The other eight stills in `assets/knowledge` were **replaced**, not removed: the main menu went
+from eight tiles in four rows to ten in five, so every box is a different shape and all ten
+stills were recut from the new film. Those arrive in the zip like any other changed file.
+
 ## When `run.sh` changes
 
 `run.sh` is **not** in the zip, and an update never replaces it. That is deliberate: it is the

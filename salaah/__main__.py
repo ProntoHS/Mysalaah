@@ -56,8 +56,42 @@ def write_it_down(why: BaseException) -> None:
         pass        # a mat that cannot write its own log still has to show the real error
 
 
+def fall_over(kind, why, tb) -> None:
+    """An exception that escaped while the app was RUNNING, from inside a Qt slot.
+
+    The net at the bottom of this file only catches what escapes main(), and nothing escapes
+    main() once the event loop is going: an exception raised in a slot is handed to
+    sys.excepthook and the loop carries on. What happens then depends on the toolkit, and the
+    two do not agree -- PyQt6 prints it and aborts the process, PySide6 prints it and keeps
+    going with whatever half-finished state the slot left behind. Measured, not assumed: the
+    same deliberate error gives exit 134 under one and exit 0 under the other.
+
+    Since 1.64 run.sh starts the app again after a crash, so dying is the better of the two:
+    the mat comes back in a known state within a couple of seconds. This makes both toolkits
+    do that, and writes the traceback to the log that survives a rollback on the way out --
+    which is the only record there will be, since the screen is about to be replaced by a
+    fresh copy of the app.
+
+    os._exit, not sys.exit: raising SystemExit inside an exception hook does not leave, it is
+    reported as another unhandled exception. The screens are handed back first, because _exit
+    runs no cleanup and a mat that crashed while asleep would otherwise stay dark -- belt and
+    braces with the switch-on at startup in ui.py, since either alone would do it.
+    """
+    write_it_down(why)
+    traceback.print_exception(kind, why, tb)
+    try:
+        from .power import Outputs
+        Outputs().set(True)
+    except Exception:
+        pass
+    import os
+    sys.stderr.flush()
+    os._exit(1)
+
+
 if __name__ == "__main__":
     try:
+        sys.excepthook = fall_over
         from .main import main
         sys.exit(main())
     except SystemExit:

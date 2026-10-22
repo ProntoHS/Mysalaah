@@ -106,6 +106,14 @@ def swap(folder: Path, lang: str, sheet: Path, force: bool = False) -> int:
                        + [0] * (768 - 3 * len(GREYS)))
     keep = [f.convert("RGB").quantize(palette=palette, dither=Image.Dither.NONE)
             for f in frames]
+    # DROP ANY TRANSPARENCY. The films started arriving with a transparent background, and
+    # convert("RGB") turns that palette index into an RGB TUPLE in info, which Pillow's GIF
+    # writer then tries to pack into one byte and dies on -- the fault that ate the English
+    # film. It is nothing to preserve: these menus are re-written in the four greys above, so
+    # a transparent background becomes one of those greys regardless, and every film already
+    # in the tree has no transparency at all. This makes the new ones match.
+    for f in keep:
+        f.info.pop("transparency", None)
     said = [f.convert("RGB").quantize(palette=palette, dither=Image.Dither.NONE)
             for f in was]
 
@@ -124,8 +132,23 @@ def swap(folder: Path, lang: str, sheet: Path, force: bool = False) -> int:
                   f"{len(keep)} frames, worst {int(apart.max())} of 255")
 
     hold = out.stat().st_size
-    keep[0].save(out, save_all=True, append_images=keep[1:], loop=0,
-                 duration=held, optimize=True, disposal=1)
+    # WRITTEN BESIDE, THEN MOVED INTO PLACE. This used to save straight over the film it was
+    # replacing, and the first time Pillow raised partway through a save -- a transparent GIF
+    # whose transparency index is a tuple, which this version will not write -- it left the
+    # English children's film as an 800-byte stub where 95KB of menu had been. Every check
+    # above exists to avoid shipping a wrong menu, and none of them is worth anything if the
+    # write itself can destroy the thing being checked.
+    beside = out.with_suffix(out.suffix + ".new")
+    try:
+        keep[0].save(beside, format="GIF", save_all=True, append_images=keep[1:], loop=0,
+                     duration=held, optimize=True, disposal=1)
+        with Image.open(beside) as check:          # it has to open, and be the right film
+            if check.size != frames[0].size or getattr(check, "n_frames", 1) != len(keep):
+                raise SystemExit(f"{beside.name} came back as {check.size} with "
+                                 f"{getattr(check, 'n_frames', 1)} frames; not written")
+        beside.replace(out)
+    finally:
+        beside.unlink(missing_ok=True)
     print(f"  {out.name}: {sheet.stat().st_size / 1e6:.2f}MB in, "
           f"{hold / 1e6:.2f}MB before, {out.stat().st_size / 1e6:.2f}MB now")
     return 0

@@ -28,9 +28,14 @@ from .side import SideWindow
 from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .duamenu import DuaMenu, SAYINGS, SAYINGS_ACROSS
+from .build_the_salaah import BuildTheSalaahScreen
+from .five_pillars_sorter import FivePillarsSorterScreen
 from .game import GameScreen
 from .kaaba_jigsaw import KaabaJigsawScreen
 from .qibla_quest import QiblaQuestScreen
+from .second_row_games import (ArabicLetterMatchScreen, CharityCounterScreen,
+                               IslamicPatternBuilderScreen, MosqueMannersScreen,
+                               RamadanCalendarScreen, TasbihCounterScreen)
 from .wudu import WORDS_PX as WUDU_WORDS_PX, Steps, WuduStep
 from .radio import RadioScreen, Stations
 from .duaboard import DuaBoard
@@ -1912,9 +1917,18 @@ class MainWindow(QtWidgets.QWidget):
         # was renamed to follow the pictures, and tools/check_menu_names.py now reads the
         # words out of the drawing and refuses a menu whose names have drifted from them.
         self.games: dict[str, QtWidgets.QWidget] = {}
+        # In the order Harry drew them on the sheet, so the registry reads like the menu.
         for tile, build in (("game", GameScreen),
                             ("qiblaquest", QiblaQuestScreen),
-                            ("jigsaw", KaabaJigsawScreen)):
+                            ("jigsaw", KaabaJigsawScreen),
+                            ("build", BuildTheSalaahScreen),
+                            ("pillars", FivePillarsSorterScreen),
+                            ("charity", CharityCounterScreen),
+                            ("manners", MosqueMannersScreen),
+                            ("ramadan", RamadanCalendarScreen),
+                            ("arabic", ArabicLetterMatchScreen),
+                            ("tasbih_game", TasbihCounterScreen),
+                            ("pattern", IslamicPatternBuilderScreen)):
             screen = build(self)
             # A game whose PICTURE IS THE QUESTION is left off the menu when the picture is
             # not on the mat -- only the jigsaw says so, and KaabaJigsawScreen.ready explains

@@ -15,20 +15,48 @@ class Settings:
     brightness: int = 100  # 10-100: the monitor's own backlight, over the cable (DDC/CI).
                            # On a monitor that will not take instruction this dims the prayer
                            # screen with a veil instead, which looks darker without saving power.
-    translation: str = ""  # "" for Arabic only, or a language in content/translations (en, fr)
+    # "translation" (the meaning shown beside the Arabic) was a setting of its own until 1.58.
+    # It asked the same question as `lang` and could disagree with it, so it has gone; `lang`
+    # decides the meaning now, and lang == "ar" means no meaning at all. Old settings.json
+    # files may still carry the key -- load() ignores what it does not know, so it just goes.
     figure: str = "boy"  # whose posture pictures to show: a set in assets/postures
     theme: str = "auto"  # "auto" (dark from Maghrib to sunrise), "light" or "dark"
     cursor: bool = True  # show the mouse pointer (turn off in Settings for a touchscreen alone)
     arabic_font: str = "scheherazade"  # a key from render.FONTS
-    inset: int = 0  # pixels kept clear on every edge, if the monitor cuts them off
+    text_step: int = 0        # how large the Qur'an is set: 0, 1 or 2, chosen by the three A
+                              # buttons on the reading bar. Each step is half as big again as
+                              # the one before -- see reading.TEXT_STEPS. Kept here rather than
+                              # on the Settings screen because it is a thing you reach for
+                              # while reading, with the page in front of you.
+    wudu_text_step: int = 0   # the same question for the wu'du steps, which have their own row
+                              # of three A buttons beside the arrows. A separate setting because
+                              # the two screens are read at different distances -- the Qur'an
+                              # sitting down, the wu'du standing at a basin -- and because the
+                              # steps give the words less room, so the sizes differ: see
+                              # wudu.WUDU_SIZES against reading.TEXT_STEPS.
+    # "inset" -- pixels kept clear on every edge for a monitor that cut them off -- went in
+    # 1.81. Harry: "get rid of edge of the screen option completely - not needed". It was a
+    # remedy for overscan, which is a television's problem rather than a monitor's, and the
+    # mat has a monitor. A screen that ever does cut its edges off has the Pi's own overscan
+    # settings in /boot/firmware/config.txt, which is where that belongs. Old settings.json
+    # files may still carry the key; load() ignores what it does not know, so it just goes.
     main_output: str = ""  # the screen the words went on last time, e.g. HDMI-A-1
     side_output: str = ""  # the 7" posture screen last time; both are worked out if they are wrong
     recitation: bool = True  # play the recorded recitation and follow the words in red
+    meaning: bool = True      # show the meaning beside the Arabic during a prayer.
+                              # NOT the "translation" setting that went in 1.58, which asked
+                              # WHICH language the meaning was in and so could disagree with
+                              # `lang`. This asks only whether to show it, and it is reached
+                              # from the prayer screen itself rather than from Settings --
+                              # the same kind of setting as text_step, a thing you reach for
+                              # with the screen in front of you. Before this, praying with
+                              # the Arabic alone meant setting the whole mat to Arabic only,
+                              # which took the menus with it.
     volume: int = 80  # 0-100: how loud the recitation is, set by the bar on the prayer screen
-    quran_lang: str = ""      # the meaning shown beside the Qur'an: "" for Arabic alone, or
-                              # en/fr/ur/es/zh. Kept apart from `translation`, which is the
-                              # meaning shown during a prayer -- reading and praying are not
-                              # the same thing and may well want different languages.
+    # "quran_lang" went the same way as "translation" in 1.58. It was the meaning shown beside
+    # the Qur'an, set by a row of buttons on the reading bar, and it was the third place the mat
+    # asked a question it now asks once. `lang` decides it, and lang == "ar" means the Arabic
+    # takes both pages with no meaning beside it.
     azaan: bool = True        # call to prayer when a prayer falls due
     sleep_after: int = 3      # minutes with nothing pressed before the screens go off; 0 never.
                               # Not on the Settings screen: two more rows there would push a
