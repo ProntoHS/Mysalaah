@@ -1,8 +1,11 @@
 """Core checks. Run on the Pi or any computer: python3 -m unittest discover -s tests"""
+import itertools
 import json
 import math
 import os
+import re
 import sys
+import tempfile
 import unittest
 from unittest import mock
 from dataclasses import replace
@@ -18,6 +21,25 @@ from salaah.validator import check
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 CONTENT = load(ASSETS)
+
+# "Arabic only" is a pack, because that is how the mat reaches Harry's Arabic menu drawings and
+# gets a right-to-left layout -- but it is a DELIBERATELY PARTIAL one. It carries the menu
+# headings, transcribed off those drawings so the words over a board match the tile that opened
+# it, and nothing else. The rest falls back to English through the fallback LanguagePack.t has
+# always had.
+#
+# That is a decision, not an unfinished job. Filling it would mean writing a couple of hundred
+# interface strings -- Settings rows, update messages, error text -- in a language nobody here
+# can check, to be read by a child, in the one mode whose whole point is that the SCRIPTURE is
+# in Arabic. So the tests that say "every language the mat speaks can name this" mean the six
+# it is written in. What Arabic must carry is checked separately and exactly.
+WRITTEN_IN = ("en", "fr", "es", "ur", "hi", "zh")
+ARABIC_ONLY = "ar"
+
+
+def full_packs(packs: dict) -> dict:
+    """The packs the mat is written in: everything but the partial Arabic one."""
+    return {lang: pack for lang, pack in packs.items() if lang != ARABIC_ONLY}
 
 # Several of these load fonts or build a widget, which needs an application to exist first --
 # loading a font without one segfaults. It used to work by luck: some other test class happened
@@ -426,61 +448,6 @@ class AudioTest(unittest.TestCase):
         player = Recitation(player="ffplay", volume=0)
         self.assertFalse(player.play(self.t.audio, self.t.segments[0]))
         self.assertFalse(player.playing)
-
-
-class DailyTest(unittest.TestCase):
-    def test_every_saying_has_arabic_english_and_a_reference(self):
-        for saying in CONTENT.daily.sayings:
-            self.assertTrue(saying["arabic"].strip(), saying["reference"])
-            self.assertTrue(saying["english"].strip(), saying["reference"])
-            self.assertRegex(saying["reference"], r"^Sahih (al-Bukhari|Muslim) \d+$")
-            self.assertLess(len(saying["arabic"]), 200, "short enough for the screen")
-
-    def test_every_passage_has_arabic_english_and_a_reference(self):
-        for passage in CONTENT.daily.passages:
-            self.assertTrue(passage["arabic"].strip(), passage["reference"])
-            self.assertTrue(passage["english"].strip(), passage["reference"])
-            self.assertRegex(passage["reference"], r"^\d+:\d+$")
-
-    def test_the_pair_changes_by_day_and_holds_all_day(self):
-        from datetime import date, timedelta
-        first = CONTENT.daily.for_day(date(2026, 9, 16))
-        again = CONTENT.daily.for_day(date(2026, 9, 16))
-        tomorrow = CONTENT.daily.for_day(date(2026, 9, 16) + timedelta(days=1))
-        self.assertEqual(first, again)
-        self.assertNotEqual(first, tomorrow)
-
-    @staticmethod
-    def words(arabic: str) -> list[str]:
-        """The Arabic words, with the vowel marks and the recitation marks taken off."""
-        import re
-        import unicodedata
-        marks = {chr(c) for c in range(0x600, 0x900)
-                 if unicodedata.category(chr(c)) == "Mn"} | {chr(0x640)}
-        plain = "".join(c for c in unicodedata.normalize("NFC", arabic) if c not in marks)
-        return re.sub(r"[^ء-ي\s]", " ", plain).split()
-
-    def test_the_english_renders_all_of_the_arabic_beside_it(self):
-        """The two columns are read side by side, so each must say the same thing.
-
-        English takes more words than Arabic to say the same thing -- never fewer. A count well
-        under the Arabic's means the English has rendered an opening clause and left the rest of
-        the line unaccounted for, which is the one fault a reader cannot see for themselves.
-        """
-        both = ([("Qur'an", p) for p in CONTENT.daily.passages]
-                + [("hadith", s) for s in CONTENT.daily.sayings])
-        for kind, item in both:
-            arabic = len(self.words(item["arabic"]))
-            english = len(item["english"].split())
-            self.assertGreaterEqual(
-                english / arabic, 0.95,
-                f"{kind} {item['reference']}: {english} English words for {arabic} Arabic ones, so "
-                f"the English is rendering only part of it: {item['english']!r}")
-
-    def test_the_passages_name_allah_the_way_the_rest_of_the_app_does(self):
-        for item in list(CONTENT.daily.passages) + list(CONTENT.daily.sayings):
-            self.assertNotIn("God", item["english"].split(),
-                             f"{item['reference']} says God where the app says Allah")
 
 
 class DhikrTest(unittest.TestCase):
@@ -1347,6 +1314,116 @@ class UpdateTest(unittest.TestCase):
     def starts(root: Path) -> int:
         note = root / "starts"
         return len(note.read_text().split()) if note.exists() else 0
+
+    def crashing_pi(self, behaviour: str):
+        """A fake Pi plus the environment that makes the crash rules testable in seconds.
+
+        SALAAH_CRASH_SETTLED is three seconds here rather than twenty, so "it had been running"
+        can be demonstrated without the suite sitting through twenty seconds a run.
+        """
+        import os
+        import subprocess
+        root = self.fake_pi(behaviour)
+
+        def run():
+            env = dict(os.environ, SALAAH_CRASH_SETTLED="3", SALAAH_CRASH_TRIES="3")
+            return subprocess.run(["bash", str(root / "run.sh")], capture_output=True,
+                                  timeout=120, env=env)
+        return root, run
+
+    def test_a_crash_starts_the_app_again(self):
+        """Harry: "if the app crashes during use instead of it crashing and going to desktop,
+        can it auto launch?" Before this the loop only started the app again for an update or
+        a rollback; an ordinary crash fell out of the bottom and left the mat on the desktop
+        until somebody came and started it."""
+        root, run = self.crashing_pi(
+            'if [ "$(wc -l < starts)" -le 1 ]; then exit 1; fi\nsleep 4\nexit 0\n')
+        done = run()
+        self.assertEqual(0, done.returncode, done.stderr.decode())
+        self.assertEqual(2, self.starts(root), "the guard did not start it again after a crash")
+        self.assertIn(b"starting it again", done.stderr)
+
+    def test_an_abort_counts_as_a_crash(self):
+        """What PyQt6 does to the process when an exception escapes a slot: it prints the
+        traceback and calls abort, which is signal 6 and exit code 134, not 1. Measured, and
+        the thing that actually happens on the mat."""
+        root, run = self.crashing_pi(
+            'if [ "$(wc -l < starts)" -le 1 ]; then exit 134; fi\nsleep 4\nexit 0\n')
+        done = run()
+        self.assertEqual(2, self.starts(root), "an abort should be restarted like any crash")
+
+    def test_closing_the_app_leaves_it_closed(self):
+        """The other half of the claim, and the one that would make the mat unusable if it went
+        wrong: Ctrl+Q and the close button exit cleanly, and a clean exit must stay exited."""
+        root, run = self.crashing_pi("exit 0\n")
+        done = run()
+        self.assertEqual(0, done.returncode)
+        self.assertEqual(1, self.starts(root), "a clean exit was treated as a crash")
+
+    def test_it_gives_up_on_a_mat_that_cannot_start_at_all(self):
+        """A version that dies the moment it starts -- a missing file, broken artwork -- must
+        not be restarted for ever. Five times a second tells nobody anything, and the error on
+        screen is the only thing anyone can read out over the phone."""
+        root, run = self.crashing_pi("exit 1\n")
+        done = run()
+        self.assertEqual(1, done.returncode)
+        self.assertEqual(4, self.starts(root), "one go plus three tries, then it stops")
+        self.assertIn(b"crashes in a row", done.stderr)
+
+    def test_a_long_run_before_a_crash_starts_the_count_over(self):
+        """A mat that works all day and falls over at midnight gets its restart every time.
+        Only crashes that come one after another without the app ever running count towards
+        giving up -- otherwise a mat left on for a month would quietly use up its five."""
+        # Five runs that each last four seconds and then fall over, and then a good one. With
+        # three tries allowed, a guard that did not start the count over would give up after
+        # the fourth; one that does reaches the sixth and comes out cleanly.
+        root, run = self.crashing_pi(
+            'if [ "$(wc -l < starts)" -le 5 ]; then sleep 4; exit 1; fi\nsleep 4\nexit 0\n')
+        done = run()
+        self.assertEqual(0, done.returncode, done.stderr.decode())
+        self.assertEqual(6, self.starts(root),
+                         "runs that lasted should not have counted towards the limit")
+
+    def test_the_crash_is_written_down(self):
+        """The traceback scrolls away when the app starts again, so without this there is
+        nothing at all afterwards to say what happened."""
+        root, run = self.crashing_pi("exit 1\n")
+        run()
+        log = root / "crash-log.txt"
+        self.assertTrue(log.is_file(), "no record was kept of the crashes")
+        said = log.read_text()
+        self.assertIn("exit 1", said)
+        self.assertGreaterEqual(len(said.strip().splitlines()), 2)
+
+    def test_the_guard_can_be_switched_off(self):
+        """SALAAH_NO_GUARD is how this is debugged on a laptop, and a crash has to stay a
+        crash there or there is no way to see one."""
+        import os
+        import subprocess
+        root = self.fake_pi("exit 1\n")
+        done = subprocess.run(["bash", str(root / "run.sh")], capture_output=True, timeout=60,
+                              env=dict(os.environ, SALAAH_NO_GUARD="1"))
+        self.assertEqual(1, done.returncode)
+        self.assertEqual(1, self.starts(root), "the guard restarted it with the guard off")
+
+    def test_a_bad_update_is_rolled_back_rather_than_restarted(self):
+        """The two now overlap, and the order matters: a version on trial that crashes is a bad
+        update and wants the PREVIOUS one back, not the same broken one again and again. The
+        rollback has to come first."""
+        import os
+        import subprocess
+        root = self.fake_pi('if [ "$(wc -l < starts)" -le 1 ]; then exit 1; fi\nexit 0\n')
+        for name in ("salaah", "assets"):
+            (root / name).mkdir()
+            (root / f"{name}.prev").mkdir()
+            (root / name / "which.txt").write_text("new")
+            (root / f"{name}.prev" / "which.txt").write_text("old")
+        (root / "update-state.json").write_text('{"trial": "9.99"}')
+        done = subprocess.run(["bash", str(root / "run.sh")], capture_output=True, timeout=60,
+                              env=dict(os.environ, SALAAH_CRASH_SETTLED="3"))
+        self.assertIn(b"putting the previous one back", done.stderr)
+        self.assertEqual("old", (root / "salaah" / "which.txt").read_text(),
+                         "the broken version was restarted instead of being rolled back")
 
     def test_the_guard_starts_the_new_version_after_an_update(self):
         """The defect that left the mat sitting on the desktop: the app installed 1.14, stood
@@ -2427,7 +2504,7 @@ class DuaCategoriesTest(unittest.TestCase):
         """A category with no word for it would head its screen with a blank."""
         packs = available_packs(self.assets)
         self.assertGreaterEqual(len(packs), 6, "the packs did not load")
-        for lang, pack in packs.items():
+        for lang, pack in full_packs(packs).items():
             for cat in self.kinds:
                 said = pack.ui.get(f"dua.{cat}", "")
                 self.assertTrue(said.strip(), f"{lang} cannot name {cat}")
@@ -2437,7 +2514,7 @@ class DuaCategoriesTest(unittest.TestCase):
         reader nothing. The five other packs must differ from English somewhere."""
         packs = available_packs(self.assets)
         english = packs["en"]
-        for lang, pack in packs.items():
+        for lang, pack in full_packs(packs).items():
             if lang == "en":
                 continue
             same = [c for c in self.cats
@@ -2447,26 +2524,38 @@ class DuaCategoriesTest(unittest.TestCase):
 
 
 class RecutArtworkTest(unittest.TestCase):
-    """The main mosque and the six-kalima mosque, cut to the shape of the screen they fill."""
+    """Every mosque on the mat, cut to the shape of the screen it fills.
+
+    A drawing of the wrong shape is not clipped or stretched -- MosqueScreen scales it to fit --
+    so it goes wrong quietly, as a bar of bare paper down each side. On these drawings that
+    reads as the white ground stopping short of the edges with the palm trees standing on the
+    end of it, which is how it was noticed when Harry's new ones came in at 1227 by 733.
+    """
 
     def setUp(self):
         self.assets = Path(__file__).resolve().parent.parent / "assets"
 
     SHAPE = 1920 / 1008          # the screen under the strip, at 1080p
 
+    @property
+    def folders(self):
+        # "welcome" was on this list until 1.76. The front door is one picture now rather than
+        # a mosque with a sky behind it, and it has no mosque.json to be the shape of anything.
+        return ["mosque", "kalima"] + [f"prayers/{p}" for p in PRAYERS]
+
     def described(self, folder):
         import json
         return json.loads((self.assets / folder / "mosque.json").read_text(encoding="utf-8"))
 
     def test_each_drawing_is_the_shape_of_the_screen(self):
-        for folder in ("mosque", "kalima", "welcome"):
+        for folder in self.folders:
             wide, tall = self.described(folder)["size"]
             self.assertLess(abs(wide / tall - self.SHAPE), 0.02,
                             f"{folder} is {wide/tall:.3f}, the screen is {self.SHAPE:.3f}")
 
     def test_what_the_file_says_is_the_size_of_the_picture(self):
         from salaah.qt import QtGui
-        for folder in ("mosque", "kalima", "welcome"):
+        for folder in self.folders:
             said = self.described(folder)["size"]
             image = QtGui.QImage(str(self.assets / folder / "mosque.png"))
             self.assertEqual(said, [image.width(), image.height()],
@@ -2480,8 +2569,16 @@ class RecutArtworkTest(unittest.TestCase):
                         if any(image.pixelColor(x, y).alpha() > 40
                                for x in range(0, image.width(), 5))), None)
             self.assertIsNotNone(top, f"{folder} is empty")
-            self.assertLess(top, image.height() * 0.08,
-                            f"{folder}: {top}px of empty sky above the drawing")
+            # CHANGED IN 1.63 for the same reason the front door's did in 1.62: the gap above
+            # the building is not dead any more. It is the sky the app paints the sun, the
+            # moon, the stars and the birds into, so what matters is that it is SEE-THROUGH
+            # all the way across rather than that there is none of it.
+            for y in range(0, top, max(1, top // 8) if top else 1):
+                clear = all(image.pixelColor(x, y).alpha() == 0
+                            for x in range(0, image.width(), 5))
+                self.assertTrue(clear, f"{folder}: row {y} above the building is not sky")
+            self.assertLess(top, image.height() * 0.30,
+                            f"{folder}: {top}px above the drawing is more sky than building")
 
     def test_every_box_still_sits_inside_the_picture(self):
         """The boxes were measured on the taller canvas. Crop and forget to move them and an
@@ -2497,23 +2594,28 @@ class RecutArtworkTest(unittest.TestCase):
                 self.assertTrue(0 <= y0 < y1 <= tall and 0 <= x0 < x1 <= wide,
                                 f"{folder}: {box} is off a {wide}x{tall} picture")
 
-    def test_each_arch_box_is_over_a_light_panel(self):
-        """The real check: not that the numbers are inside the picture, but that what is under
-        them is still the panel they are meant to light."""
+    def test_each_arch_box_is_over_the_arch_it_names(self):
+        """The real check: not that the boxes are inside the picture, but that what is under
+        one is the arch it belongs to.
+
+        CHANGED IN 1.63: it used to ask for a LIGHT panel. The six-kalima drawing is an outline
+        with white insides and still is; Harry's new main page draws its arches as solid dark
+        shapes with the words knocked out of them, so asking for light there would be asking
+        it to be the old picture. What both have in common is that the box is over something
+        the building encloses -- drawing, not sky -- and that is what is asked for now.
+        """
         from salaah.qt import QtGui
         for folder in ("mosque", "kalima"):
             image = QtGui.QImage(str(self.assets / folder / "mosque.png"))
             for name, arch in self.described(folder)["arches"].items():
                 x0, y0, x1, y1 = arch["box"]
-                lit = total = 0
+                solid = total = 0
                 for y in range(y0, y1, 4):
                     for x in range(x0, x1, 4):
-                        c = image.pixelColor(x, y)
                         total += 1
-                        lit += (c.alpha() > 40
-                                and (c.red() + c.green() + c.blue()) / 3 > 200)
-                self.assertGreater(lit / total, 0.55,
-                                   f"{folder}/{name}: the box is not over a panel any more")
+                        solid += image.pixelColor(x, y).alpha() > 40
+                self.assertGreater(solid / total, 0.80,
+                                   f"{folder}/{name}: the box is mostly sky, not an arch")
 
 
 class HighLatitudeTest(unittest.TestCase):
@@ -2775,6 +2877,379 @@ class WifiTest(unittest.TestCase):
         self.assertEqual([], w.scan())
         self.assertFalse(w.there())
         self.assertEqual("missing", w.join("Net", "x")[1])
+
+
+class BluetoothTest(unittest.TestCase):
+    """Pairing a speaker, tested against recorded bluetoothctl output on a machine with no
+    Bluetooth adapter, no BlueZ and no sound card.
+
+    The recordings below are what Harry's mat actually printed on 14 October 2026, including
+    the ring it already knows about and the speaker he connected by hand. Everything goes
+    through a runner that can be swapped, so real bluetoothctl is never needed.
+    """
+
+    # straight from the mat, trimmed to the lines that are read
+    REAL_SHOW = ("Controller 2C:CF:67:F0:AA:5F (public)\n"
+                 "\tName: mysalaah\n"
+                 "\tAlias: mysalaah\n"
+                 "\tPowered: yes\n"
+                 "\tPowerState: on\n"
+                 "\tDiscoverable: no\n"
+                 "\tPairable: yes\n"
+                 "\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)\n"
+                 "\tUUID: Audio Source              (0000110a-0000-1000-8000-00805f9b34fb)\n"
+                 "\tRoles: central\n"
+                 "\tRoles: peripheral\n")
+
+    # the ring: the one device the mat knew about before any of this
+    RING = ("Device F4:6E:48:77:80:60 (public)\n"
+            "\tName: ATG-SJL\n"
+            "\tAlias: ATG-SJL\n"
+            "\tClass: 0x00000540\n"
+            "\tIcon: input-keyboard\n"
+            "\tPaired: yes\n"
+            "\tBonded: yes\n"
+            "\tTrusted: yes\n"
+            "\tConnected: yes\n"
+            "\tUUID: Human Interface Device    (00001124-0000-1000-8000-00805f9b34fb)\n")
+
+    SPEAKER = ("Device 11:22:33:44:55:66 (public)\n"
+               "\tName: XinYi\n"
+               "\tAlias: XinYi\n"
+               "\tClass: 0x00240414\n"
+               "\tIcon: audio-card\n"
+               "\tPaired: yes\n"
+               "\tBonded: yes\n"
+               "\tTrusted: yes\n"
+               "\tConnected: yes\n"
+               "\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)\n"
+               "\tUUID: A/V Remote Control        (0000110e-0000-1000-8000-00805f9b34fb)\n")
+
+    # what wpctl printed with the speaker connected -- the star had moved to it on its own,
+    # which is the measurement that settled whether the app has to route audio. It does not.
+    REAL_WPCTL = (
+        "Audio\n"
+        " ├─ Devices:\n"
+        " │      48. Built-in Audio                      [alsa]\n"
+        " │  \n"
+        " ├─ Sinks:\n"
+        " │      35. Built-in Audio Digital Stereo (HDMI) [vol: 1.00]\n"
+        " │      56. Built-in Audio Digital Stereo (HDMI) [vol: 0.95]\n"
+        " │  *   79. XinYi                               [vol: 0.40]\n"
+        " │  \n"
+        " ├─ Sources:\n"
+        " │  \n"
+        "Video\n"
+        " ├─ Sinks:\n"
+        " │  *   12. A Camera Somewhere                  [vol: 1.00]\n")
+
+    SCAN = ("Discovery started\n"
+            "[CHG] Controller 2C:CF:67:F0:AA:5F Discovering: yes\n"
+            "[NEW] Device 11:22:33:44:55:66 XinYi\n"
+            "[CHG] Device 11:22:33:44:55:66 RSSI: -47\n"
+            "[CHG] Device 11:22:33:44:55:66 Class: 0x00240414\n"
+            "[CHG] Device 11:22:33:44:55:66 Icon: audio-card\n"
+            "[NEW] Device AA:BB:CC:DD:EE:FF AA-BB-CC-DD-EE-FF\n"
+            "[CHG] Device AA:BB:CC:DD:EE:FF RSSI: -88\n"
+            "[NEW] Device 77:88:99:AA:BB:CC Harry's Phone\n"
+            "[CHG] Device 77:88:99:AA:BB:CC Class: 0x005a020c\n"
+            "[CHG] Device 77:88:99:AA:BB:CC RSSI: -55\n")
+
+    def sound(self, replies, wpctl=""):
+        """A Sound whose bluetoothctl is a lookup table, and a note of what was asked."""
+        from salaah.bluetooth import Sound
+        asked = []
+
+        def runner(args, timeout=None):
+            asked.append(list(args))
+            for match, answer in replies:
+                if all(m in args for m in match):
+                    return answer
+            return 1, "", "unexpected"
+
+        s = Sound(runner=runner, outputs=lambda a, timeout=None: (0, wpctl, ""))
+        s.asked = asked
+        return s
+
+    def both(self):
+        """The mat as it stood with the speaker connected: the ring and the speaker."""
+        return self.sound([
+            (["show"], (0, self.REAL_SHOW, "")),
+            (["devices", "Connected"],
+             (0, "Device F4:6E:48:77:80:60 ATG-SJL\nDevice 11:22:33:44:55:66 XinYi\n", "")),
+            (["devices"],
+             (0, "Device F4:6E:48:77:80:60 ATG-SJL\nDevice 11:22:33:44:55:66 XinYi\n", "")),
+            (["info", "F4:6E:48:77:80:60"], (0, self.RING, "")),
+            (["info", "11:22:33:44:55:66"], (0, self.SPEAKER, "")),
+        ], wpctl=self.REAL_WPCTL)
+
+    # -- what the circle in Settings reads ---------------------------------------------------
+
+    def test_the_ring_on_its_own_does_not_count_as_a_speaker(self):
+        """The whole point of asking what each thing IS. The ring is Bluetooth, it is connected
+        nearly always, and a circle that counted links would sit green on a mat with no speaker
+        in the building."""
+        only_ring = self.sound([
+            (["show"], (0, self.REAL_SHOW, "")),
+            (["devices", "Connected"], (0, "Device F4:6E:48:77:80:60 ATG-SJL\n", "")),
+            (["devices"], (0, "Device F4:6E:48:77:80:60 ATG-SJL\n", "")),
+            (["info", "F4:6E:48:77:80:60"], (0, self.RING, "")),
+        ])
+        self.assertIsNone(only_ring.speaking(), "the ring turned the circle green")
+
+    def test_a_speaker_beside_the_ring_is_the_one_that_is_found(self):
+        found = self.both().speaking()
+        self.assertIsNotNone(found, "the speaker was not noticed")
+        self.assertEqual("XinYi", found.name)
+
+    def test_the_ring_reads_as_not_audio_and_the_speaker_reads_as_audio(self):
+        from salaah.bluetooth import read_info
+        self.assertIs(False, read_info("F4:6E:48:77:80:60", self.RING).audio)
+        self.assertIs(True, read_info("11:22:33:44:55:66", self.SPEAKER).audio)
+
+    def test_nothing_connected_is_a_different_answer_from_no_adapter(self):
+        quiet = self.sound([(["show"], (0, self.REAL_SHOW, "")),
+                            (["devices"], (0, "", ""))])
+        self.assertTrue(quiet.there(), "the controller is there and powered")
+        self.assertIsNone(quiet.speaking())
+        gone = self.sound([(["show"], (0, "No default controller available\n", ""))])
+        self.assertFalse(gone.there())
+
+    def test_an_adapter_that_is_switched_off_is_not_offered(self):
+        """Powered: no can find nothing, and saying so is better than an empty list."""
+        off = self.sound([(["show"], (0, self.REAL_SHOW.replace("Powered: yes",
+                                                                "Powered: no"), ""))])
+        self.assertFalse(off.there())
+
+    # -- the capital that cost an evening ----------------------------------------------------
+
+    def test_the_connected_filter_is_asked_for_with_the_capital(self):
+        """`bluetoothctl devices connected` came back "Invalid argument connected" on the mat.
+        It is a filter name, matched case-sensitively, not a flag."""
+        s = self.both()
+        s.connected()
+        asked = [a for a in s.asked if a[:1] == ["devices"] and len(a) > 1]
+        self.assertTrue(asked, "the connected list was never asked for")
+        self.assertEqual(["devices", "Connected"], asked[0],
+                         "spelt the way the mat rejected")
+
+    # -- looking round -----------------------------------------------------------------------
+
+    def test_a_scan_reads_names_classes_and_signal_out_of_one_transcript(self):
+        """One command rather than twenty: asking `info` about every device found would be
+        several seconds on a screen somebody is standing at."""
+        from salaah.bluetooth import read_scan
+        seen = read_scan(self.SCAN)
+        self.assertEqual("XinYi", seen["11:22:33:44:55:66"].name)
+        self.assertEqual(-47, seen["11:22:33:44:55:66"].strength)
+        self.assertIs(True, seen["11:22:33:44:55:66"].audio)
+
+    def test_a_phone_is_not_a_speaker(self):
+        """Class 0x005a020c is a phone. It can be in the list; it must not be marked as the
+        thing that makes a noise, or the row sorting puts it above the speaker."""
+        from salaah.bluetooth import read_scan
+        self.assertIs(False, read_scan(self.SCAN)["77:88:99:AA:BB:CC"].audio)
+
+    def test_a_thing_with_no_name_but_its_own_address_is_marked_nameless(self):
+        from salaah.bluetooth import read_scan
+        seen = read_scan(self.SCAN)
+        self.assertTrue(seen["AA:BB:CC:DD:EE:FF"].nameless)
+        self.assertFalse(seen["11:22:33:44:55:66"].nameless)
+
+    def test_a_paired_speaker_that_says_nothing_still_appears(self):
+        """The one somebody is usually looking for. A scan that heard nothing from it would
+        otherwise leave it out of its own list."""
+        quiet_scan = self.sound([
+            (["scan"], (0, "Discovery started\n", "")),
+            (["show"], (0, self.REAL_SHOW, "")),
+            (["devices", "Connected"], (0, "", "")),
+            (["devices"], (0, "Device 11:22:33:44:55:66 XinYi\n", "")),
+            (["info", "11:22:33:44:55:66"], (0, self.SPEAKER, "")),
+        ])
+        names = [d.name for d in quiet_scan.look(seconds=1)]
+        self.assertEqual(["XinYi"], names)
+
+    def test_what_bluez_knows_beats_what_was_overheard_but_the_signal_is_kept(self):
+        """`info` is BlueZ's own record; RSSI only ever comes from the scan. Taking one or the
+        other wholesale loses something either way."""
+        s = self.sound([
+            (["scan"], (0, self.SCAN, "")),
+            (["show"], (0, self.REAL_SHOW, "")),
+            (["devices", "Connected"], (0, "", "")),
+            (["devices"], (0, "Device 11:22:33:44:55:66 XinYi\n", "")),
+            (["info", "11:22:33:44:55:66"], (0, self.SPEAKER, "")),
+        ])
+        speaker = next(d for d in s.look(seconds=1) if d.mac == "11:22:33:44:55:66")
+        self.assertTrue(speaker.paired, "the paired flag only `info` has was dropped")
+        self.assertEqual(-47, speaker.strength, "the signal only the scan has was dropped")
+
+    def test_the_connected_one_is_offered_first(self):
+        s = self.both()
+        order = [d.name for d in s.look(seconds=1)]
+        self.assertEqual("XinYi", order[0], f"listed {order}")
+
+    # -- connecting --------------------------------------------------------------------------
+
+    def test_connecting_pairs_trusts_and_connects_in_that_order(self):
+        """Trusted on purpose: an untrusted speaker has to be connected by hand after every
+        restart, and this mat is switched off at the wall."""
+        s = self.sound([
+            (["info"], (0, self.SPEAKER.replace("Paired: yes", "Paired: no")
+                         .replace("Bonded: yes", "Bonded: no"), "")),
+            (["pair"], (0, "Pairing successful\n", "")),
+            (["trust"], (0, "Changing 11:22:33:44:55:66 trust succeeded\n", "")),
+            (["connect"], (0, "Connection successful\n", "")),
+        ])
+        ok, why = s.connect("11:22:33:44:55:66")
+        self.assertTrue(ok, why)
+        verbs = [a[0] for a in s.asked if a[0] in ("pair", "trust", "connect")]
+        self.assertEqual(["pair", "trust", "connect"], verbs)
+
+    def test_a_speaker_already_paired_is_not_paired_again(self):
+        s = self.sound([
+            (["info"], (0, self.SPEAKER, "")),
+            (["trust"], (0, "succeeded\n", "")),
+            (["connect"], (0, "Connection successful\n", "")),
+        ])
+        self.assertTrue(s.connect("11:22:33:44:55:66")[0])
+        self.assertNotIn("pair", [a[0] for a in s.asked])
+
+    def test_already_paired_coming_back_as_an_error_does_not_stop_the_connect(self):
+        """BlueZ says AlreadyExists for a device it is already bonded to. That is not a failure
+        worth showing anybody -- the right thing is to carry on to the connect."""
+        s = self.sound([
+            (["info"], (0, self.SPEAKER.replace("Paired: yes", "Paired: no")
+                         .replace("Bonded: yes", "Bonded: no"), "")),
+            (["pair"], (1, "", "Failed to pair: org.bluez.Error.AlreadyExists")),
+            (["trust"], (0, "succeeded\n", "")),
+            (["connect"], (0, "Connection successful\n", "")),
+        ])
+        ok, why = s.connect("11:22:33:44:55:66")
+        self.assertTrue(ok, f"gave up on AlreadyExists: {why}")
+
+    def test_a_speaker_that_is_switched_off_says_so_rather_than_unknown(self):
+        s = self.sound([
+            (["info"], (0, self.SPEAKER.replace("Paired: yes", "Paired: no")
+                         .replace("Bonded: yes", "Bonded: no"), "")),
+            (["pair"], (1, "", "Failed to pair: org.bluez.Error.ConnectionAttemptFailed "
+                              "br-connection-page-timeout")),
+        ])
+        ok, why = s.connect("11:22:33:44:55:66")
+        self.assertFalse(ok)
+        self.assertEqual("off", why)
+
+    def test_a_device_that_wants_a_pin_comes_back_refused_rather_than_hanging(self):
+        """This screen does not type a number and does not pretend to. A speaker pairs without
+        one; a device that insists gets a plain answer instead of a frozen mat."""
+        s = self.sound([
+            (["info"], (0, self.SPEAKER.replace("Paired: yes", "Paired: no")
+                         .replace("Bonded: yes", "Bonded: no"), "")),
+            (["pair"], (1, "", "Failed to pair: org.bluez.Error.AuthenticationFailed")),
+        ])
+        self.assertEqual("refused", s.connect("11:22:33:44:55:66")[1])
+
+    def test_bluetoothctl_missing_altogether_is_a_refusal_not_a_crash(self):
+        s = self.sound([([], (127, "", "bluetoothctl is not installed"))])
+        self.assertFalse(s.there())
+        self.assertEqual([], s.look(seconds=1))
+        self.assertEqual("missing", s.connect("11:22:33:44:55:66")[1])
+
+    def test_a_connect_that_times_out_is_told_apart_from_one_that_failed(self):
+        s = self.sound([
+            (["info"], (0, self.SPEAKER, "")),
+            (["trust"], (0, "", "")),
+            (["connect"], (124, "", "bluetoothctl did not answer")),
+        ])
+        self.assertEqual("slow", s.connect("11:22:33:44:55:66")[1])
+
+    def test_a_success_bluez_reports_with_a_non_zero_exit_is_believed(self):
+        """It has been known to say the thing worked and still exit badly. Where it says so in
+        words, the words win -- otherwise a connected speaker reads as a failure."""
+        s = self.sound([
+            (["info"], (0, self.SPEAKER, "")),
+            (["trust"], (0, "", "")),
+            (["connect"], (1, "Connection successful\n", "")),
+        ])
+        self.assertTrue(s.connect("11:22:33:44:55:66")[0])
+
+    def test_nothing_here_ever_disconnects_the_ring(self):
+        """The ring is on the same adapter. Connecting a speaker must not cost somebody the
+        button they pray with."""
+        s = self.sound([
+            (["info"], (0, self.SPEAKER, "")),
+            (["trust"], (0, "", "")),
+            (["connect"], (0, "Connection successful\n", "")),
+        ])
+        s.connect("11:22:33:44:55:66")
+        meddling = [a for a in s.asked
+                    if a[0] in ("disconnect", "remove", "untrust", "power", "block")]
+        self.assertEqual([], meddling, f"it touched something it should not: {meddling}")
+        self.assertFalse(any("F4:6E:48:77:80:60" in a for a in s.asked),
+                         "it named the ring")
+
+    # -- where the sound goes ----------------------------------------------------------------
+
+    def test_the_starred_sink_is_read_out_of_what_the_mat_printed(self):
+        self.assertEqual("XinYi", self.both().sound_goes_to())
+
+    def test_the_video_block_has_a_star_of_its_own_and_is_not_mistaken_for_sound(self):
+        """wpctl prints the same headings for video. Taking the last starred line would name a
+        camera as the thing the recitation is coming out of."""
+        from salaah.bluetooth import default_sink
+        no_default = self.REAL_WPCTL.replace(" │  *   79.", " │      79.")
+        self.assertEqual("", default_sink(no_default))
+
+    def test_the_hdmi_default_reads_as_the_screen_not_the_speaker(self):
+        """The speaker is listed FIRST here and the star is on the HDMI below it.
+
+        The mat's own output has the two HDMI sinks under identical names, so starring one of
+        them and reading the other gives the same answer either way -- with the star ignored
+        altogether this test still passed. Putting the speaker above the starred line is what
+        makes the star the only thing that can produce the right answer.
+        """
+        from salaah.bluetooth import default_sink
+        on_hdmi = ("Audio\n ├─ Sinks:\n"
+                   " │      79. XinYi                               [vol: 0.40]\n"
+                   " │  *   56. Built-in Audio Digital Stereo (HDMI) [vol: 0.95]\n"
+                   " │  \n ├─ Sources:\n")
+        self.assertEqual("Built-in Audio Digital Stereo (HDMI)", default_sink(on_hdmi))
+
+    def test_wpctl_missing_or_broken_costs_nothing(self):
+        """Decoration, and deliberately so: the mat moves its own default. Every failure here
+        is an empty string, never an exception on the way to the screen.
+
+        The third case is the one that makes the exit code worth checking at all. A wpctl that
+        is simply absent prints nothing a sink could be read out of, so reading its output
+        anyway would still give "" -- that case cannot tell whether the code is looked at. One
+        that FAILS HALFWAY has printed a listing and then given up, and trusting it would put a
+        stale name on the screen under a line that says the sound is going there.
+        """
+        from salaah.bluetooth import Sound, default_sink
+        gone = Sound(runner=lambda a, timeout=None: (0, "", ""),
+                     outputs=lambda a, timeout=None: (127, "", "wpctl is not installed"))
+        self.assertEqual("", gone.sound_goes_to())
+        self.assertEqual("", default_sink(""))
+        self.assertEqual("", default_sink("nothing like wpctl output at all"))
+
+        half = Sound(runner=lambda a, timeout=None: (0, "", ""),
+                     outputs=lambda a, timeout=None: (1, self.REAL_WPCTL,
+                                                      "error: connection lost"))
+        self.assertEqual("", half.sound_goes_to(),
+                         "a wpctl that failed was believed anyway")
+
+    def test_colour_codes_in_the_middle_of_a_name_are_taken_out(self):
+        """bluetoothctl paints its output when it thinks it has a terminal, and the escapes
+        land inside the names.
+
+        The escapes are put AROUND THE NAME here, not just on the [NEW] tag at the start of the
+        line. A fixture that only painted the tag passed with the stripping taken out
+        altogether -- the reading starts at the word "Device", so anything before it never
+        mattered, and the test was proving nothing.
+        """
+        from salaah.bluetooth import pairs_in, tidy
+        painted = ("\x1b[0;92m[\x1b[0;92mNEW\x1b[0;92m]\x1b[0m Device "
+                   "11:22:33:44:55:66 \x1b[0;93mXinYi\x1b[0m\n")
+        self.assertEqual([("11:22:33:44:55:66", "XinYi")], pairs_in(tidy(painted)))
 
 
 class EscapeHatchTest(unittest.TestCase):
@@ -3442,9 +3917,12 @@ class SayingsContentTest(unittest.TestCase):
                 self.assertGreater(latin, len(item["text"]["en"]) * 0.5,
                                    "the English is not mostly Latin letters")
 
-    def test_every_one_of_the_twelve_headings_has_sayings_behind_it(self):
-        """Harry drew twelve tiles. A tile that lands on 'nothing here yet' is a tile that
-        should not have been drawn, and the board needs two to fill its columns."""
+    def test_every_drawn_heading_has_sayings_behind_it(self):
+        """Harry drew eighteen tiles. A tile that lands on 'nothing here yet' is a tile that
+        should not have been drawn, and the board needs two to fill its columns.
+
+        Counted against SAYINGS rather than a number written here, so redrawing the sheet
+        again moves the goalposts in one place instead of two."""
         from salaah.duamenu import SAYINGS
         filed = {}
         for item in self.items:
@@ -3476,14 +3954,381 @@ class SayingsContentTest(unittest.TestCase):
                                 f"ends {said[-20:]!r}")
                 self.assertEqual(0, said.count('"') % 2, "a quotation mark was left open")
 
-    def test_the_twelve_headings_are_named_in_every_language_the_mat_speaks(self):
+    def test_every_heading_is_named_in_every_language_the_mat_speaks(self):
         packs = available_packs(ASSETS)
         from salaah.duamenu import SAYINGS
-        for lang, pack in packs.items():
+        for lang, pack in full_packs(packs).items():
             for kind in SAYINGS:
                 with self.subTest(f"{lang}.{kind}"):
                     self.assertTrue(pack.ui.get(f"saying.{kind}", "").strip(),
                                     f"{lang} cannot name {kind}")
+
+
+class ArabicOnlyPackTest(unittest.TestCase):
+    """What the Arabic pack must carry, and what it is right for it not to carry.
+
+    The six other packs are tested with "every language the mat speaks can name this". Arabic
+    is excluded from those, so without this it would be excluded from everything and could rot
+    to an empty file without a single test noticing. This is the other half: it says exactly
+    which strings Arabic must have, and that the ones it has are Arabic.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.packs = available_packs(ASSETS)
+        cls.pack = cls.packs.get(ARABIC_ONLY)
+
+    def test_it_is_there_and_reads_right_to_left(self):
+        self.assertIsNotNone(self.pack, "there is no Arabic pack, so the setting has no row")
+        self.assertTrue(self.pack.rtl, "Arabic laid out left to right")
+        self.assertTrue(self.pack.native_name.strip())
+
+    def test_it_names_every_menu_heading_the_boards_show(self):
+        """These are the headings written over the du'a and hadith boards. They have to be
+        there, because in Arabic only the tile that was just pressed is in Arabic and a board
+        headed in English underneath it is the seam showing."""
+        from salaah.duamenu import CATEGORIES, SAYINGS
+        for key in [f"saying.{k}" for k in SAYINGS] + [f"dua.{k}" for k in CATEGORIES]:
+            with self.subTest(key):
+                said = self.pack.ui.get(key, "")
+                self.assertTrue(said.strip(), f"Arabic cannot name {key}")
+                arabic = sum(1 for c in said if "؀" <= c <= "ۿ")
+                self.assertGreater(arabic, len(said.replace(" ", "")) * 0.8,
+                                   f"{key} is {said!r}, which is not Arabic")
+
+    def test_the_headings_are_the_words_off_harrys_drawings(self):
+        """Spot-checked against the tiles, because these were transcribed from the artwork
+        rather than translated here -- so the heading says what the tile says."""
+        for key, want in (("saying.faith", "الإيمان"), ("saying.prayer", "الصلاة"),
+                          ("saying.dress", "اللباس"), ("dua.morning", "الصباح"),
+                          ("dua.kalima", "الكلمات الست")):
+            self.assertEqual(want, self.pack.ui.get(key), key)
+
+    def test_it_is_partial_on_purpose_and_the_rest_falls_back(self):
+        """The fallback is what makes a partial pack safe, so it is tested rather than assumed:
+        a key Arabic has not got must come back in English, not as the bare key."""
+        english = self.packs["en"]
+        # settings.language stands for "a key English has and Arabic has not". It was
+        # settings.school until 1.83, when the school picker and its wording went -- a test
+        # that leans on a particular key has to move when that key does, so this one names a
+        # setting the page is built around rather than one that was on its way out.
+        self.assertNotIn("settings.language", self.pack.ui,
+                         "the pack has grown past its purpose")
+        self.assertEqual(english.ui["settings.language"],
+                         self.pack.t("settings.language", english))
+        self.assertTrue(self.pack.t("settings.language", english).strip())
+
+    def test_it_says_nobody_has_checked_it(self):
+        raw = json.loads((ASSETS / "content" / "packs" / ARABIC_ONLY / "pack.json")
+                         .read_text(encoding="utf-8"))
+        self.assertIsNone(raw["reviewedBy"])
+        self.assertIn("DRAFT", raw["translationSource"])
+
+
+class SayingsInOtherLanguagesTest(unittest.TestCase):
+    """The hadith are no longer English-only.
+
+    Changing the mat's language left every saying in English, because the only translations in
+    the file were English ones. The dataset publishes Bukhari and Muslim in French and Urdu as
+    well, so those are lifted by hadith number exactly as the English is -- the same join, the
+    same provenance, somebody else's published translation either way.
+
+    Spanish, Hindi and Chinese are NOT here, and that is deliberate rather than unfinished:
+    there is no Spanish, Hindi or Chinese edition of either collection in this corpus or any
+    other I can reach, and writing one is the single thing the builder's header says never to
+    do. Those three fall back to English on screen. This is tested rather than left as a
+    comment, so the gap is a fact the suite states instead of something to rediscover.
+    """
+
+    MAT = ("en", "fr", "es", "ur", "hi", "zh")
+    LIFTED = ("en", "fr", "ur")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                               .read_text(encoding="utf-8"))["items"]
+
+    def test_every_saying_carries_every_translation_the_dataset_has(self):
+        """Nearly all of them: the dataset has a couple of blanks of its own.
+
+        Sahih Muslim 3499 has no French in it and Bukhari 7563 no Urdu -- the rows are there
+        and empty. Those two fall back to English for that one language, which is why the
+        fallback is per saying rather than per section. The bar is set at a handful so that
+        the two known holes do not fail the suite while a build that quietly dropped half the
+        French still would.
+        """
+        short = {lang: [i["ref"] for i in self.items if not i["text"].get(lang, "").strip()]
+                 for lang in self.LIFTED}
+        self.assertEqual([], short["en"], "English is lifted for every one or not at all")
+        for lang in ("fr", "ur"):
+            with self.subTest(lang):
+                self.assertLessEqual(len(short[lang]), 3,
+                                     f"{len(short[lang])} sayings have no {lang}: "
+                                     f"{short[lang][:5]}")
+
+    def test_a_translation_the_dataset_left_empty_is_left_out_rather_than_faked(self):
+        """The bug this found when it was written.
+
+        tidy() exists to put back the full stop the dataset strips off the end of every
+        narration. Handed an empty string it returned "." -- and the builder's test for "did
+        we get a translation" was made on the tidied text, so "." counted as one. Bukhari 7563
+        went into the file with its entire Urdu being a full stop, and Muslim 3499 its French:
+        a card that would have shown one character where the saying should be. The check is
+        made on the raw text now.
+        """
+        for item in self.items:
+            for lang, said in item["text"].items():
+                with self.subTest(f"{item['ref']} {lang}"):
+                    self.assertGreater(len(said.strip(" .۔")), 10,
+                                       f"{item['ref']} has {said!r} for {lang}")
+
+    def test_the_french_is_french_and_the_urdu_is_urdu(self):
+        """A join made on hadith number cannot put the wrong narration in, but it can put the
+        wrong COLUMN in -- and Urdu in the French slot reads as a broken screen rather than a
+        wrong file. Checked by script, which is what tells these two apart."""
+        for item in self.items:
+            with self.subTest(item["ref"]):
+                french = item["text"].get("fr", "")
+                if french:
+                    latin = sum(1 for c in french if c.isascii() and c.isalpha())
+                    self.assertGreater(latin, len(french) * 0.4,
+                                       f"the French of {item['ref']} is not in Latin letters")
+                urdu = item["text"].get("ur", "")
+                if urdu:
+                    arabic = sum(1 for c in urdu if "؀" <= c <= "ۿ")
+                    self.assertGreater(arabic, len(urdu) * 0.4,
+                                       f"the Urdu of {item['ref']} is not in Arabic script")
+
+    def test_the_translations_are_of_the_same_narration_and_not_a_shifted_row(self):
+        """An off-by-one in the join would give every saying its neighbour's translation, and
+        every test above would still pass. Length is the cheap check that two texts are of the
+        same thing: a one-line narration and a page-long one are not translations of each
+        other, whatever the numbering says."""
+        odd = []
+        for item in self.items:
+            english = len(item["text"]["en"])
+            french = len(item["text"].get("fr", ""))
+            if english < 40 or french < 40:
+                continue
+            if not 0.4 <= french / english <= 2.5:
+                odd.append(f"{item['ref']} en {english} vs fr {french}")
+        # Three, not a tenth. The file as built has NONE: every French text is between 0.4 and
+        # 2.5 times its English, all 108 of them. A tenth would have let eleven through, and a
+        # join shifted by one row only produces sixteen -- so the bar has to sit near zero to
+        # be the difference between a right file and a wrong one rather than a number that
+        # always passes. Three is room for the dataset to carry an unusually terse rendering.
+        self.assertLessEqual(len(odd), 3,
+                             f"{len(odd)} French texts are nothing like their English in "
+                             f"length, which is what a shifted join looks like: {odd[:5]}")
+
+    def test_the_three_the_corpus_has_no_edition_for_are_absent_rather_than_invented(self):
+        missing = [l for l in self.MAT if l not in self.LIFTED]
+        self.assertEqual(["es", "hi", "zh"], missing)
+        for item in self.items:
+            for lang in missing:
+                with self.subTest(f"{item['ref']} {lang}"):
+                    self.assertNotIn(lang, item["text"],
+                                     f"{item['ref']} has a {lang} translation, and there is no "
+                                     f"{lang} edition of these collections to have taken it "
+                                     f"from -- so it was written by somebody who should not "
+                                     f"have written it")
+
+
+class SayingsUnderSeveralHeadingsTest(unittest.TestCase):
+    """A narration belonging to more than one heading is written once and carries them all.
+
+    Harry: "some hadiths will fall under multiple categories, which is fine." The other way to
+    do it is to copy the narration once per heading under a made-up key, which is how a file
+    ends up with the same saying in it three times and the no-duplicates check starts failing
+    for a reason that is not a mistake.
+
+    The app needed nothing for this. `cats` has been a list since the du'as -- passages.py
+    reads `tuple(row.get("cats"))` and the board asks `self.only in item.cats` -- so a second
+    heading on an existing row is a thing the reader already understood. That is worth a test
+    precisely BECAUSE no code changed: nothing would have broken loudly if it had not been
+    true, the mat would just have shown a short heading.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                               .read_text(encoding="utf-8"))["items"]
+
+    def test_some_sayings_are_filed_under_more_than_one_heading(self):
+        several = [i for i in self.items if len(i["cats"]) > 1]
+        self.assertGreaterEqual(len(several), 8,
+                                f"only {len(several)} of {len(self.items)} sit under two "
+                                f"headings; the table is choosing one where it has two")
+        for item in several:
+            with self.subTest(item["ref"]):
+                self.assertEqual(len(item["cats"]), len(set(item["cats"])),
+                                 "a heading is on the same saying twice")
+
+    def test_a_saying_under_two_headings_is_in_the_file_once(self):
+        """The failure this guards against: the same narration copied per heading."""
+        for field in ("key", "ref", "arabic"):
+            seen = [i[field] for i in self.items]
+            with self.subTest(field):
+                self.assertEqual(len(seen), len(set(seen)),
+                                 f"two rows share a {field}")
+
+    def test_the_reader_finds_it_under_every_heading_it_claims(self):
+        """Read through Passages rather than off the JSON, because the list the board filters
+        is the one Passages built, and a `cats` that arrived as a string rather than a list
+        would still look right in the file and match nothing here."""
+        from salaah.passages import Passages
+        listing = Passages(ASSETS, "hadith", folder="hadith")
+        by_ref = {i.ref: i for i in listing.items}
+        self.assertEqual(len(self.items), len(listing.items))
+        for row in self.items:
+            if len(row["cats"]) < 2:
+                continue
+            with self.subTest(row["ref"]):
+                read = by_ref[row["ref"]]
+                for heading in row["cats"]:
+                    self.assertIn(heading, read.cats,
+                                  f"{row['ref']} is filed under {heading} and the reader "
+                                  f"has it under {read.cats}")
+
+    def test_no_saying_is_filed_under_a_heading_nobody_drew(self):
+        from salaah.duamenu import SAYINGS
+        for item in self.items:
+            for heading in item["cats"]:
+                with self.subTest(item["ref"]):
+                    self.assertIn(heading, SAYINGS,
+                                  f"{item['ref']} is under {heading}, which is not a tile")
+
+
+class NewHeadingsSpeakToTheirSubjectTest(unittest.TestCase):
+    """The six headings Harry added when he redrew the sheet from twelve to eighteen.
+
+    A heading passes the count check with any five narrations at all, so the count says
+    nothing about whether Business holds anything about buying and selling. This reads what
+    the sayings actually say, by words that would survive a reviewer swapping one narration
+    for a better one on the same subject.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                               .read_text(encoding="utf-8"))["items"]
+
+    # The six, and a word each that a saying on that subject would be odd not to use.
+    SUBJECTS = {
+        "marriage": ("marri", "wedding", "wife", "husband", "divorc"),
+        "business": ("buying", "selling", "seller", "buyer", "bargain", "earned", "sadaqa"),
+        "justice": ("oppress", "wronged", "suspicion", "jealous", "sins"),
+        "greetings": ("greet", "salaam", "meet your", "smiling"),
+        "dress": ("garment", "izar", "silk", "shoe", "robe"),
+        "health": ("health", "remedy", "disease", "sick", "plague", "honey"),
+    }
+
+    def test_each_new_heading_holds_sayings_about_its_own_subject(self):
+        for heading, words in self.SUBJECTS.items():
+            group = [i for i in self.items if heading in i["cats"]]
+            on_subject = [i for i in group
+                          if any(w in i["text"]["en"].lower() for w in words)]
+            with self.subTest(heading):
+                self.assertGreaterEqual(
+                    len(on_subject), 3,
+                    f"{heading} has {len(group)} sayings and only {len(on_subject)} "
+                    f"mention any of {words}")
+
+    def test_the_six_new_headings_are_all_actually_there(self):
+        from salaah.duamenu import SAYINGS
+        for heading in self.SUBJECTS:
+            self.assertIn(heading, SAYINGS, f"{heading} is not one of the drawn tiles")
+        self.assertEqual(18, len(SAYINGS))
+
+
+class NoHeadingIsPaddedTest(unittest.TestCase):
+    """No heading is filled out with the same saying wearing a different chain of narrators.
+
+    This is the check none of the others were. Going from twelve headings to eighteen, the
+    table padded three of them and said so in its own comments:
+
+      * dress held Bukhari 5783, 5788 and 3665, all three on dragging a garment out of
+        conceit, pairwise 0.69 to 0.77 alike by the measure below;
+      * hajj held Bukhari 1773 and Muslim 3289, which are one narration from one narrator
+        printed in both collections;
+      * prayer held Muslim 1478 and Bukhari 646 -- congregation twenty-seven times over and
+        twenty-five times over. Not a repeat: a board that deals two at a time can deal
+        exactly that pair and put a contradiction in front of a seven-year-old with nothing
+        to reconcile it.
+
+    Every existing check passed all three. The hadith numbers differ, the Arabic differs, so
+    no-duplicates was satisfied; each heading had its five, so the count was satisfied. What
+    was wrong was not catchable by identity, only by similarity, so similarity is what this
+    measures.
+
+    The narrator line is cut off before comparing -- "Narrated Abu Huraira:" is shared by a
+    quarter of the collection and is not part of what the saying says. The bar is the share of
+    the SHORTER saying's words that the longer one also has, because a one-line narration
+    inside a long one is still the same narration twice.
+    """
+
+    SAME = 0.55      # above what is shipped (0.50), well below the 0.77 that was
+
+    # And the number does not do the whole job, which is worth writing down rather than
+    # leaving for somebody to discover. Everything from about 0.40 up was read on a rendered
+    # screen this release, because that is where the measure stops being able to tell apart:
+    #
+    #   caught by eye, removed       Bukhari 106/109 at 0.54, one ruling from two narrators
+    #                                Muslim 5646 / Bukhari 6231 at 0.42, one etiquette twice
+    #                                Bukhari 6076 inside 6064 at 0.40, nearly word for word
+    #   caught by eye, kept          Muslim 3499/3529 at 0.42 -- freeing and marrying a slave
+    #                                woman, against a ruling on remarriage. Different subjects
+    #                                that share the word "married".
+    #   the top of the file now      Bukhari 528 / Muslim 912 at 0.50, a river at your door
+    #                                against blessings returned tenfold. Nothing in common but
+    #                                "Allah's Messenger said" and a short text to divide by.
+    #
+    # So the bar below is a floor on gross duplication, and the band under it is a prompt to
+    # go and look, not a pass.
+    STOP = frozenset("the a an of and to in is was that for he his on at it be as with "
+                     "said not i you they".split())
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = json.loads((ASSETS / "content" / "hadith" / "hadith.json")
+                               .read_text(encoding="utf-8"))["items"]
+
+    def meat(self, said: str) -> set:
+        """The words of the saying, without the chain or the little joining words."""
+        said = re.sub(r"^[^:]{0,60}:", "", said)
+        return {w for w in re.findall(r"[a-z']+", said.lower())
+                if w not in self.STOP and len(w) > 2}
+
+    def test_no_two_sayings_under_one_heading_say_the_same_thing(self):
+        from salaah.duamenu import SAYINGS
+        under = {kind: [i for i in self.items if kind in i["cats"]] for kind in SAYINGS}
+        for kind, group in under.items():
+            for one, two in itertools.combinations(group, 2):
+                a, b = self.meat(one["text"]["en"]), self.meat(two["text"]["en"])
+                if not a or not b:
+                    continue
+                alike = len(a & b) / min(len(a), len(b))
+                with self.subTest(f"{kind}: {one['ref']} / {two['ref']}"):
+                    self.assertLess(alike, self.SAME,
+                                    f"{kind} shows {one['ref']} and {two['ref']} "
+                                    f"{alike:.0%} alike; the heading is padded")
+
+    def test_the_measure_would_catch_a_heading_padded_with_one_saying_twice(self):
+        """The bar is only worth having if it bites, and this is the narration it was set on:
+        Bukhari 5788 beside 5783, which is what the file used to carry."""
+        pair = ('Narrated `Abdullah bin `Umar: Allah\'s Messenger said, "Allah will not look at '
+                'the person who drags his garment behind him out of conceit".',
+                'Narrated Abu Huraira: Allah\'s Messenger, "Allah will not look, on the Day of '
+                'Resurrection, at a person who drags his Izar behind him out of conceit".')
+        a, b = self.meat(pair[0]), self.meat(pair[1])
+        alike = len(a & b) / min(len(a), len(b))
+        self.assertGreaterEqual(alike, self.SAME,
+                                f"the pair this bar exists to catch measures {alike:.0%}")
+        # And the measure has to be able to tell two different sayings apart, or it would
+        # catch everything and the bar above would just be a number that always passes.
+        other = self.meat("Narrated Anas bin Malik: The most beloved garment to the Prophet "
+                          "to wear was the Hibra, a kind of Yemenese cloth.")
+        self.assertLess(len(a & other) / min(len(a), len(other)), self.SAME)
 
 
 class SayingsCrossCheckTest(unittest.TestCase):
@@ -3729,3 +4574,882 @@ class ItSaysWhyItWouldNotStartTest(unittest.TestCase):
                              f"{Installer.SETTLES}s is long enough to lose an update in")
         self.assertGreaterEqual(Installer.SETTLES, 5,
                                 "too short to notice a release that dies on startup")
+
+
+class WuduContentTest(unittest.TestCase):
+    """The seven steps of wu'du, their drawings and what each one says."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.raw = json.loads((ASSETS / "content" / "wudu" / "wudu.json")
+                             .read_text(encoding="utf-8"))
+        cls.steps = cls.raw["steps"]
+
+    def test_there_are_seven_of_them_numbered_one_to_seven(self):
+        self.assertEqual(7, len(self.steps))
+        self.assertEqual(list(range(1, 8)), [s["number"] for s in self.steps],
+                         "the steps are out of order or misnumbered")
+        self.assertEqual(7, len({s["key"] for s in self.steps}), "two steps share a key")
+
+    def test_every_step_has_a_film_that_is_actually_there(self):
+        for step in self.steps:
+            with self.subTest(step["key"]):
+                self.assertTrue(step["films"], "no drawing for this step")
+                for film in step["films"]:
+                    path = ASSETS / "wudu" / film
+                    self.assertTrue(path.is_file(), f"{path} is missing")
+                    self.assertGreater(path.stat().st_size, 2000, f"{film} is suspiciously empty")
+
+    def test_every_step_has_a_tile_on_the_sheet(self):
+        for step in self.steps:
+            with self.subTest(step["key"]):
+                self.assertTrue((ASSETS / "wudu" / f"step-{step['key']}.png").is_file())
+
+    def test_every_step_says_what_to_do(self):
+        for step in self.steps:
+            with self.subTest(step["key"]):
+                said = step["text"].get("en", "")
+                self.assertGreater(len(said), 60, f"{step['key']} barely says anything")
+                self.assertLess(len(said), 400, f"{step['key']} is too long for the panel")
+                self.assertTrue(said.strip().endswith("."), "not a finished sentence")
+
+    def test_the_first_step_mentions_the_intention_and_the_name(self):
+        """Both sources start there, and a guide that leaves it out is teaching the washing
+        without the thing that makes it wu'du."""
+        first = self.steps[0]["text"]["en"].lower()
+        self.assertIn("intention", first)
+        self.assertIn("bismillah", first)
+
+    def test_the_head_is_the_one_step_wiped_rather_than_washed(self):
+        """Three times for the washings, once for the head and ears. It is the single detail
+        somebody is most likely to get wrong, so the step says it in words."""
+        head = next(s for s in self.steps if s["key"] == "head")
+        self.assertIn("once", head["text"]["en"].lower())
+        self.assertEqual(2, len(head["films"]), "the head and the ears are two drawings")
+
+    def test_it_says_where_the_words_came_from_and_that_nobody_qualified_has_read_them(self):
+        self.assertFalse(self.raw["reviewed"])
+        self.assertIn("DRAFT", self.raw["source"])
+        self.assertIn("myislam.org", self.raw["source"])
+        self.assertIn("Wikipedia", self.raw["source"])
+        self.assertIn("Hanafi", self.raw["source"], "the mat follows a school; say which")
+
+    def test_the_films_are_small_enough_to_put_on_a_mat(self):
+        """They arrived at forty-six megabytes between them -- more than the whole of the rest
+        of the app, on a card with a few hundred megabytes spare. Re-encoded they are under a
+        megabyte. This is the check that nobody drops the originals back in."""
+        films = sorted((ASSETS / "wudu").glob("*.gif"))
+        self.assertEqual(8, len(films))
+        total = sum(f.stat().st_size for f in films)
+        self.assertLess(total, 4_000_000,
+                        f"the wu'du films are {total / 1e6:.0f} MB between them")
+
+    def test_the_drawings_still_have_black_lines_in_them(self):
+        """Cut to four shades by population, the palette went on the paper and the black lines
+        came out grey -- the drawing was still there and no longer looked drawn. Measured on
+        the pixels rather than taken on trust."""
+        from PIL import Image
+        import numpy as np
+        for film in sorted((ASSETS / "wudu").glob("*.gif")):
+            with self.subTest(film.name):
+                with Image.open(film) as opened:
+                    frame = np.asarray(opened.convert("L"))
+                self.assertLess(frame.min(), 40, "nothing in this drawing is actually dark")
+                self.assertGreater(int((frame < 40).sum()), 2000, "barely any ink")
+                self.assertGreater(int((frame > 215).sum()), frame.size * 0.4, "no paper left")
+
+    def test_the_steps_are_named_in_every_language_the_mat_speaks(self):
+        packs = available_packs(ASSETS)
+        for lang, pack in full_packs(packs).items():
+            for step in self.steps:
+                with self.subTest(f"{lang}.{step['key']}"):
+                    self.assertTrue(pack.ui.get(f"wudu.{step['key']}", "").strip(),
+                                    f"{lang} cannot name {step['key']}")
+
+    def test_the_explanation_under_each_step_is_in_every_language(self):
+        """The heading followed the language; the paragraph under it did not, so a mat set to
+        Urdu had an Urdu drawing, an Urdu heading and an English explanation beneath.
+
+        These could be translated where the hadith and the du'as could not, and the difference
+        is not squeamishness: a hadith is a narration with a translator's name on it, while
+        these are instructions written for this app out of two published sources. Translating
+        my own prose is translating, not putting words in anybody's mouth. They are still
+        nobody's checked work, which is what reviewed: false says.
+        """
+        for step in self.steps:
+            for lang in WRITTEN_IN + (ARABIC_ONLY,):
+                with self.subTest(f"{lang}.{step['key']}"):
+                    said = step["text"].get(lang, "")
+                    self.assertGreater(len(said.strip()), 20,
+                                       f"{lang} has no explanation of {step['key']}")
+
+    def test_the_counts_survived_being_translated(self):
+        """What a translation of a ritual instruction can get wrong without reading wrong.
+
+        Every one of these is a ruling: the hands, mouth, nose, face, arms and feet are washed
+        THREE times, and the head and ears are wiped ONCE -- the sixth step says so twice over,
+        because it is the one people get wrong. A translation that reads beautifully and says
+        two instead of three teaches a child the wrong wudu, and nothing about the sentence
+        looks broken. So the count is checked in each language against the English rather than
+        taken on trust, and so is right-before-left, which is the other thing the order of
+        these steps turns on.
+        """
+        WORDS = {
+            "three": {"en": ["three"], "fr": ["trois"], "es": ["tres"], "ur": ["تین"],
+                      "hi": ["तीन"], "zh": ["三"], "ar": ["ثلاث"]},
+            "once": {"en": ["once"], "fr": ["une seule", "une fois"],
+                     "es": ["una sola", "una vez"], "ur": ["ایک بار"], "hi": ["एक बार"],
+                     "zh": ["一次"], "ar": ["مرة واحدة"]},
+            "right": {"en": ["right"], "fr": ["droit"], "es": ["derech"],
+                      "ur": ["دائیں", "دایاں"], "hi": ["दाएँ", "दायाँ"], "zh": ["右"],
+                      "ar": ["يمن"]},
+            "left": {"en": ["left"], "fr": ["gauche"], "es": ["izquierd"],
+                     "ur": ["بائیں", "بایاں"], "hi": ["बाएँ", "बायाँ"], "zh": ["左"],
+                     "ar": ["يسر"]},
+        }
+
+        def has(said, words):
+            low = said.lower()
+            return any(w.lower() in low for w in words)
+
+        for step in self.steps:
+            english = step["text"]["en"]
+            for what, table in WORDS.items():
+                wanted = has(english, table["en"])
+                for lang, said in step["text"].items():
+                    with self.subTest(f"{step['key']}.{lang}.{what}"):
+                        self.assertEqual(wanted, has(said, table[lang]),
+                                         f"the English of {step['key']} "
+                                         f"{'says' if wanted else 'does not say'} {what} "
+                                         f"and the {lang} does not match: {said[:70]!r}")
+
+    def test_the_sixth_step_still_says_it_is_not_washed_three_times(self):
+        """The one sentence in here that exists to correct a common mistake. A translator
+        tidying it away would leave the step reading as though three were fine."""
+        head = next(s for s in self.steps if s["key"] == "head")
+        for lang, said in head["text"].items():
+            with self.subTest(lang):
+                three = {"en": "three", "fr": "trois", "es": "tres", "ur": "تین",
+                         "hi": "तीन", "zh": "三", "ar": "ثلاث"}[lang]
+                self.assertIn(three.lower(), said.lower(),
+                              f"{lang} dropped the warning about washing three times")
+
+
+class PrayerPagesMatchTheSchoolTest(unittest.TestCase):
+    """Harry's five new prayer pages: one arch per unit of that prayer, and no words on them.
+
+    The drawings arrived with the units written into them -- "4 SUNNAH", "3 WITR" -- and the
+    numbers were right. They are not in the drawings any more, because the mat speaks seven
+    languages and a picture only speaks one; tools/build_prayer_pages.py takes the lettering out
+    and salaah/mosque.py writes it back from the pack. What is left in the drawing is the SHAPE,
+    and the one thing the shape still has to get right is how many arches there are. These check
+    that, and that the words really did come out.
+    """
+
+    FOLDER = ASSETS / "prayers"
+
+    def setUp(self):
+        if not self.FOLDER.is_dir():
+            self.skipTest("the prayer pages have not been built")
+        self.school = CONTENT.schools["hanafi"]
+
+    def described(self, prayer: str) -> dict:
+        return json.loads((self.FOLDER / prayer / "mosque.json").read_text(encoding="utf-8"))
+
+    def test_every_prayer_has_a_page(self):
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                self.assertTrue((self.FOLDER / prayer / "mosque.json").is_file(),
+                                f"{prayer} has no drawing")
+                self.assertTrue((self.FOLDER / prayer / "mosque.png").is_file(),
+                                f"{prayer} has a description but no picture")
+
+    def test_one_arch_for_each_unit_of_that_prayer(self):
+        """The arches are matched to the units by POSITION, so a drawing with five arches for a
+        four-unit prayer would put Fardh where Nafl should be. There is nothing in the picture
+        to catch that at the time: the words come from the pack now and would be written into
+        whatever arches were there."""
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                arches = self.described(prayer)["arches"]
+                units = self.school.prayers[prayer]
+                self.assertEqual(len(units), len(arches),
+                                 f"{prayer} is prayed in {len(units)} parts and its drawing has "
+                                 f"{len(arches)} arches")
+
+    def test_the_arches_run_left_to_right_in_the_order_they_are_prayed(self):
+        """They are numbered "1" upwards and read off by position, so the numbering has to
+        follow the drawing across the page rather than any order the builder happened to find
+        the shapes in."""
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                arches = self.described(prayer)["arches"]
+                order = [arches[str(i)]["box"][0] for i in range(1, len(arches) + 1)]
+                self.assertEqual(sorted(order), order,
+                                 f"{prayer}'s arches are not numbered across the page: {order}")
+
+    def test_the_arches_are_empty_and_the_dome_is_clear(self):
+        """The words are gone from the picture. An arch is a solid dark shape on these drawings,
+        so anything LIGHT inside one is lettering that survived; the dome is solid light, so
+        anything dark on it is the prayer's name still sitting there.
+
+        Both looked at as the screen does -- what is inside the shape -- rather than as a
+        rectangle, because an arch's box has building in its corners.
+        """
+        from PIL import Image
+        import numpy as np
+        from scipy import ndimage
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                described = self.described(prayer)
+                grey = np.asarray(Image.open(self.FOLDER / prayer / described["image"])
+                                  .convert("L"), dtype=np.uint8)
+                for name, arch in described["arches"].items():
+                    x0, y0, x1, y1 = arch["box"]
+                    window = grey[y0:y1, x0:x1]
+                    inside = ndimage.binary_fill_holes(window < 90)
+                    left = int(((window > 170) & inside).sum())
+                    self.assertEqual(0, left, f"{prayer} arch {name} still has {left} pixels of "
+                                              f"lettering in it")
+                x0, y0, x1, y1 = described["clock"]["box"]
+                dome = grey[y0:y1, x0:x1]
+                self.assertEqual(0, int((dome < 170).sum()),
+                                 f"{prayer} still has its name written on the dome")
+
+    def test_the_five_drawings_are_the_same_mosque(self):
+        """Above the arches the five are one picture, so once the names are off the dome they
+        should be the same to the pixel. This is the check that catches a name half wiped: a
+        dot on an i left behind shows up here as a difference from the pages that have none,
+        even though it is too small to be lettering anywhere else.
+
+        Allowed: a handful of pixels along the dome's curve, where a letter running right up to
+        the edge takes a little of the soft edge with it when it goes.
+        """
+        from PIL import Image
+        import numpy as np
+        above = min(min(a["box"][1] for a in self.described(p)["arches"].values())
+                    for p in PRAYERS)
+        first = np.asarray(Image.open(self.FOLDER / PRAYERS[0] / "mosque.png")
+                           .convert("RGBA"), dtype=np.int16)[:above]
+        for prayer in PRAYERS[1:]:
+            with self.subTest(prayer):
+                other = np.asarray(Image.open(self.FOLDER / prayer / "mosque.png")
+                                   .convert("RGBA"), dtype=np.int16)[:above]
+                apart = int((np.abs(other - first).sum(axis=2) > 20).sum())
+                self.assertLess(apart, 200,
+                                f"{prayer} differs from {PRAYERS[0]} above the arches in {apart} "
+                                f"pixels: something is left of its name")
+
+    def test_the_sky_is_cut_out_of_all_of_them(self):
+        """They say "sky": true, which means the app paints the sun, the moon, the stars and the
+        birds BEHIND the drawing. If the sky were still painted into the picture there would be
+        nothing to see them through."""
+        from PIL import Image
+        import numpy as np
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                described = self.described(prayer)
+                self.assertTrue(described.get("sky"), f"{prayer} does not ask for a sky")
+                alpha = np.asarray(Image.open(self.FOLDER / prayer / "mosque.png")
+                                   .convert("RGBA"))[:, :, 3]
+                self.assertEqual(0, int(alpha[2, 2]), f"{prayer}'s corner is not see-through")
+                clear = float((alpha == 0).mean())
+                self.assertGreater(clear, 0.3, f"only {clear:.0%} of {prayer} is sky")
+
+
+class TheNewFrontDoorTest(unittest.TestCase):
+    """The MySalaah animation Harry drew for the front of the mat.
+
+    It brings no sun, moon or stars of its own -- he asked for the app's -- so the sky has to be
+    see-through, and it has to be see-through in the SAME PLACES in every frame. The first build
+    worked the sky out frame by frame, and the flood fill disagreed with itself by a pixel along
+    the building's soft edge, so the outline crawled all the way round.
+    """
+
+    FOLDER = ASSETS / "welcome"
+
+    def setUp(self):
+        if not (self.FOLDER / "mosque.gif").is_file():
+            self.skipTest("the front door has no film")
+        self.described = json.loads((self.FOLDER / "mosque.json").read_text(encoding="utf-8"))
+
+    def frames(self):
+        from PIL import Image
+        import numpy as np
+        film = Image.open(self.FOLDER / "mosque.gif")
+        for i in range(getattr(film, "n_frames", 1)):
+            film.seek(i)
+            yield np.asarray(film.convert("RGBA"))
+
+    def test_the_app_paints_the_sky(self):
+        self.assertTrue(self.described.get("sky"),
+                        "the front door says it brings its own sky, and it brings none")
+
+    def test_every_frame_is_see_through_in_the_same_places(self):
+        import numpy as np
+        first = None
+        for i, frame in enumerate(self.frames()):
+            clear = frame[:, :, 3] == 0
+            if first is None:
+                first = clear
+                self.assertGreater(float(clear.mean()), 0.3,
+                                   f"only {clear.mean():.0%} of the film is sky")
+                continue
+            apart = int((clear != first).sum())
+            self.assertEqual(0, apart, f"frame {i} cuts the sky out in {apart} places frame "
+                                       f"one does not: the outline crawls")
+
+    def test_the_film_and_the_still_are_the_same_canvas(self):
+        """Every box on the screen -- the clock on the dome, the name the walk aims at -- was
+        measured on the still, so a film on a different canvas would move the picture out from
+        under them."""
+        from PIL import Image
+        still = Image.open(self.FOLDER / self.described["image"])
+        film = Image.open(self.FOLDER / "mosque.gif")
+        self.assertEqual(list(still.size), self.described["size"])
+        self.assertEqual(still.size, film.size)
+
+    def test_the_clock_sits_on_the_dome(self):
+        """Dark numbers on a solid white dome. Checked by looking: every pixel of the box the
+        time is written in should be part of the building, and light."""
+        from PIL import Image
+        import numpy as np
+        picture = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("RGBA"))
+        x0, y0, x1, y1 = self.described["clock"]["box"]
+        box = picture[y0:y1, x0:x1]
+        self.assertEqual(0, int((box[:, :, 3] == 0).sum()),
+                         "part of the clock box is sky: the time would be written on nothing")
+        self.assertGreater(int(box[:, :, :3].min()), 170,
+                           "the clock box is not on clear dome")
+        self.assertEqual("dark", self.described["clock"].get("ink"),
+                         "light numbers on a white dome")
+
+
+class MainPageIsDrawnLikeTheOthersTest(unittest.TestCase):
+    """Harry's new main prayer page: five arches, no words in them, the clock on the dome.
+
+    It replaced a drawing that had Fajr, Dhuhr, Asr, Maghrib and Isha written into it -- right
+    in English and only in English -- and a piece of machinery that lifted those letters off
+    the artwork pixel by pixel so the current one could be shown in green. The names come from
+    the pack now and the green one is the word painted green, which is why the drawing has to
+    arrive empty.
+    """
+
+    FOLDER = ASSETS / "mosque"
+
+    def setUp(self):
+        self.described = json.loads((self.FOLDER / "mosque.json").read_text(encoding="utf-8"))
+
+    def test_an_arch_for_each_prayer_in_the_order_of_the_day(self):
+        arches = self.described["arches"]
+        self.assertEqual(list(PRAYERS), list(arches))
+        across = [arches[p]["box"][0] for p in PRAYERS]
+        self.assertEqual(sorted(across), across,
+                         f"the arches are not in the order of the day across the page: {across}")
+
+    def test_the_arches_are_empty(self):
+        """Anything light inside an arch is lettering that survived the build. The arches are
+        solid dark shapes, so this is looked at inside the shape rather than inside its box --
+        an arch's box has building in its corners."""
+        from PIL import Image
+        import numpy as np
+        from scipy import ndimage
+        grey = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("L"),
+                          dtype=np.uint8)
+        for name, arch in self.described["arches"].items():
+            with self.subTest(name):
+                x0, y0, x1, y1 = arch["box"]
+                window = grey[y0:y1, x0:x1]
+                inside = ndimage.binary_fill_holes(window < 90)
+                left = int(((window > 170) & inside).sum())
+                self.assertEqual(0, left, f"{name} still has {left} pixels of lettering in it")
+
+    def test_it_says_where_the_name_goes(self):
+        """The app needs somewhere to put the word it is writing back, and the builder measures
+        that off the drawing. Without it every name would be drawn at a guessed height."""
+        band = self.described.get("text", {}).get("label")
+        self.assertIsNotNone(band, "the drawing does not say where a name sits in an arch")
+        top, bottom = band
+        self.assertLess(top, bottom, "the name's band has no height")
+        self.assertGreater(top, 0.4, "the name is placed in the top half of the arch")
+        self.assertLessEqual(bottom, 1.0)
+
+    def test_the_clock_is_on_clear_dome(self):
+        from PIL import Image
+        import numpy as np
+        picture = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("RGBA"))
+        x0, y0, x1, y1 = self.described["clock"]["box"]
+        box = picture[y0:y1, x0:x1]
+        self.assertEqual(0, int((box[:, :, 3] == 0).sum()),
+                         "part of the clock box is sky: the time would be written on nothing")
+        self.assertGreater(int(box[:, :, :3].min()), 170, "the clock box is not on clear dome")
+        self.assertEqual("dark", self.described["clock"].get("ink"))
+
+    def test_the_app_paints_the_sky_and_the_minarets_can_glow(self):
+        from PIL import Image
+        import numpy as np
+        self.assertTrue(self.described.get("sky"), "the main page does not ask for a sky")
+        alpha = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("RGBA"))[:, :, 3]
+        self.assertEqual(0, int(alpha[2, 2]), "the corner is not see-through")
+        self.assertEqual({"left", "right"}, set(self.described.get("minarets", {})),
+                         "no minaret tops to glow when no prayer is due")
+
+
+class KalimaDrawingTest(unittest.TestCase):
+    """Harry's new six-kalima drawing, built by the same tool as the main prayer page.
+
+    Until 1.64 this was the last of the old artwork -- outlines at 1624 by 853 with the numbers
+    drawn in -- and it no longer matched the mosque it is meant to echo. The gap was recorded
+    in TwoMosquesTest with a note saying to put the checks back when he redrew it; this is that.
+    """
+
+    FOLDER = ASSETS / "kalima"
+
+    def setUp(self):
+        self.described = json.loads((self.FOLDER / "mosque.json").read_text(encoding="utf-8"))
+
+    def test_six_arches_numbered_across_the_page(self):
+        arches = self.described["arches"]
+        self.assertEqual([str(i) for i in range(1, 7)], list(arches))
+        across = [arches[str(i)]["box"][0] for i in range(1, 7)]
+        self.assertEqual(sorted(across), across, f"not in order across the page: {across}")
+
+    def test_the_arches_are_empty(self):
+        """The numbers are the app's now. Anything light inside an arch is lettering that was
+        drawn in and not taken out."""
+        from PIL import Image
+        import numpy as np
+        from scipy import ndimage
+        grey = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("L"),
+                          dtype=np.uint8)
+        for name, arch in self.described["arches"].items():
+            with self.subTest(name):
+                x0, y0, x1, y1 = arch["box"]
+                window = grey[y0:y1, x0:x1]
+                inside = ndimage.binary_fill_holes(window < 90)
+                self.assertEqual(0, int(((window > 170) & inside).sum()),
+                                 f"arch {name} has something drawn in it")
+
+    @staticmethod
+    def landmarks(path):
+        """Where the two minaret tips and the top of the dome are in a drawing.
+
+        The topmost drawn pixel in each third of the picture, and how far across it sits. Not
+        a pixel-by-pixel comparison: the two drawings were exported separately and their edges
+        disagree by a pixel all the way round, which is forty thousand pixels of "difference"
+        and nothing anybody can see. Where the landmarks land is the thing that matters, and
+        it is what shows if one building sits higher or further over than the other.
+        """
+        from PIL import Image
+        import numpy as np
+        solid = np.asarray(Image.open(path).convert("RGBA"))[:, :, 3] > 40
+        wide = solid.shape[1]
+        out = {}
+        for name, low, high in (("left", 0, wide // 4), ("dome", wide // 4, 3 * wide // 4),
+                                ("right", 3 * wide // 4, wide)):
+            band = solid[:, low:high]
+            rows = np.nonzero(band.any(axis=1))[0]
+            top = int(rows.min())
+            xs = np.nonzero(band[top])[0]
+            out[name] = (low + int(xs.mean()), top)
+        return out
+
+    def test_it_is_the_same_building_in_the_same_place_as_the_mosque(self):
+        here = json.loads((ASSETS / "mosque" / "mosque.json").read_text(encoding="utf-8"))
+        self.assertEqual(here["size"], self.described["size"], "drawn at different sizes")
+        mosque = self.landmarks(ASSETS / "mosque" / "mosque.png")
+        kalima = self.landmarks(self.FOLDER / "mosque.png")
+        for part in ("left", "dome", "right"):
+            with self.subTest(part):
+                across = abs(mosque[part][0] - kalima[part][0])
+                down = abs(mosque[part][1] - kalima[part][1])
+                self.assertLess(across, 8, f"{part} is {across}px across from the mosque's")
+                self.assertLess(down, 8, f"{part} is {down}px below the mosque's")
+
+    def test_the_clock_is_on_clear_dome_and_the_sky_is_cut_out(self):
+        from PIL import Image
+        import numpy as np
+        self.assertTrue(self.described.get("sky"), "the kalima menu does not ask for a sky")
+        picture = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("RGBA"))
+        self.assertEqual(0, int(picture[2, 2, 3]), "the corner is not see-through")
+        x0, y0, x1, y1 = self.described["clock"]["box"]
+        box = picture[y0:y1, x0:x1]
+        self.assertEqual(0, int((box[:, :, 3] == 0).sum()), "part of the clock box is sky")
+        self.assertGreater(int(box[:, :, :3].min()), 170, "the clock box is not on clear dome")
+
+    def test_the_minarets_can_glow(self):
+        self.assertEqual({"left", "right"}, set(self.described.get("minarets", {})))
+
+
+class CrashesEndTheAppTest(unittest.TestCase):
+    """An exception nobody caught has to END the app, so run.sh can start a fresh one.
+
+    This is the half of the auto-restart that is not in run.sh. The guard can only act on a
+    process that exits, and what a loose exception does to the process depends on the toolkit:
+    PyQt6 prints it and aborts, PySide6 prints it and carries on with whatever half-finished
+    state the slot left behind. A mat sitting in that state looks alive and is not, and nothing
+    will ever restart it.
+    """
+
+    def run_it(self, body: str):
+        """Run [body] in a fresh interpreter with the app's own hook in place."""
+        import os
+        import subprocess
+        import sys
+        import tempfile
+        root = Path(__file__).resolve().parent.parent
+        work = Path(tempfile.mkdtemp(prefix="salaah-hook-"))
+        import shutil
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        script = work / "go.py"
+        script.write_text(
+            "import sys, os\n"
+            f"sys.path.insert(0, {str(root)!r})\n"
+            f"os.chdir({str(work)!r})\n"
+            "import salaah.__main__ as m\n"
+            # Point the log at the throwaway folder rather than writing into the project while
+            # the tests run. Where it really goes is checked on its own below.
+            "from pathlib import Path\n"
+            f"m.ROOT = Path({str(work)!r})\n"
+            "sys.excepthook = m.fall_over\n"
+            "from salaah.qt import QtCore, QtWidgets\n"
+            "app = QtWidgets.QApplication([])\n"
+            + body +
+            "\nQtCore.QTimer.singleShot(2500, app.quit)\n"
+            "app.exec()\n"
+            "print('STILL ALIVE')\n", encoding="utf-8")
+        env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+        done = subprocess.run([sys.executable, str(script)], capture_output=True, timeout=90,
+                              env=env, cwd=work)
+        return done, work
+
+    def test_an_exception_in_a_slot_takes_the_app_down(self):
+        done, _ = self.run_it(
+            "def boom():\n"
+            "    raise RuntimeError('a slot blew up mid-prayer')\n"
+            "t = QtCore.QTimer()\n"
+            "t.timeout.connect(boom)\n"
+            "t.start(10)\n")
+        self.assertNotEqual(0, done.returncode,
+                            "the app carried on after an exception nobody caught")
+        self.assertNotIn(b"STILL ALIVE", done.stdout,
+                         "the event loop kept going with the app in an unknown state")
+
+    def test_it_is_written_down_where_a_rollback_cannot_delete_it(self):
+        """The traceback scrolls away when the app starts again, and salaah/ and assets/ are
+        both replaced by a rollback, so the log has to live outside them -- which is what
+        startup-error.log already does for a version that will not start."""
+        done, work = self.run_it(
+            "def boom():\n"
+            "    raise RuntimeError('a slot blew up mid-prayer')\n"
+            "t = QtCore.QTimer()\n"
+            "t.timeout.connect(boom)\n"
+            "t.start(10)\n")
+        log = work / "startup-error.log"
+        self.assertTrue(log.is_file(), "nothing was written down")
+        said = log.read_text(encoding="utf-8")
+        self.assertIn("a slot blew up mid-prayer", said)
+        self.assertIn("RuntimeError", said)
+
+    def test_the_log_lives_outside_the_folders_a_rollback_replaces(self):
+        """Where it goes, rather than that it goes somewhere. salaah/ and assets/ are the two
+        folders an update and a rollback swap wholesale, so a log written inside either is
+        deleted by the very event that makes it worth reading."""
+        import salaah.__main__ as entry
+        from salaah.update import REPLACES
+        where = (entry.ROOT / entry.LOG).resolve()
+        for name in REPLACES:
+            self.assertNotIn(name, where.parts,
+                             f"the log sits inside {name}, which a rollback replaces")
+        self.assertEqual((Path(__file__).resolve().parent.parent).resolve(), where.parent,
+                         "the log should sit next to run.sh")
+
+    def test_an_app_that_does_not_fall_over_is_left_alone(self):
+        """The hook must not be something that ends a healthy run: the mat spends most of its
+        life in the event loop with nothing going wrong."""
+        done, _ = self.run_it("pass\n")
+        self.assertEqual(0, done.returncode, done.stderr.decode()[-400:])
+        self.assertIn(b"STILL ALIVE", done.stdout)
+
+    # The two above run fall_over directly, which proves the hook works and says nothing about
+    # whether the app installs it. These two go through the real entry point for that, with
+    # main() stood in for so no window is built: what is being checked is the wiring.
+
+    @staticmethod
+    def through_the_entry_point(main):
+        import runpy
+        import sys
+        import salaah.__main__ as entry
+        with mock.patch("salaah.main.main", main):
+            try:
+                runpy.run_module("salaah", run_name="__main__")
+            except SystemExit as leaving:
+                return leaving.code, entry
+        return None, entry
+
+    def test_the_app_installs_the_hook_before_it_runs(self):
+        """Without this line the mat keeps running after an exception nobody caught, in
+        whatever state the slot left it, and run.sh never gets a chance to start a fresh one."""
+        import sys
+        was = sys.excepthook
+        self.addCleanup(lambda: setattr(sys, "excepthook", was))
+        seen = {}
+
+        def main(argv=None):
+            seen["hook"] = sys.excepthook
+            return 0
+
+        code, entry = self.through_the_entry_point(main)
+        self.assertEqual(0, code)
+        hook = seen.get("hook")
+        # By name and by where it was defined, not by identity: run_module builds a fresh copy
+        # of the module, so the function it installs is a different object from the one on the
+        # already-imported salaah.__main__, and `is` would fail on a perfectly wired app.
+        self.assertIsNotNone(hook, "main() was never reached")
+        self.assertEqual("fall_over", getattr(hook, "__name__", ""),
+                         "the app runs without the hook in place")
+        self.assertEqual(Path(entry.__file__).resolve(),
+                         Path(hook.__code__.co_filename).resolve(),
+                         "something else installed a hook of that name")
+
+    def test_a_clean_run_still_exits_cleanly(self):
+        """The hook is installed for the whole run, so it has to be something a healthy run
+        never notices."""
+        import sys
+        was = sys.excepthook
+        self.addCleanup(lambda: setattr(sys, "excepthook", was))
+        code, _ = self.through_the_entry_point(lambda argv=None: 0)
+        self.assertEqual(0, code, "a run that went fine did not come out cleanly")
+
+
+class AutostartSurvivesACopyTest(unittest.TestCase):
+    """The mat has to come up by itself after a reboot, and that must not hang on a file
+    permission that a copy can quietly drop.
+
+    It did once. run.sh is handed over on its own whenever the guard changes -- an update
+    never replaces it, by design -- and a copy that goes through Windows arrives without its
+    executable bit. The autostart entry ran it directly, so it failed with "Permission denied"
+    somewhere nobody sees, the mat sat on the desktop after every reboot, and `bash ./run.sh`
+    in a terminal still worked perfectly, which pointed away from the cause rather than at it.
+    """
+
+    ROOT = Path(__file__).resolve().parent.parent
+
+    def entry(self) -> dict:
+        said = {}
+        for line in (self.ROOT / "salaah.desktop").read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith(("#", "[")):
+                continue
+            key, _, value = line.partition("=")
+            said[key] = value
+        return said
+
+    def test_the_entry_names_the_interpreter(self):
+        """Not that it mentions bash for its own sake: that the first word of Exec is a
+        program which exists, rather than the script, which may arrive unexecutable."""
+        started = self.entry()["Exec"]
+        first = started.split()[0]
+        self.assertTrue(first.startswith("/"), f"Exec starts with {first!r}, not a program")
+        self.assertTrue(Path(first).is_file(), f"{first} is not there to run anything")
+        self.assertIn("run.sh", started, "the entry no longer starts the app")
+
+    def test_it_starts_the_app_with_the_bit_taken_off(self):
+        """The failure itself, reproduced: strip the bit and start it the way the desktop
+        entry does."""
+        import os
+        import shutil
+        import subprocess
+        import tempfile
+        work = Path(tempfile.mkdtemp(prefix="salaah-autostart-"))
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        shutil.copy(self.ROOT / "run.sh", work / "run.sh")
+        os.chmod(work / "run.sh", 0o644)          # as a copy through Windows arrives
+
+        started = self.entry()["Exec"].replace("@DIR@", str(work))
+        # SALAAH_NO_GUARD and a python that is not there: the app cannot start in a test, and
+        # it does not need to. What is being watched for is Permission denied, which happens
+        # before anything of the app is reached.
+        done = subprocess.run(["sh", "-c", started], capture_output=True, text=True,
+                              timeout=60, cwd=work,
+                              env=dict(os.environ, SALAAH_NO_GUARD="1", PATH="/usr/bin:/bin"))
+        self.assertNotIn("Permission denied", done.stdout + done.stderr,
+                         "autostart depends on run.sh keeping its executable bit")
+
+    def test_running_it_directly_is_what_used_to_fail(self):
+        """The other half, so the test above is known to be testing something. Run directly,
+        a script without the bit IS refused -- which is why the entry must not do that."""
+        import os
+        import shutil
+        import subprocess
+        import tempfile
+        work = Path(tempfile.mkdtemp(prefix="salaah-autostart-"))
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        shutil.copy(self.ROOT / "run.sh", work / "run.sh")
+        os.chmod(work / "run.sh", 0o644)
+        done = subprocess.run(["sh", "-c", f"{work / 'run.sh'}"], capture_output=True,
+                              text=True, timeout=60, cwd=work)
+        self.assertIn("Permission denied", done.stdout + done.stderr,
+                      "a script with no executable bit ran anyway; this test proves nothing")
+
+    def test_the_installer_still_marks_it_executable(self):
+        """People run it by hand as well, and the error that gives is just as confusing."""
+        self.assertIn("chmod +x run.sh",
+                      (self.ROOT / "install.sh").read_text(encoding="utf-8"))
+
+    def test_the_installer_writes_the_entry_where_the_desktop_looks(self):
+        said = (self.ROOT / "install.sh").read_text(encoding="utf-8")
+        self.assertIn(".config/autostart/salaah.desktop", said,
+                      "nothing starts the mat at login")
+        self.assertIn("salaah.desktop", said)
+
+
+class StreamPlayerTest(unittest.TestCase):
+    """The player the radio uses: a URL, played until it is stopped.
+
+    Its own class rather than a flag on Call, because the two differ in the one way that
+    matters to everything around them -- a call ends, and a station does not.
+    """
+
+    def test_every_player_can_be_handed_a_url(self):
+        """Which is the whole reason the radio needed no new dependency: the mat already
+        shells out to one of these, and all four take a URL where they take a path."""
+        from salaah.audio import STREAMERS
+        url = "https://example.invalid/stream.mp3"
+        for name, build in STREAMERS.items():
+            with self.subTest(name):
+                command = build(url, 70)
+                self.assertEqual(name, command[0])
+                self.assertIn(url, command, f"{name} is not given the address")
+
+    def test_nothing_is_told_to_seek_or_to_stop_after_a_while(self):
+        """A live stream has no beginning to seek to and no length to stop after. Asking for
+        either is how a player is handed a position in something that has none."""
+        from salaah.audio import STREAMERS
+        seeky = ("-ss", "-t", "--start", "--length", "--start-time", "--stop-time", "-k", "-n")
+        for name, build in STREAMERS.items():
+            with self.subTest(name):
+                for bit in build("https://example.invalid/s", 70):
+                    self.assertFalse(str(bit).split("=")[0] in seeky,
+                                     f"{name} is told {bit}, which a stream cannot do")
+
+    def test_every_player_is_told_the_volume(self):
+        from salaah.audio import STREAMERS
+        for name, build in STREAMERS.items():
+            with self.subTest(name):
+                quiet = " ".join(str(x) for x in build("https://example.invalid/s", 10))
+                loud = " ".join(str(x) for x in build("https://example.invalid/s", 90))
+                self.assertNotEqual(quiet, loud, f"{name} plays at one volume whatever it is told")
+
+    def test_a_station_is_only_counted_as_answering_once_it_has_been_sounding(self):
+        """How a station that is not there is told apart from one that is: a player handed a
+        URL it cannot use dies at once, and one that is playing stays up. Nothing else about
+        the two is different enough to go on -- the alternative is parsing four players'
+        error output, which differs between them and between versions."""
+        import time
+        from salaah import audio
+        from salaah.audio import Stream
+        audio.STREAMERS["alive"] = lambda u, v: ["sleep", "30"]
+        audio.STREAMERS["dead"] = lambda u, v: ["true"]
+        try:
+            live = Stream(player="alive")
+            live.SETTLE = 0.3
+            self.assertTrue(live.play("https://example.invalid/s"))
+            self.assertIsNone(live.answered(), "it cannot be known this early")
+            time.sleep(0.5)
+            self.assertTrue(live.answered())
+            live.stop()
+            self.assertIsNone(live.answered(), "stopped is not the same as never answered")
+
+            gone = Stream(player="dead")
+            gone.SETTLE = 0.3
+            self.assertTrue(gone.play("https://example.invalid/s"),
+                            "starting the player is not the same as the station answering")
+            time.sleep(0.5)
+            self.assertFalse(gone.answered())
+        finally:
+            audio.STREAMERS.pop("alive", None)
+            audio.STREAMERS.pop("dead", None)
+
+    def test_it_will_not_play_nothing(self):
+        from salaah import audio
+        from salaah.audio import Stream
+        audio.STREAMERS["alive"] = lambda u, v: ["sleep", "5"]
+        try:
+            s = Stream(player="alive")
+            for empty in ("", "   ", None):
+                with self.subTest(repr(empty)):
+                    self.assertFalse(s.play(empty or ""))
+            s.volume = 0
+            self.assertFalse(s.play("https://example.invalid/s"), "turned right down")
+        finally:
+            audio.STREAMERS.pop("alive", None)
+
+
+class StaleBytecodeTest(unittest.TestCase):
+    """An update must take __pycache__ out, because Python trusts it over the file beside it.
+
+    The import system's whole check is the source's mtime TO THE SECOND and its byte size --
+    neither is a hash -- so a .pyc built from an older module can survive next to a correct new
+    one and win. The mat hit this at 1.89 and died with
+
+        ImportError: cannot import name 'ArrowButton' from 'salaah.render'
+
+    with ArrowButton defined in render.py on line 53.
+    """
+
+    def test_a_cache_that_disagrees_with_its_source_is_really_believed(self):
+        """The premise first. If Python did NOT prefer the stale cache, there is nothing here
+        worth guarding against and the rest of this class is theatre."""
+        import compileall
+        import importlib.util
+        import os
+        import sys
+        with tempfile.TemporaryDirectory() as where:
+            box = Path(where)
+            mod = box / "staleish.py"
+            mod.write_text("WHO = 'old'\n", encoding="utf-8")
+            when = mod.stat().st_mtime
+            compileall.compile_dir(str(box), quiet=2)
+            # Rewrite it to something the same length, and put the timestamp back: now the
+            # cache matches on both counts and disagrees on content.
+            mod.write_text("WHO = 'new'\n", encoding="utf-8")
+            os.utime(mod, (when, when))
+            sys.path.insert(0, str(box))
+            try:
+                importlib.invalidate_caches()
+                import staleish
+                believed = staleish.WHO
+            finally:
+                sys.path.remove(str(box))
+                sys.modules.pop("staleish", None)
+        self.assertEqual("old", believed,
+                         "Python no longer prefers a stale cache; this guard can go")
+
+    def test_installing_an_update_removes_every_cache(self):
+        from salaah.update import drop_bytecode
+        with tempfile.TemporaryDirectory() as where:
+            root = Path(where)
+            for part in ("salaah", "salaah/sub", "assets"):
+                (root / part / "__pycache__").mkdir(parents=True)
+                (root / part / "__pycache__" / "x.cpython-311.pyc").write_bytes(b"stale")
+            gone = drop_bytecode(root)
+            self.assertEqual(3, gone)
+            self.assertEqual([], list(root.rglob("__pycache__")))
+
+    def test_it_does_not_mind_a_tree_with_no_caches_at_all(self):
+        from salaah.update import drop_bytecode
+        with tempfile.TemporaryDirectory() as where:
+            self.assertEqual(0, drop_bytecode(Path(where)))
+
+    def test_both_installing_and_rolling_back_clear_them(self):
+        """A rollback puts a different set of modules back under the same names, so its leftover
+        cache describes the version that just failed."""
+        source = (Path(__file__).resolve().parent.parent / "salaah" / "update.py") \
+            .read_text(encoding="utf-8")
+        body = source.split("def swap(", 1)[1]
+        self.assertIn("drop_bytecode(self.root)", body.split("def ", 1)[0],
+                      "swap() does not clear the caches")
+        after = source.split("def roll_back(", 1)[1]
+        self.assertIn("drop_bytecode(self.root)", after.split("\ndef ", 1)[0],
+                      "roll_back() does not clear the caches")

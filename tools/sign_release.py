@@ -94,6 +94,63 @@ def sign(body: dict, key_path: Path) -> str:
     return base64.b64encode(private.sign(payload)).decode()
 
 
+MANIFEST = "release-manifest-{}.txt"
+
+
+def shipping() -> dict:
+    """Every file this version would put in a release, by sha256."""
+    out = {}
+    for pack in PACKS:
+        for p in sorted((ROOT / pack).rglob("*")):
+            if p.is_file() and not why_not(p):
+                out[str(p.relative_to(ROOT)).replace("\\", "/")] = \
+                    hashlib.sha256(p.read_bytes()).hexdigest()
+    return out
+
+
+def manifest_complaint(number: str) -> str:
+    """Empty when the tree matches the manifest for this version, or there is no manifest.
+
+    The manifest is version-stamped on purpose. A manifest for an older version is not a
+    weaker check, it is a check of the wrong thing, so it is simply absent and this says so.
+    """
+    where = ROOT / "tools" / MANIFEST.format(number)
+    if not where.is_file():
+        return (f"There is no {where.relative_to(ROOT)}, so this tree has not been checked\n"
+                f"against anything. Ask for the manifest for {number} before signing it.\n"
+                f"(If you are deliberately releasing a tree nobody has verified, delete this\n"
+                f"check rather than working around it -- and write down why.)")
+    want = {}
+    for line in where.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        digest, name = line.split(None, 1)
+        want[name.strip()] = digest
+    have = shipping()
+    wrong = sorted(f for f in set(want) & set(have) if want[f] != have[f])
+    missing = sorted(set(want) - set(have))
+    extra = sorted(set(have) - set(want))
+    if not (wrong or missing or extra):
+        return ""
+    lines = [f"This tree does not match tools/{MANIFEST.format(number)}."]
+    for f in wrong[:10]:
+        lines.append(f"    different : {f}")
+    for f in missing[:10]:
+        lines.append(f"    missing   : {f}")
+    for f in extra[:10]:
+        lines.append(f"    unexpected: {f}")
+    more = len(wrong) + len(missing) + len(extra) - min(10, len(wrong)) \
+        - min(10, len(missing)) - min(10, len(extra))
+    if more > 0:
+        lines.append(f"    ... and {more} more")
+    lines.append("")
+    lines.append("A file that is DIFFERENT is the dangerous one: it means the copy in this")
+    lines.append("folder is not the copy the release was meant to carry. That is how 1.91 went")
+    lines.append("out with 86 hadith instead of 109.")
+    return "\n".join(lines)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="sign_release")
     ap.add_argument("--out", type=Path, default=ROOT.parent / "releases",
@@ -110,6 +167,24 @@ def main() -> int:
         return 1
 
     number = version()
+
+    # Refuse to sign a tree that does not match the manifest written for this version.
+    #
+    # 1.91 went out carrying 86 hadith instead of 109, because the copy of hadith.json in the
+    # folder it was built from had been cut down by an earlier bad commit. Every Python file was
+    # correct -- the changes zip ships all of salaah/ for exactly that reason -- but assets are
+    # fifty megabytes and are sent as a diff, so a file that matches the PREVIOUS release is not
+    # in the zip, and a stale copy of it survives into the next one. The same fault as the
+    # ImportError, one folder over and quieter: nothing failed, there was just less content.
+    #
+    # A file count would have caught it. So would six hashes. Both were written down and neither
+    # was run, which is the point: a check that depends on somebody remembering it at eight in
+    # the evening after three days of this is not a check. This one cannot be skipped, because
+    # nothing gets signed until it passes.
+    if (problem := manifest_complaint(number)):
+        print(f"\n{problem}", file=sys.stderr)
+        print("\nNothing has been built and nothing signed.", file=sys.stderr)
+        return 1
 
     # Refuse to sign a manifest that points somewhere other than the file being built. Getting
     # this wrong produces a release that verifies perfectly and then cannot be downloaded, which
