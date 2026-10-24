@@ -39,9 +39,10 @@ OUT = ROOT / "tools" / "menu-names"
 EXPECTED = {
     "children": {
         "game": "prayer game", "qiblaquest": "qibla quest", "jigsaw": "kaaba jigsaw",
-        "build": "build salaah", "pillars": "five pillars", "charity": "charity counter",
-        "manners": "mosque manners", "ramadan": "ramadan calendar", "arabic": "arabic match",
-        "tasbih_game": "tasbih counter", "pattern": "pattern builder",
+        "build": "build salaah", "pillars": "five pillars",
+        # spare1 is a drawn outline with nothing written in it, waiting for the next game.
+        # It is deliberately not listed: a name that is not here is reported as unchecked
+        # rather than passed, and an empty tile has no word to check.
     },
     # The 7in main menu. The folder is called "knowledge" for historical reasons -- it was the
     # Knowledge Corner before it was the main menu -- and at 1.89 one of its own TILES is also

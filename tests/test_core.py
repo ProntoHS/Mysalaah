@@ -1942,13 +1942,36 @@ class DuaContentTest(unittest.TestCase):
                            .read_text(encoding="utf-8"))
         return [d for d in whole["items"] if d.get("verses")]
 
+    @staticmethod
+    def as_displayed(text, number):
+        """The display rule, written out again here ON PURPOSE.
+
+        salaah.quran.as_shown does the same job for the app, and importing it would be the
+        obvious thing to do -- which is exactly why this does not. These tests exist to catch
+        the du'as drifting from the corpus, and a shared helper with a mistake in it would move
+        both sides of the comparison together and catch nothing. Two separate implementations
+        agree only when both are right.
+
+        Footnote references go; a leading number goes when it IS this verse's number. The
+        translators' own bracketed words stay, because they are scripture as published.
+        """
+        import re
+        out = re.sub(r"\[[0-9]+\]", "", text)
+        head = re.match(r"^([0-9]+)[.,]\s+", out)
+        if head and int(head.group(1)) == number:
+            out = out[head.end():]
+        return " ".join(out.split())
+
     def verse(self, lang, surah, number):
         import json
         rows = json.loads((self.assets() / "content" / "quran" / lang / f"{surah}.json")
                           .read_text(encoding="utf-8"))
         for row in rows:
             if int(row["n"]) == number:
-                return row
+                got = dict(row)
+                if lang != "ar":
+                    got["text"] = self.as_displayed(got.get("text", ""), number)
+                return got
         self.fail(f"{lang} has no {surah}:{number}")
 
     def test_there_are_ten_of_them_each_with_everything_it_needs(self):

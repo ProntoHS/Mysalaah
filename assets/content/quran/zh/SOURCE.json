@@ -1,12 +1,18 @@
 {
- "schema": 1,
+ "schema": 2,
  "lang": "zh",
  "what": "Chinese translation",
- "translator": "Muhammad Makin",
+ "translator": "Muhammad Makin (Ma Jian)",
  "publisher": "Noble Qur'an Encyclopedia",
- "where": "quranenc.com/en/browse/chinese_makin",
- "via": "quran-json 3.1.2",
+ "where": "https://quranenc.com/en/browse/chinese_makin",
+ "via": "quranenc.com official XML export, v1.0.2",
+ "edition": "chinese_makin",
+ "version": "1.0.2",
+ "updated": "2022-09-07",
+ "check_updates": "https://quranenc.com/check/chinese_makin/v1.0.2-xml.1",
  "private": false,
- "note": "",
- "reviewed": false
+ "note": "Two revisions newer than the copy that came through quran-json; two verses differ.",
+ "publisher_reviewed": true,
+ "reviewed": false,
+ "review_note": "The publisher states these are reviewed editions. Nobody engaged by this project has read a word of it, which is what reviewed: false records."
 }

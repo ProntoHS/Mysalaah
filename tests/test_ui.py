@@ -4626,12 +4626,73 @@ class SettingsTidiedTest(unittest.TestCase):
                          f"a note about the recitation is still on the page: {hints}")
 
 
+# The bundled script faces, and the ranges that decide which one draws a string. Written out
+# here rather than imported from salaah.render for the reason given in DuaContentTest: a shared
+# helper with a mistake in it moves both sides of the comparison together and catches nothing.
+SCRIPT_FILES = {
+    "han": "NotoSansSC-Subset.ttf",
+    "devanagari": "NotoSansDevanagari-Subset.ttf",
+    "bengali": "NotoSansBengali-Subset.ttf",
+}
+SCRIPT_RANGES = {
+    "han": ((0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF)),
+    "devanagari": ((0x0900, 0x097F), (0xA8E0, 0xA8FF)),
+    "bengali": ((0x0980, 0x09FF),),
+}
+
+
 class ScriptFontsTest(unittest.TestCase):
-    """Raspberry Pi OS ships neither Chinese nor Devanagari, so both are bundled, cut down to
-    the characters the translations use. Without them the meaning column would be empty boxes,
-    which is the kind of fault that only shows up on the device."""
+    """Raspberry Pi OS ships neither Chinese nor Devanagari nor Bengali, so all three are
+    bundled, cut down to the characters the mat can draw. Without them the meaning column would
+    be empty boxes, which is the kind of fault that only shows up on the device."""
+
+    @staticmethod
+    def which_script(said: str) -> str:
+        """Which bundled face would draw this string, or "" for none.
+
+        By weight, not by first match -- the same arithmetic render.py uses and for the same
+        reason: one Devanagari danda at the end of a Bengali sentence must not send the whole
+        sentence to the Devanagari face.
+        """
+        counts = {}
+        for name, ranges in SCRIPT_RANGES.items():
+            counts[name] = sum(1 for ch in said
+                               for lo, hi in ranges if lo <= ord(ch) <= hi)
+        name, how_many = max(counts.items(), key=lambda pair: pair[1])
+        return name if how_many else ""
+
+    @classmethod
+    def characters_in(cls, script: str) -> set:
+        """The characters a bundled face maps, read out of the file's own cmap.
+
+        Not QFontMetrics.inFont, which falls back to whatever the machine has installed.
+        """
+        if not hasattr(cls, "_cmaps"):
+            cls._cmaps = {}
+        if script not in cls._cmaps:
+            import io
+            from fontTools.ttLib import TTFont
+            path = ASSETS / "fonts" / SCRIPT_FILES[script]
+            with TTFont(io.BytesIO(path.read_bytes()), lazy=True) as face:
+                cls._cmaps[script] = {chr(c) for c in face.getBestCmap()}
+        return cls._cmaps[script]
+
+    @classmethod
+    def every_string(cls, node):
+        if isinstance(node, str):
+            yield node
+        elif isinstance(node, dict):
+            for value in node.values():
+                yield from cls.every_string(value)
+        elif isinstance(node, list):
+            for value in node:
+                yield from cls.every_string(value)
 
     def setUp(self):
+        try:
+            import fontTools        # noqa: F401
+        except ImportError:
+            self.skipTest("fontTools is not installed, so the font files cannot be read")
         from salaah.render import Fonts
         Fonts.load(ASSETS)
         self.Fonts = Fonts
@@ -4655,22 +4716,69 @@ class ScriptFontsTest(unittest.TestCase):
         self.assertEqual(self.Fonts.english_family, self.Fonts.for_text("En el nombre de Dios"))
 
     def test_no_translation_can_come_out_as_empty_boxes(self):
-        """Every character of every shipping translation, against the face the app will pick."""
-        content = load(ASSETS)
-        for lang, tr in sorted(content.translations.items()):
+        """Every character of every shipping translation, against the face the app will pick.
+
+        This asked Qt, through QFontMetrics.inFont, until October 2026. Qt answers that question
+        by falling back: a developer machine has hundreds of fonts, several of them Noto Sans
+        CJK, so it said yes to characters the bundled file did not contain and the test passed
+        while assets/fonts/NotoSansSC-Subset.ttf was ten characters short. The Pi has no CJK
+        font at all, so on the mat those ten drew as boxes -- 腕 wrist, 拇 thumb, 趾 toes, 湿 wet
+        and the quotation marks around 「奉真主之名」, in six of the seven Chinese wu'du steps.
+        A check that passes on every machine except the one that matters is worse than no check,
+        because it is believed.
+
+        So this reads the cmap out of the font file, which cannot fall back on anything.
+        """
+        for lang, tr in sorted(load(ASSETS).translations.items()):
             if tr.personal:
                 continue
             texts = [line for part in tr.lines.values() for line in part]
             texts += [tr.intention] + list(tr.kinds.values()) + list(tr.prayers.values())
             whole = "".join(texts)
-            family = (self.Fonts.arabic("scheherazade") if tr.rtl
-                      else self.Fonts.for_text(whole))
-            font = QtGui.QFont(family)
-            font.setPixelSize(48)
-            metrics = QtGui.QFontMetrics(font)
-            missing = sorted({c for c in whole if not c.isspace() and not metrics.inFont(c)})
+            if tr.rtl:
+                continue                      # the Arabic faces are whole, not subset
+            script = self.which_script(whole)
+            if not script:
+                continue                      # Latin: the system face, not ours to bundle
+            missing = sorted(c for c in set(whole)
+                             if c.isprintable() and not c.isspace()
+                             and c not in self.characters_in(script))
             self.assertFalse(missing,
-                             f"{lang}: {family} has no glyph for {''.join(missing)}")
+                             f"{lang}: {SCRIPT_FILES[script]} has no glyph for "
+                             f"{''.join(missing)}")
+
+    def test_no_shipping_text_at_all_can_come_out_as_empty_boxes(self):
+        """The same question asked of everything on the mat, not just the interface packs.
+
+        The test above walks content.translations, which is the menus. The wu'du steps, the
+        du'as, the hadith, the kalima and the Qur'an are not in there, and the ten missing
+        Chinese characters were all in wu'du.json -- so the narrower test could not have caught
+        them however it asked. Every string in assets goes through this one.
+        """
+        short: dict = {}
+        for path in sorted(ASSETS.rglob("*.json")):
+            if "personal.json" in path.name:
+                continue
+            try:
+                doc = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            for said in self.every_string(doc):
+                script = self.which_script(said)
+                if not script:
+                    continue
+                have = self.characters_in(script)
+                for ch in said:
+                    if ch.isprintable() and not ch.isspace() and ch not in have:
+                        short.setdefault((script, ch), str(path.relative_to(ASSETS)))
+        # The one character no face for its script can ever carry: a stray Arabic fatha in two
+        # verses of the Hindi Qur'an, 37:178 and 56:18. A publisher's typo, reported to them
+        # rather than edited out of their text. tools/subset_fonts.py says the same in full.
+        allowed = {("devanagari", "َ")}
+        left = {k: v for k, v in short.items() if k not in allowed}
+        self.assertFalse(left, "characters with no glyph in the face that would draw them: " +
+                         ", ".join(f"U+{ord(c):04X} {c!r} in {where} ({script})"
+                                   for (script, c), where in sorted(left.items())[:12]))
 
     def test_the_licence_travels_with_them(self):
         self.assertTrue((ASSETS / "fonts" / "OFL-Noto.txt").is_file(),
@@ -5851,13 +5959,23 @@ class QuranTest(unittest.TestCase):
         self.assertFalse(spread.left.isVisible() or spread.right.isVisible())
         self.assertTrue(all(spread.parallel.meaning), "every verse should have its meaning")
 
-    def test_every_language_we_have_is_offered_and_hindi_is_not_pretended(self):
-        """The source has no Hindi. Offering it and showing English would be worse than five."""
-        # The Qur'an carries five of the mat's six languages; there is no Hindi text for it.
-        # Checked on what the reader will actually set beside the Arabic, since the row of
-        # buttons that used to advertise this has gone.
-        self.assertEqual({"en", "fr", "ur", "es", "zh"}, set(self.window().quran.languages()))
-        for lang, want in (("fr", "fr"), ("zh", "zh"), ("hi", ""), ("ar", "")):
+    def test_every_language_we_have_is_offered_and_none_is_pretended(self):
+        """A language is offered when there is text behind it, and never otherwise.
+
+        This read the other way until October 2026: there was no Hindi Qur'an, so the test
+        insisted Hindi was NOT offered -- offering it and then showing English would have been
+        worse than offering five. The Noble Qur'an Encyclopedia has a Hindi and a Portuguese
+        edition, so both are now real and both are expected. Russian and Bengali still are
+        not: the interface speaks them, the Qur'an does not, and quran.languages() looks at
+        the disk rather than at LANGS for exactly this reason.
+
+        Checked on what the reader will actually set beside the Arabic, since the row of
+        buttons that used to advertise this has gone.
+        """
+        self.assertEqual({"en", "fr", "ur", "es", "zh", "hi", "pt"},
+                         set(self.window().quran.languages()))
+        for lang, want in (("fr", "fr"), ("zh", "zh"), ("hi", "hi"), ("pt", "pt"),
+                           ("ru", ""), ("ar", "")):
             with self.subTest(lang):
                 w = self.window(lang=lang)
                 w.open_surah(1)
@@ -15319,28 +15437,27 @@ class QiblaQuestTest(unittest.TestCase):
     # fractions that were not these -- up to 130 px out, a ninth of the map's width, putting
     # London in the Mediterranean, Cape Town in the Indian Ocean, Istanbul out to sea and
     # Jakarta on Australia. tools/ARTWORK-MEASURED.md has the overlay and the working.
-    AUTHORED = {"london": (430 / 1200, 110 / 590), "cape_town": (538 / 1200, 420 / 590),
-                "tashkent": (735 / 1200, 145 / 590), "jakarta": (1008 / 1200, 305 / 590),
-                "istanbul": (558 / 1200, 150 / 590)}
+    # Fitted to the map drawn in October 2026 (1672x941). The previous table was a fraction of
+    # the prototype's 1200x590 viewBox and became wrong the moment the map was redrawn at a
+    # different aspect -- see the note in salaah/qibla_quest.py.
+    AUTHORED = {"london": (0.4425, 0.3145), "cape_town": (0.4945, 0.7912),
+                "tashkent": (0.6368, 0.3715), "jakarta": (0.7421, 0.6366),
+                "istanbul": (0.5240, 0.3731)}
 
     def test_every_pin_is_the_point_the_map_was_drawn_with(self):
         """WHY THIS AND NOT "is the pin on land".
 
         A land test was written first and thrown away, because it answers the wrong question.
-        Measured against the shipping picture, the WRONG London pin is 7 px from land and the
-        RIGHT Jakarta pin is 45 px from it -- so any tolerance that passes the correct pins
-        also passes the mis-transcribed ones. Worse, the wrong Jakarta scores 0 px: it sits
-        squarely on land, the wrong land, Australia. Being on ink is not being in the right
-        place, and no amount of pixel-poking at a map stylised down to ten blobs can tell the
-        difference.
+        Measured against the picture that shipped until October 2026, the WRONG London pin was
+        7 px from land and the RIGHT Jakarta pin 45 px from it -- so any tolerance that passed
+        the correct pins also passed the mis-transcribed ones. Worse, the wrong Jakarta scored
+        0 px: squarely on land, the wrong land, Australia. Being on ink is not being in the
+        right place.
 
-        What CAN be checked is that the module still carries the points the map was drawn
-        with. That is a pin against accidental change, which is exactly the fault that
-        happened -- somebody converting coordinates and getting them wrong.
-
-        Jakarta, Istanbul and Makkah itself fall in open water even at these authored points,
-        because the artwork has no Indonesian islands, no Turkish peninsula and no Arabian
-        peninsula. That is the drawing's limitation, recorded rather than tested around.
+        What this can check is that the module still carries the points the map was drawn with.
+        That is a pin against accidental change, which is the fault that actually happened --
+        twice now, once by somebody converting coordinates wrongly and once by the map being
+        redrawn at a different aspect under points that stayed valid-looking fractions.
         """
         from salaah.qibla_quest import ROUNDS
         self.assertEqual(sorted(self.AUTHORED), sorted(r.city for r in ROUNDS))
@@ -15348,9 +15465,53 @@ class QiblaQuestTest(unittest.TestCase):
             want = self.AUTHORED[r.city]
             for got, should, which in zip(r.point, want, ("across", "down")):
                 self.assertAlmostEqual(
-                    got, should, places=2,
-                    msg=f"{r.city} sits {abs(got - should):.3f} {which} of where the map was "
-                        f"drawn with it ({got} against {should:.3f})")
+                    got, should, places=3,
+                    msg=f"{r.city} sits {abs(got - should):.4f} {which} of where the map was "
+                        f"drawn with it ({got} against {should:.4f})")
+
+    def test_the_five_pins_all_lie_on_one_projection(self):
+        """The check the table above cannot be: an independent one.
+
+        A table copied out of the module catches a pin that changes, but it cannot say whether
+        the pins were ever right -- copy a mistake in and the test agrees with it forever. This
+        asks something the table does not know: every cylindrical map projection is linear in
+        longitude and, for this drawing, linear in latitude across the band these cities sit in
+        (8 px from 54 S to 59 N; salaah/qibla_quest.py has the fit and what ruled out Mercator).
+
+        So one straight line through longitude must account for all five across-positions, and
+        one through latitude for all five down-positions. WHERE is the same table of real
+        coordinates the bearing test uses -- the atlas, not the map -- so nothing here is
+        checked against itself.
+
+        A pin typed wrongly cannot satisfy that line. Moving Tashkent by a sixteenth of the
+        map's width takes the worst residual from 0.05 px to 76 px -- fifteen hundred times --
+        where the land test could not separate a correct pin from one on the wrong continent.
+        """
+        from salaah.qibla_quest import ROUNDS
+        pins = {r.city: r.point for r in ROUNDS}
+        self.assertEqual(sorted(self.WHERE), sorted(pins))
+        width, height = 1672, 941          # the drawing these fractions are of
+
+        def worst(known: list, drawn: list, span: int) -> float:
+            """How far the furthest pin is from the straight line through all five, in pixels."""
+            n = len(known)
+            mean_k = sum(known) / n
+            mean_d = sum(drawn) / n
+            spread = sum((k - mean_k) ** 2 for k in known)
+            slope = sum((k - mean_k) * (d - mean_d) for k, d in zip(known, drawn)) / spread
+            return max(abs(d - (slope * (k - mean_k) + mean_d))
+                       for k, d in zip(known, drawn)) * span
+
+        # WHERE is (latitude, longitude); point is (across, down).
+        cities = sorted(pins)
+        across = worst([self.WHERE[c][1] for c in cities],
+                       [pins[c][0] for c in cities], width)
+        down = worst([self.WHERE[c][0] for c in cities],
+                     [pins[c][1] for c in cities], height)
+        self.assertLess(across, 6.0, f"the pins are {across:.1f} px from a single longitude "
+                                     f"line: one of them is not where its city is")
+        self.assertLess(down, 6.0, f"the pins are {down:.1f} px from a single latitude line: "
+                                   f"one of them is not where its city is")
 
     def test_the_map_the_pins_are_fractions_of_is_actually_there(self):
         png = Path(__file__).resolve().parent.parent / "assets" / "children" / "qibla-quest.png"
@@ -15654,7 +15815,12 @@ class MoreGamesTest(unittest.TestCase):
 
 
 class EightMoreGamesTest(unittest.TestCase):
-    """Build the Salaah, the Five Pillars Sorter and the six that share ChoiceGame."""
+    """Build the Salaah and the Five Pillars Sorter.
+
+    The six that shared ChoiceGame -- Charity Counter, Mosque Manners, Ramadan Calendar,
+    Arabic Letter Match, Tasbih Counter and Islamic Pattern Builder -- were taken out in
+    October 2026. salaah/ui.py says why.
+    """
 
     def test_every_picture_the_games_name_is_on_the_mat(self):
         """A GAME CANNOT CRASH ON A PICTURE THAT IS NOT THERE -- it draws an empty box with a
@@ -15667,7 +15833,7 @@ class EightMoreGamesTest(unittest.TestCase):
         import ast
         root = Path(__file__).resolve().parent.parent
         for name in ("game", "qibla_quest", "kaaba_jigsaw", "build_the_salaah",
-                     "five_pillars_sorter", "second_row_games"):
+                     "five_pillars_sorter"):
             tree = ast.parse((root / "salaah" / f"{name}.py").read_text(encoding="utf-8"))
             for node in ast.walk(tree):
                 if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
@@ -15718,48 +15884,12 @@ class EightMoreGamesTest(unittest.TestCase):
         self.assertEqual(["faith", "prayer", "charity", "fasting", "hajj"],
                          [p.key for p in PILLARS])
 
-    def test_the_six_quizzes_do_shuffle_their_questions(self):
-        """The opposite judgement, for the opposite reason: these are independent questions --
-        which letter is this, how many coins, what comes next in the pattern -- so the order
-        teaches nothing, and fixed it meant one playthrough taught the answers by heart.
-        check_lazy scored 400 perfect games out of 400 before this."""
-        from salaah.second_row_games import ChoiceGame, GAME_SPECS
-        for spec in GAME_SPECS:
-            orders = set()
-            for _ in range(200):
-                g = ChoiceGame(spec.rounds)
-                seen = []
-                while not g.done:
-                    seen.append(g.round.answer)
-                    g.answer(g.correct)
-                    g.go_on()
-                self.assertEqual(sorted(seen), sorted(r.answer for r in spec.rounds),
-                                 f"{spec.game_id} asked a question twice or skipped one")
-                orders.add(tuple(seen))
-            self.assertGreater(len(orders), 10,
-                               f"{spec.game_id} only produced {len(orders)} orders in 200 games")
-
     def test_no_round_hides_its_answer_among_the_wrong_ones(self):
         from salaah.build_the_salaah import ROUNDS as BUILD
-        from salaah.second_row_games import GAME_SPECS
-        for spec in GAME_SPECS:
-            for i, r in enumerate(spec.rounds, 1):
-                self.assertNotIn(r.answer, r.others, f"{spec.game_id} round {i}")
-                self.assertEqual(2, len(set(r.others)), f"{spec.game_id} round {i}")
         for i, r in enumerate(BUILD, 1):
             self.assertNotIn(r.answer, r.others, f"build round {i}")
 
-    def test_pattern_builder_may_answer_the_same_shape_twice(self):
-        """Recorded rather than fixed. Two of its five patterns end in a circle, which is fine
-        -- the patterns differ and the answer coinciding is not a cue. 'Whatever was right last
-        time' measures 1.73 of 5 against 1.67 by chance. If a round is ever added that makes
-        that strategy pay, check_lazy is what notices."""
-        from salaah.second_row_games import PATTERN
-        answers = [r.answer for r in PATTERN.rounds]
-        self.assertEqual(2, answers.count("circle"))
-        self.assertEqual(5, len(answers))
-
-    def test_all_eleven_games_are_built_and_all_eleven_tiles_are_buttons(self):
+    def test_all_five_games_are_built_and_all_five_tiles_are_buttons(self):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="light", recitation=False, place="Bury"),
                        scale=1.0, save_settings=False, aspect=None, side=True)
@@ -15767,27 +15897,29 @@ class EightMoreGamesTest(unittest.TestCase):
         w.show()
         APP.processEvents()
         self.addCleanup(lambda: shut(w))
-        self.assertEqual(11, len(w.games), f"only built {sorted(w.games)}")
+        self.assertEqual(5, len(w.games), f"only built {sorted(w.games)}")
         self.assertIsNotNone(w.children_menu, "the children's menu did not build")
+        # The sheet carries a sixth tile, spare1, drawn as an empty outline for the next game.
+        # It has no screen behind it, so it is a box in menu.json and not a button here.
         self.assertEqual(sorted(w.games), sorted(t.name for t in w.children_menu.tiles))
         for name in w.games:
             w.open_a_game(name)
             self.assertIs(w.game_in_front, w.games[name], f"{name} did not come to the front")
 
-    def test_every_string_the_eight_ask_for_exists_in_every_pack(self):
+    def test_every_string_the_two_ask_for_exists_in_every_pack(self):
         import json
         import re
         root = Path(__file__).resolve().parent.parent
         want = set()
-        for name in ("build_the_salaah", "five_pillars_sorter", "second_row_games"):
+        for name in ("build_the_salaah", "five_pillars_sorter"):
             text = (root / "salaah" / f"{name}.py").read_text(encoding="utf-8")
-            want |= {k for k in re.findall(r'"((?:builder|pillars|six)\.[a-z_.]+)"', text)
+            want |= {k for k in re.findall(r'"((?:builder|pillars)\.[a-z_.]+)"', text)
                      if "{" not in k}
         from salaah.build_the_salaah import ROUNDS as BUILD
         from salaah.five_pillars_sorter import PILLARS
         want |= {f"builder.action.{a}" for r in BUILD for a in (r.answer, *r.others)}
         want |= {f"pillars.name.{p.key}" for p in PILLARS}
-        self.assertGreater(len(want), 25)
+        self.assertGreater(len(want), 15)   # was 25, for eight games
         for pack in sorted((root / "assets" / "content" / "packs").iterdir()):
             if not pack.is_dir() or pack.name == "ar":
                 continue

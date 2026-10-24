@@ -1,12 +1,18 @@
 {
- "schema": 1,
+ "schema": 2,
  "lang": "en",
  "what": "English translation",
- "translator": "Saheeh International (Umm Muhammad)",
- "publisher": "Tanzil",
- "where": "tanzil.net/trans/en.sahih",
- "via": "quran-json 3.1.2",
+ "translator": "Saheeh International",
+ "publisher": "Noble Qur'an Encyclopedia",
+ "where": "https://quranenc.com/en/browse/english_saheeh",
+ "via": "quranenc.com official XML export, v1.1.2",
+ "edition": "english_saheeh",
+ "version": "1.1.2",
+ "updated": "2025-06-24",
+ "check_updates": "https://quranenc.com/check/english_saheeh/v1.1.2-xml.1",
  "private": false,
- "note": "",
- "reviewed": false
+ "note": "The same translation the mat carried through Tanzil, at the publisher's newer revision. The Noble Qur'an Encyclopedia credits this edition to Noor International Center.",
+ "publisher_reviewed": true,
+ "reviewed": false,
+ "review_note": "The publisher states these are reviewed editions. Nobody engaged by this project has read a word of it, which is what reviewed: false records."
 }

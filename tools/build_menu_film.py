@@ -93,12 +93,88 @@ def build(sheet: Path, out: Path, names: list[str]) -> int:
     return 0
 
 
+DRIFT = 7          # how far a language sheet's tiles may sit from the English ones, in pixels
+
+
+def add_language(sheet: Path, out: Path, lang: str) -> int:
+    """Put one translated sheet beside the English one and record it in menu.json.
+
+    The words on these tiles are drawn into the picture, so following the mat's language means
+    showing a different film. The BOXES are not per language -- there is one set and it serves
+    them all, which is the whole reason this has to be checked rather than copied. A sheet whose
+    grid has shifted still looks perfectly right: every tile is drawn, every word is legible,
+    and the invisible buttons are simply somewhere else, so a child pressing Kaaba Jigsaw gets
+    the prayer game. Nothing in the app can notice, and nor could a person looking at the menu.
+
+    So the tiles are found in the new sheet and compared with the ones already recorded, and
+    anything beyond seven pixels is refused. Seven because that is what the first set of
+    language sheets came within -- a fiftieth of a tile, and a tile is a finger wide.
+    """
+    from PIL import Image
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from build_tiles import tiles_in
+
+    where = out / "menu.json"
+    if not where.is_file():
+        print(f"No {where}. Build the English sheet first.", file=sys.stderr)
+        return 1
+    described = json.loads(where.read_text(encoding="utf-8"))
+    known = described.get("tiles") or {}
+
+    first = Image.open(sheet)
+    first.seek(0)
+    boxes = tiles_in(first.convert("RGBA"))
+    print(f"{sheet.name}: {first.width}x{first.height}, "
+          f"{getattr(first, 'n_frames', 1)} frames, {len(boxes)} tiles found")
+    if [first.width, first.height] != list(described.get("size", [])):
+        print(f"\nThis sheet is {first.width}x{first.height} and the boxes were cut at "
+              f"{described.get('size')}. Nothing written.", file=sys.stderr)
+        return 1
+    if len(boxes) != len(known):
+        print(f"\n{len(boxes)} tiles but menu.json has {len(known)}. Nothing written.",
+              file=sys.stderr)
+        return 1
+    worst, worst_name = 0, ""
+    for (name, was), box in zip(known.items(), boxes):
+        off = max(abs(a - b) for a, b in zip(was, box))
+        if off > worst:
+            worst, worst_name = off, name
+    print(f"   worst tile drifted {worst} px from the English grid ({worst_name})")
+    if worst > DRIFT:
+        print(f"\nThat is more than {DRIFT} px. The buttons would not line up with the "
+              f"pictures.\nNothing written.", file=sys.stderr)
+        return 1
+
+    film = f"menu.{lang}.gif"
+    was, now = squeeze(sheet, out / film)
+    films = described.get("films") or {}
+    films.setdefault("en", described.get("film", "menu.gif"))
+    films[lang] = film
+    described["films"] = films
+    where.write_text(json.dumps(described, indent=2) + "\n", encoding="utf-8")
+    print(f"   {film}: {was / 1e6:.2f} MB -> {now / 1e6:.2f} MB")
+    print(f"   menu.json now names films for: {', '.join(sorted(films))}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="build_menu_film")
     ap.add_argument("sheet", type=Path, help="the animated drawing, all the tiles on one sheet")
     ap.add_argument("out", type=Path, help="the menu's folder in assets")
-    ap.add_argument("names", nargs="+", help="what the tiles are called, in reading order")
+    ap.add_argument("names", nargs="*", help="what the tiles are called, in reading order")
+    ap.add_argument("--language", metavar="XX",
+                    help="this sheet is the same menu drawn in another language: write it as "
+                         "menu.XX.gif and record it, rather than rewriting menu.json")
     args = ap.parse_args()
+    if args.language:
+        if args.names:
+            print("--language takes no tile names: the boxes are already recorded.",
+                  file=sys.stderr)
+            return 1
+        return add_language(args.sheet, args.out, args.language)
+    if not args.names:
+        print("Give the tile names, in reading order.", file=sys.stderr)
+        return 1
     return build(args.sheet, args.out, args.names)
 
 

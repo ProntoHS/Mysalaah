@@ -3,6 +3,18 @@
 
     python3 tools/build_duas.py
 
+DO NOT RUN THIS TO CHANGE A TRANSLATION. Use tools/retext_duas.py.
+
+duas.json stopped being this file's output some time ago. build_dua_hadith.py folds in 38 more
+du'as, and build_dua_timings.py then puts "audio", "seconds", "times" and "estimated" on all 48.
+This writes the file from scratch and knows nothing about any of that, so running it alone
+silently deletes every recording and every per-word timing on the screen. Done once, on 24
+October 2026, while swapping the Qur'an translations over to the Noble Qur'an Encyclopedia: a
+suite with 7 long-standing failures came back with 106, all of them timings and recordings that
+had been thrown away rather than anything that was actually wrong.
+
+If you do run it, run build_dua_hadith.py and build_dua_timings.py after it, in that order.
+
 Every du'a here is a Qur'anic verse, so not one word of Arabic is typed in this file. Each entry
 names a surah and verse and says how many words to drop from the front -- 2:201 opens "But among
 them is he who says" before the supplication begins, and you do not recite the preamble. The
@@ -31,6 +43,7 @@ OUT = ROOT / "assets" / "content" / "duas"
 # filed against here that the menu has no tile for.
 sys.path.insert(0, str(ROOT))
 from salaah.duamenu import CATEGORIES        # noqa: E402
+from salaah.quran import as_shown            # noqa: E402
 
 # Trimmed in these; whole verse in the rest.
 CUT = ("ar", "said", "en")
@@ -41,11 +54,11 @@ QUOTES = '"“”«»‘’'
 # Ten du'as. 'drop' is how many words to lose from the front of that verse, per language.
 # Read off the verified text, never typed from memory -- see the note at the top.
 DUAS = [
-    dict(key="both_worlds", cats=('general',), title="Good in this world and the next",
+    dict(key="both_worlds", cats=('protection',), title="Good in this world and the next",
          parts=[(2, 201, {"ar": 3, "said": 3, "en": 7})]),
     dict(key="no_burden", cats=('worry', 'forgiveness', 'protection'), title="Do not burden us beyond our strength",
          parts=[(2, 286, {"ar": 12, "said": 12, "en": 35})]),
-    dict(key="steady_heart", cats=('guidance', 'general'), title="Let not our hearts turn away",
+    dict(key="steady_heart", cats=('guidance',), title="Let not our hearts turn away",
          parts=[(3, 8, {"en": 2})]),
     dict(key="wronged_ourselves", cats=('forgiveness',), title="We have wronged ourselves",
          parts=[(7, 23, {"ar": 1, "said": 1, "en": 2})]),
@@ -69,16 +82,35 @@ DUAS = [
 
 
 def languages() -> tuple[str, ...]:
-    from json import loads
+    """The languages the du'a screen offers. NOT every language the Qur'an is now in.
+
+    Hindi and Portuguese arrived with the Noble Qur'an Encyclopedia editions, and the ten
+    Qur'anic du'as could carry them for nothing. They are left out anyway, because 38 of the
+    48 du'as come from hadith and exist in English alone: a screen that offered Hindi and then
+    showed English for most of what is behind it would be lying about what it has. The same is
+    already half-true of fr, ur, es and zh, which only ten du'as carry -- that is a gap to
+    close, not a precedent to widen.
+
+    Add a language here when the hadith du'as have it too.
+    """
     order = ("en", "fr", "ur", "es", "zh")
     return tuple(lang for lang in order if (QURAN / lang).is_dir())
 
 
 def verse(lang: str, surah: int, number: int) -> dict:
+    """One verse, as the mat SHOWS it rather than as the file stores it.
+
+    The Noble Qur'an Encyclopedia's files carry footnote references and, in the Spanish, the
+    verse number at the head of the verse. Those are stripped at the point of display and must
+    be stripped here too, or a du'a goes out reading "201. Pero entre ellos..." -- and the word
+    counts below, which say how much preamble to drop, would be counting a number as a word.
+    """
     rows = json.loads((QURAN / lang / f"{surah}.json").read_text(encoding="utf-8"))
     for row in rows:
         if int(row["n"]) == number:
-            return row
+            got = dict(row)
+            got["text"] = as_shown(got.get("text", ""), number)
+            return got
     raise SystemExit(f"{lang} has no verse {surah}:{number}")
 
 

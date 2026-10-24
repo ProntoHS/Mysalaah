@@ -1,63 +1,97 @@
-The Qur'an text, transliteration and translations in this folder come from quran-json
-version 3.1.2 (https://github.com/risan/quran-json). Every file here is byte-identical to
-that package: 6236 of 6236 verses in the Arabic, in the transliteration, and in each of the
-five translations, checked verse by verse rather than taken on trust.
+WHERE THE QUR'AN ON THIS MAT COMES FROM
 
-WHICH EDITION EACH ONE IS
+Eight texts: the Arabic and seven translations. They no longer come from one place, and the
+difference matters, so they are set out separately. Each text also carries its own SOURCE.json,
+which is what salaah/sources.py reads -- the screen cannot drift from the files because it is a
+reading of the files.
 
-Until October 2026 the five translations were shown on the mat as "source not recorded",
-because the package they came through had been read for its text and not for its README, and
-a plausible name is worse than an admitted gap. They have now been identified twice over, by
-two routes that share no step:
+    text   translator / team                 house                       obtained
+    ----   --------------------------------  --------------------------  -------------------
+    ar     --                                Noble Qur'an Encyclopedia   quran-json 3.1.2
+    en     Saheeh International              Noble Qur'an Encyclopedia   official export v1.1.2
+    es     Muhammad Isa Garcia               Noble Qur'an Encyclopedia   official export v1.0.2
+    fr     Muhammad Hamidullah               Tanzil                      quran-json 3.1.2
+    ur     Abul A'la Maududi                 Tanzil                      quran-json 3.1.2
+    zh     Muhammad Makin (Ma Jian)          Noble Qur'an Encyclopedia   official export v1.0.2
+    hi     Maulana Azizul Haque Al-Omari     Noble Qur'an Encyclopedia   official export v1.1.5
+    pt     Helmi Nasr                        Noble Qur'an Encyclopedia   official export v1.4.1
 
-  1. The words. Each text was compared verse by verse against every published edition in the
-     same language in the quran-api dataset (https://github.com/fawazahmed0/quran-api), which
-     takes its editions from tanzil.net and quranenc.com directly and not from quran-json.
-  2. The file. quran-json 3.1.2 names its own sources in its README, and the mat's text is
-     byte-identical to that package at that version.
+WHY FIVE OF THEM MOVED, IN OCTOBER 2026
 
-Both routes gave the same answer for all five, and for the Arabic and the transliteration:
+Until then all five translations came through quran-json, which redistributes from Tanzil and
+from the Noble Qur'an Encyclopedia. Two things were wrong with that, neither of them about the
+words.
 
-    Arabic (Uthmani)   Noble Qur'an Encyclopedia      quranenc.com
-    Transliteration    Tanzil                         tanzil.net/trans/en.transliteration
-    en                 Saheeh International           tanzil.net/trans/en.sahih
-                       (Umm Muhammad)
-    es                 Muhammad Isa García            tanzil.net/trans/es.garcia
-    fr                 Muhammad Hamidullah            tanzil.net/trans/fr.hamidullah
-    ur                 Abul A'la Maududi              tanzil.net/trans/ur.maududi
-    zh                 Muhammad Makin                 quranenc.com/en/browse/chinese_makin
+Permission. The Noble Qur'an Encyclopedia gave permission for their content to be used in this
+device, including a device that is sold, provided the content is not sold separately. Tanzil
+gives permission for non-commercial use only and says plainly that anything else has to be
+asked of the translator or the publisher. So the texts that are theirs -- the French, the Urdu
+and the transliteration -- are used here on that basis and no other, and the mat is not for
+sale.
 
-The margin, which is what makes this an identification rather than a resemblance -- verses
-identical to the named edition, against the closest other edition in that language:
+Versions. Tanzil does not version its editions. The Encyclopedia versions every one of theirs
+and publishes an address that answers whether a version is still current; both are recorded in
+each SOURCE.json as check_updates. A text that cannot be asked whether it has been corrected
+cannot be kept correct, and this mat is meant to sit in a child's room for years.
 
-    en    6236 of 6236      next closest  71    (of 52 English editions compared)
-    es    6236 of 6236      next closest  88    (of 7 Spanish)
-    fr    6236 of 6236      next closest 1077   (of 5 French)
-    ur    6236 of 6236      next closest  21    (of 11 Urdu)
-    zh    6236 of 6236      next closest 2232   (of 5 Chinese)
+WHAT CHANGED IN THE WORDS
 
-The French and Chinese runners-up are high because they are other digitisations of the same
-translator's work, which is the expected shape of the result and not a doubt about it.
+Measured verse by verse against what was there before, after taking off the footnote marks and
+the verse numbers described below:
 
-WHAT THAT DOES AND DOES NOT SETTLE
+    en    5069 of 6236 verses read exactly the same; 1167 changed
+    es    5531 of 6236 the same;  705 changed
+    zh    6234 of 6236 the same;    2 changed
 
-It settles attribution: the mat can now name the translator and the house for every word of
-scripture on it, and salaah/sources.py reads those names off the SOURCE.json beside each text
-so the screen cannot drift from the files.
+Every one is the same translation by the same translator, at the publisher's newer revision.
+The English changes are mostly added glosses -- "His verses [i.e., laws]" where it used to read
+"His verses" -- and a macron on Allah. Al-Fatiha 7 now reads "those who have earned [Your]
+anger" where it read "evoked". The Spanish differences are refinements of the same kind. The
+two Chinese verses are 78:24 and 81:1.
 
-It does not settle permission. quran-json licenses its own compilation CC BY-SA 4.0, but it
-cannot grant rights over translations it redistributes from Tanzil and the Noble Qur'an
-Encyclopedia, and the terms each translator and publisher sets have not been established
-here. The Chinese translation and the Arabic text are editions of the Noble Qur'an
-Encyclopedia, which is the house whose permission has been asked for and not yet given.
+Hindi and Portuguese are new. There was no Hindi or Portuguese Qur'an on the mat before, which
+is why quran.py offered Hindi from 1.84 with nothing behind it.
 
-(For the record, that package states its licence twice and not identically: LICENSE.txt and
-the README say CC BY-SA 4.0, while package.json says CC-BY-4.0. The licence file is the one
-quoted above.)
+TWO THINGS STRIPPED AT THE POINT OF DISPLAY, NOT IN THE FILES
 
-Verified on conversion: 114 surahs, 6236 verses, every surah matching the canonical verse
-count, in Arabic and in all five translations, with no verse left empty. That checks the
-shape of the text, not the words themselves.
+The files here are byte-for-byte the publisher's export, because their terms ask that the text
+not be modified. What the screen shows is narrower, and salaah/quran.py:as_shown does it:
 
-Nobody qualified has read a word of any of it. Every SOURCE.json here says reviewed: false
-and will go on saying so until somebody who can read the Arabic says otherwise.
+    [12]   a footnote reference. The footnotes themselves are NOT on the mat. There are 6,632
+           of them across the five editions -- 1613 in English, 1011 in Spanish, 2036 in Hindi,
+           1972 in Portuguese, none in Chinese -- and 1.7 MB of text that nothing on this mat
+           can display is 1.7 MB of every SD card spent on nothing. The marks are left in the
+           text because the text is the publisher's, and stripping them at the point of display
+           keeps the files theirs. Nothing is lost: tools/import_quranenc.py pulls the
+           footnotes out of the same export, and each SOURCE.json carries the address the
+           export came from. The day there is a screen that can show one, they take an hour to
+           put back.
+    "7. "  a verse number at the head of the verse. The Spanish export does this and the others
+           do not, and the reader already prints the number in the margin. It is taken off only
+           when the number IS that verse's number, which is what stops it eating a verse that
+           opens with a numeral. 5:88 in the Spanish is written "88," with a comma rather than
+           a full stop, so both are allowed for.
+
+A NUMBER in brackets goes. The translators' own brackets stay: "[All] praise is [due] to Allah"
+is Saheeh International writing, not an annotation, and taking those out would take words out of
+scripture.
+
+tests/test_core.py writes that rule out a second time rather than importing it, for the reason
+given in DuaContentTest -- two implementations agree only when both are right.
+
+WHAT IS CHECKED, AND WHAT IS NOT
+
+tools/check_quran.py proves the shape: 114 surahs, every one the length it has been for
+centuries, 49,888 verses across the Arabic and the seven translations, every verse present and
+numbered, none blank. It finds the translations by looking in this folder rather than from a
+list, because the list it used to carry said five and went on saying five after Hindi and
+Portuguese arrived.
+
+It does not prove the words, and nothing here can. Every SOURCE.json says reviewed: false and
+will go on saying so until somebody who reads Arabic has been over it.
+
+What those files now also say is publisher_reviewed, and the distinction is deliberate. A text
+issued by a house with a review process is not the same thing as a text nobody has looked at,
+and neither is the same as a text this project's own reader has approved -- which, for every
+word of scripture on this mat, is still none of them. The Sources page says which of the three
+each text is, in those words.

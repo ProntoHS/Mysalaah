@@ -31,6 +31,11 @@ class Credit:
     via: str = ""            # the project it was obtained through
     note: str = ""           # anything that has to be said plainly, including "not identified"
     private: bool = False    # on this mat only; not part of the app
+    version: str = ""        # the edition's version AS THE PUBLISHER STATES IT, never inferred
+    updated: str = ""        # the date they last changed it, from the same place
+    check_updates: str = ""  # where to ask whether that version is still current
+    publisher_reviewed: bool = False   # the house that issued it says it is a reviewed edition
+    reviewed: bool = False   # somebody engaged by THIS project has read it. Nobody has.
 
     @property
     def who(self) -> str:
@@ -47,7 +52,25 @@ class Credit:
             said += f" (via {self.via})"
         elif self.where:
             said += f" ({self.where})"
+        if self.version:
+            said += f", version {self.version}"
+            if self.updated:
+                said += f" of {self.updated}"
         return said
+
+    def review_line(self) -> str:
+        """What can honestly be said about who has checked this text.
+
+        Three states, and the difference between the first two is the whole reason this exists.
+        A text issued by a house with a review process is not the same as a text nobody has
+        looked at, and neither is the same as one this project's own reader has been over --
+        which, for every word of scripture on this mat, is still none of them.
+        """
+        if self.reviewed:
+            return "Read and approved for this mat."
+        if self.publisher_reviewed:
+            return "A reviewed edition from its publisher. Not yet read for this mat."
+        return "Not reviewed by anyone."
 
 
 def read_credit(folder: Path) -> Credit | None:
@@ -61,7 +84,11 @@ def read_credit(folder: Path) -> Credit | None:
     return Credit(what=str(d.get("what", "")), translator=str(d.get("translator", "")),
                   publisher=str(d.get("publisher", "")), where=str(d.get("where", "")),
                   via=str(d.get("via", "")), note=str(d.get("note", "")),
-                  private=bool(d.get("private", False)))
+                  private=bool(d.get("private", False)),
+                  version=str(d.get("version", "")), updated=str(d.get("updated", "")),
+                  check_updates=str(d.get("check_updates", "")),
+                  publisher_reviewed=bool(d.get("publisher_reviewed", False)),
+                  reviewed=bool(d.get("reviewed", False)))
 
 
 def for_translation(quran, lang: str) -> Credit | None:

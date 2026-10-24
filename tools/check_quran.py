@@ -25,7 +25,38 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 QURAN = ROOT / "assets" / "content" / "quran"
-LANGS = ("en", "fr", "ur", "es", "zh")
+
+
+def translations() -> tuple[str, ...]:
+    """Every translation actually on the disk, found by looking rather than by being listed.
+
+    This was a written list of five until Hindi and Portuguese were added in October 2026 and
+    the check went on reporting "5 translations" and quietly not looking at them. A list that
+    has to be edited whenever a language arrives is a list that will not be.
+    """
+    skip = {"ar", "timings"}
+    return tuple(sorted(p.name for p in QURAN.iterdir()
+                        if p.is_dir() and p.name not in skip
+                        and (p / "1.json").is_file()))
+
+
+def converted_from_quran_json() -> tuple[str, ...]:
+    """The translations --against can still check, read off their own SOURCE.json.
+
+    --against compares the text with the quran-json package it was converted from. That only
+    means anything for the texts that came through quran-json: en, es and zh now come straight
+    from the Noble Qur'an Encyclopedia and comparing those with quran-json would report a
+    difference for every verse that the publisher has since revised, which is not a fault.
+    """
+    out = []
+    for lang in translations():
+        try:
+            d = json.loads((QURAN / lang / "SOURCE.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if "quran-json" in str(d.get("via", "")):
+            out.append(lang)
+    return tuple(out)
 
 # The verse count of every surah, in order.
 VERSES = [7, 286, 200, 176, 120, 165, 206, 75, 129, 109, 123, 111, 43, 52, 99, 128, 111, 110,
@@ -58,7 +89,7 @@ def check_shape(wrong: list) -> int:
                 wrong.append(f"index: surah {entry['id']} has no {field}")
 
     counted = 0
-    for folder in ("ar",) + LANGS:
+    for folder in ("ar",) + translations():
         here = 0
         for n in range(1, 115):
             path = QURAN / folder / f"{n}.json"
@@ -96,7 +127,7 @@ def check_against(source: Path, wrong: list) -> int:
             looked += 1
             if was["text"] != now["text"]:
                 wrong.append(f"ar: surah {n} verse {was['id']} does not match the source")
-        for lang in LANGS:
+        for lang in converted_from_quran_json():
             theirs = read(source / lang / f"{n}.json")["verses"]
             mine = read(QURAN / lang / f"{n}.json")
             for was, now in zip(theirs, mine):
@@ -114,7 +145,9 @@ def main() -> int:
 
     wrong: list = []
     counted = check_shape(wrong)
-    print(f"shape      114 surahs, {counted:,} verses across Arabic and {len(LANGS)} translations")
+    langs = translations()
+    print(f"shape      114 surahs, {counted:,} verses across Arabic and "
+          f"{len(langs)} translations ({', '.join(langs)})")
 
     if args.against:
         looked = check_against(args.against, wrong)

@@ -25,21 +25,47 @@ class Round:
 # The places deliberately span several parts of the world and each wrong answer remains a
 # plausible compass direction.  A qualified reviewer has not yet checked the teaching copy.
 #
-# THE POINTS ARE A FRACTION OF assets/children/qibla-quest.png, and they are not the numbers
-# this module arrived with.  Those put London in the Mediterranean, Cape Town in the Indian
-# Ocean, Istanbul out to sea and Jakarta on Australia -- up to 130 px out, a ninth of the
-# map's width.  These are the map's own coordinates from the prototype that drew it, divided
-# by its 1200x590 viewBox.  tools/ARTWORK-MEASURED.md has the working and the overlay.
+# THE POINTS ARE A FRACTION OF assets/children/qibla-quest.png, and they have now been wrong
+# twice, in two different ways, so it is worth writing down how they are arrived at.
 #
-# The answers were checked separately, by great-circle bearing to 21.4225 N, 39.8262 E binned
-# to eight points: London 119.0, Cape Town 23.4, Tashkent 240.3, Jakarta 295.2, Istanbul 151.6.
-# All five agree with the quadrant below.  tests/test_ui.py recomputes them.
+# The numbers this module arrived with put London in the Mediterranean, Cape Town in the Indian
+# Ocean, Istanbul out to sea and Jakarta on Australia -- up to 130 px out, a ninth of the map's
+# width.  Those were replaced by the drawing prototype's own coordinates.
+#
+# Then in October 2026 the map was redrawn, and every one of them was wrong again. Not by a
+# mistake: the new drawing is 1672x941 where the old was 1600x786, an aspect of 1.78 against
+# 2.04, so it is a different projection and a fraction that meant London on one sheet means the
+# Bay of Biscay on the other. A REDRAWN MAP INVALIDATES EVERY POINT HERE. There is nothing in
+# the app that can notice, because a fraction is a valid fraction wherever it lands.
+#
+# How these were derived.  Eleven coastal landmarks were measured off the silhouette -- capes
+# and peninsula tips, which are unambiguous on any world map -- and a linear fit taken through
+# them:
+#
+#     x = 4.6825 * longitude + 740.5          residuals under 16 px
+#     y = -5.2510 * latitude  + 566.4         residuals under  8 px
+#
+# Longitude is linear because it has to be: every cylindrical projection makes it so.  Latitude
+# is the part that needed checking, and it is linear to within 8 px from 54 S to 59 N -- which
+# is the whole band these five cities sit in -- while departing badly above 60 N, where this
+# map stretches the Arctic (northern Greenland is 62 px off a linear fit).  Mercator was tried
+# and ruled out at 46 px.
+#
+# Two fits that LOOKED right and were not, which is why none of this is taken on trust: one
+# using only southern-hemisphere landmarks put London in Scotland, and a Miller projection put
+# it in northern Spain.  Both had respectable residuals against their own reference points.
+# What settled it was drawing the five pins on the map and looking at them.  Five of the five
+# land on ink; Makkah does too.  tools/ARTWORK-MEASURED.md has the overlay.
+#
+# The answers do NOT depend on the map.  They are great-circle bearings to 21.4225 N, 39.8262 E
+# binned to eight points: London 119.0, Cape Town 23.4, Tashkent 240.3, Jakarta 295.2, Istanbul
+# 151.6.  All five agree with the quadrant below, and tests/test_ui.py recomputes them.
 ROUNDS = (
-    Round("london", "se", (0.358, 0.186)),
-    Round("cape_town", "ne", (0.448, 0.712)),
-    Round("tashkent", "sw", (0.613, 0.246)),
-    Round("jakarta", "nw", (0.840, 0.517)),
-    Round("istanbul", "se", (0.465, 0.254)),
+    Round("london", "se", (0.4425, 0.3145)),
+    Round("cape_town", "ne", (0.4945, 0.7912)),
+    Round("tashkent", "sw", (0.6368, 0.3715)),
+    Round("jakarta", "nw", (0.7421, 0.6366)),
+    Round("istanbul", "se", (0.5240, 0.3731)),
 )
 DIRECTIONS = ("ne", "se", "sw", "nw")
 ANSWERED, AGAIN, NOTHING = "answered", "again", "nothing"

@@ -1,12 +1,18 @@
 {
- "schema": 1,
+ "schema": 2,
  "lang": "es",
  "what": "Spanish translation",
  "translator": "Muhammad Isa García",
- "publisher": "Tanzil",
- "where": "tanzil.net/trans/es.garcia",
- "via": "quran-json 3.1.2",
+ "publisher": "Noble Qur'an Encyclopedia",
+ "where": "https://quranenc.com/en/browse/spanish_garcia",
+ "via": "quranenc.com official XML export, v1.0.2",
+ "edition": "spanish_garcia",
+ "version": "1.0.2",
+ "updated": "2026-02-26",
+ "check_updates": "https://quranenc.com/check/spanish_garcia/v1.0.2-xml.1",
  "private": false,
- "note": "",
- "reviewed": false
+ "note": "The same translator the mat carried through Tanzil, at the publisher's own edition.",
+ "publisher_reviewed": true,
+ "reviewed": false,
+ "review_note": "The publisher states these are reviewed editions. Nobody engaged by this project has read a word of it, which is what reviewed: false records."
 }

@@ -1,0 +1,18 @@
+{
+ "schema": 2,
+ "lang": "pt",
+ "what": "Portuguese translation",
+ "translator": "Helmi Nasr",
+ "publisher": "Noble Qur'an Encyclopedia",
+ "where": "https://quranenc.com/en/browse/portuguese_nasr",
+ "via": "quranenc.com official XML export, v1.4.1",
+ "edition": "portuguese_nasr",
+ "version": "1.4.1",
+ "updated": "2026-02-23",
+ "check_updates": "https://quranenc.com/check/portuguese_nasr/v1.4.1-xml.1",
+ "private": false,
+ "note": "",
+ "publisher_reviewed": true,
+ "reviewed": false,
+ "review_note": "The publisher states these are reviewed editions. Nobody engaged by this project has read a word of it, which is what reviewed: false records."
+}

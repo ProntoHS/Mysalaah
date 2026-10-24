@@ -85,8 +85,7 @@
   {
    "key": "waking_in_the_night",
    "cats": [
-    "waking",
-    "general"
+    "waking"
    ],
    "title": "Waking in the night",
    "ref": "Sahih al-Bukhari",
@@ -329,8 +328,7 @@
   {
    "key": "guidance_and_enough",
    "cats": [
-    "guidance",
-    "general"
+    "guidance"
    ],
    "title": "Guidance, mindfulness and enough",
    "ref": "Sahih Muslim",

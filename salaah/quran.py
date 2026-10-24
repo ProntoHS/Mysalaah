@@ -12,6 +12,7 @@ the surahs it has and say nothing about the rest, rather than refuse to start.
 from __future__ import annotations
 
 import json
+import re
 from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +33,38 @@ PRIVATE = Path.home() / ".salaah" / "quran"
 
 RTL = ("ur",)            # translations that read right to left
 KEEP = 8                 # surahs held in memory at once; a surah is small, a language is not
+
+# The Noble Qur'an Encyclopedia's editions carry two things the mat has nowhere to put, so they
+# are stripped as the verse is handed over rather than edited out of the files. Their terms ask
+# that the text not be modified, and the files on disk are byte-for-byte their export -- what
+# changes is only what this screen can show.
+#
+#   [12]   a footnote reference. The footnotes themselves are in NOTES.json beside the surahs,
+#          waiting for a screen that can show them. Until then a bare [12] mid-sentence is
+#          noise to a child, so it goes.
+#   "7. "  a verse number repeated at the head of the verse, which the Spanish edition does and
+#          the others do not. The reader already prints the number down the margin.
+#
+# Only a NUMBER in brackets goes. The translators' own interpolations are in brackets too --
+# "[All] praise is [due] to Allah" is Saheeh International writing, not an annotation -- and
+# stripping those would take words out of scripture.
+NOTE_MARK = re.compile(r"\[\d+\]")
+LEAD_NUMBER = re.compile(r"^(\d+)\s*[.,]\s+")
+
+
+def as_shown(text: str, number: int) -> str:
+    """One verse of a translation, as the screen should show it.
+
+    The leading number is only taken off when it IS this verse's number. The Spanish edition
+    writes 5:88 as "88, Coman de lo licito..." with a comma rather than a full stop, so the
+    pattern allows either -- and the equality test is what stops it eating a verse that opens
+    with a numeral of its own.
+    """
+    out = NOTE_MARK.sub("", text)
+    found = LEAD_NUMBER.match(out)
+    if found and int(found.group(1)) == number:
+        out = out[found.end():]
+    return " ".join(out.split())
 
 
 @dataclass(frozen=True)
@@ -131,6 +164,7 @@ class Quran:
         """
         arabic = self._read("ar", number)
         meanings = self._read(lang, number) if lang in LANGS else []
-        by_number = {row.get("n"): row.get("text", "") for row in meanings}
+        by_number = {row.get("n"): as_shown(row.get("text", ""), row.get("n") or 0)
+                     for row in meanings}
         return [Verse(number=row["n"], arabic=row["text"], said=row.get("said", ""),
                       meaning=by_number.get(row["n"], "")) for row in arabic]

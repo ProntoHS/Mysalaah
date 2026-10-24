@@ -33,9 +33,6 @@ from .five_pillars_sorter import FivePillarsSorterScreen
 from .game import GameScreen
 from .kaaba_jigsaw import KaabaJigsawScreen
 from .qibla_quest import QiblaQuestScreen
-from .second_row_games import (ArabicLetterMatchScreen, CharityCounterScreen,
-                               IslamicPatternBuilderScreen, MosqueMannersScreen,
-                               RamadanCalendarScreen, TasbihCounterScreen)
 from .wudu import WORDS_PX as WUDU_WORDS_PX, Steps, WuduStep
 from .radio import RadioScreen, Stations
 from .duaboard import DuaBoard
@@ -1918,17 +1915,19 @@ class MainWindow(QtWidgets.QWidget):
         # words out of the drawing and refuses a menu whose names have drifted from them.
         self.games: dict[str, QtWidgets.QWidget] = {}
         # In the order Harry drew them on the sheet, so the registry reads like the menu.
+        # Six games were taken out in October 2026: Charity Counter, Mosque Manners, Ramadan
+        # Calendar, Arabic Letter Match, Tasbih Counter and Islamic Pattern Builder. Four of
+        # them put an Islamic name on a secular drill -- Tasbih Counter asked which strand had
+        # seven beads, Ramadan Calendar asked what came after 29, Islamic Pattern Builder
+        # offered circle, square, triangle and diamond. A child who finished them had counted
+        # and matched shapes, and the mat had told him he was doing something else. Arabic
+        # Letter Match and Mosque Manners did teach something, and may come back built properly
+        # -- five of twenty-eight letters as three-way multiple choice was not that.
         for tile, build in (("game", GameScreen),
                             ("qiblaquest", QiblaQuestScreen),
                             ("jigsaw", KaabaJigsawScreen),
                             ("build", BuildTheSalaahScreen),
-                            ("pillars", FivePillarsSorterScreen),
-                            ("charity", CharityCounterScreen),
-                            ("manners", MosqueMannersScreen),
-                            ("ramadan", RamadanCalendarScreen),
-                            ("arabic", ArabicLetterMatchScreen),
-                            ("tasbih_game", TasbihCounterScreen),
-                            ("pattern", IslamicPatternBuilderScreen)):
+                            ("pillars", FivePillarsSorterScreen)):
             screen = build(self)
             # A game whose PICTURE IS THE QUESTION is left off the menu when the picture is
             # not on the mat -- only the jigsaw says so, and KaabaJigsawScreen.ready explains
