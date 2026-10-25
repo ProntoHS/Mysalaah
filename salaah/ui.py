@@ -1291,26 +1291,41 @@ class MainWindow(QtWidgets.QWidget):
             QWidget#settingsRoot QLabel, QWidget#settingsRoot QRadioButton {{ background:{c.paper}; }}
             QScrollArea#settingsScroll {{ background:{c.paper}; border:none; }}
             QScrollArea#settingsScroll > QWidget > QWidget {{ background:{c.paper}; }}
-            QScrollArea#settingsScroll QScrollBar:vertical {{
-                background:{c.paper}; width:{px(14)}px; margin:0; border:none; }}
-            QScrollArea#settingsScroll QScrollBar::handle:vertical {{
-                background:{c.line}; border-radius:{px(7)}px; min-height:{px(60)}px; }}
-            QScrollArea#settingsScroll QScrollBar::add-line:vertical,
-            QScrollArea#settingsScroll QScrollBar::sub-line:vertical {{ height:0; }}
+            QScrollArea#sourcesScroll {{ background:{c.paper}; border:none; }}
+            QScrollArea#sourcesScroll > QWidget > QWidget {{ background:{c.paper}; }}
             /* The lists -- the surahs, the du'as, the kalima -- are scrolled with a finger, so
                their slider is three times the width a desktop gives it, and the handle is in
                the colour of the quieter text rather than the divider line, which on the dark
                screen was barely there. The arrow buttons at the ends go: they are a mouse's
-               idea of scrolling and at this width they would be two big blank squares. */
-            QScrollArea#listScroll QScrollBar:vertical {{
+               idea of scrolling and at this width they would be two big blank squares.
+
+               SETTINGS AND SOURCES ARE ON THE SAME RULE since 1.95, rather than each carrying
+               a slider of its own width. Settings had a 14px bar and Sources had no rule at
+               all, so it fell back to whatever Qt draws for a mouse -- three thicknesses of
+               slider on one device, on screens that are all scrolled with the same finger.
+               One selector list rather than three blocks: three blocks is how they came to
+               disagree, and a fourth screen added later gets this by joining the list. */
+            QScrollArea#listScroll QScrollBar:vertical,
+            QScrollArea#settingsScroll QScrollBar:vertical,
+            QScrollArea#sourcesScroll QScrollBar:vertical {{
                 background:{c.paper}; width:{px(LIST_BAR)}px; margin:0; border:none; }}
-            QScrollArea#listScroll QScrollBar::handle:vertical {{
+            QScrollArea#listScroll QScrollBar::handle:vertical,
+            QScrollArea#settingsScroll QScrollBar::handle:vertical,
+            QScrollArea#sourcesScroll QScrollBar::handle:vertical {{
                 background:{c.stone}; border-radius:{px(LIST_BAR // 2)}px;
                 min-height:{px(110)}px; }}
             QScrollArea#listScroll QScrollBar::add-line:vertical,
-            QScrollArea#listScroll QScrollBar::sub-line:vertical {{ height:0; }}
+            QScrollArea#listScroll QScrollBar::sub-line:vertical,
+            QScrollArea#settingsScroll QScrollBar::add-line:vertical,
+            QScrollArea#settingsScroll QScrollBar::sub-line:vertical,
+            QScrollArea#sourcesScroll QScrollBar::add-line:vertical,
+            QScrollArea#sourcesScroll QScrollBar::sub-line:vertical {{ height:0; }}
             QScrollArea#listScroll QScrollBar::add-page:vertical,
-            QScrollArea#listScroll QScrollBar::sub-page:vertical {{ background:transparent; }}
+            QScrollArea#listScroll QScrollBar::sub-page:vertical,
+            QScrollArea#settingsScroll QScrollBar::add-page:vertical,
+            QScrollArea#settingsScroll QScrollBar::sub-page:vertical,
+            QScrollArea#sourcesScroll QScrollBar::add-page:vertical,
+            QScrollArea#sourcesScroll QScrollBar::sub-page:vertical {{ background:transparent; }}
             /* Settings is set larger since 1.83. Harry: "increase font sizes to take
                advantage of extra room now" -- the room being what the cog, the school picker
                and the recitation note gave back. The rise is close to the same proportion on
@@ -1680,7 +1695,12 @@ class MainWindow(QtWidgets.QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
 
-        banner = self.make_banner(gear=True)
+        # home=True like every other sub screen. This banner was built without it from the days
+        # when the mosque WAS the main screen and a button back to it would have pointed at
+        # itself. The front door took that job in 1.76 -- go_home goes to the welcome screen,
+        # not here -- and this strip was never caught up with, so the five arches were the one
+        # screen on the mat whose banner had no way off it. Everywhere else: Main screen.
+        banner = self.make_banner(gear=True, home=True)
         # The front door's own label, kept under its old name: it is the one the clock tests
         # and the theme tests reach for, and it is a fair name for the banner you see first.
         self.times_label = self.banner_labels[-1]

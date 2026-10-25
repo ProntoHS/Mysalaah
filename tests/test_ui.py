@@ -8183,11 +8183,23 @@ class TouchableSliderTest(unittest.TestCase):
         settle()
         return w.section_lists["duas"]
 
-    def test_the_list_slider_is_far_wider_than_the_one_in_settings(self):
-        """Settings is read sitting still and its slider is the ordinary 14px. The lists are
-        scrolled through with a thumb while standing over the mat.
+    def test_every_slider_on_the_mat_is_the_touchable_one(self):
+        """THIS REVERSES A DECISION, and the two tests it replaces are the record of it.
 
-        Measured against LIST_BAR rather than a multiple written in here. It was exactly three
+        Until 1.95 Settings deliberately kept a 14px slider. The reason written down was that
+        "widening every slider in the app would have eaten the settings columns for a screen
+        nobody scrolls with a finger", and at the time that was a fair call. Harry asked for
+        the three to match, so the old reason was measured rather than argued with, and it does
+        not survive the measurement: SETTINGS DRAWS NO SLIDER AT ALL ON THE MAT. At 1920x1200,
+        which is the mat, and at 1920x1080 and 1280x800, its content fits and the bar is never
+        shown. It appears first at 1024x600. So the width being protected was the width of
+        something that is not on the screen, and the columns it was protecting were never at
+        risk on the device this runs on.
+
+        What WAS on the screen and wrong: the Sources page had no rule of its own at all, so Qt
+        drew it whatever it draws for a mouse. That is the thin slider anybody actually saw.
+
+        Measured against LIST_BAR rather than a number written in here. It was exactly three
         times the settings one until Harry used it and asked for more, at which point a test
         saying "three times" failed on a change that was the point of the exercise.
         """
@@ -8195,20 +8207,27 @@ class TouchableSliderTest(unittest.TestCase):
         w = self.window()
         w.open_settings()
         settle()
-        thin = w.settings_scroll.verticalScrollBar().width()
-        self.assertEqual(14, thin, "the settings slider was the one measured against")
+        want = w.px(LIST_BAR)
+        self.assertEqual(want, w.settings_scroll.verticalScrollBar().width(),
+                         "Settings is off the shared rule again")
         for name, listing in (("surahs", self.surahs(w)), ("du'as", self.duas(w))):
             wide = listing.scroll.verticalScrollBar().width()
-            self.assertEqual(w.px(LIST_BAR), wide, f"the {name} slider is {wide}px")
-            self.assertGreaterEqual(wide, thin * 3, "no wider than a mouse's slider")
+            self.assertEqual(want, wide, f"the {name} slider is {wide}px, not {want}")
 
-    def test_settings_keeps_its_thin_one(self):
-        """Only the lists changed. Widening every slider in the app would have eaten the
-        settings columns for a screen nobody scrolls with a finger."""
+    def test_settings_does_not_draw_a_slider_at_the_sizes_the_mat_runs_at(self):
+        """The measurement the reversal above rests on, kept so it cannot quietly stop being
+        true. If a later change makes Settings scroll on the mat, the width it scrolls at
+        becomes a real question again and this is the test that says so."""
         w = self.window()
-        w.open_settings()
-        settle()
-        self.assertEqual(14, w.settings_scroll.verticalScrollBar().width())
+        for height in (1200, 1080, 800):
+            w.resize(1920, height)
+            settle()
+            w.open_settings()
+            settle()
+            bar = w.settings_scroll.verticalScrollBar()
+            self.assertFalse(bar.isVisible() and bar.maximum() > 0,
+                             f"Settings now scrolls at 1920x{height}, so the width of its "
+                             f"slider matters again -- see the test above")
 
     def test_the_rows_gave_up_the_width_and_kept_their_height(self):
         """What was asked for: narrower rectangles, same height. The lists resize to whatever
@@ -15775,6 +15794,114 @@ class KaabaJigsawBoardTest(unittest.TestCase):
         self.assertEqual(0, differ,
                          f"{differ} sampled pixels differ: the nine crops do not reassemble "
                          f"into the picture they were cut from")
+
+
+class EveryBannerOffersTheWayHomeTest(unittest.TestCase):
+    """The black strip is the way back to the front door, so every screen wearing one says so.
+
+    The five arches did not. That banner was built before 1.76, when the mosque WAS the main
+    screen and a button marked "Main screen" would have pointed at the screen you were already
+    on. The front door took that job -- go_home goes to the welcome screen, not the mosque --
+    and this strip was never caught up with, so the one screen you reach by touching the front
+    door was the one screen whose strip had no way off it.
+
+    Checked by finding the button on the rendered screen, not by reading which flags were
+    passed to make_banner: the flag and the button appearing are different claims.
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.veil.stop()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def has_way_home(w) -> bool:
+        page = w.stack.currentWidget()
+        return any(b.objectName() == "mainScreen" and b.isVisible()
+                   for b in page.findChildren(QtWidgets.QPushButton))
+
+    def test_the_five_arches_carry_it_like_every_other_screen(self):
+        w = self.window()
+        w.go_to_prayers()
+        settle()
+        self.assertTrue(self.has_way_home(w),
+                        "the salaah menu's banner has no way back to the front door")
+
+    def test_every_screen_with_a_banner_carries_it(self):
+        w = self.window()
+        going = (("the five arches", w.go_to_prayers),
+                 ("a prayer's units", lambda: w.open_prayer("fajr")),
+                 ("Settings", w.open_settings),
+                 ("Sources", w.open_sources),
+                 ("the Qur'an list", w.open_corner_list))
+        missing = []
+        for name, go in going:
+            w.go_home()
+            settle()
+            go()
+            settle()
+            page = w.stack.currentWidget()
+            wears_one = any(x.objectName() == "banner"
+                            for x in page.findChildren(QtWidgets.QWidget))
+            if wears_one and not self.has_way_home(w):
+                missing.append(name)
+        self.assertEqual([], missing, f"a banner with no way home on: {missing}")
+
+
+class ScrollBarsAgreeTest(unittest.TestCase):
+    """Every screen scrolled with a finger gets the same slider.
+
+    They did not. The surah lists had the wide touchable one at LIST_BAR, Settings carried a
+    14px slider of its own, and the Sources page had no rule at all so Qt drew it whatever
+    width it draws for a mouse -- three thicknesses on one device, on three screens a child
+    scrolls exactly the same way. Harry asked for one of them; the fix was to put all three on
+    one selector list so a fourth screen cannot quietly become a fourth width.
+
+    Measured off the widget rather than read out of the stylesheet, because the stylesheet
+    saying 84 and the slider being 84 are different claims and only the second one matters.
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.veil.stop()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def widths(self, w):
+        out = {}
+        for go, label in ((w.open_settings, "settingsScroll"),
+                          (w.open_sources, "sourcesScroll"),
+                          (w.open_corner_list, "listScroll")):
+            w.go_home()
+            settle()
+            go()
+            settle()
+            for area in w.findChildren(QtWidgets.QScrollArea):
+                if area.objectName() == label and area.isVisible():
+                    out[label] = area.verticalScrollBar().width()
+        return out
+
+    def test_settings_and_sources_scroll_like_the_quran_list(self):
+        from salaah.reading import LIST_BAR
+        w = self.window()
+        got = self.widths(w)
+        self.assertEqual({"listScroll", "settingsScroll", "sourcesScroll"}, set(got),
+                         f"a screen's scroll area went missing: {sorted(got)}")
+        self.assertEqual(1, len(set(got.values())),
+                         f"three sliders, {len(set(got.values()))} widths: {got}")
+        self.assertEqual(w.px(LIST_BAR), got["listScroll"],
+                         "the shared width is no longer the touchable one")
 
 
 class MoreGamesTest(unittest.TestCase):
