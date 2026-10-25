@@ -91,6 +91,28 @@ class SideWindow(QtWidgets.QWidget):
             self.compass.close_screen()
         self.stack.setCurrentWidget(self.prayer)
 
+    def show_jigsaw(self, image):
+        """Lend the 7" to the Kaaba jigsaw: the finished picture, and how many pieces are home.
+
+        Built on first use rather than in __init__, because a mat whose children's menu never
+        gets opened should not be carrying a second copy of the puzzle picture in memory all
+        day. The screen gives it back in KaabaJigsawScreen.hideEvent.
+        """
+        from .kaaba_jigsaw import JigsawHint
+        if getattr(self, "jigsaw", None) is None:
+            self.jigsaw = JigsawHint(self.win, image)
+            self.stack.addWidget(self.jigsaw)
+            self.jigsaw.follow_theme()
+        self.idle = False
+        self.set_dim(0)
+        self.stack.setCurrentWidget(self.jigsaw)
+        return self.jigsaw
+
+    @property
+    def showing_jigsaw(self) -> bool:
+        jigsaw = getattr(self, "jigsaw", None)
+        return jigsaw is not None and self.stack.currentWidget() is jigsaw
+
     def close_screens(self) -> None:
         if self.compass is not None:
             self.compass.close_screen()

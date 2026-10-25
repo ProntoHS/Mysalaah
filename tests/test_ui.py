@@ -15550,60 +15550,231 @@ class QiblaQuestTest(unittest.TestCase):
 
 
 class KaabaJigsawTest(unittest.TestCase):
-    """The nine pieces, and the two ways this game could be won without looking at one."""
+    """Nine pieces moved by touch, and how much of the picture a player can ignore.
 
-    def test_the_pieces_do_not_come_in_reading_order(self):
-        """500 of 500 perfect games came of them doing exactly that."""
+    The 1.93 version of this class tested a different game: one piece offered at a time against
+    three candidate positions, scanned by the ring. Those tests are gone with that design, not
+    skipped -- keeping them passing against the new rules would have meant keeping the old rules
+    alive underneath, which is how a screen ends up with two games in it.
+    """
+
+    def game(self, seed=None):
         from salaah.kaaba_jigsaw import JigsawGame
-        straight = 0
-        for _ in range(200):
+        import random
+        return JigsawGame(shuffle=random.Random(seed).shuffle if seed is not None else None)
+
+    def test_a_fresh_board_is_mixed_up_and_never_already_finished(self):
+        """A shuffle that leaves pieces at home has given part of the answer away."""
+        from salaah.kaaba_jigsaw import JigsawGame
+        for _ in range(300):
             g = JigsawGame()
-            order = []
-            while not g.done:
-                order.append(g.piece)
-                g.answer(g.correct)
-                g.go_on()
-            self.assertEqual(sorted(order), list(range(9)), "a piece came up twice")
-            straight += order == list(range(9))
-        self.assertLess(straight, 5, f"{straight} of 200 games dealt in reading order")
+            self.assertFalse(g.done, "a fresh board was already solved")
+            # EIGHT, written out, not JigsawGame.MIXED. Asserting against the constant the
+            # shuffle is checked against makes the test agree with whatever the constant says:
+            # set MIXED to 0 and this passed 300 times over, because the assertion had become
+            # "away >= 0". The number is here so that lowering the bar has to be done twice,
+            # in two files, by somebody who meant it.
+            self.assertGreaterEqual(g.away, 8,
+                                    f"only {g.away} of 9 pieces were out of place")
+            self.assertEqual(sorted(g.order), list(range(9)), "a piece was lost or duplicated")
+            self.assertEqual(0, g.moves)
 
-    def test_a_wrong_answer_still_puts_the_piece_where_it_belongs(self):
-        """The picture always comes out whole; a child who misses one still sees the Kaaba."""
-        from salaah.kaaba_jigsaw import JigsawGame
-        g = JigsawGame()
-        while not g.done:
-            g.answer((g.correct + 1) % len(g.choices))
-            g.go_on()
-        self.assertEqual(0, g.score)
-        self.assertEqual(sorted(g.placed), list(range(9)))
+    def test_two_touches_swap_and_touching_one_cell_twice_puts_it_down(self):
+        from salaah.kaaba_jigsaw import PICKED, SWAPPED, CLEARED
+        g = self.game(5)
+        before = list(g.order)
+        self.assertEqual(PICKED, g.touch(0))
+        self.assertEqual(0, g.picked)
+        self.assertEqual(before, g.order, "picking a piece up moved it")
+        self.assertEqual(0, g.moves, "picking a piece up spent a move")
 
-    def test_a_filled_cell_is_not_offered_while_an_empty_one_is_free(self):
-        """Offering a hole that visibly has a piece in it is not a choice, it is decoration,
-        and it narrows three answers to two for anybody who notices."""
-        from salaah.kaaba_jigsaw import JigsawGame
-        for _ in range(100):
-            g = JigsawGame()
-            while not g.done:
-                empty = [n for n in range(9) if n not in g.placed]
-                if len(empty) >= len(g.choices):
-                    self.assertTrue(set(g.choices) <= set(empty),
-                                    f"round {g.at + 1} offered a filled cell while "
-                                    f"{len(empty)} were still empty")
-                g.answer(g.correct)
-                g.go_on()
+        self.assertEqual(CLEARED, g.touch(0))
+        self.assertIsNone(g.picked)
+        self.assertEqual(0, g.moves, "putting a piece down spent a move")
 
-    def test_pressing_the_same_box_every_time_scores_about_chance(self):
-        from salaah.kaaba_jigsaw import JigsawGame
-        for box in range(3):
-            total = 0
-            for _ in range(300):
-                g = JigsawGame()
-                while not g.done:
-                    g.answer(box)
-                    g.go_on()
-                total += g.score
-            self.assertLess(total / 300, 3.0 + 0.6,
-                            f"box {box + 1} scores {total / 300:.2f} of 9 against 3.00")
+        g.touch(2)
+        self.assertEqual(SWAPPED, g.touch(7))
+        self.assertIsNone(g.picked, "the pair stayed picked up after swapping")
+        self.assertEqual(1, g.moves)
+        want = list(before)
+        want[2], want[7] = want[7], want[2]
+        self.assertEqual(want, g.order)
+
+    def test_the_picture_always_comes_out_whole(self):
+        """However it is played, finishing means every piece is in its own cell."""
+        for seed in range(40):
+            g = self.game(seed)
+            for target in range(9):
+                if not g.is_home(target):
+                    g.swap(target, g.order.index(target))
+            self.assertTrue(g.done)
+            self.assertEqual(list(range(9)), g.order)
+
+    def test_a_finished_board_will_not_be_disturbed(self):
+        """The completion banner is touchable, and a touch there starts a new game rather than
+        unpicking the picture the child has just finished."""
+        g = self.game(11)
+        for target in range(9):
+            if not g.is_home(target):
+                g.swap(target, g.order.index(target))
+        spent = g.moves
+        self.assertEqual("nothing", g.touch(4))
+        self.assertFalse(g.swap(0, 8))
+        self.assertEqual(list(range(9)), g.order)
+        self.assertEqual(spent, g.moves)
+
+    def test_a_blind_player_pays_four_times_over_for_the_count(self):
+        """What the 7" screen gives away, measured rather than argued about.
+
+        Three players, none of which ever looks at the picture:
+
+            told which piece is home    wins every time, in about 32 swaps
+            told only how many are home wins nearly every time, in about 125 swaps
+            told nothing                wins about once in 500
+
+        The first is why no cell is marked as home while the puzzle is being built. The second
+        is the price of the count, and it is kept at that price deliberately: a child needs to
+        see they are getting closer, and 125 deliberate swaps is not something that happens by
+        accident with a picture sitting in front of them.
+
+        Asserted as a RATIO and as loose bounds, not as the exact medians, because the exact
+        numbers move a little with the seed and a test that pins them pins the seed instead of
+        the property.
+        """
+        import random
+        from salaah.kaaba_jigsaw import JigsawGame, PIECES
+        cap = 400
+
+        def told_which(g, rng):
+            for target in range(PIECES):
+                while not g.is_home(target) and g.moves < cap:
+                    for other in range(target + 1, PIECES):
+                        g.swap(target, other)
+                        if g.is_home(target):
+                            break
+                        g.swap(target, other)
+                    else:
+                        break
+            return g.done
+
+        def told_how_many(g, rng):
+            while not g.done and g.moves < cap:
+                a, b = rng.sample(range(PIECES), 2)
+                before = g.home
+                g.swap(a, b)
+                if g.home < before:
+                    g.swap(a, b)
+            return g.done
+
+        def told_nothing(g, rng):
+            while not g.done and g.moves < cap:
+                a, b = rng.sample(range(PIECES), 2)
+                g.swap(a, b)
+            return g.done
+
+        def play(strategy, games, seed):
+            rng = random.Random(seed)
+            wins, moves = 0, []
+            for _ in range(games):
+                g = JigsawGame(shuffle=rng.shuffle)
+                if strategy(g, rng):
+                    wins += 1
+                    moves.append(g.moves)
+            return wins, (sorted(moves)[len(moves) // 2] if moves else cap)
+
+        which_wins, which_moves = play(told_which, 120, 1)
+        many_wins, many_moves = play(told_how_many, 120, 1)
+        none_wins, _ = play(told_nothing, 200, 1)
+
+        self.assertEqual(120, which_wins, "marking the home piece no longer gives the game away"
+                                         " -- if that is deliberate, this test is the record of"
+                                         " why it was not, and should be rewritten")
+        self.assertLess(which_moves, 60, f"told which: {which_moves} swaps")
+        self.assertGreater(many_wins, 100, f"told how many: only {many_wins} of 120 won")
+        self.assertGreater(many_moves, 3 * which_moves,
+                           f"the count has stopped being a speed bump: {many_moves} swaps "
+                           f"against {which_moves} when told which piece is home")
+        self.assertLess(none_wins, 10, f"told nothing: {none_wins} of 200 won, so the picture "
+                                       f"is not doing the work")
+
+
+class KaabaJigsawBoardTest(unittest.TestCase):
+    """The board widget: that a touch lands on the cell the child touched."""
+
+    def board(self, width=900, height=900):
+        from salaah.kaaba_jigsaw import JigsawBoard, JigsawGame
+
+        class Window:
+            def px(self, n):
+                return n
+
+        game = JigsawGame(shuffle=lambda seq: None)
+        b = JigsawBoard(Window(), QtGui.QPixmap(), game)
+        b.resize(width, height)
+        return b
+
+    def test_every_cell_can_be_hit_at_its_own_centre(self):
+        """The painting and the hit testing come from one function, so they cannot disagree.
+        The web prototype laid the picture out by one rule and cut it by another, and the
+        finished puzzle came out as three strips with black bands between them."""
+        for size in ((900, 900), (1280, 720), (640, 1000)):
+            b = self.board(*size)
+            for where in range(9):
+                middle = b.cell_rect(where).center().toPoint()
+                self.assertEqual(where, b.cell_at(middle),
+                                 f"at {size[0]}x{size[1]}, the centre of cell {where} "
+                                 f"reported cell {b.cell_at(middle)}")
+
+    def test_the_nine_cells_fill_the_square_and_do_not_overlap(self):
+        b = self.board(1280, 720)
+        box = b.square()
+        self.assertAlmostEqual(box.width(), box.height(), delta=1.0, msg="the board is not square")
+        total = sum(b.cell_rect(w).width() * b.cell_rect(w).height() for w in range(9))
+        self.assertAlmostEqual(total, box.width() * box.height(), delta=box.width(),
+                               msg="the nine cells do not add up to the board")
+        for one in range(9):
+            for two in range(one + 1, 9):
+                overlap = b.cell_rect(one).intersected(b.cell_rect(two))
+                self.assertLess(overlap.width() * overlap.height(), 1.0,
+                                f"cells {one} and {two} overlap")
+
+    def test_a_touch_outside_the_square_hits_nothing(self):
+        b = self.board(1280, 720)
+        self.assertIsNone(b.cell_at(QtCore.QPoint(5, 5)))
+        self.assertIsNone(b.cell_at(QtCore.QPoint(1275, 715)))
+
+    def test_the_nine_crops_put_the_whole_picture_back_together(self):
+        """piece_of is checked here because nothing else checks it any more.
+
+        A finished board is painted as ONE picture rather than as nine pieces that touch, to
+        keep hairlines off the joins. That is better to look at and it means the finished
+        picture no longer proves the pieces were cut correctly: piece_of could crop the wrong
+        thirds and the completed Kaaba would still come out perfect while every piece a child
+        handled on the way was wrong. So the crops are reassembled here and compared against
+        the picture they came from, pixel for pixel.
+        """
+        from salaah.kaaba_jigsaw import piece_of
+        source = QtGui.QPixmap(str(ASSETS / "children" / "kaaba-jigsaw.png"))
+        self.assertFalse(source.isNull(), "the puzzle picture is not installed")
+        whole = source.toImage()
+        rebuilt = QtGui.QImage(whole.size(), whole.format())
+        rebuilt.fill(0)
+        painter = QtGui.QPainter(rebuilt)
+        for where in range(9):
+            row, col = divmod(where, 3)
+            tile = piece_of(source, where).toImage()
+            painter.drawImage(int(col * whole.width() / 3),
+                              int(row * whole.height() / 3), tile)
+        painter.end()
+
+        differ = 0
+        for y in range(0, whole.height(), 3):          # every third row is plenty and quick
+            for x in range(0, whole.width(), 3):
+                if whole.pixel(x, y) != rebuilt.pixel(x, y):
+                    differ += 1
+        self.assertEqual(0, differ,
+                         f"{differ} sampled pixels differ: the nine crops do not reassemble "
+                         f"into the picture they were cut from")
 
 
 class MoreGamesTest(unittest.TestCase):
