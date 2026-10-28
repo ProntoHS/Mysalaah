@@ -4,7 +4,7 @@
   "name": "Chinese",
   "nativeName": "中文",
   "dir": "ltr",
-  "about": "Plain modern Mandarin written for this app, so it is free of any translator's copyright and can ship on a device that is sold or given away. Simplified characters; 安拉 is used for Allah. DRAFT: every line needs checking by a qualified Chinese speaker. No published Chinese translation was used: Ma Jian's is in copyright until 2029 at the earliest and 2048 in the UK, and Wang Jingzhai's (out of copyright) has never been digitised.",
+  "about": "Qur'an passages (Fatiha, al-Kawthar, al-Ikhlas, al-Falaq, an-Nas): Muhammad Makin, the same translation the mat's reading screen uses, taken from the copy installed here so the two screens cannot say different things about the same verse. Ayat al-Kursi is still a draft written for this app: it is one verse shown as nine lines, and cutting a published translation at those nine places is a judgement about the translator's sentences, not a copy of them. Du'as and dhikr: written for this app. DRAFT, to be checked by a qualified reviewer. Nothing here has been read by anyone qualified.",
   "sources": {
     "takbir": "written for this app (draft, needs review)",
     "allahu_akbar": "written for this app (draft, needs review)",
@@ -26,11 +26,11 @@
     "salawat": "written for this app (draft, needs review)",
     "qunut_1": "written for this app (draft, needs review)",
     "qunut_2": "written for this app (draft, needs review)",
-    "fatiha": "written for this app (draft, needs review)",
-    "kawthar": "written for this app (draft, needs review)",
-    "ikhlas": "written for this app (draft, needs review)",
-    "falaq": "written for this app (draft, needs review)",
-    "nas": "written for this app (draft, needs review)",
+    "fatiha": "Muhammad Makin (Ma Jian) (quranenc.com official XML export, v1.0.2)",
+    "kawthar": "Muhammad Makin (Ma Jian) (quranenc.com official XML export, v1.0.2)",
+    "ikhlas": "Muhammad Makin (Ma Jian) (quranenc.com official XML export, v1.0.2)",
+    "falaq": "Muhammad Makin (Ma Jian) (quranenc.com official XML export, v1.0.2)",
+    "nas": "Muhammad Makin (Ma Jian) (quranenc.com official XML export, v1.0.2)",
     "ayat_kursi": "written for this app (draft, needs review)"
   },
   "intention": "我立意礼{prayer}的{kind}，共{n}拜",
@@ -78,28 +78,28 @@
       "他对万事都是全能的。"
     ],
     "falaq": [
-      "奉安拉之名，至仁的，至慈的。",
-      "你说：我求庇于破晓的主，",
-      "免受他所创造的一切的伤害，",
-      "免受黑夜降临时的伤害，",
-      "免受吹破魔结者的伤害，",
-      "免受嫉妒者嫉妒时的伤害。"
+      "奉至仁至慈的安拉之名",
+      "你说：“我求庇于曙光的主，",
+      "免遭他所创造者的毒害；",
+      "免遭黑夜笼罩时的毒害；",
+      "免遭吹破坚决的主意者的毒害；",
+      "免遭嫉妒者嫉妒时的毒害。”"
     ],
     "fatiha": [
-      "奉安拉之名，至仁的，至慈的。",
-      "一切赞颂全归安拉，众世界的主，",
-      "至仁的，至慈的，",
-      "报应日的主宰。",
-      "我们只崇拜你，只求你援助。",
-      "求你引导我们走上正路，",
-      "你所喜悦者的路，不是受谴怒者的路，也不是迷误者的路。"
+      "奉至仁至慈的安拉之名",
+      "一切赞颂，全归安拉，养育众世界的主，",
+      "至仁至慈的主，",
+      "报应日的主。",
+      "我们只崇拜你，我们只求你祐助。",
+      "求你引领我们上正路，",
+      "你所祐助者的路，不是受谴怒者的路，也不是迷误者的路。"
     ],
     "ikhlas": [
-      "奉安拉之名，至仁的，至慈的。",
-      "你说：他是安拉，是独一的主。",
-      "安拉是万物所仰赖的。",
-      "他没有生育，也没有被生育，",
-      "没有任何物可以与他匹敌。"
+      "奉至仁至慈的安拉之名",
+      "你说：“他是安拉，是独一的主；",
+      "安拉是万物所仰赖的；",
+      "他未生育， 也未被生育。",
+      "没有任何物可以做他的匹敌。”"
     ],
     "istiftah": [
       "主啊，赞你超绝，一切赞颂全归你。",
@@ -113,19 +113,19 @@
       "我的主啊，求你恕饶我。"
     ],
     "kawthar": [
-      "奉安拉之名，至仁的，至慈的。",
-      "我确已赐你许多福泽。",
-      "所以你应当礼拜你的主，并宰牲献祭。",
-      "怨恨你的人，才是绝后的。"
+      "奉至仁至慈的安拉之名",
+      "我确赐你多福，",
+      "故你应当为你的主而礼拜，并宰牺牲。",
+      "怨恨你者, 确是绝后的。"
     ],
     "nas": [
-      "奉安拉之名，至仁的，至慈的。",
-      "你说：我求庇于世人的主，",
-      "世人的君王，",
-      "世人所当崇拜者，",
-      "免受潜伏的低语者的伤害，",
-      "他在世人的心中低语，",
-      "他来自精灵和人类之中。"
+      "奉至仁至慈的安拉之名",
+      "你说：“我求庇于世人的养主，",
+      "世人的君主，",
+      "世人的主宰，",
+      "免遭潜伏的教唆者的毒害，",
+      "他在世人的胸中教唆，",
+      "他是属于精灵和人类的。"
     ],
     "qunut_1": [
       "主啊，我们求你援助，求你恕饶，我们信仰你，信托你。",

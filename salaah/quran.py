@@ -48,8 +48,16 @@ KEEP = 8                 # surahs held in memory at once; a surah is small, a la
 # Only a NUMBER in brackets goes. The translators' own interpolations are in brackets too --
 # "[All] praise is [due] to Allah" is Saheeh International writing, not an annotation -- and
 # stripping those would take words out of scripture.
-NOTE_MARK = re.compile(r"\[\d+\]")
+# \s* inside the brackets because the Bengali edition writes one of them as "[ ৩]", with a
+# space after the bracket, and \[\d+\] left that one marker standing in 4:77 while removing
+# the other 6,235. \d is Unicode-aware in Python, so "[১]" matches without anything extra.
+NOTE_MARK = re.compile(r"\[\s*\d+\s*\]")
 LEAD_NUMBER = re.compile(r"^(\d+)\s*[.,]\s+")
+
+# Punctuation that should never have a space in front of it BECAUSE A MARKER WAS TAKEN OUT.
+# French is NOT in this list and must never be: "Dieu est-il ?" is correct French typography,
+# and a rule that tidied that away would damage French to fix Hindi.
+ORPHANED = re.compile(r"\s*" + NOTE_MARK.pattern + r"\s*(?=[,.;:!?।؟،])")
 
 
 def as_shown(text: str, number: int) -> str:
@@ -59,11 +67,24 @@ def as_shown(text: str, number: int) -> str:
     writes 5:88 as "88, Coman de lo licito..." with a comma rather than a full stop, so the
     pattern allows either -- and the equality test is what stops it eating a verse that opens
     with a numeral of its own.
+
+    THE MARKER IS REMOVED TOGETHER WITH THE GAP IT LEAVES. Abu Bakr Zakaria's Bengali puts the
+    marker between the word and its punctuation -- "মালিক [৪]।" -- so deleting the marker alone
+    left a space floating in front of the danda in 2,833 of 6,236 verses. The Hindi already on
+    the mat has the same thing in 1,050, and has had since 1.93: this rule collapsed whitespace
+    but never noticed it had orphaned some against the next mark.
+
+    What this does NOT do is tidy punctuation the publisher wrote. It only closes a gap the mat
+    itself opened by choosing not to show a footnote marker, and it only touches text where a
+    marker actually was -- which is why ORPHANED carries the marker pattern inside it rather
+    than being a general "no space before punctuation" rule. A general one would be wrong: see
+    the note on ORPHANED about French.
     """
-    out = NOTE_MARK.sub("", text)
-    found = LEAD_NUMBER.match(out)
+    out = ORPHANED.sub("", text)
+    out = NOTE_MARK.sub(" ", out)
+    found = LEAD_NUMBER.match(out.lstrip())
     if found and int(found.group(1)) == number:
-        out = out[found.end():]
+        out = out.lstrip()[found.end():]
     return " ".join(out.split())
 
 

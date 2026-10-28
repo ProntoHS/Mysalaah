@@ -5965,17 +5965,25 @@ class QuranTest(unittest.TestCase):
         This read the other way until October 2026: there was no Hindi Qur'an, so the test
         insisted Hindi was NOT offered -- offering it and then showing English would have been
         worse than offering five. The Noble Qur'an Encyclopedia has a Hindi and a Portuguese
-        edition, so both are now real and both are expected. Russian and Bengali still are
-        not: the interface speaks them, the Qur'an does not, and quran.languages() looks at
-        the disk rather than at LANGS for exactly this reason.
+        edition, so both became real.
+
+        BENGALI JOINED THEM IN 1.96, and by a different road worth knowing about here. The
+        Encyclopedia publishes no export of their Bengali in any format, so it came from their
+        API, which states no revision -- see assets/content/quran/SOURCE.txt. It is a real text
+        either way, which is all this test asks.
+
+        RUSSIAN IS STILL NOT OFFERED and that is the half of this test that still earns its
+        keep. The interface speaks Russian, the Qur'an does not, and quran.languages() looks at
+        the disk rather than at a list for exactly this reason: a language cannot become
+        offered by being typed into a constant.
 
         Checked on what the reader will actually set beside the Arabic, since the row of
         buttons that used to advertise this has gone.
         """
-        self.assertEqual({"en", "fr", "ur", "es", "zh", "hi", "pt"},
+        self.assertEqual({"en", "fr", "ur", "es", "zh", "hi", "pt", "bn"},
                          set(self.window().quran.languages()))
         for lang, want in (("fr", "fr"), ("zh", "zh"), ("hi", "hi"), ("pt", "pt"),
-                           ("ru", ""), ("ar", "")):
+                           ("bn", "bn"), ("ru", ""), ("ar", "")):
             with self.subTest(lang):
                 w = self.window(lang=lang)
                 w.open_surah(1)
@@ -15794,6 +15802,48 @@ class KaabaJigsawBoardTest(unittest.TestCase):
         self.assertEqual(0, differ,
                          f"{differ} sampled pixels differ: the nine crops do not reassemble "
                          f"into the picture they were cut from")
+
+
+class EveryLanguageHasItsSalaahMeaningsTest(unittest.TestCase):
+    """A language the mat offers must have the words that go under the Arabic while praying.
+
+    Russian, Portuguese and Bengali were added as INTERFACE languages -- menus, buttons,
+    labels -- and nobody noticed that content/translations/ had no file for any of them. There
+    is no error when that happens: Translation.for_key returns None, the screen shows the
+    Arabic on its own, and it looks deliberate. A child prayed in Bengali and was given no
+    meaning at all, for three releases, quietly.
+
+    The line counts are the other half of it. for_key compares the number of lines against the
+    Arabic and returns None if they differ, so a translation one line short of a passage does
+    not show that passage wrong -- it shows nothing, in the same silent way.
+    """
+
+    def test_every_language_offered_has_meanings_for_the_salaah(self):
+        from salaah.content import available_packs, load
+        content = load(ASSETS)
+        offered = set(available_packs(ASSETS)) - {"ar"}   # Arabic reads the Arabic
+        missing = sorted(offered - set(content.translations))
+        self.assertEqual([], missing,
+                         f"offered on the mat with nothing to show while praying: {missing}")
+
+    def test_no_passage_is_silently_dropped_for_a_line_count(self):
+        import json
+        from salaah.content import load
+        content = load(ASSETS)
+        arabic = json.loads((ASSETS / "content" / "core" / "arabic.json")
+                            .read_text(encoding="utf-8"))["text"]
+        want = {k: len(v) for k, v in arabic.items() if isinstance(v, list)}
+        english = content.translations["en"].lines
+        broken = []
+        for lang, tr in sorted(content.translations.items()):
+            for key in sorted(english):
+                lines = tr.lines.get(key)
+                if lines is None:
+                    broken.append(f"{lang}/{key}: absent")
+                elif key in want and tr.for_key(key, want[key]) is None:
+                    broken.append(f"{lang}/{key}: {len(lines)} lines, Arabic has {want[key]}")
+        self.assertEqual([], broken,
+                         f"{len(broken)} passage(s) would show as Arabic alone: {broken[:8]}")
 
 
 class EveryBannerOffersTheWayHomeTest(unittest.TestCase):

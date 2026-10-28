@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "lang": "pt",
+  "name": "Portuguese",
+  "nativeName": "Português",
+  "dir": "ltr",
+  "about": "RASCUNHO / DRAFT. Passagens do Alcorão: Helmi Nasr, a mesma tradução que o ecrã de leitura do tapete usa, tirada da cópia aqui instalada. O versículo do Trono e as invocações: redigidos para esta aplicação, a rever por um leitor qualificado. Nada aqui foi lido por alguém com qualificação.",
+  "sources": {
+    "alhamdulillah": "written for this app (draft, needs review)",
+    "allahu_akbar": "written for this app (draft, needs review)",
+    "ameen": "written for this app (draft, needs review)",
+    "ayat_kursi": "written for this app (draft, needs review)",
+    "dhikr_salam": "written for this app (draft, needs review)",
+    "dhikr_tahlil": "written for this app (draft, needs review)",
+    "istiftah": "written for this app (draft, needs review)",
+    "istighfar": "written for this app (draft, needs review)",
+    "jalsa_dua": "written for this app (draft, needs review)",
+    "qunut_1": "written for this app (draft, needs review)",
+    "qunut_2": "written for this app (draft, needs review)",
+    "rabbana_atina": "written for this app (draft, needs review)",
+    "ruku_tasbih": "written for this app (draft, needs review)",
+    "salam": "written for this app (draft, needs review)",
+    "salawat": "written for this app (draft, needs review)",
+    "subhanallah": "written for this app (draft, needs review)",
+    "sujood_tasbih": "written for this app (draft, needs review)",
+    "taawwudh_basmala": "written for this app (draft, needs review)",
+    "takbir": "written for this app (draft, needs review)",
+    "tashahhud": "written for this app (draft, needs review)",
+    "tasmi_tahmid": "written for this app (draft, needs review)",
+    "fatiha": "Helmi Nasr (quranenc.com official XML export, v1.4.1)",
+    "kawthar": "Helmi Nasr (quranenc.com official XML export, v1.4.1)",
+    "ikhlas": "Helmi Nasr (quranenc.com official XML export, v1.4.1)",
+    "falaq": "Helmi Nasr (quranenc.com official XML export, v1.4.1)",
+    "nas": "Helmi Nasr (quranenc.com official XML export, v1.4.1)"
+  },
+  "intention": "Tenho a intenção de realizar {n} rakats {kind} de {prayer}",
+  "kinds": {
+    "farz": "Fard",
+    "sunnah": "Sunnah",
+    "nafl": "Nafl",
+    "witr": "Witr"
+  },
+  "prayers": {
+    "fajr": "Fajr",
+    "dhuhr": "Dhuhr",
+    "asr": "Asr",
+    "maghrib": "Maghrib",
+    "isha": "Isha"
+  },
+  "lines": {
+    "alhamdulillah": [
+      "Todo louvor pertence a Allah."
+    ],
+    "allahu_akbar": [
+      "Allah é o maior."
+    ],
+    "ameen": [
+      "Ó Allah, atende a nossa súplica."
+    ],
+    "ayat_kursi": [
+      "Allah: não há divindade além d'Ele, o Vivente, Aquele que a tudo sustenta.",
+      "Não O acometem nem a sonolência nem o sono.",
+      "A Ele pertence o que há nos céus e o que há na terra.",
+      "Quem poderia interceder junto d'Ele senão com a Sua permissão?",
+      "Ele sabe o que está diante deles e o que está atrás deles,",
+      "e nada abarcam do Seu conhecimento senão o que Ele quer.",
+      "O Seu Trono abrange os céus e a terra,",
+      "e preservá-los não O fatiga.",
+      "Ele é o Altíssimo, o Magnífico."
+    ],
+    "dhikr_salam": [
+      "Ó Allah, Tu és a Paz e de Ti vem a paz.",
+      "Bendito sejas, ó Dono da majestade e da honra."
+    ],
+    "dhikr_tahlil": [
+      "Não há divindade além de Allah, único, sem associado.",
+      "Dele é o domínio e Dele é o louvor,",
+      "e Ele tem poder sobre todas as coisas."
+    ],
+    "istiftah": [
+      "Glória a Ti, ó Allah, e todo louvor é Teu.",
+      "Bendito seja o Teu nome e exaltada a Tua majestade.",
+      "Não há divindade além de Ti."
+    ],
+    "istighfar": [
+      "Peço perdão a Allah."
+    ],
+    "jalsa_dua": [
+      "Meu Senhor, perdoa-me."
+    ],
+    "qunut_1": [
+      "Ó Allah, pedimos-Te ajuda, pedimos o Teu perdão, cremos em Ti e em Ti confiamos.",
+      "Louvamos-Te por todo o bem, agradecemos-Te e não somos ingratos para contigo.",
+      "Afastamo-nos e deixamos quem Te desobedece."
+    ],
+    "qunut_2": [
+      "Ó Allah, só a Ti adoramos; para Ti rezamos e nos prostramos.",
+      "A Ti nos esforçamos e acorremos. Esperamos a Tua misericórdia e tememos o Teu castigo.",
+      "O Teu castigo certamente alcança os que rejeitam a fé."
+    ],
+    "rabbana_atina": [
+      "Nosso Senhor, concede-nos o bem neste mundo",
+      "e o bem na outra vida, e protege-nos do castigo do Fogo."
+    ],
+    "ruku_tasbih": [
+      "Glória ao meu Senhor, o Magnífico."
+    ],
+    "salam": [
+      "Que a paz esteja convosco, e a misericórdia de Allah."
+    ],
+    "salawat": [
+      "Ó Allah, concede a Tua graça a Muhammad e à família de Muhammad,",
+      "como a concedeste a Abraão e à família de Abraão. Tu és Digno de louvor, Glorioso.",
+      "Ó Allah, abençoa Muhammad e a família de Muhammad,",
+      "como abençoaste Abraão e a família de Abraão. Tu és Digno de louvor, Glorioso."
+    ],
+    "subhanallah": [
+      "Glória a Allah."
+    ],
+    "sujood_tasbih": [
+      "Glória ao meu Senhor, o Altíssimo."
+    ],
+    "taawwudh_basmala": [
+      "Refugio-me em Allah contra Satanás, o maldito."
+    ],
+    "takbir": [
+      "Allah é o maior."
+    ],
+    "tashahhud": [
+      "Todas as saudações, as orações e as boas obras pertencem a Allah.",
+      "Que a paz esteja contigo, ó Profeta, e a misericórdia de Allah e as Suas bênçãos.",
+      "Que a paz esteja sobre nós e sobre os servos virtuosos de Allah.",
+      "Testemunho que não há divindade além de Allah, e que Muhammad é Seu servo e Seu mensageiro."
+    ],
+    "tasmi_tahmid": [
+      "Allah ouve quem O louva.",
+      "Nosso Senhor, a Ti pertence todo louvor."
+    ],
+    "fatiha": [
+      "Em nome de Allah, O Misericordioso, O Misericordiador",
+      "Louvor a Allah, O Senhor dos mundos.",
+      "O Misericordioso, O Misericordiador.",
+      "O Soberano do Dia do Juízo.",
+      "Só a Ti adoramos e só de Ti imploramos ajuda",
+      "Guia-nos à senda reta",
+      "À senda dos que agraciaste; não à dos incursos em Tua ira nem à dos descaminhados"
+    ],
+    "kawthar": [
+      "Em nome de Allah, O Misericordioso, O Misericordiador",
+      "Por certo, Nós te demos Al-Kawthar.",
+      "Então, ora a teu Senhor e imola as oferendas.",
+      "Por certo, quem te odeia será ele o sem posteridade."
+    ],
+    "ikhlas": [
+      "Em nome de Allah, O Misericordioso, O Misericordiador",
+      "Dize: \"Ele é Allah, Único.\"",
+      "\"Allah é O Solicitado.\"",
+      "\"Não gerou e não foi gerado.\"",
+      "\"E não há ninguém igual a Ele.\""
+    ],
+    "falaq": [
+      "Em nome de Allah, O Misericordioso, O Misericordiador",
+      "Dize: \"Refugio-me no Senhor da Alvorada,",
+      "\"Contra o mal daquilo que Ele criou,\"",
+      "\"E contra o mal da noite quando entenebrece,\"",
+      "\"E contra o mal das sopradoras dos nós.\"",
+      "\"E contra o mal do invejoso, quando inveja.\""
+    ],
+    "nas": [
+      "Em nome de Allah, O Misericordioso, O Misericordiador",
+      "Dize: \"Refugio-me nO Senhor dos homens,\"",
+      "\"O Rei dos homens,\"",
+      "\"O Deus dos homens,\"",
+      "\"Contra o mal do sussurrador, o absconso\"",
+      "\"Que sussurra perfídias nos peitos dos homens,\"",
+      "\"Seja ele dos jinns, seja ele dos homens.\""
+    ]
+  }
+}

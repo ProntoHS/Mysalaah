@@ -4,7 +4,7 @@
   "name": "Spanish",
   "nativeName": "Español",
   "dir": "ltr",
-  "about": "Plain modern Spanish written for this app, so it is free of any translator's copyright and can ship on a device that is sold or given away. 'Dios' is used for Allah, as in the French. DRAFT: every line needs checking by a qualified Spanish speaker. No published Spanish translation was used: the only public-domain one (Joaquin Garcia Bravo, 1907) is an indirect rendering from Savary's French and survives only as uncorrected OCR, and every modern Spanish translation is in copyright.",
+  "about": "Qur'an passages (Fatiha, al-Kawthar, al-Ikhlas, al-Falaq, an-Nas): Muhammad Isa García, the same translation the mat's reading screen uses, taken from the copy installed here so the two screens cannot say different things about the same verse. Ayat al-Kursi is still a draft written for this app: it is one verse shown as nine lines, and cutting a published translation at those nine places is a judgement about the translator's sentences, not a copy of them. Du'as and dhikr: written for this app. DRAFT, to be checked by a qualified reviewer. Nothing here has been read by anyone qualified.",
   "sources": {
     "takbir": "written for this app (draft, needs review)",
     "allahu_akbar": "written for this app (draft, needs review)",
@@ -26,11 +26,11 @@
     "salawat": "written for this app (draft, needs review)",
     "qunut_1": "written for this app (draft, needs review)",
     "qunut_2": "written for this app (draft, needs review)",
-    "fatiha": "written for this app (draft, needs review)",
-    "kawthar": "written for this app (draft, needs review)",
-    "ikhlas": "written for this app (draft, needs review)",
-    "falaq": "written for this app (draft, needs review)",
-    "nas": "written for this app (draft, needs review)",
+    "fatiha": "Muhammad Isa García (quranenc.com official XML export, v1.0.2)",
+    "kawthar": "Muhammad Isa García (quranenc.com official XML export, v1.0.2)",
+    "ikhlas": "Muhammad Isa García (quranenc.com official XML export, v1.0.2)",
+    "falaq": "Muhammad Isa García (quranenc.com official XML export, v1.0.2)",
+    "nas": "Muhammad Isa García (quranenc.com official XML export, v1.0.2)",
     "ayat_kursi": "written for this app (draft, needs review)"
   },
   "intention": "Tengo la intención de realizar {n} rakats {kind} de {prayer}",
@@ -78,28 +78,28 @@
       "y Él tiene poder sobre todas las cosas."
     ],
     "falaq": [
-      "En el nombre de Dios, el Clemente, el Misericordioso.",
-      "Di: Me refugio en el Señor del alba",
-      "del mal de lo que ha creado,",
-      "del mal de la oscuridad cuando se extiende,",
-      "del mal de quienes soplan sobre los nudos,",
-      "y del mal del envidioso cuando envidia."
+      "En el nombre de Dios, el Compasivo con toda la creación, el Misericordioso con los creyentes.",
+      "Di: “Me refugio en el Señor del amanecer,",
+      "de todo el mal que existe en lo que Él creó,",
+      "del mal de la oscuridad de la noche cuando se extiende,",
+      "del mal de las [hechiceras] sopladoras de nudos,",
+      "y del mal del envidioso cuando envidia”."
     ],
     "fatiha": [
-      "En el nombre de Dios, el Clemente, el Misericordioso.",
-      "Toda alabanza es para Dios, Señor de todos los mundos,",
-      "el Clemente, el Misericordioso,",
-      "Soberano del Día del Juicio.",
-      "Solo a Ti adoramos y solo a Ti pedimos ayuda.",
-      "Guíanos por el camino recto,",
-      "el camino de aquellos a quienes has favorecido, no de los que incurrieron en Tu ira, ni de los que se extraviaron."
+      "En el nombre de Dios, el Compasivo con toda la creación, el Misericordioso con los creyentes.",
+      "Todas las alabanzas son para Dios, Señor de todo cuanto existe,",
+      "el Compasivo, el Misericordioso.",
+      "Soberano absoluto del Día del Juicio Final,",
+      "solo a Ti te adoramos y solo de Ti imploramos ayuda.",
+      "¡Guíanos por el camino recto!",
+      "El camino de los que has colmado con Tus favores, no el de los que han caído en Tu ira, ni el de los que se extraviaron."
     ],
     "ikhlas": [
-      "En el nombre de Dios, el Clemente, el Misericordioso.",
-      "Di: Él es Dios, el Uno.",
-      "Dios, el Eterno, de quien todo depende.",
-      "No engendró ni fue engendrado,",
-      "y no hay nada comparable a Él."
+      "En el nombre de Dios, el Compasivo con toda la creación, el Misericordioso con los creyentes.",
+      "Di: “Él es Al-lah, Uno.",
+      "Al-lah es el Absoluto.",
+      "No engendró ni fue engendrado.",
+      "Y no hay nada ni nadie que sea semejante a Él”."
     ],
     "istiftah": [
       "Gloria a Ti, Dios mío, y Tuya es toda alabanza.",
@@ -113,19 +113,19 @@
       "Señor mío, perdóname."
     ],
     "kawthar": [
-      "En el nombre de Dios, el Clemente, el Misericordioso.",
-      "En verdad te hemos dado la abundancia.",
-      "Reza, pues, a tu Señor y ofrece el sacrificio.",
-      "Es quien te odia el que queda sin posteridad."
+      "En el nombre de Dios, el Compasivo con toda la creación, el Misericordioso con los creyentes.",
+      "[¡Oh, Mujámmad!] te he agraciado con la abundancia.",
+      "Reza a tu Señor y sacrifica [los animales en Su nombre].",
+      "Porque a quien te desdeñe y odie le privaré de todo bien."
     ],
     "nas": [
-      "En el nombre de Dios, el Clemente, el Misericordioso.",
-      "Di: Me refugio en el Señor de los hombres,",
-      "el Rey de los hombres,",
-      "el Dios de los hombres,",
-      "del mal del susurrador que se retira,",
-      "que susurra en los corazones de los hombres,",
-      "de entre los genios y los hombres."
+      "En el nombre de Dios, el Compasivo con toda la creación, el Misericordioso con los creyentes.",
+      "Di: “Me refugio en el Señor de los seres humanos,",
+      "en el Rey Soberano de los seres humanos,",
+      "en el [único] Dios de los seres humanos,",
+      "de la maldad del [demonio] susurrador que huye [cuando el nombre de Dios es mencionado],",
+      "que susurra en los corazones de los seres humanos,",
+      "y existe entre los yinn y entre los seres humanos”."
     ],
     "qunut_1": [
       "Dios mío, Te pedimos ayuda, Te pedimos perdón, creemos en Ti y en Ti confiamos.",

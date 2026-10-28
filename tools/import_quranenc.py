@@ -102,10 +102,74 @@ def read(path: pathlib.Path, lengths: dict[int, int]) -> tuple[dict, dict, list[
     return meta, verses, wrong
 
 
+def read_api(path: pathlib.Path, lengths: dict[int, int]) -> tuple[dict, dict, list[str]]:
+    """The same job as read(), for a capture of quranenc.com's own API instead of the XML.
+
+    WHY THIS EXISTS AT ALL, given everything above about preferring the export. QuranEnc
+    publishes no export of any kind for its Bengali translations: XML, CSV, Excel, SQLite,
+    ePub and PDF all answer /home/d/<fmt>/bengali_zakaria with an empty page, while the same
+    addresses return real files for english_saheeh and portuguese_nasr. 75 of their 163
+    translations have an XML export and Bengali is in the 88 that do not. Their API does serve
+    it, so that is the only official road to a Bengali the mat is permitted to carry, and the
+    alternative was my own draft.
+
+    WHAT IS LOST BY COMING THIS WAY, and it is the thing the module docstring is about: the
+    API states no revision. No version in a filename, no <updated_at>, no <check_updates>
+    address to ask whether what we hold is still current. So the SOURCE.json this writes says
+    the version is unknown instead of inventing one, and `check_updates` is empty. A mat
+    carrying this cannot be told its Bengali has gone stale. That is worth asking QuranEnc to
+    fix by publishing a Bengali export; until they do, this is the honest record of how it got
+    here.
+
+    The capture is a JSON file: {edition, source, endpoint, fetched_at, surahs: {"1": [{n, text}]}}.
+    It is checked for exactly the same things an XML export is -- 114 surahs, the verse counts
+    the Arabic on this mat has, numbering 1..n with nothing missing or blank.
+    """
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    verses: dict[int, list] = {}
+    wrong: list[str] = []
+    captured = doc.get("surahs")
+    if not isinstance(captured, dict):
+        return {}, {}, [f"{path.name} has no 'surahs' object"]
+    for key, rows in captured.items():
+        try:
+            number = int(key)
+        except (TypeError, ValueError):
+            wrong.append(f"surah key {key!r} is not a number")
+            continue
+        kept = []
+        for row in rows:
+            said = str(row.get("text", "")).strip()
+            if not said:
+                wrong.append(f"{number}:{row.get('n')} has no translation")
+            kept.append({"n": int(row["n"]), "text": said})
+        if [r["n"] for r in kept] != list(range(1, len(kept) + 1)):
+            wrong.append(f"surah {number} is not numbered 1..{len(kept)}")
+        if len(kept) != lengths.get(number):
+            wrong.append(f"surah {number} has {len(kept)} verses, the Arabic has "
+                         f"{lengths.get(number)}")
+        verses[number] = kept
+    if len(verses) != 114:
+        wrong.append(f"{len(verses)} surahs, expected 114")
+    total = sum(len(v) for v in verses.values())
+    if total != 6236:
+        wrong.append(f"{total} verses, expected 6236")
+    meta = {
+        "id": doc.get("edition", ""),
+        "url": f"https://quranenc.com/en/browse/{doc.get('edition', '')}",
+        "updated_at": "",                       # the API says nothing, so neither does this
+        "check_updates": "",
+        "api": doc.get("endpoint", ""),
+        "captured": doc.get("fetched_at", ""),
+    }
+    return meta, verses, wrong
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="import_quranenc", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("files", nargs="+", type=pathlib.Path, help="XML exports from quranenc.com")
+    ap.add_argument("files", nargs="+", type=pathlib.Path,
+                    help="XML exports from quranenc.com, or a .json capture of their API")
     ap.add_argument("--dry-run", action="store_true", help="check them and write nothing")
     args = ap.parse_args()
 
@@ -115,7 +179,8 @@ def main() -> int:
         if not path.is_file():
             print(f"  {path}: not there", file=sys.stderr)
             return 1
-        meta, verses, wrong = read(path, lengths)
+        meta, verses, wrong = (read_api if path.suffix.lower() == ".json"
+                               else read)(path, lengths)
         key = meta.get("id", "")
         if key not in EDITIONS:
             print(f"  {path.name}: edition {key!r} is not one this tool knows where to put. "
@@ -129,8 +194,12 @@ def main() -> int:
             for line in wrong[:8]:
                 print(f"      {line}", file=sys.stderr)
             return 1
-        print(f"  {key:18} -> {lang}  v{version or '?'} ({when or 'no date'})  "
-              f"6236 verses, every surah the length the Arabic is")
+        if meta.get("api") and not version:
+            print(f"  {key:18} -> {lang}  NO VERSION (their API states none)  "
+                  f"6236 verses, every surah the length the Arabic is")
+        else:
+            print(f"  {key:18} -> {lang}  v{version or '?'} ({when or 'no date'})  "
+                  f"6236 verses, every surah the length the Arabic is")
         ready.append((key, lang, what, translator, version, when, meta, verses))
 
     if args.dry_run:
@@ -154,10 +223,18 @@ def main() -> int:
         (folder / "SOURCE.json").write_text(json.dumps({
             "schema": 2, "lang": lang, "what": what, "translator": translator,
             "publisher": "Noble Qur'an Encyclopedia", "where": meta.get("url", ""),
-            "via": f"quranenc.com official XML export, v{version}",
+            "via": (f"quranenc.com official API v1, captured {meta.get('captured', '')[:10]}"
+                    if meta.get("api") else
+                    f"quranenc.com official XML export, v{version}"),
             "edition": key, "version": version, "updated": when,
             "check_updates": meta.get("check_updates", ""),
-            "private": False, "note": "",
+            "private": False,
+            "note": ("QuranEnc publishes no export of this edition in any format -- XML, CSV, "
+                     "Excel, SQLite, ePub and PDF all answer with an empty page, while the same "
+                     "addresses return real files for other editions. Their API is the only "
+                     "official route, and it states no revision, so there is no version here "
+                     "and no check_updates address to ask whether this is still current. Ask "
+                     "them to publish an export." if meta.get("api") else ""),
             "publisher_reviewed": True, "reviewed": False, "review_note": REVIEW,
         }, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         print(f"  {lang}/: 114 surahs and SOURCE.json written and read back")

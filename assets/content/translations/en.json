@@ -4,7 +4,7 @@
   "name": "English",
   "nativeName": "English",
   "dir": "ltr",
-  "about": "Plain modern English written for this app, so it is free of any translator's copyright and can be read aloud without archaic wording. DRAFT: to be checked by a qualified reviewer. Pickthall's 1930 wording was used up to v0.47 and was dropped as too archaic; a recognised modern translation would need the publisher's permission.",
+  "about": "Qur'an passages (Fatiha, al-Kawthar, al-Ikhlas, al-Falaq, an-Nas): Saheeh International, the same translation the mat's reading screen uses, taken from the copy installed here so the two screens cannot say different things about the same verse. Ayat al-Kursi is still a draft written for this app: it is one verse shown as nine lines, and cutting a published translation at those nine places is a judgement about the translator's sentences, not a copy of them. Du'as and dhikr: written for this app. DRAFT, to be checked by a qualified reviewer. Nothing here has been read by anyone qualified.",
   "sources": {
     "alhamdulillah": "written for this app (draft, needs review)",
     "allahu_akbar": "written for this app (draft, needs review)",
@@ -12,14 +12,14 @@
     "ayat_kursi": "written for this app (draft, needs review)",
     "dhikr_salam": "written for this app (draft, needs review)",
     "dhikr_tahlil": "written for this app (draft, needs review)",
-    "falaq": "written for this app (draft, needs review)",
-    "fatiha": "written for this app (draft, needs review)",
-    "ikhlas": "written for this app (draft, needs review)",
+    "falaq": "Saheeh International (quranenc.com official XML export, v1.1.2)",
+    "fatiha": "Saheeh International (quranenc.com official XML export, v1.1.2)",
+    "ikhlas": "Saheeh International (quranenc.com official XML export, v1.1.2)",
     "istiftah": "written for this app (draft, needs review)",
     "istighfar": "written for this app (draft, needs review)",
     "jalsa_dua": "written for this app (draft, needs review)",
-    "kawthar": "written for this app (draft, needs review)",
-    "nas": "written for this app (draft, needs review)",
+    "kawthar": "Saheeh International (quranenc.com official XML export, v1.1.2)",
+    "nas": "Saheeh International (quranenc.com official XML export, v1.1.2)",
     "qunut_1": "written for this app (draft, needs review)",
     "qunut_2": "written for this app (draft, needs review)",
     "rabbana_atina": "written for this app (draft, needs review)",
@@ -78,28 +78,28 @@
       "and He has power over all things."
     ],
     "falaq": [
-      "In the name of Allah, the Most Merciful, the Most Compassionate.",
-      "Say: I seek refuge with the Lord of the daybreak",
-      "from the harm of what He created,",
-      "from the harm of darkness as it settles,",
-      "from the harm of those who blow on knots,",
-      "and from the harm of an envier when he envies."
+      "In the name of Allāh, the Entirely Merciful, the Especially Merciful.",
+      "Say, \"I seek refuge in the Lord of daybreak",
+      "From the evil of that which He created",
+      "And from the evil of darkness when it settles",
+      "And from the evil of the blowers in knots",
+      "And from the evil of an envier when he envies.\""
     ],
     "fatiha": [
-      "In the name of Allah, the Most Merciful, the Most Compassionate.",
-      "All praise belongs to Allah, Lord of all the worlds,",
-      "the Most Merciful, the Most Compassionate,",
-      "Master of the Day of Judgement.",
-      "You alone we worship, and You alone we ask for help.",
-      "Guide us along the straight path,",
-      "the path of those You have blessed, not of those who earned anger, nor of those who went astray."
+      "In the name of Allāh, the Entirely Merciful, the Especially Merciful.",
+      "[All] praise is [due] to Allāh, Lord of the worlds -",
+      "The Entirely Merciful, the Especially Merciful,",
+      "Sovereign of the Day of Recompense.",
+      "It is You we worship and You we ask for help.",
+      "Guide us to the straight path -",
+      "The path of those upon whom You have bestowed favor, not of those who have earned [Your] anger or of those who are astray."
     ],
     "ikhlas": [
-      "In the name of Allah, the Most Merciful, the Most Compassionate.",
-      "Say: He is Allah, the One.",
-      "Allah, the Eternal, on whom all depend.",
-      "He does not give birth, nor was He born,",
-      "and there is none comparable to Him."
+      "In the name of Allāh, the Entirely Merciful, the Especially Merciful.",
+      "Say, \"He is Allāh, [who is] One,",
+      "Allāh, the Eternal Refuge.",
+      "He neither begets nor is born,",
+      "Nor is there to Him any equivalent.\""
     ],
     "istiftah": [
       "Glory be to You, O Allah, and all praise is Yours.",
@@ -113,19 +113,19 @@
       "My Lord, forgive me."
     ],
     "kawthar": [
-      "In the name of Allah, the Most Merciful, the Most Compassionate.",
-      "We have surely given you abundance.",
-      "So pray to your Lord and sacrifice.",
-      "It is the one who hates you who is cut off."
+      "In the name of Allāh, the Entirely Merciful, the Especially Merciful.",
+      "Indeed, We have granted you, [O Muḥammad], al-Kawthar.",
+      "So pray to your Lord and offer sacrifice [to Him alone].",
+      "Indeed, your enemy is the one cut off."
     ],
     "nas": [
-      "In the name of Allah, the Most Merciful, the Most Compassionate.",
-      "Say: I seek refuge with the Lord of people,",
-      "the King of people,",
-      "the Allah of people,",
-      "from the harm of the whisperer who withdraws,",
-      "who whispers into the hearts of people,",
-      "from among jinn and people."
+      "In the name of Allāh, the Entirely Merciful, the Especially Merciful.",
+      "Say, \"I seek refuge in the Lord of mankind,",
+      "The Sovereign of mankind,",
+      "The God of mankind,",
+      "From the evil of the retreating whisperer -",
+      "Who whispers [evil] into the breasts of mankind -",
+      "From among the jinn and mankind.\""
     ],
     "qunut_1": [
       "O Allah, we ask You for help, we ask Your forgiveness, we believe in You and we rely on You.",

@@ -883,11 +883,73 @@ class RememberedScreensTest(unittest.TestCase):
         self.assertEqual(("HDMI-A-1", "HDMI-A-2"), (kept.main_output, kept.side_output))
 
 
-class NewLanguagesTest(unittest.TestCase):
-    """Spanish, Mandarin and Hindi, added for testing. Each is written for this app rather than
-    taken from a published translation, because no free one exists in these three languages."""
+class DisplayRuleTest(unittest.TestCase):
+    """salaah.quran.as_shown: what a verse looks like once the mat has taken the markers out.
 
-    WANTED = ("es", "zh", "hi")
+    Every case here is written out as a literal expected string rather than worked out by a
+    second copy of the rule. A test that recomputes the answer agrees with the code whenever
+    both are wrong in the same way, which is the whole reason DuaContentTest.as_displayed
+    exists as a deliberate reimplementation and this does not.
+    """
+
+    def shown(self, raw, number):
+        from salaah.quran import as_shown
+        return as_shown(raw, number)
+
+    def test_a_marker_goes_and_takes_its_orphaned_space_with_it(self):
+        """Abu Bakr Zakaria's Bengali puts the marker between the word and its punctuation, so
+        removing the marker alone left a space floating before the danda in 2,833 of 6,236
+        verses. 177 remain, and those are the publisher's own spacing, not a gap the mat made."""
+        self.assertEqual("মালিক।", self.shown("মালিক [১]।", 4))
+        self.assertEqual("বলুন, ‘তিনি", self.shown("বলুন [১] , ‘তিনি", 1))
+        self.assertEqual("In the name of Allāh, the Entirely Merciful.",
+                         self.shown("In the name of Allāh,[2] the Entirely Merciful.", 1))
+
+    def test_a_space_inside_the_brackets_is_still_a_marker(self):
+        """4:77 of the Bengali is written "[ ৩]". \\[\\d+\\] left that one standing while
+        removing the other 6,235, which is the kind of miss that only shows up on one verse."""
+        self.assertEqual("সালাত কায়েম কর এবং", self.shown("সালাত কায়েম কর [ ৩] এবং", 77))
+
+    def test_the_translators_own_brackets_are_scripture_and_stay(self):
+        """"[All] praise is [due] to Allah" is Saheeh International writing, not an annotation.
+        Only a NUMBER in brackets is a marker."""
+        self.assertEqual("[All] praise is [due] to Allah.",
+                         self.shown("[All] praise is [due] to Allah.", 2))
+
+    def test_french_spacing_is_left_exactly_alone(self):
+        """THE CASE THAT STOPS THE OBVIOUS FIX. A plain "no space before punctuation" rule
+        would have been shorter and would have quietly rewritten correct French typography --
+        a space before ; : ! ? is how French is set -- to tidy up after a marker in another
+        language. Nothing here had a marker, so nothing here may change."""
+        for line in ("Dieu est-il le plus grand ?",
+                     "Louange a Dieu ; Seigneur des mondes !",
+                     "Il dit : en verite, je suis serviteur de Dieu."):
+            self.assertEqual(line, self.shown(line, 3), "French spacing was altered")
+
+    def test_a_leading_number_goes_only_when_it_is_this_verse(self):
+        self.assertEqual("Coman de lo licito", self.shown("88, Coman de lo licito", 88))
+        self.assertEqual("7 hombres salieron", self.shown("7 hombres salieron", 3))
+
+    def test_the_rule_reads_unicode_digits(self):
+        """Bengali numerals are decimal digits, so \\d matches them with nothing added. Asserted
+        because it is the sort of thing that is true until somebody passes re.ASCII."""
+        from salaah.quran import NOTE_MARK
+        self.assertTrue(NOTE_MARK.search("[১]"), "a Bengali-numeral marker is not recognised")
+        self.assertTrue(NOTE_MARK.search("[12]"))
+        self.assertFalse(NOTE_MARK.search("[All]"))
+
+
+class NewLanguagesTest(unittest.TestCase):
+    """The languages whose salaah words were written here rather than taken from a publisher.
+
+    It was three -- Spanish, Mandarin, Hindi -- and is now six, with Russian, Portuguese and
+    Bengali added in 1.96. Portuguese is the one that is no longer wholly drafted: its five
+    Qur'anic passages come from Helmi Nasr, the licensed edition already installed for the
+    reading screen, and the same is now true of the Qur'anic passages in Spanish, Hindi and
+    Mandarin. Only the du'as, the dhikr and Ayat al-Kursi are still written here.
+    """
+
+    WANTED = ("es", "zh", "hi", "ru", "pt", "bn")
 
     def setUp(self):
         from salaah.content import load
@@ -901,15 +963,46 @@ class NewLanguagesTest(unittest.TestCase):
             self.assertTrue(tr.native_name, f"{lang} has no name in its own language")
             self.assertFalse(tr.rtl, f"{lang} runs left to right")
 
-    def test_none_of_them_carries_a_publisher_s_words(self):
-        """The standing rule for anything that ships: nothing from a translation in copyright.
-        Every line of these three was written for the app, so there is nothing to strip out."""
+    def test_every_line_is_either_written_here_or_one_the_mat_may_carry(self):
+        """THE RULE THIS CHECKS HAS CHANGED, and the old wording of it was already untrue.
+
+        It used to read "nothing from a translation in copyright", and insisted every source
+        said "written for this app". That was right when these languages were drafted and
+        nothing on the mat was licensed from anybody. It stopped being right in 1.93, when the
+        Qur'an translations arrived from QuranEnc's official export under the permission Harry
+        was granted -- Saheeh International, García, Al-Omari, Nasr, Makin are all in
+        copyright, all shipping in assets/content/quran since that release, and this test never
+        noticed because it only ever looked in assets/content/translations.
+
+        So it was not protecting the rule, it was protecting one folder from a rule the rest of
+        the mat had already moved past. What actually matters is not whether a translator is in
+        copyright but whether this mat is allowed to carry them, and the record of being
+        allowed is the SOURCE.json sitting beside the installed Qur'an. A line may therefore
+        come from one of two places and nowhere else:
+
+            written for this app        a draft, still unreviewed, marked as such
+            a translator named in that language's own quran/<lang>/SOURCE.json
+                                        licensed, installed, and already on the mat
+
+        Anything else -- a translation pasted in from somewhere, a name with no SOURCE.json
+        behind it -- fails here, which is the thing the old test was really for.
+        """
+        import json
         for lang in self.WANTED:
             tr = self.content.translations[lang]
-            for key, where in tr.sources.items():
-                self.assertIn("written for this app", where,
-                              f"{lang} {key} came from somewhere else: {where}")
-            self.assertIn("DRAFT", tr.about, f"{lang} does not say it still needs checking")
+            licensed = ""
+            beside = ASSETS / "content" / "quran" / lang / "SOURCE.json"
+            if beside.is_file():
+                licensed = json.loads(beside.read_text(encoding="utf-8")).get("translator", "")
+            for key, where in sorted(tr.sources.items()):
+                if "written for this app" in where:
+                    continue
+                self.assertTrue(licensed and licensed in where,
+                                f"{lang} {key} came from {where!r}, which is neither written "
+                                f"here nor the translation installed for {lang} "
+                                f"({licensed or 'none installed'})")
+            self.assertIn("DRAFT", tr.about.upper(),
+                          f"{lang} does not say it still needs checking")
 
     def test_the_intention_reads_in_each_language(self):
         """Filled in from that language's own words for the prayer and the kind. Spanish keeps

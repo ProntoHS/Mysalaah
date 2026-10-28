@@ -1,6 +1,6 @@
 WHERE THE QUR'AN ON THIS MAT COMES FROM
 
-Eight texts: the Arabic and seven translations. They no longer come from one place, and the
+Nine texts: the Arabic and eight translations. They no longer come from one place, and the
 difference matters, so they are set out separately. Each text also carries its own SOURCE.json,
 which is what salaah/sources.py reads -- the screen cannot drift from the files because it is a
 reading of the files.
@@ -15,6 +15,28 @@ reading of the files.
     zh     Muhammad Makin (Ma Jian)          Noble Qur'an Encyclopedia   official export v1.0.2
     hi     Maulana Azizul Haque Al-Omari     Noble Qur'an Encyclopedia   official export v1.1.5
     pt     Helmi Nasr                        Noble Qur'an Encyclopedia   official export v1.4.1
+    bn     Abu Bakr Zakaria                  Noble Qur'an Encyclopedia   their API, NO VERSION
+
+WHY THE BENGALI HAS NO VERSION, AND WHY IT CAME ANYWAY
+
+Every other Encyclopedia text here came from their official export, which states its revision
+and publishes an address that answers whether that revision is still current. Bengali has no
+export. Not XML, not CSV, not Excel, not SQLite, not ePub, not PDF: every one of
+quranenc.com/en/home/d/<format>/bengali_zakaria answers with an empty page, while the same
+addresses return real files for english_saheeh and portuguese_nasr -- checked against those as
+a control rather than assumed. 75 of their 163 translations have an export and all three of
+their Bengali editions are in the 88 that do not.
+
+Their API does serve it, so that is where this came from, and it is their own published API
+rather than a scrape of pages they chose not to publish as data. What it costs is the thing the
+section below is about: the API states no revision at all. There is no version in bn's
+SOURCE.json and no check_updates address, so this is the one text on the mat that cannot be
+asked whether it has been corrected. That is a real gap and the note in its SOURCE.json says
+so. Asking the Encyclopedia to publish a Bengali export is the fix, and it belongs in the same
+letter as the other questions for them.
+
+Until then the alternative was worse. Before this, a child praying in Bengali was shown the
+Arabic with no meaning under it at all, and the Qur'an screen offered Bengali nothing.
 
 WHY FIVE OF THEM MOVED, IN OCTOBER 2026
 

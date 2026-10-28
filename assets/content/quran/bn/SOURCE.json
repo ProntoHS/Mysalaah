@@ -1,0 +1,18 @@
+{
+ "schema": 2,
+ "lang": "bn",
+ "what": "Bengali translation",
+ "translator": "Abu Bakr Zakaria",
+ "publisher": "Noble Qur'an Encyclopedia",
+ "where": "https://quranenc.com/en/browse/bengali_zakaria",
+ "via": "quranenc.com official API v1, captured 2026-10-28",
+ "edition": "bengali_zakaria",
+ "version": "",
+ "updated": "",
+ "check_updates": "",
+ "private": false,
+ "note": "QuranEnc publishes no export of this edition in any format -- XML, CSV, Excel, SQLite, ePub and PDF all answer with an empty page, while the same addresses return real files for other editions. Their API is the only official route, and it states no revision, so there is no version here and no check_updates address to ask whether this is still current. Ask them to publish an export.",
+ "publisher_reviewed": true,
+ "reviewed": false,
+ "review_note": "The publisher states these are reviewed editions. Nobody engaged by this project has read a word of it, which is what reviewed: false records."
+}
