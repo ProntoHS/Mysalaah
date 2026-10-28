@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from .buttons import BluetoothButtons
-from .power import PowerButton
+from .power import SleepSwitch
 from .content import available_packs, load
 from .qibla import NoCompass, find_compass
 from .qt import API, QtCore, QtWidgets
@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--cursor", action="store_true", help="show the mouse pointer for this run (Settings remembers it)")
     ap.add_argument("--no-buttons", action="store_true", help="don't read Bluetooth buttons directly")
     ap.add_argument("--no-sleep", action="store_true",
-                    help="leave the power button to the desktop, which will shut the Pi down")
+                    help="don't watch the sleep switch on GPIO 17")
     ap.add_argument("--aspect", default="fill",
                     help="shape of the drawing area, e.g. 16:9 or 4:3; 'fill' (the default) uses "
                          "the whole screen")
@@ -105,16 +105,16 @@ def main(argv: list[str] | None = None) -> int:
         if not buttons.available:
             print("python3-evdev not installed: Bluetooth buttons work only as normal key presses", file=sys.stderr)
 
-    # The power button on J2. Its presses arrive here rather than at logind, so the mat sleeps
-    # instead of shutting down. See the README about logind, which otherwise shuts it down first.
+    # The sleep switch on GPIO 17. A press blanks both screens; another brings them back. This
+    # was the Pi 5's own power button until 1.98 and is a plain switch on a pin now, because the
+    # mat runs on a Pi 4B, which has no power-button circuit at all. salaah/power.py says more.
     power = None
     if not args.no_sleep:
-        power = PowerButton(win.bridge.power.emit)
+        power = SleepSwitch(win.bridge.power.emit)
         if power.start():
-            held = "grabbed" if power.grabbed else "shared with the desktop"
-            print(f"power button: {power.path} ({held})", file=sys.stderr)
+            print(f"sleep switch: watching {power.where}", file=sys.stderr)
         else:
-            print(f"power button: {power.why}", file=sys.stderr)
+            print(f"sleep switch: {power.why}", file=sys.stderr)
             power = None
 
     win.apply_cursor()

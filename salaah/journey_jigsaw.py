@@ -268,7 +268,14 @@ class Screen(QtWidgets.QWidget):
         self.companion.setStyleSheet(
             f"QWidget#journeyJigsawCompanion {{ background: {c.paper}; color: {c.ink}; }}"
             f"QLabel {{ color: {c.ink}; background: {c.paper}; }}"
-            f"QPushButton#gameButton {{ background: {c.panel}; color: {c.paper}; "
+            # paper AND ink, never panel AND paper. The pack had background:panel with
+            # color:paper, which reads as black-on-#1C1C1C after dark -- measured at tone 0 on
+            # tone 28, a contrast ratio of about 1.1 to 1, so a child could not read which
+            # picture or which size they were on. paper and ink are the one pair this palette
+            # guarantees to be opposites in both themes, which is why the rest of the app is
+            # built out of them; the :pressed line below already had it right, and that
+            # disagreement inside one rule set is what gave it away.
+            f"QPushButton#gameButton {{ background: {c.paper}; color: {c.ink}; "
             f"border: {edge}px solid {c.ink}; border-radius: {radius}px; }}"
             f"QPushButton#gameButton:pressed {{ background: {c.pressed}; color: {c.ink}; }}"
         )

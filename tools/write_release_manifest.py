@@ -70,8 +70,16 @@ def shipping() -> dict[str, str]:
 def gates_pass() -> bool:
     ok = True
     for script, extra in GATES:
-        run = subprocess.run([sys.executable, "-I", str(ROOT / script), *extra],
-                             capture_output=True, text=True, cwd=ROOT)
+        # -X utf8 and encoding="utf-8" so a checker can print the scripts this app is full of.
+        # Captured output is a pipe, and a pipe on Windows takes the locale encoding -- cp1252
+        # on Harry's PC -- so subset_fonts.py died with a UnicodeEncodeError part way through
+        # its report and this refused to write a manifest, which looked like a font fault and
+        # was a console fault. -X utf8 is a flag rather than an environment variable because
+        # -I above ignores PYTHONIOENCODING and PYTHONUTF8; errors="replace" on this side so a
+        # byte we cannot decode is a question mark in the report rather than an exception here.
+        run = subprocess.run([sys.executable, "-I", "-X", "utf8", str(ROOT / script), *extra],
+                             capture_output=True, text=True, cwd=ROOT,
+                             encoding="utf-8", errors="replace")
         head = (run.stdout.strip().splitlines() or ["(no output)"])[0]
         print(f"  {'passed' if run.returncode == 0 else 'FAILED'}  {script} {' '.join(extra)}")
         print(f"          {head[:96]}")

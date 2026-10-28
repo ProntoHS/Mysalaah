@@ -517,18 +517,29 @@ class Screen(QtWidgets.QWidget):
         edge = self.win.px(3)
         active = self.win.px(6)
         self.companion.setStyleSheet(
-            f"QWidget#prayerDayCompanion {{ background: {c.ink}; color: {c.paper}; }}"
-            f"QLabel {{ color: {c.paper}; background: {c.ink}; }}"
+            # THE PANEL IS PAPER, not ink. This arrived inverted against the rest of the mat --
+            # a white panel at night and a black one by day -- so the 7in beside the Islamic
+            # Jigsaw and the maze was the opposite colour to both of them and to every other
+            # screen. Nothing needed it; it was simply the odd one out.
+            f"QWidget#prayerDayCompanion {{ background: {c.paper}; color: {c.ink}; }}"
+            f"QLabel {{ color: {c.ink}; background: {c.paper}; }}"
             f"QPushButton {{ border-radius: {radius}px; }}"
+            # THE EDGE IS INK. It was paper -- the same colour as the button's own fill and as
+            # the box the five of them sit in -- so an answer had no visible edge at all and
+            # the five choices read as bare words floating on the panel. Only the one the ring
+            # was resting on could be seen, because its lapis border came from the rule below.
+            # The three state borders still override this one, which is the whole point of
+            # having an ordinary edge to begin with: before, "active" was the only state that
+            # looked like anything.
             f"QPushButton#answerButton {{ background: {c.paper}; color: {c.ink}; "
-            f"border: {edge}px solid {c.paper}; }}"
+            f"border: {edge}px solid {c.ink}; }}"
             f"QPushButton#answerButton[answerState='active'] {{ border: {active}px solid {c.lapis}; }}"
             f"QPushButton#answerButton[answerState='right'] {{ border: {active}px solid {c.green}; "
             f"color: {c.green}; }}"
             f"QPushButton#answerButton[answerState='chosen'] {{ border: {active}px solid {c.highlight}; "
             f"color: {c.highlight}; }}"
             f"QPushButton#controlButton {{ background: {c.paper}; color: {c.ink}; "
-            f"border: {edge}px solid {c.paper}; }}"
+            f"border: {edge}px solid {c.ink}; }}"
             f"QPushButton:pressed {{ background: {c.pressed}; }}"
         )
         self.retell()

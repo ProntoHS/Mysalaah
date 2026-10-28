@@ -384,7 +384,9 @@ class Screen(QtWidgets.QWidget):
         self.companion.setStyleSheet(
             f"QWidget#mosqueMazeCompanion {{ background: {c.paper}; color: {c.ink}; }}"
             f"QLabel {{ color: {c.ink}; background: {c.paper}; }}"
-            f"QPushButton#gameButton {{ background: {c.panel}; color: {c.paper}; "
+            # See journey_jigsaw.follow_theme: background:panel with color:paper was black on
+            # #1C1C1C after dark. paper and ink are opposites in both themes; panel is not.
+            f"QPushButton#gameButton {{ background: {c.paper}; color: {c.ink}; "
             f"border: {edge}px solid {c.ink}; border-radius: {radius}px; }}"
             f"QPushButton#gameButton:pressed {{ background: {c.pressed}; color: {c.ink}; }}"
         )

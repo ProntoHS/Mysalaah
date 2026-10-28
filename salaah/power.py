@@ -1,171 +1,114 @@
-"""The power button on J2, and the screens it puts to sleep.
+"""The sleep switch on GPIO 17, and the screens it puts to sleep.
 
-The Pi 5's power button is not a hardware switch. A short press arrives as an ordinary input
-event -- KEY_POWER, from a device the kernel calls "pwr_button" -- and whoever reads that event
-decides what it means. Raspberry Pi OS lets systemd-logind read it and shut the machine down.
-This reads it first and blanks the screens instead, which is why the mat sleeps and wakes rather
-than rebooting. The two things the button does in hardware are untouched: a long hold still
-forces the board off, and a press while the board is halted still starts it.
+A plain normally-open momentary switch between **GPIO 17 (header pin 11)** and **ground (header
+pin 9)**. Pressing it blanks both screens; pressing it again brings them back.
 
-Nothing here needs evdev or any other package: an input event is a fixed-size struct on a file
-you can read, and the struct's size follows the platform, so the same code is right on a 32-bit
-and a 64-bit Pi.
+WHY NOT THE PI'S OWN POWER BUTTON ANY MORE. Until 1.98 this read the Pi 5's power button: a
+short press on J2 arrives as an ordinary input event -- KEY_POWER, from a device the kernel
+calls "pwr_button" -- and whoever reads that event first decides what it means, so this read it
+before systemd-logind could shut the machine down. That worked, and it only worked on a Pi 5.
+A Pi 4B has no such circuit and no such input device, so on a Pi 4 the app found nothing to
+watch and said so, and the switch did nothing at all.
 
-Two ways to stop logind shutting the mat down when the button is pressed. This grabs the device,
-which makes it the only reader, and that is usually enough on its own. The certain way is to tell
-logind not to care, which the README explains; grabbing then makes no difference. If the app
-stops, the grab goes with it and the button shuts the Pi down again, which is the right way round
-for something that has stopped responding.
+The mat runs on a Pi 4B now. A switch on a GPIO pin needs no power-button circuit, no input
+group membership and no argument with logind, and it works the same on both boards -- GPIO 17
+is in the same place on a Pi 4 and a Pi 5 -- so this is the more portable answer as well as the
+one that works today. The three set-up steps the README used to list for logind and /dev/input
+are gone with it.
+
+WHAT WAS GIVEN UP. On a Pi 5 the onboard button did three things: a short press (read here), a
+long hold (hardware force-off) and a press while halted (hardware start). Only the first was
+ever software. Those other two still belong to whatever is wired to J2 and are untouched by
+this -- but on a Pi 5 running this version, a short press on J2 goes back to logind and shuts
+the mat down, unless logind is still told to ignore it. Worth knowing before moving the card
+back to a Pi 5.
+
+A PRESS, NOT A RELEASE. The old reader acted on release and ignored a hold longer than a second
+and a half, and the reason was specific: on a Pi 5 a long hold is someone leaning on the button
+to force the board off, and the screens should not blink on the way to a hard shutdown. A GPIO
+switch has no hardware force-off behind it, so that reason has gone, and with it the delay --
+a button whose job is to wake the screens should wake them when it is pressed rather than when
+it is let go. The press filter that did that work has gone too; it had no other user.
+
+gpiozero is imported where it is needed rather than at the top, because this module is also
+imported by the tests, on machines with no GPIO at all.
 """
 from __future__ import annotations
 
-import fcntl
-import select
-import struct
 import subprocess
 import threading
-import time
 from typing import Callable
 
-EV_KEY = 0x01
-KEY_POWER = 116
-EVENT = "llHHi"                     # struct input_event: timeval, type, code, value
-EVENT_SIZE = struct.calcsize(EVENT)
-EVIOCGRAB = 0x40044590              # _IOW('E', 0x90, int)
+#: BCM numbering, which is what gpiozero speaks. GPIO 17 is physical pin 11; the ground beside
+#: it is physical pin 9. Harry wired and tested this pair before it was written down here.
+PIN = 17
 
-LISTING = "/proc/bus/input/devices"
-# What the kernel has called this device. Matched loosely, as the name is not a promise.
-NAMES = ("pwr_button", "power button", "power-button")
-
-
-def power_device(listing: str) -> str | None:
-    """The input device the power button speaks through, read out of /proc/bus/input/devices.
-
-    Looked up by name rather than by a fixed event number, because the number moves about with
-    whatever else is plugged in -- a keyboard, a Bluetooth ring -- and a mat that slept only when
-    nothing else was connected would be a puzzling thing to own.
-    """
-    for block in listing.split("\n\n"):
-        name, handlers = "", []
-        for line in block.splitlines():
-            if line.startswith("N: Name="):
-                name = line.partition("=")[2].strip().strip('"').lower()
-            elif line.startswith("H: Handlers="):
-                handlers = line.partition("=")[2].split()
-        if name and any(want in name for want in NAMES):
-            for handler in handlers:
-                if handler.startswith("event"):
-                    return f"/dev/input/{handler}"
-    return None
+#: Seconds gpiozero ignores further edges after one it has acted on. Mechanical switches chatter
+#: for a few milliseconds and would otherwise read as several presses; 80 ms is what was tested
+#: on the mat and comfortably longer than the chatter.
+BOUNCE = 0.08
 
 
-class PressWatch:
-    """Turns key down and key up into the one question worth asking: was that a deliberate press?
+class SleepSwitch:
+    """Watches the switch and calls [on_press] once for each press.
 
-    Acting on release rather than on press means a hold can be told from a click. A hold longer
-    than HOLD is someone leaning on the button to force the board off, so it is left alone -- the
-    screens should not blink on the way to a hard shutdown.
+    REPLACES PowerButton. [on_press] runs on gpiozero's own callback thread, so it should do no
+    more than pass the news along; the app hands it a Qt signal, which is queued onto the GUI
+    thread and is the only safe thing to do from here.
     """
 
-    HOLD = 1.5
-
-    def __init__(self, hold: float = HOLD):
-        self.hold = hold
-        self.down: float | None = None
-
-    def event(self, value: int, now: float) -> bool:
-        if value == 1:                      # pressed
-            self.down = now
-            return False
-        if value == 0:                      # released
-            began, self.down = self.down, None
-            return began is not None and now - began <= self.hold
-        return False                        # 2 = auto-repeat while held
-
-
-class PowerButton:
-    """Watches the power button on a background thread and calls [on_press] for each short press.
-
-    [on_press] runs on that thread, so it should do no more than pass the news along; the app
-    hands it a Qt signal.
-    """
-
-    WAIT = 0.5          # how long to sit in select before looking at whether we have been stopped
-
-    def __init__(self, on_press: Callable[[], None], listing: str = LISTING,
-                 hold: float = PressWatch.HOLD):
+    def __init__(self, on_press: Callable[[], None], pin: int = PIN, bounce: float = BOUNCE,
+                 button=None):
         self.on_press = on_press
-        self.listing = listing
-        self.watch = PressWatch(hold)
-        self.path: str | None = None
-        self.grabbed = False
-        self.why: str = ""              # empty while it is working; otherwise why it is not
-        self._stop = threading.Event()
-        self._thread: threading.Thread | None = None
+        self.pin = pin
+        self.bounce = bounce
+        self._make = button                 # a stand-in, for the tests
+        self.button = None
+        self.why: str = ""                  # empty while it is working; otherwise why it is not
+        self._lock = threading.Lock()
 
-    def find(self) -> str | None:
-        try:
-            with open(self.listing, encoding="utf-8", errors="replace") as f:
-                return power_device(f.read())
-        except OSError:
-            return None
+    @property
+    def where(self) -> str:
+        return f"GPIO {self.pin} (header pin 11)"
 
     def start(self) -> bool:
-        """Begins watching. False, with [why] set, if there is nothing to watch or no way in."""
-        self.path = self.find()
-        if self.path is None:
-            self.why = "no power button among the input devices"
-            return False
+        """Begins watching. False, with [why] set, if there is no GPIO to watch."""
+        make = self._make
+        if make is None:
+            try:
+                from gpiozero import Button
+            except ImportError:
+                self.why = ("python3-gpiozero is not installed, so the sleep switch does "
+                            "nothing; sudo apt install python3-gpiozero")
+                return False
+            make = Button
         try:
-            handle = open(self.path, "rb", buffering=0)
-        except OSError as problem:
-            # Almost always the permissions: these devices belong to the input group.
-            self.why = f"cannot read {self.path} ({problem.strerror}); is this user in the "
-            self.why += "input group?"
+            self.button = make(self.pin, pull_up=True, bounce_time=self.bounce)
+        except Exception as problem:
+            # gpiozero raises BadPinFactory on anything that is not a Pi, and OSError or its own
+            # GPIOPinInUse if the pin is taken. Caught broadly on purpose: whatever the reason,
+            # the mat should start and say why the switch is quiet rather than refuse to run.
+            self.why = f"cannot watch GPIO {self.pin}: {problem}"
+            self.button = None
             return False
-        try:
-            fcntl.ioctl(handle, EVIOCGRAB, 1)
-            self.grabbed = True
-        except OSError:
-            # Still readable. logind will also see the presses, so it has to be told to ignore
-            # them; without that the Pi shuts down on the first press.
-            self.grabbed = False
-        self._thread = threading.Thread(target=self._run, args=(handle,), name="power-button",
-                                        daemon=True)
-        self._thread.start()
+        self.button.when_pressed = self._pressed
+        self.why = ""
         return True
 
-    def stop(self) -> None:
-        self._stop.set()
+    def _pressed(self, *_) -> None:
+        """gpiozero passes the Button; the app does not care which one it was."""
+        self.on_press()
 
-    def _run(self, handle) -> None:
+    def stop(self) -> None:
+        with self._lock:
+            button, self.button = self.button, None
+        if button is None:
+            return
         try:
-            while not self._stop.is_set():
-                try:
-                    ready, _, _ = select.select([handle], [], [], self.WAIT)
-                except (OSError, ValueError):
-                    return
-                if not ready:
-                    continue
-                try:
-                    data = handle.read(EVENT_SIZE * 8)
-                except OSError:
-                    return                  # the device went away
-                if not data:
-                    return
-                for start in range(0, len(data) - EVENT_SIZE + 1, EVENT_SIZE):
-                    _, _, kind, code, value = struct.unpack(
-                        EVENT, data[start:start + EVENT_SIZE])
-                    if kind == EV_KEY and code == KEY_POWER:
-                        if self.watch.event(value, time.monotonic()):
-                            self.on_press()
-        finally:
-            try:
-                if self.grabbed:
-                    fcntl.ioctl(handle, EVIOCGRAB, 0)
-                handle.close()
-            except OSError:
-                pass
+            button.when_pressed = None
+            button.close()
+        except Exception:
+            pass                            # going away; nothing here is worth failing for
 
 
 class Outputs:

@@ -253,7 +253,36 @@ def cut(script: str, source: pathlib.Path) -> int:
     return 0
 
 
+def say_unicode_safely() -> None:
+    """Make this tool's own output survive a console that is not UTF-8.
+
+    THIS COST A RELEASE EVENING. On Harry's Windows PC, write_release_manifest.py runs this as a
+    subprocess and captures its output, so stdout is a pipe rather than a console -- and a piped
+    stdout on Windows takes the locale encoding, which is cp1252 there. The Devanagari face's
+    report prints the reason the stray ARABIC FATHA is left out, and that sentence contains the
+    characters themselves. Printing them to cp1252 raises UnicodeEncodeError, the tool dies
+    mid-check, and write_release_manifest.py correctly refuses to write a manifest -- so the
+    whole release stops on a diagnostic message about two verses of Hindi.
+
+    It had already printed "bengali ... missing 0" by then, which is what made it look like a
+    font problem. It never was: all three faces were complete and the check was passing.
+
+    Reconfiguring here rather than only in the parent because the parent runs this with -I, and
+    isolated mode ignores PYTHONIOENCODING and PYTHONUTF8 -- so a tool that prints the world's
+    scripts has to take care of itself. errors="replace" so that a console which genuinely
+    cannot show a glyph prints a question mark instead of killing the run; this is a report, and
+    a report that cannot be rendered is still worth more than a traceback.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except (OSError, ValueError):
+                pass                        # already closed or not a text stream; not fatal
+
+
 def main() -> int:
+    say_unicode_safely()
     ap = argparse.ArgumentParser(prog="subset_fonts", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--script", choices=sorted(SCRIPTS), help="which face to cut")
@@ -264,6 +293,21 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.check_only or not args.script:
+        # fontTools is what reads a cmap, and without it this cannot answer its own question.
+        # Checked once here, with the command to fix it, rather than letting the ImportError
+        # come out of report() as a traceback: that is what it did on Harry's PC in the middle
+        # of a release, where a stack trace from a font tool is no help at all.
+        #
+        # It REFUSES rather than skipping. "Cannot check" must never read as "checked" --
+        # write_release_manifest.py runs this and will not write a manifest on a failure, and
+        # that is the right way round. A font subset that is short by a few characters shows up
+        # as empty boxes on somebody's mat and nowhere else.
+        try:
+            import fontTools                                          # noqa: F401
+        except ImportError:
+            print("python-fonttools is not installed, so the bundled faces cannot be read and\n"
+                  "this check cannot run:  python -m pip install fonttools", file=sys.stderr)
+            return 1
         wrong: list[str] = []
         for script in sorted(SCRIPTS):
             wrong += report(script)
