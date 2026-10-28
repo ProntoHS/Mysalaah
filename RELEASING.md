@@ -237,8 +237,27 @@ the folder trying to work out what the menu is made of.
 
 So the list, newest first. On the Pi, in the app folder:
 
+    rm salaah/game.py salaah/kaaba_jigsaw.py
+    rm -rf salaah/__pycache__
     rm assets/knowledge/wudu.png assets/knowledge/kalima.png assets/knowledge/nasheeds.png
     rm assets/children/wudu.png
+
+**1.97** retired two game modules, which is the first time this list has had code on it rather
+than pictures:
+
+- `salaah/game.py` -- the Prayer-Time Sky. Its tile now opens Prayer Day Journey, which asks
+  the same question with a drawing of each sky instead of a list of words.
+- `salaah/kaaba_jigsaw.py` -- replaced by `salaah/journey_jigsaw.py`, which has five pictures
+  rather than one and three sizes rather than nine fixed pieces.
+
+Nothing imports either, so a mat that keeps them runs correctly; they are inert. The
+`__pycache__` line is there because a compiled copy of each will also be sitting beside them,
+and deleting the source while leaving the bytecode is the stale-bytecode trap in reverse --
+harmless here, since nothing imports them, but confusing to whoever next looks.
+
+Their strings went too: the fifteen `game.*` and `jigsaw.*` keys were taken out of all nine
+language packs, so a mat that still has the modules has nothing to draw them with. That is the
+right way round. An orphan module is tidier than an orphan vocabulary nobody can audit.
 
 **1.89** took all four out of the tree:
 
