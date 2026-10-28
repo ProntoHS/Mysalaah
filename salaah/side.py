@@ -91,27 +91,35 @@ class SideWindow(QtWidgets.QWidget):
             self.compass.close_screen()
         self.stack.setCurrentWidget(self.prayer)
 
-    def show_jigsaw(self, image):
-        """Lend the 7" to the Kaaba jigsaw: the finished picture, and how many pieces are home.
+    def show_game(self, companion):
+        """Lend the 7" to a game, which brings its own widget for it.
 
-        Built on first use rather than in __init__, because a mat whose children's menu never
-        gets opened should not be carrying a second copy of the puzzle picture in memory all
-        day. The screen gives it back in KaabaJigsawScreen.hideEvent.
+        REPLACES show_jigsaw, which took a PICTURE and built the panel here. That was fine for
+        one game and wrong for three: each of the three dual-touch games added in 1.97 puts
+        something different on the 7in -- a hint picture and a piece count, a question with
+        answer buttons, a maze's item tally and its Difficulty and New Game controls -- and a
+        method here that knew how to build each of them would be this file growing a copy of
+        every game.
+
+        So the game owns its companion and this only mounts it. The widget is added to the
+        stack once and kept: a game is built on first open now (see ui.open_a_game) and a child
+        goes in and out of the same game repeatedly, so adding and removing it each time would
+        churn the stack for no gain. Games hand the screen back by calling show_idle.
         """
-        from .kaaba_jigsaw import JigsawHint
-        if getattr(self, "jigsaw", None) is None:
-            self.jigsaw = JigsawHint(self.win, image)
-            self.stack.addWidget(self.jigsaw)
-            self.jigsaw.follow_theme()
+        if self.stack.indexOf(companion) < 0:
+            self.stack.addWidget(companion)
+            if hasattr(companion, "follow_theme"):
+                companion.follow_theme()
         self.idle = False
         self.set_dim(0)
-        self.stack.setCurrentWidget(self.jigsaw)
-        return self.jigsaw
+        self.stack.setCurrentWidget(companion)
+        return companion
 
     @property
-    def showing_jigsaw(self) -> bool:
-        jigsaw = getattr(self, "jigsaw", None)
-        return jigsaw is not None and self.stack.currentWidget() is jigsaw
+    def showing_game(self) -> bool:
+        """Whether a game's own panel is on the 7in rather than the corner or the posture."""
+        now = self.stack.currentWidget()
+        return now is not None and now not in (self.corner, self.prayer, self.compass)
 
     def close_screens(self) -> None:
         if self.compass is not None:

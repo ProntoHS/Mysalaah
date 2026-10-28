@@ -30,8 +30,9 @@ from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .duamenu import DuaMenu, SAYINGS, SAYINGS_ACROSS
 from .build_the_salaah import BuildTheSalaahScreen
 from .five_pillars_sorter import FivePillarsSorterScreen
-from .game import GameScreen
-from .kaaba_jigsaw import KaabaJigsawScreen
+from .journey_jigsaw import Screen as JourneyJigsawScreen
+from .mosque_maze import Screen as MosqueMazeScreen
+from .prayer_day_journey import Screen as PrayerDayJourneyScreen
 from .qibla_quest import QiblaQuestScreen
 from .wudu import WORDS_PX as WUDU_WORDS_PX, Steps, WuduStep
 from .radio import RadioScreen, Stations
@@ -1943,26 +1944,39 @@ class MainWindow(QtWidgets.QWidget):
         # and matched shapes, and the mat had told him he was doing something else. Arabic
         # Letter Match and Mosque Manners did teach something, and may come back built properly
         # -- five of twenty-eight letters as three-way multiple choice was not that.
-        for tile, build in (("game", GameScreen),
+        # BUILT ON FIRST OPEN, not here. Until 1.97 this loop constructed every game while the
+        # window was being built, and the three dual-touch games added in 1.97 made that
+        # expensive enough to matter: between them they hold 119 MB of QPixmaps -- five jigsaw
+        # pictures at 1600x900, five prayer-day scenes, three maze masks -- and all of it was
+        # allocated on a mat whose owner might never open the children's menu. This project has
+        # paid that bill before; FrontDoor carries the note about a menu that cost 135 MB by
+        # keeping its scaled frames.
+        #
+        # What made it eager was READINESS. A game whose picture is the question is left off
+        # the menu when the picture is not installed, and the only way to ask used to be to
+        # build the screen and read its .ready. So each class now answers playable(assets) from
+        # the FILESYSTEM instead -- a picture is a file, and whether a file is there is not a
+        # question that needs a widget. The tile can then be offered or withheld without
+        # building anything, and the widget waits until a child presses it.
+        #
+        # Qibla Quest and the two sorters have no playable() and are always offered: their
+        # answers are words, so with no artwork they are poorer games that still work and say
+        # so on their own faces. That is deliberate -- see the note in journey_jigsaw.
+        self.game_builders: dict[str, type] = {}
+        for tile, build in (("game", PrayerDayJourneyScreen),
                             ("qiblaquest", QiblaQuestScreen),
-                            ("jigsaw", KaabaJigsawScreen),
+                            ("jigsaw", JourneyJigsawScreen),
                             ("build", BuildTheSalaahScreen),
-                            ("pillars", FivePillarsSorterScreen)):
-            screen = build(self)
-            # A game whose PICTURE IS THE QUESTION is left off the menu when the picture is
-            # not on the mat -- only the jigsaw says so, and KaabaJigsawScreen.ready explains
-            # why Qibla Quest does not. The others stay and say what is missing on their own
-            # face, which is better than a tile that vanishes for a reason nobody can see.
-            if not getattr(screen, "ready", True):
-                screen.deleteLater()
+                            ("pillars", FivePillarsSorterScreen),
+                            ("mosque", MosqueMazeScreen)):
+            playable = getattr(build, "playable", None)
+            if playable is not None and not playable(self.assets):
                 continue
-            screen.leave.connect(self.open_the_children_menu)
-            stack.addWidget(screen)
-            self.games[tile] = screen
+            self.game_builders[tile] = build
 
-        self.children_menu = DuaMenu(self, names=tuple(self.games), folder="children",
+        self.children_menu = DuaMenu(self, names=tuple(self.game_builders), folder="children",
                                      across=6)
-        if self.children_menu.ready and self.games:
+        if self.children_menu.ready and self.game_builders:
             self.children_menu.chose.connect(self.open_from_the_children_menu)
             stack.addWidget(self.children_menu)
         else:
@@ -2283,21 +2297,50 @@ class MainWindow(QtWidgets.QWidget):
         self.stack.setCurrentWidget(self.corner_page)
 
     def open_the_children_menu(self) -> None:
-        """The children's games. Where the Children tile lands."""
+        """The children's games. Where the Children tile lands, and where Exit comes back to.
+
+        Gives the 7in back on the way. The three dual-touch games borrow it for their own
+        panel, and a child who left a game and found the jigsaw's hint still sitting on the
+        small screen would have no way to get rid of it.
+        """
+        if self.side is not None and getattr(self.side, "showing_game", False):
+            self.side.show_idle()
         self.corner_screen.setCurrentWidget(self.children_menu)
         self.stack.setCurrentWidget(self.corner_page)
 
     def open_from_the_children_menu(self, which: str) -> None:
-        """A tile on the children's own menu. Only the games that were built have tiles at
+        """A tile on the children's own menu. Only the games that can be played have tiles at
         all, so an unknown name here means the sheet and the registry have come apart -- do
         nothing rather than guess, which on this menu would open the wrong game."""
-        if which in self.games:
+        if which in self.game_builders:
             self.open_a_game(which)
+
+    def build_a_game(self, which: str):
+        """The game behind a tile, built the first time it is pressed and kept after that.
+
+        See the note in build_corner about why this is not done up front. Kept rather than
+        rebuilt because a child goes in and out of the same game over and over, and because
+        start_again() already puts a game back to round one -- a fresh widget each time would
+        throw away nothing worth throwing away and churn the stack doing it.
+        """
+        screen = self.games.get(which)
+        if screen is None:
+            screen = self.game_builders[which](self)
+            screen.leave.connect(self.open_the_children_menu)
+            self.corner_screen.addWidget(screen)
+            self.games[which] = screen
+        return screen
 
     def open_a_game(self, which: str) -> None:
         """Any of the children's games, always from round one."""
-        screen = self.games[which]
+        screen = self.build_a_game(which)
         screen.start_again()
+        # The 7in is part of these games, not a decoration beside them: the jigsaw's hint, the
+        # prayer-day question and its answer buttons, the maze's tally all live there. A game
+        # that brought no companion leaves the 7in showing whatever it was showing.
+        companion = getattr(screen, "companion", None)
+        if companion is not None and self.side is not None:
+            self.side.show_game(companion)
         self.corner_screen.setCurrentWidget(screen)
         self.stack.setCurrentWidget(self.corner_page)
 

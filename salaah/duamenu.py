@@ -125,7 +125,27 @@ class DuaMenu(QtWidgets.QWidget):
     @property
     def ready(self) -> bool:
         """Whether the drawing is there. Without it the du'as fall back to the plain list
-        rather than to eighteen empty rectangles."""
+        rather than to eighteen empty rectangles.
+
+        WHICH DRAWING depends on which one is being shown. With a film, the film is the whole
+        picture and the tiles above it are invisible buttons built with quiet=True; the still
+        PNG each one names is never drawn. Asking for those stills anyway is a requirement the
+        screen does not have, and in 1.97 it took the children's menu away altogether: the
+        sixth tile arrived with a film that draws it perfectly well and no mosque.png behind
+        it, so every tile but one had a still, `ready` said no, and ui.py deleted the menu and
+        set it to None. The Children tile on the main menu then read "not filled in yet".
+
+        That is the second time this has happened -- see the note in
+        test_every_menu_has_a_still_for_every_tile_it_wires, where three missing PNGs did the
+        same thing in October -- and the first time it was fixed by supplying the files. The
+        files were the wrong fix. A still that nothing draws is not what makes this screen
+        work, and a menu is not unready because a picture it will never show is absent.
+
+        Without a film the stills ARE the drawing, and there the old question is the right
+        one, so it is still asked.
+        """
+        if self.sheet is not None:
+            return self.sheet.ready
         return all(t.path.is_file() for t in self.tiles)
 
     def follow_theme(self) -> None:

@@ -36,7 +36,7 @@
       1287,
       1021
     ],
-    "spare1": [
+    "mosque": [
       1326,
       560,
       1920,
@@ -45,13 +45,13 @@
   },
   "films": {
     "en": "menu.gif",
-    "bn": "menu.bn.gif",
-    "es": "menu.es.gif",
     "fr": "menu.fr.gif",
-    "hi": "menu.hi.gif",
-    "pt": "menu.pt.gif",
-    "ru": "menu.ru.gif",
+    "es": "menu.es.gif",
     "ur": "menu.ur.gif",
-    "zh": "menu.zh.gif"
+    "hi": "menu.hi.gif",
+    "zh": "menu.zh.gif",
+    "ru": "menu.ru.gif",
+    "pt": "menu.pt.gif",
+    "bn": "menu.bn.gif"
   }
 }
