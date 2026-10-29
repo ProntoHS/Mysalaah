@@ -29,7 +29,7 @@ from .quran import Quran
 from .passages import ArchMenu, PassageList, PassageReader, Passages
 from .duamenu import DuaMenu, SAYINGS, SAYINGS_ACROSS
 from .build_the_salaah import BuildTheSalaahScreen
-from .five_pillars_sorter import FivePillarsSorterScreen
+from .pillar_match import Screen as PillarMatchScreen
 from .journey_jigsaw import Screen as JourneyJigsawScreen
 from .mosque_maze import Screen as MosqueMazeScreen
 from .prayer_day_journey import Screen as PrayerDayJourneyScreen
@@ -1967,7 +1967,7 @@ class MainWindow(QtWidgets.QWidget):
                             ("qiblaquest", QiblaQuestScreen),
                             ("jigsaw", JourneyJigsawScreen),
                             ("build", BuildTheSalaahScreen),
-                            ("pillars", FivePillarsSorterScreen),
+                            ("pillars", PillarMatchScreen),
                             ("mosque", MosqueMazeScreen)):
             playable = getattr(build, "playable", None)
             if playable is not None and not playable(self.assets):

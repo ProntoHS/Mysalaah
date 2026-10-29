@@ -45,6 +45,7 @@
   },
   "films": {
     "en": "menu.gif",
+    "ar": "menu.ar.gif",
     "fr": "menu.fr.gif",
     "es": "menu.es.gif",
     "ur": "menu.ur.gif",
