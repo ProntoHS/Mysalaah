@@ -279,9 +279,9 @@ class Screen(QtWidgets.QWidget):
         panel = QtWidgets.QWidget()
         panel.setObjectName("mosqueMazeCompanion")
         layout = QtWidgets.QVBoxLayout(panel)
-        layout.setContentsMargins(self.win.px(22), self.win.px(22),
-                                  self.win.px(22), self.win.px(22))
-        layout.setSpacing(self.win.px(14))
+        layout.setContentsMargins(self.win.side_px(22), self.win.side_px(22),
+                                  self.win.side_px(22), self.win.side_px(22))
+        layout.setSpacing(self.win.side_px(14))
 
         self.title = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
         self.title.setObjectName("gameTitle")
@@ -292,7 +292,7 @@ class Screen(QtWidgets.QWidget):
         self.hint.setObjectName("gameHint")
         self.hint.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                                 QtWidgets.QSizePolicy.Policy.Expanding)
-        self.hint.setMinimumHeight(self.win.px(250))
+        self.hint.setMinimumHeight(self.win.side_px(250))
         self.hint.installEventFilter(self)
         layout.addWidget(self.hint, 1)
 
@@ -303,30 +303,30 @@ class Screen(QtWidgets.QWidget):
 
         self.progress_button = QtWidgets.QPushButton()
         self.progress_button.setObjectName("gameButton")
-        self.progress_button.setMinimumHeight(self.win.px(64))
+        self.progress_button.setMinimumHeight(self.win.side_px(64))
         self.progress_button.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         layout.addWidget(self.progress_button)
 
         self.difficulty_button = QtWidgets.QPushButton()
         self.difficulty_button.setObjectName("gameButton")
         self.difficulty_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.difficulty_button.setMinimumHeight(self.win.px(68))
+        self.difficulty_button.setMinimumHeight(self.win.side_px(68))
         self.difficulty_button.clicked.connect(self.cycle_difficulty)
         layout.addWidget(self.difficulty_button)
 
         controls = QtWidgets.QHBoxLayout()
-        controls.setSpacing(self.win.px(14))
+        controls.setSpacing(self.win.side_px(14))
         self.new_button = QtWidgets.QPushButton()
         self.new_button.setObjectName("gameButton")
         self.new_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.new_button.setMinimumHeight(self.win.px(72))
+        self.new_button.setMinimumHeight(self.win.side_px(72))
         self.new_button.clicked.connect(self.start_again)
         controls.addWidget(self.new_button, 1)
 
         self.exit_button = QtWidgets.QPushButton()
         self.exit_button.setObjectName("gameButton")
         self.exit_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.exit_button.setMinimumHeight(self.win.px(72))
+        self.exit_button.setMinimumHeight(self.win.side_px(72))
         self.exit_button.clicked.connect(self.leave.emit)
         controls.addWidget(self.exit_button, 1)
         layout.addLayout(controls)
@@ -379,8 +379,17 @@ class Screen(QtWidgets.QWidget):
 
     def follow_theme(self) -> None:
         c = palette()
-        radius = self.win.px(12)
-        edge = self.win.px(3)
+        radius = self.win.side_px(12)
+        edge = self.win.side_px(3)
+        # TYPE SIZES IN THE PANEL'S OWN PIXELS. Without these the panel inherits the app
+        # stylesheet's QWidget rule -- font-size px(24) -- which is scaled by the MAIN screen.
+        # On a 1080x1920 panel beside a 1920x1200 display that lettering is about half the
+        # size it was drawn at, which is the other half of why Harry's photographs showed a
+        # thin strip of unreadable controls. Sized against the 1024-tall panel these were
+        # designed on, so they come out the same on any panel.
+        title = self.win.side_px(40)
+        body = self.win.side_px(28)
+        label = self.win.side_px(30)
         self.companion.setStyleSheet(
             f"QWidget#mosqueMazeCompanion {{ background: {c.paper}; color: {c.ink}; }}"
             f"QLabel {{ color: {c.ink}; background: {c.paper}; }}"
@@ -389,6 +398,9 @@ class Screen(QtWidgets.QWidget):
             f"QPushButton#gameButton {{ background: {c.paper}; color: {c.ink}; "
             f"border: {edge}px solid {c.ink}; border-radius: {radius}px; }}"
             f"QPushButton#gameButton:pressed {{ background: {c.pressed}; color: {c.ink}; }}"
+            f"QLabel#gameTitle {{ font-size: {title}px; font-weight: bold; }}"
+            f"QLabel#gameStatus {{ font-size: {body}px; }}"
+            f"QPushButton#gameButton {{ font-size: {label}px; font-weight: bold; }}"
         )
         self.retell()
         self._update_hint()

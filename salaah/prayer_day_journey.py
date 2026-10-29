@@ -344,9 +344,9 @@ class Screen(QtWidgets.QWidget):
         panel = QtWidgets.QWidget()
         panel.setObjectName("prayerDayCompanion")
         layout = QtWidgets.QVBoxLayout(panel)
-        layout.setContentsMargins(self.win.px(20), self.win.px(18),
-                                  self.win.px(20), self.win.px(18))
-        layout.setSpacing(self.win.px(10))
+        layout.setContentsMargins(self.win.side_px(20), self.win.side_px(18),
+                                  self.win.side_px(20), self.win.side_px(18))
+        layout.setSpacing(self.win.side_px(10))
 
         self.title = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
         self.title.setWordWrap(True)
@@ -361,11 +361,11 @@ class Screen(QtWidgets.QWidget):
         self.answer_box = QtWidgets.QWidget()
         answer_layout = QtWidgets.QVBoxLayout(self.answer_box)
         answer_layout.setContentsMargins(0, 0, 0, 0)
-        answer_layout.setSpacing(self.win.px(8))
+        answer_layout.setSpacing(self.win.side_px(8))
         for index in range(len(SCENES)):
             button = QtWidgets.QPushButton()
             button.setObjectName("answerButton")
-            button.setMinimumHeight(self.win.px(54))
+            button.setMinimumHeight(self.win.side_px(54))
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.clicked.connect(lambda _checked=False, which=index: self._choose(which))
             answer_layout.addWidget(button)
@@ -378,34 +378,34 @@ class Screen(QtWidgets.QWidget):
 
         self.next_button = QtWidgets.QPushButton()
         self.next_button.setObjectName("controlButton")
-        self.next_button.setMinimumHeight(self.win.px(58))
+        self.next_button.setMinimumHeight(self.win.side_px(58))
         self.next_button.clicked.connect(self._next)
         layout.addWidget(self.next_button)
 
         selectors = QtWidgets.QHBoxLayout()
-        selectors.setSpacing(self.win.px(10))
+        selectors.setSpacing(self.win.side_px(10))
         self.mode_button = QtWidgets.QPushButton()
         self.mode_button.setObjectName("controlButton")
-        self.mode_button.setMinimumHeight(self.win.px(58))
+        self.mode_button.setMinimumHeight(self.win.side_px(58))
         self.mode_button.clicked.connect(self.cycle_mode)
         selectors.addWidget(self.mode_button, 1)
         self.difficulty_button = QtWidgets.QPushButton()
         self.difficulty_button.setObjectName("controlButton")
-        self.difficulty_button.setMinimumHeight(self.win.px(58))
+        self.difficulty_button.setMinimumHeight(self.win.side_px(58))
         self.difficulty_button.clicked.connect(self.cycle_difficulty)
         selectors.addWidget(self.difficulty_button, 1)
         layout.addLayout(selectors)
 
         controls = QtWidgets.QHBoxLayout()
-        controls.setSpacing(self.win.px(10))
+        controls.setSpacing(self.win.side_px(10))
         self.new_button = QtWidgets.QPushButton()
         self.new_button.setObjectName("controlButton")
-        self.new_button.setMinimumHeight(self.win.px(62))
+        self.new_button.setMinimumHeight(self.win.side_px(62))
         self.new_button.clicked.connect(self.start_again)
         controls.addWidget(self.new_button, 1)
         self.exit_button = QtWidgets.QPushButton()
         self.exit_button.setObjectName("controlButton")
-        self.exit_button.setMinimumHeight(self.win.px(62))
+        self.exit_button.setMinimumHeight(self.win.side_px(62))
         self.exit_button.clicked.connect(self.leave.emit)
         controls.addWidget(self.exit_button, 1)
         layout.addLayout(controls)
@@ -513,9 +513,18 @@ class Screen(QtWidgets.QWidget):
 
     def follow_theme(self) -> None:
         c = palette()
-        radius = self.win.px(11)
-        edge = self.win.px(3)
-        active = self.win.px(6)
+        radius = self.win.side_px(11)
+        edge = self.win.side_px(3)
+        # TYPE SIZES IN THE PANEL'S OWN PIXELS. Without these the panel inherits the app
+        # stylesheet's QWidget rule -- font-size px(24) -- which is scaled by the MAIN screen.
+        # On a 1080x1920 panel beside a 1920x1200 display that lettering is about half the
+        # size it was drawn at, which is the other half of why Harry's photographs showed a
+        # thin strip of unreadable controls. Sized against the 1024-tall panel these were
+        # designed on, so they come out the same on any panel.
+        title = self.win.side_px(40)
+        body = self.win.side_px(28)
+        label = self.win.side_px(30)
+        active = self.win.side_px(6)
         self.companion.setStyleSheet(
             # THE PANEL IS PAPER, not ink. This arrived inverted against the rest of the mat --
             # a white panel at night and a black one by day -- so the 7in beside the Islamic
@@ -541,6 +550,9 @@ class Screen(QtWidgets.QWidget):
             f"QPushButton#controlButton {{ background: {c.paper}; color: {c.ink}; "
             f"border: {edge}px solid {c.ink}; }}"
             f"QPushButton:pressed {{ background: {c.pressed}; }}"
+            f"QLabel#gameTitle {{ font-size: {title}px; font-weight: bold; }}"
+            f"QLabel#gameStatus {{ font-size: {body}px; }}"
+            f"QPushButton {{ font-size: {label}px; font-weight: bold; }}"
         )
         self.retell()
         self.canvas.update()

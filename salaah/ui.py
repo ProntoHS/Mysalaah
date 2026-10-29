@@ -816,6 +816,9 @@ class MainWindow(QtWidgets.QWidget):
         self.settings = settings
         self.save_settings = save_settings
         self.s = scale
+        #: The 7in panel's own scale, set once its window exists. 1.0 until then, so anything
+        #: asking early gets the design size rather than nothing. See side_px.
+        self.side_s = 1.0
         self.images = PixmapCache()
         self.debouncer = Debouncer(0.3)
         self.counter_debouncer = Debouncer(0.12)   # counting beads is meant to be quick
@@ -928,6 +931,7 @@ class MainWindow(QtWidgets.QWidget):
     def resizeEvent(self, event):
         box = self.content_box()
         self.stack.setGeometry(box)
+        self.set_banner_heights()
         # Laid out for 1920 x 1080; a taller screen (1920 x 1200) keeps the same sizes and
         # gets the extra height as room.
         scale = max(0.5, min(box.height() / 1080, box.width() / 1920))
@@ -935,6 +939,23 @@ class MainWindow(QtWidgets.QWidget):
             self.s = scale
             QtCore.QTimer.singleShot(0, self.restyle)
         super().resizeEvent(event)
+
+    def set_banner_heights(self) -> None:
+        """Every banner to the height this window's shape allows. Called on every resize.
+
+        NOT FROM restyle(), where this started. restyle only runs when the text scale changes
+        by more than a hundredth, and the scale is min(height/1080, width/1920) -- so going
+        from 1920x1080 to 1920x1200 leaves it at exactly 1.0 and restyle never fires. The
+        banners built before the resize kept the old height while the ones built lazily
+        afterwards got the new one, and the strip changed height as you moved about the mat.
+
+        Which is the very fault BannerStripTest was written for: Harry reported the strip over
+        the prayer menu being "slightly narrower than the others", and this reintroduced it
+        from the other end. The height follows the window's SHAPE, so it belongs on the resize
+        and not on a scale change that a shape change need not cause.
+        """
+        for banner in getattr(self, "banners", ()):
+            banner.setFixedHeight(self.banner_height())
 
     def restyle(self) -> None:
         """Text and spacing follow the box size, so the app looks the same on any screen."""
@@ -1115,13 +1136,76 @@ class MainWindow(QtWidgets.QWidget):
     def px(self, n: float) -> int:
         return max(1, int(n * self.s))
 
+    #: The 7in panel these sizes were drawn against: 600 x 1024, stood upright.
+    SIDE_TALL = 1024
+
+    def side_px(self, n: float) -> int:
+        """px() for the 7in panel, which is a different screen with a different height.
+
+        WHY THIS EXISTS. px() scales by self.s, which is the MAIN screen's height over 1080 --
+        and every widget on the 7in was built with it. On a mat whose main screen is 1920x1200
+        and whose panel is 1080x1920 that gives px(72) = 80 px for a button, which is 4.2% of
+        the panel's height. The same button is 7% of the height at the size these panels were
+        designed and rendered at, so every control on the small screen came out about half the
+        size it should be: Harry photographed it and the option boxes were a thin strip along
+        the bottom while the picture took the rest.
+
+        It was not a styling mistake. It was measuring one screen in another screen's pixels,
+        and it only showed up when the panel stopped being the same shape as the main display.
+
+        Falls back to the main scale until the side window exists, so nothing asking during
+        construction gets a nonsense size.
+        """
+        return max(1, int(n * (self.side_s or self.s)))
+
+    def measure_the_side_screen(self) -> None:
+        """Work out the 7in panel's scale from its own height. Called once it has a window.
+
+        FROM THE WINDOW, not from the screen it reports sitting on. The first version asked
+        windowHandle().screen().geometry(), which is right on the mat and wrong everywhere
+        else: under the offscreen platform the window is 1080x1920 while its "screen" is 800
+        tall, so the scale came out 0.78 and the panel would have been smaller still. The
+        window is what the panel is laid out inside, it is full-screen on the 7in, and it is
+        the thing whose height actually decides how big a button looks. The screen is only a
+        fallback for being asked before the window has a size.
+        """
+        if self.side is None:
+            self.side_s = 1.0
+            return
+        tall = self.side.height()
+        if tall <= 1:
+            handle = self.side.windowHandle()
+            screen = handle.screen() if handle is not None else None
+            tall = screen.geometry().height() if screen is not None else 0
+        self.side_s = max(0.5, tall / self.SIDE_TALL) if tall else 1.0
+
     def banner_height(self) -> int:
         """How tall the strip across the top is.
 
         A method rather than a number other files reach in for, because the call box sits
         under it and call.py importing from here would close a circle -- ui imports call.
+
+        IT ABSORBS WHATEVER THE PICTURES DO NOT WANT. Every full-screen drawing on this mat is
+        16:9, because that is the shape screens were when they were drawn. Harry's main display
+        is 1920x1200, which is 16:10 -- and 1200 is exactly 1080 plus 120. So a 16:10 screen is
+        a 16:9 picture with a banner on top of it, and the banner may as well be the 120 rather
+        than the pictures being stretched into the gap.
+
+        What that was costing before: the maze and the Pillar Match board are drawn into the
+        whole widget rect, so they were stretched 4.4% taller than drawn -- coherently, since
+        the maze maps its cells onto the same rect, but 4.4% off square. The prayer-day scenes
+        and the jigsaw centre-crop instead, so they lost about 41 px off each side. At 1:1 both
+        stop happening and the maze's cell mapping becomes exact.
+
+        The floor is what the banner has always been, so nothing shrinks. On a 1920x1080 screen
+        the remainder is zero and this returns the old height unchanged; on the 1024x600 panel a
+        16:9 picture leaves 24 px, which is less than the floor, so again nothing changes. The
+        taller banner happens only where the screen is actually taller than the artwork, which
+        is the one case it was wanted for.
         """
-        return self.px(BANNER_TALL)
+        wide, tall = self.width(), self.height()
+        spare = tall - round(wide * 9 / 16) if wide and tall else 0
+        return max(self.px(BANNER_TALL), spare)
 
     @property
     def pack(self) -> LanguagePack:
@@ -1795,7 +1879,12 @@ class MainWindow(QtWidgets.QWidget):
         """
         banner = QtWidgets.QWidget()
         banner.setObjectName("banner")
-        banner.setFixedHeight(self.px(BANNER_TALL))
+        # banner_height(), not px(BANNER_TALL): on a screen taller than 16:9 it takes the slack
+        # so the pictures below can be drawn at their own size. Recorded in banner_labels so
+        # resize_banners can set it again when the window changes shape.
+        banner.setFixedHeight(self.banner_height())
+        self.banners = getattr(self, "banners", [])
+        self.banners.append(banner)
         row = QtWidgets.QHBoxLayout(banner)
         row.setContentsMargins(self.px(28), self.px(10), self.px(28), self.px(10))
         # The pin, then the place, then the times. Its own widget rather than a picture inside
@@ -2891,6 +2980,17 @@ class MainWindow(QtWidgets.QWidget):
             self.veil.stop()        # don't walk into an arch we have just walked back out of
         if hasattr(self, "compass_screen"):
             self.compass_screen.close_screen()
+        # AND GIVE THE 7in BACK. It was the one thing this did not put down, so Menu in the
+        # banner sent the main screen home and left the small screen holding whatever it had:
+        # the jigsaw's hint, the maze's item count, or the posture figure from a prayer. The
+        # child then had a game's panel beside the front door and no way to clear it.
+        #
+        # open_the_children_menu and the prayer session's stop() each did this for their own
+        # way out, which is why it looked like the banner behaved differently inside a game --
+        # it did. Here it covers every route, which is what "stop whatever the mat was in the
+        # middle of" was always meant to mean.
+        if self.side is not None:
+            self.side.show_idle()
 
     def go_home(self) -> None:
         self.put_it_all_down()

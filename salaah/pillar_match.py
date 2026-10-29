@@ -480,9 +480,9 @@ class Screen(QtWidgets.QWidget):
         panel = QtWidgets.QWidget()
         panel.setObjectName("pillarMatchCompanion")
         layout = QtWidgets.QVBoxLayout(panel)
-        layout.setContentsMargins(self.win.px(20), self.win.px(18),
-                                  self.win.px(20), self.win.px(18))
-        layout.setSpacing(self.win.px(10))
+        layout.setContentsMargins(self.win.side_px(20), self.win.side_px(18),
+                                  self.win.side_px(20), self.win.side_px(18))
+        layout.setSpacing(self.win.side_px(10))
         self.title = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
         self.title.setWordWrap(True)
         layout.addWidget(self.title)
@@ -500,15 +500,15 @@ class Screen(QtWidgets.QWidget):
         self.feedback.setWordWrap(True)
         layout.addWidget(self.feedback)
         controls = QtWidgets.QHBoxLayout()
-        controls.setSpacing(self.win.px(10))
+        controls.setSpacing(self.win.side_px(10))
         self.new_button = QtWidgets.QPushButton()
         self.new_button.setObjectName("controlButton")
-        self.new_button.setMinimumHeight(self.win.px(64))
+        self.new_button.setMinimumHeight(self.win.side_px(64))
         self.new_button.clicked.connect(self.start_again)
         controls.addWidget(self.new_button, 1)
         self.exit_button = QtWidgets.QPushButton()
         self.exit_button.setObjectName("controlButton")
-        self.exit_button.setMinimumHeight(self.win.px(64))
+        self.exit_button.setMinimumHeight(self.win.side_px(64))
         self.exit_button.clicked.connect(self.leave.emit)
         controls.addWidget(self.exit_button, 1)
         layout.addLayout(controls)
@@ -561,8 +561,17 @@ class Screen(QtWidgets.QWidget):
 
     def follow_theme(self) -> None:
         c = palette()
-        radius = self.win.px(11)
-        edge = self.win.px(3)
+        radius = self.win.side_px(11)
+        edge = self.win.side_px(3)
+        # TYPE SIZES IN THE PANEL'S OWN PIXELS. Without these the panel inherits the app
+        # stylesheet's QWidget rule -- font-size px(24) -- which is scaled by the MAIN screen.
+        # On a 1080x1920 panel beside a 1920x1200 display that lettering is about half the
+        # size it was drawn at, which is the other half of why Harry's photographs showed a
+        # thin strip of unreadable controls. Sized against the 1024-tall panel these were
+        # designed on, so they come out the same on any panel.
+        title = self.win.side_px(40)
+        body = self.win.side_px(28)
+        label = self.win.side_px(30)
         self.companion.setStyleSheet(
             # PAPER, not ink. This arrived inverted against the rest of the mat -- a white panel
             # at night and a black one by day -- which is how Prayer Day Journey arrived too.
@@ -576,7 +585,10 @@ class Screen(QtWidgets.QWidget):
             # guarantees to be opposites in both themes.
             f"QPushButton#controlButton {{ background: {c.paper}; color: {c.ink}; "
             f"border: {edge}px solid {c.ink}; border-radius: {radius}px; }}"
-            f"QPushButton:pressed {{ background: {c.pressed}; color: {c.ink}; }}")
+            f"QPushButton:pressed {{ background: {c.pressed}; color: {c.ink}; }}"
+            f"QLabel#gameTitle {{ font-size: {title}px; font-weight: bold; }}"
+            f"QLabel#gameStatus {{ font-size: {body}px; }}"
+            f"QPushButton {{ font-size: {label}px; font-weight: bold; }}")
         self.retell()
         self.board.update()
         self.preview.update()

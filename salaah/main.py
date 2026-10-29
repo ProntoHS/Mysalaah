@@ -129,6 +129,17 @@ def main(argv: list[str] | None = None) -> int:
             win.side.show()
         else:
             fill_screen(app, win.side, side_screen, args.cover_screens)
+        # Now that the panel has a window on a known screen, work out its own scale. Everything
+        # on the 7in used to be measured in the MAIN screen's pixels, which only looked right
+        # while the two screens were the same shape; on a 1080x1920 panel beside a 1920x1200
+        # display every control came out about half size. See MainWindow.side_px.
+        #
+        # Before any game is built, which is what matters: games are built when a child first
+        # opens one, and each sets up its own panel then, so they all get the measured scale.
+        # The Knowledge Corner on the 7in is built with the main scale at construction and is
+        # NOT re-laid out here -- same root cause, left alone deliberately rather than widened
+        # into this change.
+        win.measure_the_side_screen()
     # Some desktops (Wayland ones especially) put a window where they like and ignore the app.
     # Check a moment later that each window really is on its own screen, and say so if not.
     QtCore.QTimer.singleShot(1200, lambda: report_windows(win, main_screen, side_screen))
