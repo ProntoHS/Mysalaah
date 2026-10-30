@@ -41,7 +41,7 @@ from .recite import Store, WordTimes
 from .call import Adhan, CallBox
 from .reading import LIST_BAR, NUMBER_LINE, READING_TEXT_SIZE_PX, Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
-from .power import Outputs
+from .power import Layout, Outputs
 from .settings import Settings
 from . import theme
 from types import SimpleNamespace
@@ -850,6 +850,10 @@ class MainWindow(QtWidgets.QWidget):
         self.bridge.power.connect(self.toggle_sleep)
         self.asleep = False
         self.outputs = Outputs()
+        self.layout = Layout()
+        #: Whether the last sleep actually switched the panels off. False means they were left
+        #: lit on purpose, and waking must not try to undo something that never happened.
+        self.blanked = False
         # Screens on, whatever state the last run left them in. The app only ever turned them
         # back on when it woke or shut down cleanly, which was fine while those were the only
         # ways it ended -- and stopped being fine in 1.64, when run.sh learnt to start the app
@@ -1034,6 +1038,17 @@ class MainWindow(QtWidgets.QWidget):
         found += [menu.mosque for menu in getattr(self, "arch_menus", {}).values()]
         return [s for s in found if s is not None and hasattr(s, "flutter")]
 
+    @property
+    def screens_in_use(self) -> tuple[str, ...]:
+        """The outputs this run is drawing on, as the compositor names them.
+
+        Out of Settings rather than out of a new argument: main.remember() already writes the
+        screens that were actually used there on every start, resolved from --main-output and
+        --side-output or worked out by shape, so this is the same pair the windows went to.
+        """
+        return tuple(name for name in (self.settings.main_output, self.settings.side_output)
+                     if name)
+
     def sleep(self) -> None:
         """Screens off, and everything that was only drawing them stopped.
 
@@ -1046,8 +1061,25 @@ class MainWindow(QtWidgets.QWidget):
         self.asleep = True
         self.idle.stop()     # nothing to count down to; waking starts it again
         self.stop_audio()
-        if not self.outputs.set(False):
+        # NEVER BLANK A SCREEN THIS CANNOT PROVE IT CAN BRING BACK. The mat used to fire the
+        # wildcard `wlopm --off '*'` and treat a zero exit code as success, which says only that
+        # the command ran -- not that it covered the screen somebody is looking at. On Harry's
+        # mat it did not: the main display came back disabled rather than blanked and no amount
+        # of `--on` recovered it, so three idle minutes left a child's prayer mat dark until the
+        # plug was pulled. Sleeping still stops the audio, the animations and the clock, which
+        # is most of the work; the panels simply stay lit, which is the mat looking ordinary
+        # instead of looking broken.
+        stuck = self.outputs.cannot_bring_back(self.screens_in_use)
+        if stuck:
+            print(f"sleep: leaving the screens lit -- {self.outputs.COMMAND} has no power over "
+                  f"{', '.join(stuck)}, so they could not be switched back on",
+                  file=sys.stderr)
+            self.blanked = False
+        elif not self.outputs.set(False):
             print(f"sleep: {self.outputs.why}", file=sys.stderr)
+            self.blanked = False
+        else:
+            self.blanked = True
         # Back to the mosque while nobody can see it happen, so whoever wakes the mat is met by
         # the main menu rather than by wherever the last person left it. The mat gets picked up
         # by whoever is praying next, and a screen left open in the middle of someone else's
@@ -1072,8 +1104,25 @@ class MainWindow(QtWidgets.QWidget):
         if not self.asleep:
             return
         self.asleep = False
-        if not self.outputs.set(True):
-            print(f"wake: {self.outputs.why}", file=sys.stderr)
+        if self.blanked:
+            if not self.outputs.set(True):
+                print(f"wake: {self.outputs.why}", file=sys.stderr)
+            # AND BY NAME, because the wildcard is not enough. An output that came back disabled
+            # rather than blanked needs enabling, which is a different protocol -- see
+            # power.Layout. This is idempotent: enabling a screen that is already on does
+            # nothing, so it is not worth asking first.
+            if not self.layout.switch_on(self.screens_in_use):
+                print(f"wake: {self.layout.why}", file=sys.stderr)
+            # THEN CHECK, and say so if a screen is still gone. Tonight's fault was invisible
+            # for exactly as long as it was: the app had no way of noticing it had failed, so
+            # the only report was a dark mat and somebody reaching for the power. A line in the
+            # log is what a photograph of a terminal can show.
+            lost = self.outputs.cannot_bring_back(self.screens_in_use)
+            if lost:
+                print(f"wake: {', '.join(lost)} did not come back. Re-apply the display layout "
+                      f"(display-setup.sh on this mat, or wlr-randr --output <name> --on).",
+                      file=sys.stderr)
+            self.blanked = False
         if getattr(self, "welcome", None) is not None and not self.playing:
             self.stack.setCurrentWidget(self.welcome)
         if hasattr(self, "clock"):
@@ -1090,7 +1139,10 @@ class MainWindow(QtWidgets.QWidget):
         # while it is up, so it has to hand them back before it goes.
         if self.asleep:
             self.outputs.set(True)
+            if self.blanked:        # and by name, for the reason wake() does it
+                self.layout.switch_on(self.screens_in_use)
             self.asleep = False
+            self.blanked = False
         for timer in ("muezzin", "call_watch", "idle"):
             if hasattr(self, timer):
                 getattr(self, timer).stop()

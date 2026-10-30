@@ -128,6 +128,55 @@ class Outputs:
         self.run = run
         self.why: str = ""
 
+    def listing(self) -> dict[str, bool] | None:
+        """What wlopm can see: {output name: whether it is on}. None if it could not be asked.
+
+        wlopm with no arguments prints one line per output it has power over -- "HDMI-A-1 on".
+        An output it cannot switch is simply absent, and that absence is the whole point of
+        asking: see cannot_bring_back.
+        """
+        try:
+            done = self.run([self.command], capture_output=True, text=True, timeout=5)
+        except FileNotFoundError:
+            self.why = f"{self.command} is not installed, so the screens stay lit while asleep"
+            return None
+        except (OSError, subprocess.SubprocessError) as problem:
+            self.why = f"{self.command} failed: {problem}"
+            return None
+        if done.returncode != 0:
+            self.why = f"{self.command} refused: {(done.stderr or '').strip()}"
+            return None
+        seen: dict[str, bool] = {}
+        for line in (done.stdout or "").splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and parts[1] in ("on", "off"):
+                seen[parts[0]] = parts[1] == "on"
+        self.why = ""
+        return seen
+
+    def cannot_bring_back(self, names) -> list[str]:
+        """Which of [names] wlopm has no power over, and so must not be switched off.
+
+        THE RULE THIS EXISTS FOR: never turn off a screen you cannot prove you can turn back
+        on. Harry's main display reports a malformed EDID -- "Invalid Vendor Codename - RTK
+        HDMI" with Serial: (null) -- and after a sleep both outputs read "Enabled: no" while
+        `wlopm --on '*'` brings only the 7in panel back. `wlopm` then lists HDMI-A-2 alone,
+        because an output that has been disabled drops out of its list entirely.
+
+        So the mat blanked a screen it had no way to unblank, and said it had succeeded: set()
+        returns True when the wildcard command returns 0, whether or not the wildcard actually
+        covered the screen you were looking at. Three minutes of idleness was enough to leave
+        a child's prayer mat dark until somebody pulled the plug.
+
+        An empty list when wlopm cannot be asked at all is deliberate, not an oversight: with
+        wlopm missing, set() fails by itself and nothing is ever blanked, so there is nothing
+        here to warn about.
+        """
+        seen = self.listing()
+        if seen is None:
+            return []
+        return [name for name in names if name and name not in seen]
+
     def set(self, on: bool) -> bool:
         """Powers every output on or off. False if that could not be done, with [why] set."""
         try:
@@ -135,6 +184,58 @@ class Outputs:
                             capture_output=True, text=True, timeout=5)
         except FileNotFoundError:
             self.why = f"{self.command} is not installed, so the screens stay lit while asleep"
+            return False
+        except (OSError, subprocess.SubprocessError) as problem:
+            self.why = f"{self.command} failed: {problem}"
+            return False
+        if done.returncode != 0:
+            self.why = f"{self.command} refused: {(done.stderr or '').strip()}"
+            return False
+        self.why = ""
+        return True
+
+
+class Layout:
+    """Switches outputs back ON by name, which powering them cannot always do.
+
+    WHY THIS IS NOT PART OF Outputs. The two speak different Wayland protocols and can do
+    different things. wlopm speaks output POWER: it blanks a screen that is enabled, and brings
+    a blanked one back. It cannot enable an output that has been DISABLED, and on Harry's mat
+    that is where the main display ends up -- after a sleep both outputs read "Enabled: no" in
+    wlr-randr, and `wlopm --on '*'` recovers only the 7in. Enabling a disabled output needs the
+    output-MANAGEMENT protocol, which is what wlr-randr speaks.
+
+    Setting a mode is NOT enough and this is the expensive lesson of 2.01: display-setup.sh
+    reconfigured both outputs without `--on`, which on a disabled output reconfigures something
+    that is still off. Run against a dark mat it cleared the 7in's held image and recovered
+    nothing, and the mat had to be power-cycled. `--on` is the whole operation here.
+
+    This asks for nothing but the power state. It deliberately sets no mode, transform or
+    position: those are facts about one particular mat's desk, they live in that mat's own
+    display-setup.sh, and an app that guessed them would be overruling a layout somebody chose.
+    """
+
+    COMMAND = "wlr-randr"
+
+    def __init__(self, command: str = COMMAND, run=subprocess.run):
+        self.command = command
+        self.run = run
+        self.why: str = ""
+
+    def switch_on(self, names) -> bool:
+        """Enables each named output. True if there was nothing to do or it was done."""
+        wanted = [name for name in names if name]
+        if not wanted:
+            self.why = ""
+            return True
+        argv = [self.command]
+        for name in wanted:
+            argv += ["--output", name, "--on"]
+        try:
+            done = self.run(argv, capture_output=True, text=True, timeout=10)
+        except FileNotFoundError:
+            self.why = (f"{self.command} is not installed, so a screen that has been disabled "
+                        f"rather than blanked cannot be switched back on")
             return False
         except (OSError, subprocess.SubprocessError) as problem:
             self.why = f"{self.command} failed: {problem}"
