@@ -163,3 +163,11 @@ class SideWindow(QtWidgets.QWidget):
 
     def resizeEvent(self, _):
         self.dim.setGeometry(self.rect())
+        # AND MEASURE THE PANEL AGAIN. fill_screen shows this window at 640x480 and then asks
+        # the desktop to make it full screen; on Wayland the compositor grants that when it is
+        # ready, and main.py asked how tall the panel was on the next line. Asking once, at
+        # that moment, is asking before there is an answer -- which is how 2.00 came to lay the
+        # 7in out at half size. Measuring here means the last word always comes from a
+        # configure event that really happened, and it costs nothing: the games are built when
+        # a child first opens one, long after start-up.
+        self.win.measure_the_side_screen()

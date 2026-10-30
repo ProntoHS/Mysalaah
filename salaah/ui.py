@@ -1139,6 +1139,11 @@ class MainWindow(QtWidgets.QWidget):
     #: The 7in panel these sizes were drawn against: 600 x 1024, stood upright.
     SIDE_TALL = 1024
 
+    #: The most of a screen's height the banner will take as slack. Above this the screen is
+    #: not "a 16:9 picture with a strip on top of it" at all and the floor is what it gets.
+    #: See banner_height, which had no ceiling at all in 2.00.
+    BANNER_SLACK_SHARE = 1 / 6
+
     def side_px(self, n: float) -> int:
         """px() for the 7in panel, which is a different screen with a different height.
 
@@ -1158,25 +1163,39 @@ class MainWindow(QtWidgets.QWidget):
         """
         return max(1, int(n * (self.side_s or self.s)))
 
-    def measure_the_side_screen(self) -> None:
-        """Work out the 7in panel's scale from its own height. Called once it has a window.
+    #: What fill_screen shows a window at before asking the desktop to make it full screen.
+    #: A height at or under this is that placeholder and not the panel. See main.fill_screen.
+    SIDE_PLACEHOLDER = 480
 
-        FROM THE WINDOW, not from the screen it reports sitting on. The first version asked
-        windowHandle().screen().geometry(), which is right on the mat and wrong everywhere
-        else: under the offscreen platform the window is 1080x1920 while its "screen" is 800
-        tall, so the scale came out 0.78 and the panel would have been smaller still. The
-        window is what the panel is laid out inside, it is full-screen on the 7in, and it is
-        the thing whose height actually decides how big a button looks. The screen is only a
-        fallback for being asked before the window has a size.
+    def measure_the_side_screen(self, screen=None) -> None:
+        """Work out the 7in panel's scale. The named output first, then the window.
+
+        2.00 ASKED THE WINDOW, AND ASKED IT TOO EARLY. fill_screen shows the window at 640x480
+        and then asks the desktop to make it full screen; under Wayland that is a request the
+        compositor grants when it gets round to it, and main.py asked for the height on the
+        line after. The height at that instant was the placeholder, so the scale came out at
+        the 0.5 floor -- and 2.00 made the panel SMALLER than 1.99, which is the opposite of
+        what it was for and what Harry photographed.
+
+        The tests did not catch it because every one of them hands the window a size before
+        measuring. None of them went through fill_screen, so none of them could see the race:
+        the measurement that produced the value was not the path the mat takes.
+
+        Two things fix it between them. Where --side-output named a real output, that output's
+        geometry is settled at start-up and cannot race, so it is asked first. And nothing here
+        may leave the panel smaller than 1.99 had it: a height that is only the placeholder
+        leaves the scale at 1.0, which is exactly what 1.99 used, and SideWindow.resizeEvent
+        measures again the moment the window is really sized.
         """
         if self.side is None:
             self.side_s = 1.0
             return
-        tall = self.side.height()
-        if tall <= 1:
-            handle = self.side.windowHandle()
-            screen = handle.screen() if handle is not None else None
-            tall = screen.geometry().height() if screen is not None else 0
+        tall = screen.geometry().height() if screen is not None else 0
+        if not tall:
+            tall = self.side.height()
+            if tall <= self.SIDE_PLACEHOLDER:
+                self.side_s = 1.0
+                return
         self.side_s = max(0.5, tall / self.SIDE_TALL) if tall else 1.0
 
     def banner_height(self) -> int:
@@ -1202,9 +1221,19 @@ class MainWindow(QtWidgets.QWidget):
         16:9 picture leaves 24 px, which is less than the floor, so again nothing changes. The
         taller banner happens only where the screen is actually taller than the artwork, which
         is the one case it was wanted for.
+
+        AND THERE IS A CEILING, which 2.00 did not have. "Take the slack" is only sane while
+        the slack is a believable banner. The upright 7in panel is 1080x1920, where a 16:9
+        picture leaves 1312 px over -- so a window that landed on the panel got a banner taking
+        68% of the screen with everything else crushed underneath it, and a 4:3 monitor got
+        25%. The mat does put windows on the wrong screen sometimes, which is exactly when the
+        app should look ordinary rather than broken, so past BANNER_SLACK_SHARE of the height
+        the premise is wrong and the floor is what it gets.
         """
         wide, tall = self.width(), self.height()
         spare = tall - round(wide * 9 / 16) if wide and tall else 0
+        if spare > tall * self.BANNER_SLACK_SHARE:
+            spare = 0
         return max(self.px(BANNER_TALL), spare)
 
     @property

@@ -139,7 +139,10 @@ def main(argv: list[str] | None = None) -> int:
         # The Knowledge Corner on the 7in is built with the main scale at construction and is
         # NOT re-laid out here -- same root cause, left alone deliberately rather than widened
         # into this change.
-        win.measure_the_side_screen()
+        # The named output, where there is one: its geometry is settled before the app draws
+        # anything and cannot lose a race with the compositor, which is what the window's own
+        # height did on the mat. A window asked for instead is one the app sized itself.
+        win.measure_the_side_screen(None if args.side_screen == "window" else side_screen)
     # Some desktops (Wayland ones especially) put a window where they like and ignore the app.
     # Check a moment later that each window really is on its own screen, and say so if not.
     QtCore.QTimer.singleShot(1200, lambda: report_windows(win, main_screen, side_screen))
