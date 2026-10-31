@@ -82,9 +82,15 @@ class Backlight:
         self.which = found[0]
         return True
 
-    def set(self, percent: int) -> None:
-        """Ask for a brightness and return at once. The monitor is slow; the screen is not."""
-        percent = max(LEAST, min(100, int(percent)))
+    def set(self, percent: int, floor: int = LEAST) -> None:
+        """Ask for a brightness and return at once. The monitor is slow; the screen is not.
+
+        [floor] is LEAST for anything a person is driving, because a mat dimmed into
+        invisibility is a mat nobody can find the slider on to turn back up. Sleep passes 0:
+        there the way back is the button on the box, which does not have to be seen to be
+        pressed, and waking puts the brightness back where the setting says.
+        """
+        percent = max(int(floor), min(100, int(percent)))
         with self.lock:
             self.wanted = percent
             if self.worker is not None and self.worker.is_alive():

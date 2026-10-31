@@ -851,9 +851,10 @@ class MainWindow(QtWidgets.QWidget):
         self.asleep = False
         self.outputs = Outputs()
         self.layout = Layout()
-        #: Whether the last sleep actually switched the panels off. False means they were left
-        #: lit on purpose, and waking must not try to undo something that never happened.
-        self.blanked = False
+        #: Which outputs the last sleep actually switched off, by name. Empty means none were
+        #: -- they were darkened instead, or left alone on purpose -- and waking must not try
+        #: to undo something that never happened.
+        self.blanked: tuple[str, ...] = ()
         # Screens on, whatever state the last run left them in. The app only ever turned them
         # back on when it woke or shut down cleanly, which was fine while those were the only
         # ways it ended -- and stopped being fine in 1.64, when run.sh learnt to start the app
@@ -887,6 +888,16 @@ class MainWindow(QtWidgets.QWidget):
         # No layout: the stack is placed by hand in resizeEvent, so the drawing area keeps its
         # shape whatever the screen does. A layout with big margins would fight the window size.
         self.stack = QtWidgets.QStackedWidget(self)
+        # Solid black over the whole window while the mat is asleep, for a screen whose power
+        # cannot safely be cut. SEPARATE from the brightness veil on the prayer page, which is
+        # a film with WA_TransparentForMouseEvents so a tap goes through it to what is below.
+        # This one must NOT let a tap through: asleep, a child's finger on the mat has to land
+        # on nothing at all rather than open the Qur'an behind a black sheet.
+        self.blackout = QtWidgets.QWidget(self)
+        self.blackout.setObjectName("blackout")
+        self.blackout.setAutoFillBackground(True)
+        self.blackout.setStyleSheet("background: #000000;")
+        self.blackout.hide()
         self.faces: dict[str, str] = {}          # the menu face per interface language
         self.veil = ZoomVeil(self)               # the walk into an arch, laid over the top
         self.facing = Facing(compass or NoCompass(), settings.compass_declination,
@@ -935,6 +946,8 @@ class MainWindow(QtWidgets.QWidget):
     def resizeEvent(self, event):
         box = self.content_box()
         self.stack.setGeometry(box)
+        if getattr(self, "blackout", None) is not None:
+            self.blackout.setGeometry(self.rect())   # the whole window, not the drawing box
         self.set_banner_heights()
         # Laid out for 1920 x 1080; a taller screen (1920 x 1200) keeps the same sizes and
         # gets the extra height as room.
@@ -1049,6 +1062,51 @@ class MainWindow(QtWidgets.QWidget):
         return tuple(name for name in (self.settings.main_output, self.settings.side_output)
                      if name)
 
+    def screens_to_power_down(self) -> tuple[str, ...]:
+        """Which outputs sleep switches OFF, as opposed to darkens.
+
+        THE RULE: a screen whose backlight the app can reach, it turns down; a screen whose
+        backlight it cannot reach, it powers off.
+
+        That is not a quirk of one desk, it is the distinction the app already draws for the
+        brightness slider -- see veil_percent and side_veil_percent. A monitor that answers
+        DDC/CI has its real backlight driven; a panel that refuses, like the 7in MPI7002, is
+        dimmed with a black film instead, because a film is all there is.
+
+        Sleep is the same question asked harder. A film does not save power, so a panel that
+        only has a film is better off switched off altogether. A monitor whose backlight comes
+        down for real needs no such thing -- and on Harry's mat must not have it, because
+        HDMI-A-1 goes off and will not come back, while HDMI-A-2 sleeps and wakes perfectly.
+        The saving is smaller than a power cut and it is a saving that actually happens.
+
+        With no reachable backlight at all this returns every screen, which is what the mat did
+        before any of this, guarded by cannot_bring_back.
+        """
+        if not self.backlight.available:
+            return self.screens_in_use
+        return tuple(name for name in self.screens_in_use
+                     if name != self.settings.main_output)
+
+    def go_dark(self) -> None:
+        """Black over every screen, and the main monitor's backlight as low as it will go.
+
+        The blackout is what makes a screen that is still powered look asleep; the backlight is
+        what makes it cost almost nothing while it does. Neither depends on the compositor, the
+        panel's DPMS behaviour, or anything else that has proved unreliable on this hardware.
+        """
+        self.blackout.setGeometry(self.rect())
+        self.blackout.show()
+        self.blackout.raise_()
+        if self.side is not None:
+            self.side.set_dim(100)
+        if self.backlight.available:
+            self.backlight.set(0, floor=0)   # floor 0: the way back is the button, not the slider
+
+    def come_back(self) -> None:
+        """Undo go_dark. Brightness returns to whatever the setting says, not to full."""
+        self.blackout.hide()
+        self.apply_brightness()
+
     def sleep(self) -> None:
         """Screens off, and everything that was only drawing them stopped.
 
@@ -1069,17 +1127,20 @@ class MainWindow(QtWidgets.QWidget):
         # plug was pulled. Sleeping still stops the audio, the animations and the clock, which
         # is most of the work; the panels simply stay lit, which is the mat looking ordinary
         # instead of looking broken.
-        stuck = self.outputs.cannot_bring_back(self.screens_in_use)
+        self.go_dark()
+        wanted = self.screens_to_power_down()
+        stuck = self.outputs.cannot_bring_back(wanted)
         if stuck:
-            print(f"sleep: leaving the screens lit -- {self.outputs.COMMAND} has no power over "
-                  f"{', '.join(stuck)}, so they could not be switched back on",
-                  file=sys.stderr)
-            self.blanked = False
-        elif not self.outputs.set(False):
+            print(f"sleep: leaving {', '.join(stuck)} lit -- {self.outputs.COMMAND} has no "
+                  f"power over them, so they could not be switched back on", file=sys.stderr)
+            self.blanked = ()
+        elif not wanted:
+            self.blanked = ()
+        elif not self.outputs.set(False, wanted):
             print(f"sleep: {self.outputs.why}", file=sys.stderr)
-            self.blanked = False
+            self.blanked = ()
         else:
-            self.blanked = True
+            self.blanked = tuple(wanted)
         # Back to the mosque while nobody can see it happen, so whoever wakes the mat is met by
         # the main menu rather than by wherever the last person left it. The mat gets picked up
         # by whoever is praying next, and a screen left open in the middle of someone else's
@@ -1104,25 +1165,26 @@ class MainWindow(QtWidgets.QWidget):
         if not self.asleep:
             return
         self.asleep = False
+        self.come_back()
         if self.blanked:
-            if not self.outputs.set(True):
+            if not self.outputs.set(True, self.blanked):
                 print(f"wake: {self.outputs.why}", file=sys.stderr)
             # AND BY NAME, because the wildcard is not enough. An output that came back disabled
             # rather than blanked needs enabling, which is a different protocol -- see
             # power.Layout. This is idempotent: enabling a screen that is already on does
             # nothing, so it is not worth asking first.
-            if not self.layout.switch_on(self.screens_in_use):
+            if not self.layout.switch_on(self.blanked):
                 print(f"wake: {self.layout.why}", file=sys.stderr)
             # THEN CHECK, and say so if a screen is still gone. Tonight's fault was invisible
             # for exactly as long as it was: the app had no way of noticing it had failed, so
             # the only report was a dark mat and somebody reaching for the power. A line in the
             # log is what a photograph of a terminal can show.
-            lost = self.outputs.cannot_bring_back(self.screens_in_use)
+            lost = self.outputs.cannot_bring_back(self.blanked)
             if lost:
                 print(f"wake: {', '.join(lost)} did not come back. Re-apply the display layout "
                       f"(display-setup.sh on this mat, or wlr-randr --output <name> --on).",
                       file=sys.stderr)
-            self.blanked = False
+            self.blanked = ()
         if getattr(self, "welcome", None) is not None and not self.playing:
             self.stack.setCurrentWidget(self.welcome)
         if hasattr(self, "clock"):
@@ -1138,11 +1200,17 @@ class MainWindow(QtWidgets.QWidget):
         # Never leave the screens dark for the next thing that runs: the app owns their power
         # while it is up, so it has to hand them back before it goes.
         if self.asleep:
+            # The wildcard here on purpose, unlike wake(): this is the app handing the screens
+            # back to whatever runs next, and it has no business leaving any output dark for a
+            # desktop it is not going to be around to see.
             self.outputs.set(True)
             if self.blanked:        # and by name, for the reason wake() does it
-                self.layout.switch_on(self.screens_in_use)
+                self.layout.switch_on(self.blanked)
+            if self.backlight.available:
+                self.backlight.set(self.settings.brightness)
+                self.backlight.settle(5.0)   # a monitor left at zero is the next person's mat
             self.asleep = False
-            self.blanked = False
+            self.blanked = ()
         for timer in ("muezzin", "call_watch", "idle"):
             if hasattr(self, timer):
                 getattr(self, timer).stop()
@@ -3711,7 +3779,12 @@ class MainWindow(QtWidgets.QWidget):
         # mat may have a touchscreen, a keyboard, a Bluetooth button, or all three.
         if ev.type() in (QtCore.QEvent.Type.MouseButtonPress, QtCore.QEvent.Type.KeyPress,
                          QtCore.QEvent.Type.TouchBegin):
-            self.stir()
+            # NOT while asleep. A touch on a sleeping mat does not wake it -- the button on the
+            # box is the only way back, deliberately, so a knee on the mat cannot start the
+            # thing up -- and rearming the going-to-sleep clock for a sleep it is already in
+            # left a timer counting down to nothing, over and over, all night.
+            if not self.asleep:
+                self.stir()
         # A tap or a press during the walk into an arch cuts it short, so what was touched is
         # seen at once. The event is not swallowed: the walk is only a picture over the top, and
         # the units underneath have been live since the moment the arch was tapped.

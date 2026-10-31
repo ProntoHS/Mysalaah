@@ -177,20 +177,30 @@ class Outputs:
             return []
         return [name for name in names if name and name not in seen]
 
-    def set(self, on: bool) -> bool:
-        """Powers every output on or off. False if that could not be done, with [why] set."""
-        try:
-            done = self.run([self.command, "--on" if on else "--off", "*"],
-                            capture_output=True, text=True, timeout=5)
-        except FileNotFoundError:
-            self.why = f"{self.command} is not installed, so the screens stay lit while asleep"
-            return False
-        except (OSError, subprocess.SubprocessError) as problem:
-            self.why = f"{self.command} failed: {problem}"
-            return False
-        if done.returncode != 0:
-            self.why = f"{self.command} refused: {(done.stderr or '').strip()}"
-            return False
+    def set(self, on: bool, names=None) -> bool:
+        """Powers outputs on or off. False if that could not be done, with [why] set.
+
+        [names] limits it to particular outputs; the default is the wildcard, every output.
+
+        BY NAME MATTERS ON A MAT WITH TWO UNEQUAL SCREENS. Harry's 7in panel sleeps and wakes
+        perfectly, while his main display will not come back at all -- so the wildcard, which
+        can only treat them alike, had to take the good screen down with the bad one. Sleep now
+        switches off only what it should, and the main display is simply never asked.
+        """
+        wanted = [name for name in (names or ()) if name] or ["*"]
+        for name in wanted:
+            try:
+                done = self.run([self.command, "--on" if on else "--off", name],
+                                capture_output=True, text=True, timeout=5)
+            except FileNotFoundError:
+                self.why = f"{self.command} is not installed, so the screens stay lit while asleep"
+                return False
+            except (OSError, subprocess.SubprocessError) as problem:
+                self.why = f"{self.command} failed: {problem}"
+                return False
+            if done.returncode != 0:
+                self.why = f"{self.command} refused: {(done.stderr or '').strip()}"
+                return False
         self.why = ""
         return True
 
