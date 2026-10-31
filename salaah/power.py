@@ -43,6 +43,33 @@ from typing import Callable
 #: it is physical pin 9. Harry wired and tested this pair before it was written down here.
 PIN = 17
 
+#: GPIO 3 is physical pin 5, and it is the ONLY pin that can start a halted Pi: the bootloader
+#: watches it and that is hardcoded, so no other pin will do. Harry tested it on his Pi 4B --
+#: halt, short pin 5 to a ground, and it boots -- which mattered, because the Pi 4 bootloader
+#: did not always support this and a Pi 400 reportedly does not.
+WAKE_PIN = 3
+
+#: BOTH pins are watched, and the app acts on whichever one fires. The switch is moving from
+#: GPIO 17 to GPIO 3 so that one button can also start the mat from cold, and watching both
+#: means the wire can be moved whenever suits rather than in lockstep with an update: there is
+#: no moment where the mat is updated but not yet rewired, or rewired but not yet updated, and
+#: the button is dead. A pin with nothing on it is pulled up and simply never fires.
+PINS = (WAKE_PIN, PIN)
+
+#: Seconds gpiozero ignores further edges after one it has acted on. Mechanical switches chatter
+#: for a few milliseconds and would otherwise read as several presses; 80 ms is what was tested
+#: on the mat and comfortably longer than the chatter.
+BOUNCE = 0.08
+
+#: How long the button has to be held down to mean "shut the mat down" rather than "sleep".
+#: Long enough that it cannot be reached by a brisk press, short enough that a child is not
+#: left wondering whether anything is happening.
+HOLD = 2.0
+
+#: Where each pin comes out on the header, for the line the app prints at start-up. A person
+#: looking at the board needs the physical pin, not the BCM number.
+HEADER = {WAKE_PIN: "header pin 5", PIN: "header pin 11"}
+
 #: Seconds gpiozero ignores further edges after one it has acted on. Mechanical switches chatter
 #: for a few milliseconds and would otherwise read as several presses; 80 ms is what was tested
 #: on the mat and comfortably longer than the chatter.
@@ -57,22 +84,26 @@ class SleepSwitch:
     thread and is the only safe thing to do from here.
     """
 
-    def __init__(self, on_press: Callable[[], None], pin: int = PIN, bounce: float = BOUNCE,
-                 button=None):
+    def __init__(self, on_press: Callable[[], None], on_hold: Callable[[], None] | None = None,
+                 pins=PINS, bounce: float = BOUNCE, hold: float = HOLD, button=None):
         self.on_press = on_press
-        self.pin = pin
+        self.on_hold = on_hold
+        self.pins = (pins,) if isinstance(pins, int) else tuple(pins)
         self.bounce = bounce
+        self.hold = hold
         self._make = button                 # a stand-in, for the tests
-        self.button = None
+        self.buttons: list = []
+        self.watching: tuple[int, ...] = ()
+        self._holding: set[int] = set()     # pins whose current press has already been a hold
         self.why: str = ""                  # empty while it is working; otherwise why it is not
         self._lock = threading.Lock()
 
     @property
     def where(self) -> str:
-        return f"GPIO {self.pin} (header pin 11)"
+        return ", ".join(f"GPIO {p} ({HEADER.get(p, 'header')})" for p in self.watching) or "nothing"
 
     def start(self) -> bool:
-        """Begins watching. False, with [why] set, if there is no GPIO to watch."""
+        """Begins watching. False, with [why] set, if there is no GPIO to watch at all."""
         make = self._make
         if make is None:
             try:
@@ -82,33 +113,56 @@ class SleepSwitch:
                             "nothing; sudo apt install python3-gpiozero")
                 return False
             make = Button
-        try:
-            self.button = make(self.pin, pull_up=True, bounce_time=self.bounce)
-        except Exception as problem:
-            # gpiozero raises BadPinFactory on anything that is not a Pi, and OSError or its own
-            # GPIOPinInUse if the pin is taken. Caught broadly on purpose: whatever the reason,
-            # the mat should start and say why the switch is quiet rather than refuse to run.
-            self.why = f"cannot watch GPIO {self.pin}: {problem}"
-            self.button = None
-            return False
-        self.button.when_pressed = self._pressed
-        self.why = ""
-        return True
+        troubles, watching = [], []
+        for pin in self.pins:
+            try:
+                button = make(pin, pull_up=True, bounce_time=self.bounce, hold_time=self.hold)
+            except Exception as problem:
+                # gpiozero raises BadPinFactory on anything that is not a Pi, and OSError or its
+                # own GPIOPinInUse if the pin is taken. Caught broadly on purpose: whatever the
+                # reason, the mat should start and say why rather than refuse to run. One pin
+                # failing is not fatal now -- the other may well be the one the switch is on.
+                troubles.append(f"GPIO {pin}: {problem}")
+                continue
+            # RELEASE, NOT PRESS. gpiozero fires when_pressed the instant the contact is made,
+            # so a hold would put the mat to sleep on its way to the shutdown question and then
+            # ask about shutting down a screen it had just blacked out. Acting on release lets
+            # the hold be recognised first. For an ordinary quick press the difference is the
+            # time a finger spends on a button, which nobody can perceive.
+            button.when_held = self._holder(pin)
+            button.when_released = self._releaser(pin)
+            self.buttons.append(button)
+            watching.append(pin)
+        self.watching = tuple(watching)
+        self.why = "; ".join(troubles)
+        return bool(self.buttons)
 
-    def _pressed(self, *_) -> None:
-        """gpiozero passes the Button; the app does not care which one it was."""
-        self.on_press()
+    def _holder(self, pin: int):
+        def held(*_):
+            self._holding.add(pin)
+            if self.on_hold is not None:
+                self.on_hold()
+        return held
+
+    def _releaser(self, pin: int):
+        def released(*_):
+            was_held = pin in self._holding
+            self._holding.discard(pin)
+            if not was_held:
+                self.on_press()
+        return released
 
     def stop(self) -> None:
         with self._lock:
-            button, self.button = self.button, None
-        if button is None:
-            return
-        try:
-            button.when_pressed = None
-            button.close()
-        except Exception:
-            pass                            # going away; nothing here is worth failing for
+            buttons, self.buttons = self.buttons, []
+            self.watching = ()
+        for button in buttons:
+            try:
+                button.when_held = None
+                button.when_released = None
+                button.close()
+            except Exception:
+                pass                        # going away; nothing here is worth failing for
 
 
 class Outputs:
@@ -201,6 +255,43 @@ class Outputs:
             if done.returncode != 0:
                 self.why = f"{self.command} refused: {(done.stderr or '').strip()}"
                 return False
+        self.why = ""
+        return True
+
+
+class Halt:
+    """Shuts the computer down cleanly.
+
+    WHY A MAT NEEDS THIS AT ALL, which is not the reason it looks like. A halted Pi is not off:
+    it sits in a very deep sleep and still draws from the supply, so this saves little over the
+    sleep the button already does. What it saves is the SD card. Pulling the plug on a running
+    Pi risks the filesystem, and a corrupted card is a mat that simply stops working one
+    morning with nothing on screen to say why.
+
+    It is only worth offering because of what Harry tested on his own board: GPIO 3 really does
+    start his Pi 4B from halt. Without that, a shutdown button would be a trap -- a mat that
+    can be turned off and not on, by a child, with the plug as the only way back.
+    """
+
+    COMMAND = ("sudo", "shutdown", "-h", "now")
+
+    def __init__(self, run=subprocess.run):
+        self.run = run
+        self.why: str = ""
+
+    def now(self) -> bool:
+        """Asks the system to halt. False, with [why] set, if it would not."""
+        try:
+            done = self.run(list(self.COMMAND), capture_output=True, text=True, timeout=10)
+        except FileNotFoundError:
+            self.why = "shutdown is not available on this machine"
+            return False
+        except (OSError, subprocess.SubprocessError) as problem:
+            self.why = f"shutdown failed: {problem}"
+            return False
+        if done.returncode != 0:
+            self.why = f"shutdown refused: {(done.stderr or '').strip()}"
+            return False
         self.why = ""
         return True
 

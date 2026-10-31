@@ -41,7 +41,7 @@ from .recite import Store, WordTimes
 from .call import Adhan, CallBox
 from .reading import LIST_BAR, NUMBER_LINE, READING_TEXT_SIZE_PX, Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
-from .power import Layout, Outputs
+from .power import Halt, Layout, Outputs
 from .settings import Settings
 from . import theme
 from types import SimpleNamespace
@@ -143,6 +143,7 @@ class Bridge(QtCore.QObject):
     action = Signal(str)
     devices = Signal(list)
     power = Signal()
+    hold = Signal()          # the same switch, held down: the shutdown question
 
 
 class ImageCache:
@@ -848,9 +849,11 @@ class MainWindow(QtWidgets.QWidget):
         self.bridge.action.connect(self.on_button)
         self.bridge.devices.connect(self.on_devices)
         self.bridge.power.connect(self.toggle_sleep)
+        self.bridge.hold.connect(self.ask_to_shut_down)
         self.asleep = False
         self.outputs = Outputs()
         self.layout = Layout()
+        self.halt = Halt()
         #: Which outputs the last sleep actually switched off, by name. Empty means none were
         #: -- they were darkened instead, or left alone on purpose -- and waking must not try
         #: to undo something that never happened.
@@ -1061,6 +1064,58 @@ class MainWindow(QtWidgets.QWidget):
         """
         return tuple(name for name in (self.settings.main_output, self.settings.side_output)
                      if name)
+
+    #: How long the shutdown question waits before answering itself. A modal dialog nobody
+    #: dismisses is a mat that has stopped working, and the person best placed to leave one up
+    #: is a child who held the button to see what it did.
+    SHUTDOWN_ASK_FOR = 10_000        # milliseconds
+
+    def ask_to_shut_down(self) -> None:
+        """The switch held down: offer to halt, and take silence for no."""
+        if self.notice is not None:
+            return                       # something is already being asked; one question at a time
+        # WAKE FIRST. Asleep, the main screen is under a black sheet with its backlight at zero,
+        # so a question asked there is a question asked of nobody -- and the answer would decide
+        # whether the mat shuts down.
+        if self.asleep:
+            self.wake()
+        self.say("", title="shutdown.title")   # makes the Notice, as the update flow does
+        self.notice.ask(self.t("shutdown.ask"), self.t("shutdown.yes"), self.t("shutdown.no"))
+        asked = self.notice
+        # AFTER the dialog has finished closing, not during. Qt emits accepted() BEFORE
+        # finished(), and finished() is what clears self.notice -- so anything this put on
+        # screen from inside accepted() would land on the dialog the app is about to forget,
+        # already hidden, and the person would see nothing at all. That matters on the path
+        # where the halt is refused and the only thing left to do is say so.
+        asked.accepted.connect(lambda: QtCore.QTimer.singleShot(0, self.shut_the_mat_down))
+        # PARENTED TO THE DIALOG, not a bare singleShot. A loose timer outlives whatever it was
+        # about: if the dialog is destroyed inside the ten seconds -- the window closing, a
+        # language change rebuilding every screen -- the timer still fires and reaches into a
+        # deleted C++ object. That raises inside a Qt slot, which does not fail politely; it
+        # takes the process down, and on the mat that is the app disappearing while a child
+        # looks at it. A timer with the dialog as its parent is destroyed with the dialog and
+        # cannot fire at all. The identity check then covers the dialog that is merely closed.
+        countdown = QtCore.QTimer(asked)
+        countdown.setSingleShot(True)
+        countdown.timeout.connect(lambda: asked.reject() if asked is self.notice else None)
+        countdown.start(self.SHUTDOWN_ASK_FOR)
+
+    def shut_the_mat_down(self) -> None:
+        """Halt, having first put back anything that would make the next boot look broken."""
+        # THE BRIGHTNESS GOES BACK BEFORE THE POWER GOES OFF. Sleep drives the monitor to zero
+        # over DDC/CI, and a monitor keeps what it was last told through a power cycle -- so a
+        # mat halted while dimmed comes back to a black desktop, and stays black until the app
+        # has started and set it again. Somebody watching that boot sees a dead mat.
+        if self.backlight.available:
+            self.backlight.set(self.settings.brightness)
+            self.backlight.settle(5.0)   # it has to reach the monitor, not just be asked for
+        self.stop_audio()
+        if not self.halt.now():
+            # Refused: the mat is still running and the person is owed an explanation rather
+            # than a button that appeared to do nothing.
+            print(f"shutdown: {self.halt.why}", file=sys.stderr)
+            self.say("", title="shutdown.title")
+            self.notice.finish(self.halt.why, self.t("update.close"))
 
     def screens_to_power_down(self) -> tuple[str, ...]:
         """Which outputs sleep switches OFF, as opposed to darkens.

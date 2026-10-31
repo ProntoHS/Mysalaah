@@ -105,14 +105,22 @@ def main(argv: list[str] | None = None) -> int:
         if not buttons.available:
             print("python3-evdev not installed: Bluetooth buttons work only as normal key presses", file=sys.stderr)
 
-    # The sleep switch on GPIO 17. A press blanks both screens; another brings them back. This
-    # was the Pi 5's own power button until 1.98 and is a plain switch on a pin now, because the
-    # mat runs on a Pi 4B, which has no power-button circuit at all. salaah/power.py says more.
+    # The sleep switch. A press blanks the screens; another brings them back; holding it asks
+    # whether to shut the mat down. This was the Pi 5's own power button until 1.98 and is a
+    # plain switch on a pin now, because the mat runs on a Pi 4B, which has no power-button
+    # circuit at all.
+    #
+    # BOTH GPIO 3 AND GPIO 17 are watched. The switch is moving to GPIO 3, because that is the
+    # one pin whose state the bootloader reads, so the same button can start the mat from a
+    # halt -- which is what makes offering a shutdown safe at all. Watching both means the wire
+    # can move whenever suits rather than in step with an update. salaah/power.py says more.
     power = None
     if not args.no_sleep:
-        power = SleepSwitch(win.bridge.power.emit)
+        power = SleepSwitch(win.bridge.power.emit, win.bridge.hold.emit)
         if power.start():
             print(f"sleep switch: watching {power.where}", file=sys.stderr)
+            if power.why:                 # one pin took, the other did not; say which and why
+                print(f"sleep switch: {power.why}", file=sys.stderr)
         else:
             print(f"sleep switch: {power.why}", file=sys.stderr)
             power = None
