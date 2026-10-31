@@ -483,20 +483,31 @@ class Screen(QtWidgets.QWidget):
         layout.setContentsMargins(self.win.side_px(20), self.win.side_px(18),
                                   self.win.side_px(20), self.win.side_px(18))
         layout.setSpacing(self.win.side_px(10))
+        # NAMED, or the stylesheet below cannot size them. Its QLabel#gameTitle and
+        # QLabel#gameStatus rules only match a label that carries the name, and a label that
+        # matches neither falls through to the app-wide QWidget rule -- font-size px(24), the
+        # MAIN screen's scale -- which on a 1080x1920 panel is 24px beside lettering at 75.
+        # This file had the same omission as prayer_day_journey.py and nobody had noticed,
+        # because the one Harry photographed was the other one.
         self.title = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.title.setObjectName("gameTitle")
         self.title.setWordWrap(True)
         layout.addWidget(self.title)
         self.progress = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.progress.setObjectName("gameStatus")
         layout.addWidget(self.progress)
         self.preview = ItemPreview(self.win)
         layout.addWidget(self.preview, 1)
         self.item_name = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.item_name.setObjectName("gameStatus")
         self.item_name.setWordWrap(True)
         layout.addWidget(self.item_name)
         self.question = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.question.setObjectName("gameStatus")
         self.question.setWordWrap(True)
         layout.addWidget(self.question)
         self.feedback = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.feedback.setObjectName("gameStatus")
         self.feedback.setWordWrap(True)
         layout.addWidget(self.feedback)
         controls = QtWidgets.QHBoxLayout()

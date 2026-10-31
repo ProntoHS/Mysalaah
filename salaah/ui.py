@@ -405,6 +405,28 @@ class Notice(QtWidgets.QDialog):
         self.add_button(yes_label, self.accept)
         self.settle()
 
+    def choose(self, message: str, options) -> None:
+        """Several answers rather than two, in the order given, the last one loudest.
+
+        [options] is (label, what it does, quiet) per button. ask() cannot do this: it is built
+        around a dialog's own accept and reject, and the shutdown question has a third answer --
+        sleep -- which is neither. An empty message leaves the box as a heading and its buttons,
+        which is what Harry asked for: nothing to read, three things to press.
+        """
+        self.text.setText(message)
+        self.text.setVisible(bool(message))
+        self.notes.hide()
+        self.clear_buttons()
+        made = [self.add_button(label, does, quiet=quiet) for label, does, quiet in options]
+        # ONE HEIGHT ACROSS THE ROW. A quiet button carries a border and a loud one does not,
+        # which leaves them a few pixels apart -- unnoticeable on an ordinary notice and plainly
+        # ragged on this one, which is drawn at twice the size.
+        if made:
+            tallest = max(b.sizeHint().height() for b in made)
+            for b in made:
+                b.setFixedHeight(tallest)
+        self.settle()
+
     def add_button(self, label: str, does, quiet: bool = False) -> QtWidgets.QPushButton:
         b = no_focus(QtWidgets.QPushButton(label))
         if quiet:
@@ -1070,6 +1092,10 @@ class MainWindow(QtWidgets.QWidget):
     #: is a child who held the button to see what it did.
     SHUTDOWN_ASK_FOR = 10_000        # milliseconds
 
+    #: How much bigger the shutdown box is than an ordinary notice. It is pressed by a child,
+    #: from across a mat, and is the only box on this app that can switch the mat off.
+    SHUTDOWN_TIMES = 2.0
+
     def ask_to_shut_down(self) -> None:
         """The switch held down: offer to halt, and take silence for no."""
         if self.notice is not None:
@@ -1079,9 +1105,19 @@ class MainWindow(QtWidgets.QWidget):
         # whether the mat shuts down.
         if self.asleep:
             self.wake()
-        self.say("", title="shutdown.title")   # makes the Notice, as the update flow does
-        self.notice.ask(self.t("shutdown.ask"), self.t("shutdown.yes"), self.t("shutdown.no"))
+        # TWICE THE SIZE, and nothing to read. This box is pressed by a child, from across a
+        # mat, often in a dim room, and the one thing it must not be is a paragraph. A heading
+        # and three buttons.
+        self.say("", title="shutdown.title", times=self.SHUTDOWN_TIMES)
         asked = self.notice
+        self.notice.choose("", (
+            (self.t("shutdown.no"), asked.reject, True),
+            # Sleep is deferred for the reason the halt is: let the dialog finish closing
+            # before the screens go black underneath it.
+            (self.t("shutdown.sleep"),
+             lambda: (asked.reject(), QtCore.QTimer.singleShot(0, self.sleep)), True),
+            (self.t("shutdown.yes"), asked.accept, False),
+        ))
         # AFTER the dialog has finished closing, not during. Qt emits accepted() BEFORE
         # finished(), and finished() is what clears self.notice -- so anything this put on
         # screen from inside accepted() would land on the dialog the app is about to forget,
@@ -4562,7 +4598,7 @@ class MainWindow(QtWidgets.QWidget):
         from .update import DEFAULT_URL
         return self.settings.update_url or DEFAULT_URL
 
-    def say(self, message: str, title: str = "update.title") -> None:
+    def say(self, message: str, title: str = "update.title", times: float = 1.0) -> None:
         """Put a message in front of the person, in a box they cannot overlook.
 
         The whole business of updating happens on this thread, so nothing repaints while the
@@ -4574,7 +4610,11 @@ class MainWindow(QtWidgets.QWidget):
         the person something that is not true.
         """
         if self.notice is None:
-            self.notice = Notice(self, self.px, self.t(title))
+            # [times] scales the whole box, because Notice sizes everything it draws -- the
+            # border, the margins, the lettering, the buttons -- through the px it is handed.
+            # So twice the size is a px that doubles, not thirty numbers to find and edit.
+            px = self.px if times == 1.0 else (lambda n: self.px(n * times))
+            self.notice = Notice(self, px, self.t(title))
             self.notice.finished.connect(self.notice_closed)
         self.notice.say(message)
 

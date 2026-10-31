@@ -54,9 +54,9 @@
     "prayer.maghrib": "المغرب",
     "prayer.isha": "العشاء",
     "shutdown.title": "إيقاف التشغيل",
-    "shutdown.ask": "هل تريد إيقاف تشغيل السجادة؟ اضغط الزر مرة أخرى لتشغيلها.",
-    "shutdown.yes": "إيقاف التشغيل",
-    "shutdown.no": "إبقاؤها قيد التشغيل"
+    "shutdown.yes": "نعم",
+    "shutdown.no": "لا",
+    "shutdown.sleep": "سكون"
   },
   "transliteration": {},
   "translation": {}

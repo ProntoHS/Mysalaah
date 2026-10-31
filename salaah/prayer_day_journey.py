@@ -15,6 +15,16 @@ from .theme import palette
 
 
 SCENES = ("fajr", "dhuhr", "asr", "maghrib", "isha")
+
+#: The answer boxes on the 7in, in the panel's own units (the 1024-tall panel these were drawn
+#: against). Half again as big as they were, at Harry's asking: the old 54 came out 101px on
+#: his 1080x1920 panel against the Mosque Maze's 120-135, so this brings the one game whose
+#: panel looked wrong into line with the ones that look right.
+ANSWER_TALL = 81
+ANSWER_GAP = 14
+#: And the lettering on them, likewise half again -- 30 lands on the same 56px every other
+#: panel's buttons use, so the number is both what was asked for and what already works.
+ANSWER_FONT = 30
 ASSETS = {
     "fajr": "prayer-day-fajr.png",
     "dhuhr": "prayer-day-zuhr.png",
@@ -348,33 +358,55 @@ class Screen(QtWidgets.QWidget):
                                   self.win.side_px(20), self.win.side_px(18))
         layout.setSpacing(self.win.side_px(10))
 
+        # NAMED, so the panel's own stylesheet can size them.
+        #
+        # THIS IS WHY ONE GAME'S PANEL LOOKED WRONG. These four labels had no object names, so
+        # the panel stylesheet's QLabel#gameTitle and QLabel#gameStatus rules never matched
+        # them and they fell through to the app-wide QWidget rule -- font-size px(24), the MAIN
+        # screen's scale -- which on Harry's 1080x1920 panel is 24px against the Mosque Maze's
+        # 75. retell() does call setFont on them, but a stylesheet rule BEATS setFont in Qt, so
+        # that had no effect on size and never could. The maze and the jigsaw were right only
+        # because they happened to name their labels.
+        #
+        # setFont still earns its place: it picks the FACE for the script in use, which no
+        # stylesheet here sets, and Arabic, Bengali and Chinese all need their own.
         self.title = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.title.setObjectName("gameTitle")
         self.title.setWordWrap(True)
         layout.addWidget(self.title)
         self.progress = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.progress.setObjectName("gameStatus")
         layout.addWidget(self.progress)
         self.question = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.question.setObjectName("gameStatus")
         self.question.setWordWrap(True)
         layout.addWidget(self.question)
+
+        # THE HINT GOES ABOVE THE ANSWERS, and the answers are a group rather than a column
+        # stretched down the panel. They used to take every spare pixel -- on Harry's
+        # 1080x1920 that was three 101px buttons strung out over 1400px with 280px gaps,
+        # with the hint stranded underneath them. Read in the order a person uses it: what
+        # to look for, then the things to press.
+        self.feedback = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.feedback.setObjectName("gameStatus")
+        self.feedback.setWordWrap(True)
+        layout.addWidget(self.feedback)
 
         self.answers = []
         self.answer_box = QtWidgets.QWidget()
         answer_layout = QtWidgets.QVBoxLayout(self.answer_box)
         answer_layout.setContentsMargins(0, 0, 0, 0)
-        answer_layout.setSpacing(self.win.side_px(8))
+        answer_layout.setSpacing(self.win.side_px(ANSWER_GAP))
         for index in range(len(SCENES)):
             button = QtWidgets.QPushButton()
             button.setObjectName("answerButton")
-            button.setMinimumHeight(self.win.side_px(54))
+            button.setMinimumHeight(self.win.side_px(ANSWER_TALL))
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.clicked.connect(lambda _checked=False, which=index: self._choose(which))
             answer_layout.addWidget(button)
             self.answers.append(button)
-        layout.addWidget(self.answer_box, 1)
-
-        self.feedback = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        self.feedback.setWordWrap(True)
-        layout.addWidget(self.feedback)
+        layout.addWidget(self.answer_box)
+        layout.addStretch(1)      # the spare height falls here, not between the answers
 
         self.next_button = QtWidgets.QPushButton()
         self.next_button.setObjectName("controlButton")
@@ -412,8 +444,17 @@ class Screen(QtWidgets.QWidget):
         return panel
 
     def _font(self, words, size, bold=False):
+        """A face for the PANEL, so sized in the panel's own pixels.
+
+        THE 2.00 FAULT, SURVIVING IN ONE METHOD. Every widget size in this file moved to
+        side_px in 2.01 and the stylesheet's type sizes with them -- but this helper kept
+        calling px(), the MAIN screen's scale, and an explicit setFont beats a stylesheet. So
+        on Harry's 1080x1920 panel the Prayer Day title came out at 24 px where the Mosque
+        Maze's is 75, and its hint at 24 against the maze's 52. One game's panel looked right
+        and the other did not, for a reason nowhere near where anyone was looking.
+        """
         font = QtGui.QFont(Fonts.for_text(words))
-        font.setPixelSize(self.win.px(size))
+        font.setPixelSize(self.win.side_px(size))
         if bold:
             font.setWeight(QtGui.QFont.Weight.Bold)
         return font
@@ -507,9 +548,11 @@ class Screen(QtWidgets.QWidget):
         self.progress.setFont(self._font(self.progress.text(), 21, True))
         self.question.setFont(self._font(self.question.text(), 25, True))
         self.feedback.setFont(self._font(self.feedback.text(), 19, True))
-        for button in [*self.answers, self.next_button, self.mode_button,
-                       self.difficulty_button, self.new_button, self.exit_button]:
-            button.setFont(self._font(button.text(), 20, True))
+        for button in self.answers:
+            button.setFont(self._font(button.text(), ANSWER_FONT, True))
+        for button in (self.next_button, self.mode_button, self.difficulty_button,
+                       self.new_button, self.exit_button):
+            button.setFont(self._font(button.text(), ANSWER_FONT, True))
 
     def follow_theme(self) -> None:
         c = palette()
