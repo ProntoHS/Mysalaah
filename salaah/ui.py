@@ -75,6 +75,19 @@ BANNER_BLUE = "#8FB1F0"
 #: The prayer times on the strip. Raised a tenth now the strip is taller than it was: a 16:10
 #: screen hands the banner its slack (see banner_height) and the words are what people read.
 BANNER_TEXT_PX = 31          # was 28
+
+#: The hairline under the strip, at 1080p. 2.07 put the strip on the mat's own theme, which
+#: means it paints the same colour as the page below it -- black on black for a dark mat -- and
+#: a strip you can only find by the lettering on it is not a strip. So its edge is drawn
+#: instead, in the theme's own line colour: #3A3D40 at night, #D9DCD6 by day. Harry chose this
+#: over leaving it merged and over tinting the strip a shade off the page.
+#:
+#: IT COMES OUT OF THE STRIP, not off the top of the page, and it is subtracted in two places
+#: that have to agree: the row's bottom margin, which keeps the children off it, and the Main
+#: screen button's side, which would otherwise overflow that margin and be clipped. The border
+#: itself does NOT shrink the widget's contents rect -- that was assumed once and measured to
+#: be false -- so neither subtraction happens on its own. Both are counted in pixels by tests.
+BANNER_RULE = 2
 # How tall the black strip across the top is, at 1080p. Fixed rather than left to whatever is
 # in it, because what is in it differs: the screens with a Main screen button came out five
 # pixels taller than the front door and the mosque, and going between them the strip visibly
@@ -1022,9 +1035,18 @@ class MainWindow(QtWidgets.QWidget):
         tall = self.banner_height()
         for banner in getattr(self, "banners", ()):
             banner.setFixedHeight(tall)
-        # And the Main screen button, which is square and as tall as the strip allows. It is
-        # sized from the same number, so it has to follow the same resize.
-        side = max(1, tall - self.px(20))        # the row's own top and bottom margins
+        # And the Main screen button, which is square and FILLS the strip. It is sized from the
+        # same number, so it has to follow the same resize.
+        #
+        # The whole height less the hairline under it: in 2.06 it came out 20px short of the
+        # strip it sits in, which Harry saw straight away. The row's 10px margins are gone from
+        # make_banner, so there is nothing left to subtract but the rule -- and that one has to
+        # be subtracted, because the row carries a bottom margin of exactly that to keep the
+        # labels from painting over the line, and a fixed-size button overflows a margin and
+        # gets clipped rather than shrinking to fit it. If either number changes behind the
+        # other's back the button silently goes short again, which is what the test here
+        # measures, in painted pixels.
+        side = max(1, tall - self.px(BANNER_RULE))
         for home in getattr(self, "banner_homes", ()):
             home.setFixedSize(side, side)
 
@@ -1566,12 +1588,14 @@ class MainWindow(QtWidgets.QWidget):
     def stylesheet(self) -> str:
         px = self.px
         c = self.colours()
-        # THE STRIP ACROSS THE TOP IS THE OTHER THEME. White with black lettering while the mat
-        # is dark, black with white while it is light. Everything on it -- the place name, the
-        # prayer whose time it is, the slider, the borders -- takes its colour from here, so
-        # there is one idea to hold rather than a list of exceptions, and every value was
-        # already chosen to sit on exactly that background.
-        strip = theme.other()
+        # THE STRIP ACROSS THE TOP IS THE MAT'S OWN THEME. Black with white lettering while the
+        # mat is dark, white with black while it is light. 2.06 had it the other way round on
+        # purpose and 2.07 puts it back, so this name no longer means anything clever: it is
+        # the current palette, and it stays spelled out here because everything on the strip --
+        # the place name, the prayer whose time it is, the slider, the borders -- is written
+        # against `strip` rather than `c`, and all of it has to move together if it ever moves
+        # again.
+        strip = theme.palette()
         # How large the words on the Settings page are set. Named, and in one place, because
         # they were raised together in 1.83 and have to be judged together: the page either
         # fits a 1920x1080 monitor in all seven languages or it does not, and raising any one
@@ -1729,7 +1753,7 @@ class MainWindow(QtWidgets.QWidget):
                the strip's -- it is the one thing on the banner you press, and red is what
                everything pressable on this mat is. */
             QPushButton#mainScreen {{ background:{BRICK}; color:white; border:none;
-                                      border-radius:{px(8)}px; font-size:{px(26)}px;
+                                      border-radius:{px(8)}px; font-size:{px(29)}px;
                                       font-weight:bold; padding:0; }}
             QPushButton#mainScreen:pressed {{ background:#8E342C; }}
             QPushButton#backButton {{ background:{BRICK}; color:white; border:none;
@@ -1774,7 +1798,8 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#wuduWords {{ color:{c.ink}; font-size:{px(WUDU_WORDS_PX)}px; }}
             QLabel#prayerNameBig {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                     font-size:{px(64)}px; font-weight:bold; }}
-            QWidget#banner {{ background:{strip.paper}; }}
+            QWidget#banner {{ background:{strip.paper};
+                              border-bottom:{px(BANNER_RULE)}px solid {strip.line}; }}
             QWidget#compassRoot, QWidget#compassRoot QLabel {{ background:{c.paper}; color:{c.strong}; }}
             QLabel#compassTitle {{ font-size:{px(44)}px; font-weight:bold; }}
             QLabel#compassArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
@@ -2162,18 +2187,42 @@ class MainWindow(QtWidgets.QWidget):
         """
         banner = QtWidgets.QWidget()
         banner.setObjectName("banner")
+        # NO WA_StyledBackground HERE, THOUGH IT WAS TRIED. When the hairline under the strip
+        # would not appear, the obvious culprit was box painting needing a styled widget, and
+        # setting the attribute did make it appear -- which looked like a diagnosis and was a
+        # coincidence: the bottom margin went on in the same breath. Taking the attribute back
+        # out again and re-measuring put #3A3D40 at y=118 either way. The border had been drawn
+        # all along and the times label was painting over it.
+        #
+        # It is written down because a line that does nothing, with a confident comment over it
+        # explaining a mechanism that is not the mechanism, is worse than no line at all: the
+        # next person to touch the strip would have believed it.
         # banner_height(), not px(BANNER_TALL): on a screen taller than 16:9 it takes the slack
         # so the pictures below can be drawn at their own size. Recorded in banner_labels so
         # resize_banners can set it again when the window changes shape.
         banner.setFixedHeight(self.banner_height())
         self.banners = getattr(self, "banners", [])
         self.banners.append(banner)
-        strip = theme.other()        # the banner is the OTHER theme: see stylesheet()
+        strip = theme.palette()      # the banner is the mat's own theme: see stylesheet()
         row = QtWidgets.QHBoxLayout(banner)
-        # NO RIGHT MARGIN. The Main screen button goes hard against the edge of the strip, so
-        # there is nothing for a margin to hold it off from. Everything else on the row keeps
-        # the spacing it had.
-        row.setContentsMargins(self.px(28), self.px(10), 0, self.px(10))
+        # NO TOP MARGIN, AND A BOTTOM ONE EXACTLY THE WIDTH OF THE HAIRLINE. The Main screen
+        # button goes hard against the edge of the strip and fills it down to the rule, so
+        # there is nothing for a left-over margin to hold it off from -- and a layout will not
+        # let a widget grow past the content rect, so a top and bottom margin here is the same
+        # thing as a shorter button. That is what made it 20px short in 2.06.
+        #
+        # THE BOTTOM MARGIN IS THE RULE'S OWN AND NOT A SPARE. Taken out altogether, the times
+        # label and the volume read fill the full height and PAINT THEIR OWN BACKGROUND OVER
+        # THE HAIRLINE: it survived only in the left 28px where no child reaches, so the strip
+        # had a 28px line and then nothing. That is measured -- #3A3D40 at y=118 under the
+        # margin, the paper colour under the label -- and it is why this number is tied to
+        # BANNER_RULE rather than chosen.
+        #
+        # Nothing else on the row loses anything by it. The pin and the button are placed
+        # AlignVCenter, the cog carries its own fixed size, and the two things that do stretch
+        # -- the times label and the slider -- are painted in the strip's own paper with the
+        # groove centred by the style, so they look the same either way.
+        row.setContentsMargins(self.px(28), 0, 0, self.px(BANNER_RULE))
         # The pin, then the place, then the times. Its own widget rather than a picture inside
         # the rich text: no file to find, and it is drawn at whatever size the screen is.
         pin = QtWidgets.QLabel()
@@ -3014,7 +3063,7 @@ class MainWindow(QtWidgets.QWidget):
         # The prayer whose time it is stands out in green; the rest are in the banner's own
         # colour. Written as rich text, since a QLabel takes its colours that way.
         now_praying = current_prayer(now, times)
-        band = theme.other()         # the strip is the other theme: see stylesheet()
+        band = theme.palette()       # the strip is the mat's own theme: see stylesheet()
         where = self.settings.place or f"{self.settings.latitude:.2f}, {self.settings.longitude:.2f}"
 
         def strip(spaces: int) -> str:
