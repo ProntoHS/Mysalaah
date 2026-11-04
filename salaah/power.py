@@ -1,4 +1,10 @@
-"""The sleep switch on GPIO 17, and the screens it puts to sleep.
+"""The sleep switch on GPIO 17, the screens it puts to sleep, and the light that says which.
+
+THE STATUS LIGHT, added in 2.08: an LED on GPIO 27, lit while the mat is awake and dark while
+it sleeps. See StatusLed, and note that it is driven with `pinctrl` rather than gpiozero for a
+reason this module is the natural home of -- the two gpiozero Buttons below take ownership of
+their pins, and the LED's first home was one of them.
+
 
 A plain normally-open momentary switch between **GPIO 17 (header pin 11)** and **ground (header
 pin 9)**. Pressing it blanks both screens; pressing it again brings them back.
@@ -66,9 +72,21 @@ BOUNCE = 0.08
 #: left wondering whether anything is happening.
 HOLD = 2.0
 
+#: The status LED, BCM numbering. GPIO 27 is physical pin 13, with a ground on pin 14 and a
+#: 330R resistor in series -- about 4mA for a red LED on 3V3, well inside the 16mA a pin will
+#: give.
+#:
+#: NOT GPIO 17, WHICH IS WHERE IT STARTED. Harry wired the LED to 17 and it went out on its own
+#: a moment after the mat booted: 17 is the sleep switch's pin, and SleepSwitch asks gpiozero
+#: for a Button on it at start-up, which reconfigures the pin as an INPUT and drops the output
+#: it was holding. Nothing was broken -- the app did exactly what it is for -- and that is the
+#: point: two things cannot own one pin. 27 is free, it is not watched by the bootloader like 3,
+#: and it is not the fan's 14.
+LED_PIN = 27
+
 #: Where each pin comes out on the header, for the line the app prints at start-up. A person
 #: looking at the board needs the physical pin, not the BCM number.
-HEADER = {WAKE_PIN: "header pin 5", PIN: "header pin 11"}
+HEADER = {WAKE_PIN: "header pin 5", PIN: "header pin 11", LED_PIN: "header pin 13"}
 
 #: Seconds gpiozero ignores further edges after one it has acted on. Mechanical switches chatter
 #: for a few milliseconds and would otherwise read as several presses; 80 ms is what was tested
@@ -294,6 +312,92 @@ class Halt:
             return False
         self.why = ""
         return True
+
+
+class StatusLed:
+    """The light on the front that says whether the mat is awake.
+
+    On while the mat is up and awake, off while it sleeps, off on the way to a halt. It answers
+    a question nothing else on this mat can: Harry's main display sometimes refuses to come back
+    from sleep, and a dark mat with a dark LED looks exactly like a mat that is switched off --
+    which has already cost two hard resets. A dark mat with a lit LED says the Pi is alive and
+    the screen is the problem.
+
+    PINCTRL RATHER THAN gpiozero, which is not a style preference. gpiozero's LED takes the pin
+    through its pin factory and HOLDS it, and this app already keeps two gpiozero Buttons; the
+    LED's first home was GPIO 17, where SleepSwitch's Button took the pin as an input and put
+    the light out. `pinctrl set` drives the pin and lets go, which is also what the boot service
+    uses, so the app and systemd cannot fight over ownership.
+
+    NOTHING HERE MAY EVER STOP THE MAT. Every call swallows its failure and reports it through
+    [why]: a missing pinctrl, a refusal, a hang, a bad argument. The exception clause is
+    deliberately the broadest in this module, which is normally a thing to avoid -- the reason
+    it is right here is that the worst case on one side is a light that does not come on, and on
+    the other a mat that will not go to sleep or will not shut down because of a light.
+    """
+
+    COMMAND = "/usr/bin/pinctrl"
+
+    #: A second, not the two the brief suggested. It only bites when pinctrl hangs, and this
+    #: sits on the path between pressing the button and the screens going dark -- so it is the
+    #: longest the mat may pause for a light, not a guess at how long pinctrl takes. In practice
+    #: it returns in a few milliseconds.
+    TIMEOUT = 1.0
+
+    def __init__(self, pin: int = LED_PIN, command: str = COMMAND, run=subprocess.run):
+        self.pin = pin
+        self.command = command
+        self.run = run
+        #: What actually worked. `pinctrl set` may need root depending on how the mat is set
+        #: up, and a mat where it does would otherwise have a light that never lights and no
+        #: explanation. start() tries the plain command and then `sudo -n` -- -n so that a sudo
+        #: wanting a password fails at once instead of sitting there waiting for one that
+        #: nobody is going to type into a prayer mat.
+        self.prefix: tuple[str, ...] = (command,)
+        self.why: str = ""
+
+    def argv(self, on: bool, prefix: tuple[str, ...] | None = None) -> list[str]:
+        """The exact command. Its own method so a test can read it rather than guess it."""
+        return [*(prefix or self.prefix), "set", str(self.pin), "op", "dh" if on else "dl"]
+
+    def _drive(self, on: bool, prefix: tuple[str, ...]) -> bool:
+        try:
+            done = self.run(self.argv(on, prefix), capture_output=True, text=True,
+                            timeout=self.TIMEOUT)
+        except FileNotFoundError:
+            self.why = f"{self.command} is not installed, so the status light stays as it is"
+            return False
+        except Exception as problem:          # see the class docstring: never fatal
+            self.why = f"{self.command} failed: {problem}"
+            return False
+        if done.returncode != 0:
+            self.why = f"{self.command} refused: {(done.stderr or '').strip()}"
+            return False
+        self.why = ""
+        return True
+
+    def start(self) -> bool:
+        """Light it, working out how the pin can be driven on this machine. False if it cannot.
+
+        Tried once, at start-up, and the answer remembered -- so the sleep and wake paths pay
+        for one command rather than two, and a mat that needs sudo is not discovering that
+        every time somebody presses the button.
+        """
+        for prefix in ((self.command,), ("sudo", "-n", self.command)):
+            if self._drive(True, prefix):
+                self.prefix = prefix
+                return True
+        return False
+
+    def set(self, on: bool) -> bool:
+        """On or off. False, with [why] set, if it would not."""
+        return self._drive(on, self.prefix)
+
+    def on(self) -> bool:
+        return self.set(True)
+
+    def off(self) -> bool:
+        return self.set(False)
 
 
 class Layout:

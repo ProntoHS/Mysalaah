@@ -41,7 +41,7 @@ from .recite import Store, WordTimes
 from .call import Adhan, CallBox
 from .reading import LIST_BAR, NUMBER_LINE, READING_TEXT_SIZE_PX, Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
-from .power import Halt, Layout, Outputs
+from .power import Halt, Layout, Outputs, StatusLed
 from .settings import Settings
 from . import theme
 from types import SimpleNamespace
@@ -912,6 +912,12 @@ class MainWindow(QtWidgets.QWidget):
         self.outputs = Outputs()
         self.layout = Layout()
         self.halt = Halt()
+        #: The light on the front. Built here so sleep, wake and shutdown can all reach it;
+        #: LIT by main.py once the two gpiozero Buttons have taken their pins, because that is
+        #: the start-up step that put the light out when it was on GPIO 17. Never started in a
+        #: test, which is harmless: set() works without start() and simply uses the plain
+        #: command, and a machine with no pinctrl on it reports that and carries on.
+        self.led = StatusLed()
         #: Which outputs the last sleep actually switched off, by name. Empty means none were
         #: -- they were darkened instead, or left alone on purpose -- and waking must not try
         #: to undo something that never happened.
@@ -1197,9 +1203,16 @@ class MainWindow(QtWidgets.QWidget):
             self.backlight.set(self.settings.brightness)
             self.backlight.settle(5.0)   # it has to reach the monitor, not just be asked for
         self.stop_audio()
+        # Out just before the halt is asked for, which is what the brief asks -- and BACK ON if
+        # the halt is refused. A refusal is not hypothetical: this mat spent an evening with no
+        # passwordless sudo for shutdown, and a light left dark over a mat that is still running
+        # is the light telling a lie. The boot service drives the pin low at shutdown as well,
+        # so the real halt is covered twice over and this one only has to be honest.
+        self.light(False)
         if not self.halt.now():
             # Refused: the mat is still running and the person is owed an explanation rather
             # than a button that appeared to do nothing.
+            self.light(True)
             print(f"shutdown: {self.halt.why}", file=sys.stderr)
             self.say("", title="shutdown.title")
             self.notice.finish(self.halt.why, self.t("update.close"))
@@ -1249,6 +1262,25 @@ class MainWindow(QtWidgets.QWidget):
         self.blackout.hide()
         self.apply_brightness()
 
+    def light(self, on: bool) -> None:
+        """Ask for the status light, and never let it matter.
+
+        StatusLed already swallows everything it can go wrong with -- a missing pinctrl, a
+        refusal, a hang, a fault nobody predicted -- so on the face of it this is a belt over a
+        pair of braces. It is here because of WHERE the guarantee has to hold.
+
+        Harry's brief puts it plainly: "Sleep, wake and shutdown must continue even if LED
+        control fails." That is a promise about the mat, and holding it inside one class means
+        it survives exactly as long as nobody swaps the class, nobody adds a path through it
+        that escapes, and the constructor itself never raises. A test that replaced the light
+        with a broken one found this: the mat stopped sleeping. The light is a nicety and sleep
+        is not, so the ordering of those two is settled here as well as there.
+        """
+        try:
+            self.led.set(on)
+        except Exception as problem:       # a light may never cost a sleep: see above
+            print(f"status light: {problem}", file=sys.stderr)
+
     def sleep(self) -> None:
         """Screens off, and everything that was only drawing them stopped.
 
@@ -1259,6 +1291,11 @@ class MainWindow(QtWidgets.QWidget):
         if self.asleep:
             return
         self.asleep = True
+        # THE LIGHT GOES OUT FIRST, before anything is darkened or powered down. Harry's brief
+        # asks for it immediately before sleep, and before is the useful order: if a screen
+        # then fails to blank, the light is already saying "asleep" and the mat's state is
+        # readable from the front rather than inferred from a panel that is lying.
+        self.light(False)
         self.idle.stop()     # nothing to count down to; waking starts it again
         self.stop_audio()
         # NEVER BLANK A SCREEN THIS CANNOT PROVE IT CAN BRING BACK. The mat used to fire the
@@ -1307,6 +1344,21 @@ class MainWindow(QtWidgets.QWidget):
         if not self.asleep:
             return
         self.asleep = False
+        # THE LIGHT COMES ON AT THE START OF THE WAKE, NOT AT THE END OF IT, and this is a
+        # deliberate departure from the brief, which asks for the displays to be restored first.
+        #
+        # The reason is the fault this mat actually has. Harry's main display sometimes refuses
+        # to come back, and the wake below says so in the log and carries on. Lighting the LED
+        # only after a successful wake would mean that exactly when the mat fails, the light is
+        # dark and the screens are dark -- indistinguishable from a mat that is switched off,
+        # which is the reading that has twice led to pulling the plug. On at the start, that
+        # same failure reads as "the Pi is alive, the screen did not return", which is the one
+        # thing the light can tell somebody that nothing else on the mat can.
+        #
+        # It costs one pinctrl call -- a few milliseconds -- ahead of the displays, which is
+        # not a delay in the sense the brief warns about. Harry has this written down and can
+        # have it the other way round for a line.
+        self.light(True)
         self.come_back()
         if self.blanked:
             if not self.outputs.set(True, self.blanked):
@@ -1339,6 +1391,12 @@ class MainWindow(QtWidgets.QWidget):
 
     def shutdown(self) -> None:
         """Detach from the application before it closes (avoids a crash on exit with PyQt6)."""
+        # The light goes out with the app, because an app that is not running is not awake.
+        # BEST EFFORT AND NOT THE ONLY GUARD: this runs on a clean close and on an unhandled
+        # exception, and not on a kill, an OOM or a pulled plug. run.sh carries a trap on
+        # TERM, INT and EXIT for those, and lights it again before each start -- so a crash the
+        # guard restarts comes back lit even though nothing here ran.
+        self.light(False)
         # Never leave the screens dark for the next thing that runs: the app owns their power
         # while it is up, so it has to hand them back before it goes.
         if self.asleep:

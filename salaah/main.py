@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from .buttons import BluetoothButtons
-from .power import SleepSwitch
+from .power import HEADER, SleepSwitch
 from .content import available_packs, load
 from .qibla import NoCompass, find_compass
 from .qt import API, QtCore, QtWidgets
@@ -124,6 +124,22 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"sleep switch: {power.why}", file=sys.stderr)
             power = None
+
+    # THE STATUS LIGHT, AFTER THE BUTTONS AND NOT BEFORE. Asking gpiozero for a Button
+    # reconfigures its pin as an input, which is precisely how the LED went out when it lived on
+    # GPIO 17 -- so it is lit once the pins above have been claimed and there is nothing left in
+    # start-up to take it back.
+    #
+    # It says out loud whether it worked, like wlopm and the switch do, because `pinctrl set`
+    # may need root depending on how a mat is set up: a light that never lights with nothing in
+    # the log is a morning wasted on a wiring fault that is not a wiring fault. start() reports
+    # which form it had to use by leaving it in led.prefix.
+    if win.led.start():
+        where = HEADER.get(win.led.pin, f"GPIO {win.led.pin}")
+        how = " via sudo" if "sudo" in win.led.prefix else ""
+        print(f"status light: lit on GPIO {win.led.pin} ({where}){how}", file=sys.stderr)
+    else:
+        print(f"status light: {win.led.why}", file=sys.stderr)
 
     win.apply_cursor()
     if args.windowed:

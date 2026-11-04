@@ -1,5 +1,24 @@
 # Recordings
 
+**The table below covers the 26 prayer recitations and nothing else.** There are 56 other audio
+files in this folder — `azaan.mp3`, `azaan-fajr.mp3`, the 48 in `duas/` and the 6 in `kalima/` —
+and no line anywhere in this repository says where any of them came from or on what terms.
+
+That is worth saying out loud because the test that is supposed to catch exactly this,
+`test_no_audio_ships_without_a_licence_beside_it`, passes: it skips the whole of `assets/audio`
+on the grounds that this README documents it "file by file". That is true of the 26 in the table
+and of nothing else, so the exemption has been carrying 11.9MB it was never meant to cover.
+**Only Harry can close this**, because only he knows where those recordings came from — and
+until he does, the guard should not be tightened, because a tightened guard would simply fail
+on 56 files nobody can write a line for.
+
+`azaan.mp3` was re-encoded in 2.08 — 192kbps stereo to 96kbps mono, 3.50MB to 1.75MB. It is the
+same recording: the loudness envelopes of the old file and the new correlate at 0.9999 against
+0.049 for a different recitation, the length matches to the millisecond and the first sound
+falls on the same sample, so the word timings in `assets/content/azaan/` are untouched. A
+re-encode inherits whatever standing the original had, which in this case is the gap above
+rather than a licence.
+
 One recording per recitation, supplied by Harry in September 2026. Each `<key>.mp3` has a
 `<key>.json` beside it holding the start and end of every line and word, which drives the red
 highlight. The timings are estimates (`"estimated": true`): pauses in the audio are real, the
