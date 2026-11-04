@@ -71,6 +71,21 @@ def is_dark() -> bool:
     return _Current.palette.dark
 
 
+def other() -> Palette:
+    """The palette the mat is NOT in.
+
+    For the one strip that is deliberately the other way round. The banner across the top is
+    now the inverse of whatever the mat is set to -- white with black lettering at night, black
+    with white by day -- which is Harry's asking, and it is a whole palette rather than two
+    colours. The place name, the prayer whose time it is, the volume slider and every border on
+    that strip all have to contrast with it, and the other palette already holds a value for
+    each of them that was chosen to sit on exactly that background.
+
+    So this is not a list of exceptions. It is one idea said once: the strip is the other theme.
+    """
+    return LIGHT if _Current.palette.dark else DARK
+
+
 def wants_dark(mode: str, now: datetime, times: dict) -> bool:
     """Should the screen be dark now? For "auto": from Maghrib until sunrise. Without the times
     (a place so far north the sun does not set), it falls back to the clock: 7pm to 7am."""

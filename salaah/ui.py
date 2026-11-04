@@ -51,7 +51,30 @@ INK = "#1D2327"
 LAPIS = "#274B8F"
 # The banner is black whatever the theme, so the place is picked out in a blue that reads on
 # black rather than the ink-dark lapis used on paper.
+def over_two_lines(words: str) -> str:
+    """Breaks a label over two lines as evenly as it can.
+
+    By counting rather than by looking for a particular space. "Main screen" is two words in
+    English, one in Chinese and three in some of the others, so a rule like "break at the first
+    space" gives a lopsided button in half the languages this mat speaks. A single word is left
+    alone: a break inside a word is worse than a narrow line.
+    """
+    parts = words.split()
+    if len(parts) < 2:
+        return words
+    best, where = None, 1
+    for cut in range(1, len(parts)):
+        gap = abs(len(" ".join(parts[:cut])) - len(" ".join(parts[cut:])))
+        if best is None or gap < best:
+            best, where = gap, cut
+    return " ".join(parts[:where]) + "\n" + " ".join(parts[where:])
+
+
 BANNER_BLUE = "#8FB1F0"
+
+#: The prayer times on the strip. Raised a tenth now the strip is taller than it was: a 16:10
+#: screen hands the banner its slack (see banner_height) and the words are what people read.
+BANNER_TEXT_PX = 31          # was 28
 # How tall the black strip across the top is, at 1080p. Fixed rather than left to whatever is
 # in it, because what is in it differs: the screens with a Main screen button came out five
 # pixels taller than the front door and the mosque, and going between them the strip visibly
@@ -996,8 +1019,14 @@ class MainWindow(QtWidgets.QWidget):
         from the other end. The height follows the window's SHAPE, so it belongs on the resize
         and not on a scale change that a shape change need not cause.
         """
+        tall = self.banner_height()
         for banner in getattr(self, "banners", ()):
-            banner.setFixedHeight(self.banner_height())
+            banner.setFixedHeight(tall)
+        # And the Main screen button, which is square and as tall as the strip allows. It is
+        # sized from the same number, so it has to follow the same resize.
+        side = max(1, tall - self.px(20))        # the row's own top and bottom margins
+        for home in getattr(self, "banner_homes", ()):
+            home.setFixedSize(side, side)
 
     def restyle(self) -> None:
         """Text and spacing follow the box size, so the app looks the same on any screen."""
@@ -1537,6 +1566,12 @@ class MainWindow(QtWidgets.QWidget):
     def stylesheet(self) -> str:
         px = self.px
         c = self.colours()
+        # THE STRIP ACROSS THE TOP IS THE OTHER THEME. White with black lettering while the mat
+        # is dark, black with white while it is light. Everything on it -- the place name, the
+        # prayer whose time it is, the slider, the borders -- takes its colour from here, so
+        # there is one idea to hold rather than a list of exceptions, and every value was
+        # already chosen to sit on exactly that background.
+        strip = theme.other()
         # How large the words on the Settings page are set. Named, and in one place, because
         # they were raised together in 1.83 and have to be judged together: the page either
         # fits a 1920x1080 monitor in all seven languages or it does not, and raising any one
@@ -1689,9 +1724,13 @@ class MainWindow(QtWidgets.QWidget):
                mat. */
             QWidget#settingsRoot QPushButton#pill {{ font-size:{pill_text}px;
                                                      padding:{pill_pad}px {px(30)}px; }}
+            /* Square, and no side padding: the width is set in make_banner to match its own
+               height, and padding would fight that. Its red and white are deliberately NOT
+               the strip's -- it is the one thing on the banner you press, and red is what
+               everything pressable on this mat is. */
             QPushButton#mainScreen {{ background:{BRICK}; color:white; border:none;
-                                      border-radius:{px(8)}px; font-size:{px(28)}px;
-                                      font-weight:bold; padding:{px(12)}px {px(30)}px; }}
+                                      border-radius:{px(8)}px; font-size:{px(26)}px;
+                                      font-weight:bold; padding:0; }}
             QPushButton#mainScreen:pressed {{ background:#8E342C; }}
             QPushButton#backButton {{ background:{BRICK}; color:white; border:none;
                                       border-radius:{px(8)}px; font-size:{px(28)}px;
@@ -1735,7 +1774,7 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#wuduWords {{ color:{c.ink}; font-size:{px(WUDU_WORDS_PX)}px; }}
             QLabel#prayerNameBig {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                     font-size:{px(64)}px; font-weight:bold; }}
-            QWidget#banner {{ background:{c.chip}; }}
+            QWidget#banner {{ background:{strip.paper}; }}
             QWidget#compassRoot, QWidget#compassRoot QLabel {{ background:{c.paper}; color:{c.strong}; }}
             QLabel#compassTitle {{ font-size:{px(44)}px; font-weight:bold; }}
             QLabel#compassArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
@@ -1847,18 +1886,22 @@ class MainWindow(QtWidgets.QWidget):
                                                  width:{px(30)}px; height:{px(30)}px;
                                                  margin:{-px(11)}px 0;
                                                  border-radius:{px(15)}px; }}
-            /* On the banner, which is a black chip whatever the theme, so the slider has to be
-               light on dark rather than following the paper. */
-            QSlider#volumeOnDark::groove:horizontal {{ height:{px(10)}px; background:#555555;
+            /* On the banner, which is the OTHER theme -- so this follows the strip's ink, not
+               the mat's. It used to be hardcoded white on #555555, which was right while the
+               strip was a dark chip in both themes and invisible the moment the strip went
+               white: a white handle on a white background. The name is now the only thing
+               about it that still says "dark". */
+            QSlider#volumeOnDark::groove:horizontal {{ height:{px(10)}px; background:{strip.faint};
                                                        border-radius:{px(5)}px; }}
-            QSlider#volumeOnDark::sub-page:horizontal {{ background:white;
+            QSlider#volumeOnDark::sub-page:horizontal {{ background:{strip.ink};
                                                          border-radius:{px(5)}px; }}
-            QSlider#volumeOnDark::handle:horizontal {{ background:white; border:none;
+            QSlider#volumeOnDark::handle:horizontal {{ background:{strip.ink}; border:none;
                                                        width:{px(30)}px; height:{px(30)}px;
                                                        margin:{-px(11)}px 0;
                                                        border-radius:{px(15)}px; }}
             QLabel#volumeRead {{ font-size:{px(22)}px; color:{c.stone}; }}
-            QLabel#volumeReadOnDark {{ background:{c.chip}; color:white; font-size:{px(22)}px; }}
+            QLabel#volumeReadOnDark {{ background:{strip.paper}; color:{strip.ink};
+                                       font-size:{px(22)}px; }}
             QLabel#compassBearing {{ font-size:{px(150)}px; font-weight:bold; color:{c.strong}; }}
             QLabel#compassStatus {{ font-size:{px(40)}px; font-weight:bold; }}
             QLabel#compassDetail {{ font-size:{px(24)}px; color:{c.hint}; }}
@@ -1874,8 +1917,8 @@ class MainWindow(QtWidgets.QWidget):
             QPushButton#timingButton:pressed {{ background:{c.pressed}; }}
             QPushButton#tapTimings {{ background:{c.chip}; color:white; border:none; border-radius:{px(8)}px;
                                       font-size:{px(24)}px; font-weight:bold; padding:{px(10)}px {px(26)}px; }}
-            QLabel#bannerText {{ background:{c.chip}; color:white; font-size:{px(28)}px;
-                                 font-weight:bold; }}
+            QLabel#bannerText {{ background:{strip.paper}; color:{strip.ink};
+                                 font-size:{px(BANNER_TEXT_PX)}px; font-weight:bold; }}
             /* The pin is drawn with its background left see-through, and it needs saying here
                or it is not: the blanket QWidget rule at the top of this sheet paints every
                widget in the paper colour, and a QLabel is a widget. So the pin's square came
@@ -2125,13 +2168,17 @@ class MainWindow(QtWidgets.QWidget):
         banner.setFixedHeight(self.banner_height())
         self.banners = getattr(self, "banners", [])
         self.banners.append(banner)
+        strip = theme.other()        # the banner is the OTHER theme: see stylesheet()
         row = QtWidgets.QHBoxLayout(banner)
-        row.setContentsMargins(self.px(28), self.px(10), self.px(28), self.px(10))
+        # NO RIGHT MARGIN. The Main screen button goes hard against the edge of the strip, so
+        # there is nothing for a margin to hold it off from. Everything else on the row keeps
+        # the spacing it had.
+        row.setContentsMargins(self.px(28), self.px(10), 0, self.px(10))
         # The pin, then the place, then the times. Its own widget rather than a picture inside
         # the rich text: no file to find, and it is drawn at whatever size the screen is.
         pin = QtWidgets.QLabel()
         pin.setObjectName("bannerPin")
-        pin.setPixmap(map_pin(self.px(30), BANNER_BLUE))
+        pin.setPixmap(map_pin(self.px(30), strip.lapis))
         row.addWidget(pin, 0, Qt.AlignmentFlag.AlignVCenter)
         row.addSpacing(self.px(8))
         label = QtWidgets.QLabel()
@@ -2141,21 +2188,36 @@ class MainWindow(QtWidgets.QWidget):
         row.addWidget(label)
         row.addStretch(1)
         row.addLayout(self.volume_slider(dark=True))
-        if home:
-            # On the sub screens the way back lived on the screen itself, and once the banner
-            # went in above it there was nowhere for it to sit. It belongs up here with the
-            # other things that are true wherever you are.
-            back = QtWidgets.QPushButton(self.t("settings.main_screen"))
-            back.setObjectName("mainScreen")
-            back.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            back.clicked.connect(self.go_home)
-            row.addWidget(back)
         if gear and self.needs_a_gear:
             # Red, the colour everything you press is in: Menu, Main screen, the leave buttons.
             cog = GearButton(self.px(52), QtGui.QColor(BRICK))
             cog.setToolTip(self.t("home.settings"))
             cog.pressed_signal.connect(self.open_settings)
             row.addWidget(cog)
+            row.addSpacing(self.px(16))
+        if home:
+            # On the sub screens the way back lived on the screen itself, and once the banner
+            # went in above it there was nowhere for it to sit. It belongs up here with the
+            # other things that are true wherever you are.
+            #
+            # LAST IN THE ROW AND SQUARE, hard against the right edge of the strip. It used to
+            # sit before the cog as a wide lozenge; the strip is taller now, so there is room
+            # for a square that is easier to hit than a thin bar and sits where a hand already
+            # goes. The words are broken over two lines to fit it -- see over_two_lines, which
+            # does it by counting rather than by looking for a space, because "Main screen" is
+            # one word in some languages and three in others.
+            back = QtWidgets.QPushButton(over_two_lines(self.t("settings.main_screen")))
+            back.setObjectName("mainScreen")
+            back.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            back.clicked.connect(self.go_home)
+            # KEPT, AND RE-SIZED ON EVERY RESIZE, for the reason the banners themselves are.
+            # Its side comes from banner_height(), and at the moment a banner is built the
+            # window has not been given its real shape yet -- so sizing it once here made a
+            # 52px button where 100 was wanted. Exactly the fault the strip itself had in 2.00,
+            # one widget along.
+            self.banner_homes = getattr(self, "banner_homes", [])
+            self.banner_homes.append(back)
+            row.addWidget(back, 0, Qt.AlignmentFlag.AlignVCenter)
         # Filled in now rather than at the next tick: see write_the_times. A strip built
         # between ticks -- which is every strip but the mosque's -- would otherwise come up
         # blank, and on a prayer's units that is a new one every time an arch is touched.
@@ -2952,22 +3014,38 @@ class MainWindow(QtWidgets.QWidget):
         # The prayer whose time it is stands out in green; the rest are in the banner's own
         # colour. Written as rich text, since a QLabel takes its colours that way.
         now_praying = current_prayer(now, times)
-        green = theme.palette().green
+        band = theme.other()         # the strip is the other theme: see stylesheet()
         where = self.settings.place or f"{self.settings.latitude:.2f}, {self.settings.longitude:.2f}"
 
         def strip(spaces: int) -> str:
-            """The place and the five times, with [spaces] between each."""
-            gap = "&nbsp;" * spaces      # rich text squeezes plain spaces down to one
-            shown = gap.join(
-                (f'<span style="color:{green}">{self.t(f"prayer.{name}")} '
-                 f'{times[name].strftime("%H:%M")}</span>' if name == now_praying else
-                 f'{self.t(f"prayer.{name}")} {times[name].strftime("%H:%M")}')
-                for name in PRAYERS if times.get(name) is not None)
-            # What is coming next used to be named at the end of the row. It has gone: the five
-            # times are already there with the current one in green, so the next one is the one
-            # after it, and the words were the widest thing in a banner that had to hold more.
-            return f'<span style="color:{BANNER_BLUE}">{where}</span>{gap}{shown}'
+            """The place and the five times, with [spaces] between each.
 
+            A ONE-ROW TABLE, not a line of spans, because the prayer whose time it is now wants
+            a box drawn round it and Qt's rich text will not draw a border on an inline span.
+            That is measured, not assumed: a span with border:3px renders pixel for pixel the
+            same as one without, while a table cell draws it. An inline table is no good either
+            -- dropped mid-sentence it takes the whole row onto a line of its own, 34px to 124
+            -- but a table that IS the whole label has nothing beside it to break away from.
+            """
+            gap = self.px(spaces * 8)    # what the old &nbsp; run was worth, in pixels
+            edge = self.px(3)
+            cells = [f'<td style="color:{band.lapis}">{where}</td>']
+            for name in PRAYERS:
+                if times.get(name) is None:
+                    continue
+                said = f'{self.t(f"prayer.{name}")} {times[name].strftime("%H:%M")}'
+                if name == now_praying:
+                    cells.append(f'<td style="color:{band.green}; '
+                                 f'border:{edge}px solid {band.green};">&nbsp;{said}&nbsp;</td>')
+                else:
+                    cells.append(f'<td>{said}</td>')
+            return (f'<table cellspacing="{gap}" cellpadding="{self.px(2)}"><tr>'
+                    + "".join(cells) + "</tr></table>")
+
+        # What is coming next used to be named at the end of the row. It has gone: the five
+        # times are already there with the current one in green, so the next one is the one
+        # after it, and the words were the widest thing in a banner that had to hold more.
+        #
         # FOUR spaces, and the room for them comes from the slider rather than from the gaps.
         #
         # The version before this tightened the spacing whenever the strip was short, which
