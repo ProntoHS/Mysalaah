@@ -88,6 +88,12 @@ BANNER_TEXT_PX = 31          # was 28
 #: itself does NOT shrink the widget's contents rect -- that was assumed once and measured to
 #: be false -- so neither subtraction happens on its own. Both are counted in pixels by tests.
 BANNER_RULE = 2
+
+#: The gap on the strip between the volume slider and what comes after it -- the cog, or the
+#: Main screen button where there is no cog. At Harry's asking: the slider's right-hand end sat
+#: hard against the next thing along, and on a bar where everything else has air around it that
+#: reads as the two being one control.
+BANNER_GAP = 20
 # How tall the black strip across the top is, at 1080p. Fixed rather than left to whatever is
 # in it, because what is in it differs: the screens with a Main screen button came out five
 # pixels taller than the front door and the mosque, and going between them the strip visibly
@@ -488,6 +494,41 @@ class Notice(QtWidgets.QDialog):
         """
         parent = self.parentWidget()
         wide = self.least if parent is None else max(self.least, int(parent.width() * 0.55))
+        # AND WIDE ENOUGH FOR ITS BUTTONS, which do not wrap their text.
+        #
+        # The width used to be 55% of the window and nothing else, fixed before adjustSize()
+        # ran -- so a box whose buttons needed more simply squeezed them, and a label longer
+        # than its button was clipped. On the shutdown box, which is drawn at twice the size and
+        # gained REBOOT APP in 2.09, that clipped five of the ten languages: Portuguese wanted
+        # 1533px and got 1240. Portuguese cannot be fixed by breaking the label over two lines
+        # either, because SUSPENDER is one word.
+        #
+        # So the 55% is a FLOOR and not a ceiling now, and the box takes what its buttons need
+        # up to 92% of the window -- still a box on a screen rather than the whole screen. An
+        # ordinary notice is unaffected: its buttons are a word each and fit inside the 55% it
+        # already had, which is why nothing else moves.
+        # NOT GATED ON HAVING A PARENT, which is how the first attempt at this did nothing at
+        # all. This dialog is created without a parent widget, so it takes the `least` branch
+        # above -- 620px, which at the shutdown box's double size is exactly the 1240 that was
+        # being measured -- and a clause that only ran when there was a parent never ran. The
+        # ceiling falls back to the screen when there is no parent to measure against.
+        # SUMMED FROM THE BUTTONS, NOT ASKED OF THE ROW. self.buttons.sizeHint().width() is 0
+        # here: the layout has just had widgets added and has not been activated, so its hint is
+        # not yet computed -- measured by printing it, after two silent attempts at this that
+        # changed nothing. The buttons' own hints are good at this point, which is how choose()
+        # already equalises their heights a line earlier.
+        wants = [self.buttons.itemAt(i).widget().sizeHint().width()
+                 for i in range(self.buttons.count())
+                 if self.buttons.itemAt(i).widget() is not None]
+        room = sum(wants) + self.buttons.spacing() * max(0, len(wants) - 1)
+        edge = self.layout().contentsMargins()
+        if room:
+            if parent is not None:
+                ceiling = int(parent.width() * 0.92)
+            else:
+                screen = self.screen() or QtWidgets.QApplication.primaryScreen()
+                ceiling = int(screen.availableGeometry().width() * 0.92) if screen else wide
+            wide = min(max(wide, room + edge.left() + edge.right()), max(wide, ceiling))
         self.setFixedWidth(wide)
         edges = self.layout().contentsMargins()
         inner = wide - edges.left() - edges.right()
@@ -1168,7 +1209,20 @@ class MainWindow(QtWidgets.QWidget):
         self.say("", title="shutdown.title", times=self.SHUTDOWN_TIMES)
         asked = self.notice
         self.notice.choose("", (
-            (self.t("shutdown.no"), asked.reject, True),
+            # REBOOT APP WHERE NO USED TO BE, at Harry's asking: "if the displays messes up or
+            # glitches, this could relaunch the app instead". It restarts the app, not the Pi.
+            #
+            # THE WAY OUT OF THIS BOX IS NOW THE TEN-SECOND TIMEOUT RATHER THAN A BUTTON. That
+            # timeout was already here and already took silence for no, which is the only reason
+            # losing NO is safe: a child who holds the switch to see what happens still gets a
+            # box that closes itself and a mat that does nothing. It is worth knowing that the
+            # countdown is now load-bearing rather than a courtesy, which is why there is a test
+            # that fails if it stops answering for the person.
+            #
+            # Deferred, like sleep below and the halt further down, so the dialog has finished
+            # closing before the process is replaced underneath it.
+            (self.t("shutdown.restart"),
+             lambda: (asked.reject(), QtCore.QTimer.singleShot(0, self.restart_the_app)), True),
             # Sleep is deferred for the reason the halt is: let the dialog finish closing
             # before the screens go black underneath it.
             (self.t("shutdown.sleep"),
@@ -2295,6 +2349,10 @@ class MainWindow(QtWidgets.QWidget):
         row.addWidget(label)
         row.addStretch(1)
         row.addLayout(self.volume_slider(dark=True))
+        # AFTER THE SLIDER, so it holds whatever comes next off it -- the cog on most screens
+        # and the Main screen button where there is no cog. Put before the button instead, the
+        # screens that have a cog would still have the slider touching it.
+        row.addSpacing(self.px(BANNER_GAP))
         if gear and self.needs_a_gear:
             # Red, the colour everything you press is in: Menu, Main screen, the leave buttons.
             cog = GearButton(self.px(52), QtGui.QColor(BRICK))
@@ -4902,6 +4960,51 @@ class MainWindow(QtWidgets.QWidget):
         sys.stdout.flush()
         sys.stderr.flush()
         os.execv(sys.executable, [sys.executable, "-m", "salaah"] + sys.argv[1:])
+
+    def restart_the_app(self) -> None:
+        """REBOOT APP on the hold dialog: the screens put back, then the app started over.
+
+        Harry's reason for wanting it is specific -- "if the displays messes up or glitches,
+        this could relaunch the app instead" -- and that reason is why this is not simply
+        start_again().
+
+        THE DISPLAY SETUP IS RUN FIRST, and it has to be run from here. run.sh is what normally
+        runs display-setup.sh before each start, and start_again() uses os.execv, which replaces
+        this process without run.sh's loop ever being re-entered. So a restart through execv
+        alone would start a fresh app on exactly the same muddled screens, which is the one
+        thing the button is for.
+
+        WHY NOT exit(RESTART), which would re-enter that loop and get the setup for free: see
+        start_again, which gives the two reasons at length. In short, run.sh counts those exits
+        -- a version still on trial that exits before it has settled is taken for one that died
+        and the PREVIOUS version is put back, and a sixth in one run is treated as a loop and
+        also rolled back. Neither is a thing a person pressing a button should be able to cause.
+
+        Nothing here may stop the restart. A missing display-setup.sh is normal -- it is a file
+        kept by hand and a mat may not have one -- and a failing one is still better than not
+        restarting, because the right app on the wrong screens beats a glitched one. Both are
+        said out loud in the log for the reason run.sh says them: a silent skip looks exactly
+        like a working one.
+        """
+        import subprocess
+        setup = self.root / "display-setup.sh"
+        if setup.is_file():
+            try:
+                # bash, not ./ -- the file arrives from a chat or a memory stick without its
+                # executable bit, which is how this spent an evening doing nothing quietly.
+                done = subprocess.run(("bash", str(setup)), capture_output=True, text=True,
+                                      timeout=30)
+                if done.returncode != 0:
+                    print(f"restart: display-setup.sh failed "
+                          f"({(done.stderr or '').strip()[:200]}); restarting anyway",
+                          file=sys.stderr)
+            except Exception as problem:
+                print(f"restart: display-setup.sh did not run ({problem}); restarting anyway",
+                      file=sys.stderr)
+        else:
+            print("restart: no display-setup.sh, so the screens are left as they are",
+                  file=sys.stderr)
+        self.start_again()
 
     def settled(self) -> None:
         """Called once this version has run long enough to be trusted, so the guard stops

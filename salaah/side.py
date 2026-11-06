@@ -107,6 +107,30 @@ class SideWindow(QtWidgets.QWidget):
         churn the stack for no gain. Games hand the screen back by calling show_idle.
         """
         if self.stack.indexOf(companion) < 0:
+            # A PAGE TAKES THE SCREEN IT IS GIVEN AND MAY NEVER ASK FOR MORE.
+            #
+            # This window is a top level window, and a top level window cannot be narrower than
+            # its own minimum -- which a layout works out from its children. So a panel whose
+            # contents would not fit simply made the WINDOW bigger, and a window bigger than the
+            # 7in it sits on spills onto the main screen. That is what the Prayer Day Journey
+            # did: one row of two side-by-side buttons wanted 1285px on a 1080px panel, 1479px
+            # in Russian, and eight of the ten languages overran.
+            #
+            # Two things make a per-game fix insufficient on its own. The stack KEEPS every page
+            # it has ever been shown, and its minimum is the largest of them -- so one bad panel
+            # held the window wide for every game opened afterwards, which is why the maze and
+            # the jigsaw looked guilty when measured after it and fitted perfectly well when
+            # measured alone. And the width of a label is a translation away from changing, so
+            # the fault arrives again whenever a pack is edited by somebody who will never see
+            # this file.
+            #
+            # Ignored is the policy that says what is wanted: the page's own size hint and
+            # minimum are disregarded, and it is handed exactly the room the window has. If some
+            # future panel really will not fit, its contents are clipped inside the 7in -- which
+            # is a visible fault on the screen it belongs to, instead of an invisible one on the
+            # screen next door.
+            companion.setSizePolicy(QtWidgets.QSizePolicy.Policy.Ignored,
+                                    QtWidgets.QSizePolicy.Policy.Ignored)
             self.stack.addWidget(companion)
             if hasattr(companion, "follow_theme"):
                 companion.follow_theme()

@@ -347,8 +347,9 @@ class Screen(QtWidgets.QWidget):
         levels = (self.win.t("mosque_maze.beginner"),
                   self.win.t("mosque_maze.medium"),
                   self.win.t("mosque_maze.expert"))
-        difficulty = self.win.t("mosque_maze.difficulty",
-                                level=levels[self.game.difficulty])
+        # The level on its own, no "Difficulty:" in front: see the note in
+        # prayer_day_journey.retell. The button it is written on is what says what it means.
+        difficulty = levels[self.game.difficulty]
         if self.game.finished:
             status = self.win.t("mosque_maze.complete")
         elif self.game.gate_open:

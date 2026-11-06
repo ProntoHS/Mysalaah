@@ -240,8 +240,11 @@ class Screen(QtWidgets.QWidget):
                     self.win.t("journey_jigsaw.quran_rehal"))
         level = levels[self.game.difficulty]
         picture_name = pictures[self.game.picture]
-        picture = self.win.t("journey_jigsaw.picture").format(picture=picture_name)
-        difficulty = self.win.t("journey_jigsaw.difficulty").format(level=level)
+        # Both of these are the value on its own, with no label in front: see the note in
+        # prayer_day_journey.retell. A button does not wrap, so a prefix is width the 7in has to
+        # find in ten languages, and the longest translation sets it for everybody.
+        picture = picture_name
+        difficulty = level
         self.title.setText(title)
         self.picture_button.setText(picture)
         self.difficulty_button.setText(difficulty)

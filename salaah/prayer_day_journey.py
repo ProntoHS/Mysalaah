@@ -414,6 +414,26 @@ class Screen(QtWidgets.QWidget):
         self.next_button.clicked.connect(self._next)
         layout.addWidget(self.next_button)
 
+        # SIDE BY SIDE, which is only safe because the labels lost their prefixes.
+        #
+        # This row was Harry's bug report about the 7in "infringing onto main screen's display".
+        # A button does not wrap its text, so side by side these two demanded the SUM of their
+        # labels: "Mode: Name the Prayer" at 651px plus "Difficulty: Beginner" at 542px, with
+        # spacing and margins, came to 1285px of minimum width on a 1080px screen. A top level
+        # window cannot be narrower than its own minimum, so Qt made the side window 205px wider
+        # than the panel it sits on and the overspill landed on the main screen. Russian was
+        # 1479px. Eight of the ten languages overran.
+        #
+        # Stacking them was the first fix and it worked. It was undone again once the prefixes
+        # went, because the sum of two bare values is 848px at the worst of the ten languages --
+        # Spanish, "Nombra la oración" and "Principiante" -- which with the spacing and margins
+        # comes to about 898 against 1080. Measured in all ten, not assumed. This is also the
+        # shape the panel was designed with: the prefixes were the fault, not the row.
+        #
+        # What makes that safe to say is not the measurement, which is only true of today's ten
+        # packs: SideWindow.show_game now hands every panel the Ignored size policy, so no panel
+        # can drag that window off its screen whatever a future translation does. There is a
+        # test that fails if either half of that stops being true.
         selectors = QtWidgets.QHBoxLayout()
         selectors.setSpacing(self.win.side_px(10))
         self.mode_button = QtWidgets.QPushButton()
@@ -470,8 +490,18 @@ class Screen(QtWidgets.QWidget):
         title = self.win.t("prayer_day.title")
         mode = (self.win.t("prayer_day.mode_name") if self.game.mode == self.game.NAME
                 else self.win.t("prayer_day.mode_order"))
-        mode_text = self.win.t("prayer_day.mode", mode=mode)
-        difficulty = self.win.t("prayer_day.difficulty", level=self._level())
+        # The mode on its own, no "Mode:" in front, exactly as the level below it. Pressing it
+        # still cycles. Harry's first instruction was to take this button out altogether; it is
+        # here because it is the only way to reach "Order the Day", where the day's scenes are
+        # dragged into order instead of a prayer being named -- a separate interaction with its
+        # own touch handling and its own difficulty levels. Told that, he kept it.
+        mode_text = mode
+        # THE LEVEL ON ITS OWN, with no "Difficulty:" in front of it. Harry's asking, and the
+        # reason is width: a button does not wrap, so every word in front of the value is width
+        # the 7in has to find in ten languages at once, and the longest translation decides.
+        # "Beginner" is understood from the thing it is written on; "Difficulty: Beginner" only
+        # says the same thing in more room. The same change is made in the maze and the jigsaw.
+        difficulty = self._level()
         new_game = self.win.t("prayer_day.new_game")
         exit_game = self.win.t("prayer_day.exit")
         next_text = self.win.t("prayer_day.next")

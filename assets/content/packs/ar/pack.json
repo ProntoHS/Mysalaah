@@ -55,8 +55,8 @@
     "prayer.isha": "العشاء",
     "shutdown.title": "إيقاف التشغيل",
     "shutdown.yes": "نعم",
-    "shutdown.no": "لا",
-    "shutdown.sleep": "سكون"
+    "shutdown.sleep": "سكون",
+    "shutdown.restart": "إعادة تشغيل التطبيق"
   },
   "transliteration": {},
   "translation": {}
