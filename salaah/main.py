@@ -73,20 +73,6 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.list_screens:
         return list_screens(app)
-    # BEFORE ANY SCREEN IS CHOSEN. Whatever is going to move the outputs around -- kanshi
-    # applying the saved profile, a panel being noticed late -- gets its chance to finish
-    # first, so the names and rectangles picked below are the ones that will still be true
-    # when the windows are placed against them.
-    import time as _time
-    layout, waited, settled = steady_layout(
-        lambda: layout_of(app),
-        pause=lambda: (app.processEvents(), _time.sleep(0.05)))
-    if not settled:
-        print(f"screens: still changing after {waited:.1f}s; going with "
-              f"{say_the_layout(layout)}", file=sys.stderr)
-    elif waited >= 0.5:
-        print(f"screens: settled after {waited:.1f}s", file=sys.stderr)
-
     main_name, side_name = remembered(app, settings, args.main_output, args.side_output)
     main_screen, side_screen = pick_screens(app, main_name, side_name)
     remember(settings, main_screen, side_screen)
@@ -325,67 +311,6 @@ def remembered(app, settings, main_name: str, side_name: str) -> tuple[str, str]
     return main, side
 
 
-#: How many times a window is asked onto its screen before the blunt fallback. Three, with a
-#: short pause between, costs at most about half a second on a mat where the first try works --
-#: which is nearly all of them -- and covers the restart case where the desktop is still
-#: rearranging as the window is mapped.
-TRIES_AT_PLACING = 3
-PAUSE_BETWEEN_PLACINGS = 0.25
-
-
-def layout_of(app) -> tuple:
-    """Every screen's name and rectangle, as one value that can be compared with another."""
-    return tuple((s.name(), s.geometry().x(), s.geometry().y(),
-                  s.geometry().width(), s.geometry().height())
-                 for s in app.screens())
-
-
-def steady_layout(look, patience: float = 2.0, quiet: float = 0.3,
-                  now=None, pause=lambda: None):
-    """Wait until the screens stop moving. Returns (layout, how long it took, did it settle).
-
-    THE APP USED TO TAKE WHATEVER Qt SAID AT THE INSTANT IT STARTED, and on this mat that is
-    not always the truth yet. kanshi applies the saved display profile when the outputs appear,
-    and a client that asks during the change gets a half-formed answer -- the new rotation with
-    the old position, or the reverse. The app then places its two windows from it and both can
-    land on one screen.
-
-    It is why a cold boot was always right and a restart was not. On a cold boot the desktop
-    session takes seconds to come up before the app runs, so the layout has long since landed.
-    On a restart the app is the only thing starting and it gets there first. A fault that only
-    appears when nothing else is happening is a race, and this is the waiting end of it.
-
-    Quiet rather than a fixed sleep: it returns as soon as the layout has been the same for
-    [quiet] seconds, so a mat where nothing is moving pays that and no more. [patience] is the
-    ceiling, after which it gives up and says so rather than holding the mat at a black screen
-    for a display that is never coming.
-
-    [look] is passed in rather than taken from an app so that this can be tested against a
-    scripted sequence of layouts and a clock that does not really tick. There is no Qt in here
-    at all, which is the point: the arithmetic of "has it stopped moving" is the part worth
-    getting right, and it can be got right without two screens to hand.
-    """
-    import time
-    now = now or time.monotonic
-    started = now()
-    seen = look()
-    since = started
-    while True:
-        if now() - since >= quiet:
-            return seen, now() - started, True
-        if now() - started >= patience:
-            return look(), now() - started, False
-        pause()
-        again = look()
-        if again != seen:
-            seen, since = again, now()
-
-
-def say_the_layout(layout) -> str:
-    """The screens on one line, for the log."""
-    return "; ".join(f"{name} {w}x{h} at {x},{y}" for name, x, y, w, h in layout) or "none"
-
-
 def remember(settings, main_screen, side_screen) -> None:
     """Writes the screens that were actually used into Settings, so the next run starts from the
     same place even if the Pi reports them in a different order."""
@@ -438,41 +363,22 @@ def fill_screen(app, widget, screen, by_hand: bool = False) -> None:
         cover(widget, screen)
         app.processEvents()
         return
-    # ASKED MORE THAN ONCE BEFORE GIVING UP. The first attempt is the one that usually works;
-    # the ones after it are for the case where the desktop was still rearranging itself as the
-    # window was mapped, which on this mat happens on a restart and not on a cold boot. Waiting
-    # for a steady layout beforehand makes that rarer rather than impossible -- a compositor can
-    # move an output after the app has looked -- so this is the other end of the same problem.
-    #
-    # cover() stays as the last resort and not the second: it drops the full-screen state and
-    # plants a frameless window at the screen's coordinates, which is the right thing to do
-    # once, and the wrong thing to do on the way past.
-    for attempt in range(TRIES_AT_PLACING):
-        box = screen.geometry()             # read again: it may have moved since the last try
-        widget.winId()                      # makes the native window, so it can be placed
-        handle = widget.windowHandle()
-        if handle is not None:
-            handle.setScreen(screen)
-        widget.setGeometry(box.x(), box.y(), min(640, box.width()), min(480, box.height()))
-        widget.show()
-        app.processEvents()
-        # QWidget.move by name, since the main window has a move() of its own (the prayer steps).
-        QtWidgets.QWidget.move(widget, box.x(), box.y())  # the desktop may have moved it on mapping
-        app.processEvents()
-        widget.showFullScreen()
-        app.processEvents()
-        handle = widget.windowHandle()
-        if handle is None or handle.screen() is screen:
-            if attempt:
-                print(f"{widget.windowTitle()!r}: landed on {screen.name()} on attempt "
-                      f"{attempt + 1}", file=sys.stderr)
-            return
-        if attempt + 1 < TRIES_AT_PLACING:
-            import time as _time
-            _time.sleep(PAUSE_BETWEEN_PLACINGS)
-            app.processEvents()
-    cover(widget, screen)
+    box = screen.geometry()
+    widget.winId()                          # makes the native window, so it can be placed
+    handle = widget.windowHandle()
+    if handle is not None:
+        handle.setScreen(screen)
+    widget.setGeometry(box.x(), box.y(), min(640, box.width()), min(480, box.height()))
+    widget.show()
     app.processEvents()
+    # QWidget.move by name, since the main window has a move() of its own (the prayer steps).
+    QtWidgets.QWidget.move(widget, box.x(), box.y())   # the desktop may have moved it on mapping
+    app.processEvents()
+    widget.showFullScreen()
+    app.processEvents()
+    if widget.windowHandle() is not None and widget.windowHandle().screen() is not screen:
+        cover(widget, screen)
+        app.processEvents()
 
 
 def cover(widget, screen) -> None:
