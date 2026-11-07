@@ -12,14 +12,19 @@ added later.
 ## Generated voice — the 48 in `duas/` and the 6 in `kalima/`
 
 Harry: *"all 48 du'as and 6 kalima are ai voice generated"*, with **ElevenLabs
-(elevenlabs.io) on a paid tier**.
+(elevenlabs.io) on a paid tier**, voice **Fahad**, on a **v2-generation model**.
 
 ElevenLabs' own documentation says a paid subscription carries a commercial licence with no
 time limit, where the free plan "does not include a commercial license and cannot be used for
-any commercial purpose". **Two conditions on that are not yet confirmed for these files:**
-content generated with **Beta Services** cannot be used commercially or in production at all,
-and on paid plans the attribution requirement "depends on your agreement with ElevenLabs"
-rather than being waived. Neither has been checked against the account these were made on.
+any commercial purpose". Two conditions sit on that, and the v2 answer settles the first:
+
+- **Beta Services** cannot be used commercially or in production at all. The v2-generation
+  models are generally available rather than beta, so this does not apply. It was worth
+  establishing rather than assuming: v3 spent a long stretch labelled alpha, and "ElevenLabs on
+  a paid tier" would not have distinguished them.
+- **Attribution** on paid plans "depends on your agreement with ElevenLabs" rather than being
+  waived outright. **Still unchecked** against the account these were made on, and the one
+  thing left on this entry.
 
 Two things about these 54 files are not licensing questions and should not be filed as though
 they were. A **synthesised voice reciting du'as and the kalima** is a question for a scholar,
