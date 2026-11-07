@@ -45,10 +45,7 @@
   "builder.again": "Нажми, чтобы собрать снова.",
   "builder.done": "Один ракаат завершён. С первого раза верно выбрано {score} из {of} поз.",
   "builder.question": "Какая поза следующая?",
-  "builder.right": "Верно. Далее: {posture}.",
   "builder.title": "Собери намаз",
-  "builder.wait": "Дождись, когда поза загорится, и нажми кнопку на кольце.",
-  "builder.wrong": "Далее: {posture}.",
   "button.connected": "Кнопка подключена",
   "button.disconnected": "Кнопка не подключена",
   "call.stop": "Стоп",
@@ -248,7 +245,6 @@
   "qiblaquest.question": "В каком направлении находится кибла из города {city}?",
   "qiblaquest.right": "Верно. Кибла находится на {direction}.",
   "qiblaquest.title": "Поиск киблы",
-  "qiblaquest.wait": "Дождись, когда твой ответ загорится, и нажми кнопку на кольце.",
   "qiblaquest.wrong": "Кибла находится на {direction}.",
   "quran.cannot_recite": "Чтение недоступно",
   "quran.recite": "Читать",
@@ -421,6 +417,10 @@
   "wudu.hands": "Вымыть руки",
   "wudu.head": "Протереть голову и уши",
   "wudu.mouth": "Прополоскать рот",
-  "wudu.nose": "Промыть нос"
+  "wudu.nose": "Промыть нос",
+  "builder.new_game": "Новая игра",
+  "builder.exit": "Выйти",
+  "qiblaquest.new_game": "Новая игра",
+  "qiblaquest.exit": "Выйти"
  }
 }

@@ -45,10 +45,7 @@
   "builder.again": "按一下再排一次。",
   "builder.done": "一拜完成。你第一次就选对了 {of} 个姿势中的 {score} 个。",
   "builder.question": "下一个姿势是什么？",
-  "builder.right": "答对了。接下来：{posture}。",
   "builder.title": "完成礼拜",
-  "builder.wait": "等一个姿势亮起，然后按下指环。",
-  "builder.wrong": "接下来：{posture}。",
   "button.connected": "按钮已连接",
   "button.disconnected": "按钮未连接",
   "call.stop": "停止",
@@ -248,7 +245,6 @@
   "qiblaquest.question": "从{city}看，朝拜方向在哪里？",
   "qiblaquest.right": "答对了。朝拜方向是{direction}。",
   "qiblaquest.title": "朝向天房",
-  "qiblaquest.wait": "等你的答案亮起，然后按下指环。",
   "qiblaquest.wrong": "朝拜方向是{direction}。",
   "quran.cannot_recite": "无法诵读",
   "quran.recite": "诵读",
@@ -421,6 +417,10 @@
   "wudu.hands": "洗手",
   "wudu.head": "抹头和耳",
   "wudu.mouth": "漱口",
-  "wudu.nose": "洗鼻"
+  "wudu.nose": "洗鼻",
+  "builder.new_game": "新游戏",
+  "builder.exit": "退出",
+  "qiblaquest.new_game": "新游戏",
+  "qiblaquest.exit": "退出"
  }
 }

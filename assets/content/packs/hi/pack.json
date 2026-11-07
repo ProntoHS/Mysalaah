@@ -45,10 +45,7 @@
   "builder.again": "फिर से बनाने के लिए दबाएँ।",
   "builder.done": "एक रकअत पूरी हुई। आपने पहली कोशिश में {of} में से {score} मुद्राएँ सही चुनीं।",
   "builder.question": "अगली मुद्रा कौन सी है?",
-  "builder.right": "हाँ। अगला चरण: {posture}।",
   "builder.title": "नमाज़ बनाओ",
-  "builder.wait": "किसी मुद्रा के चमकने का इंतज़ार करें, फिर रिंग दबाएँ।",
-  "builder.wrong": "अगला चरण: {posture}।",
   "button.connected": "बटन जुड़ा है",
   "button.disconnected": "बटन जुड़ा नहीं है",
   "call.stop": "रोकें",
@@ -248,7 +245,6 @@
   "qiblaquest.question": "{city} से क़िबला किस दिशा में है?",
   "qiblaquest.right": "हाँ। क़िबला {direction} में है।",
   "qiblaquest.title": "क़िबला की खोज",
-  "qiblaquest.wait": "अपने जवाब के चमकने का इंतज़ार करें, फिर रिंग दबाएँ।",
   "qiblaquest.wrong": "क़िबला {direction} में है।",
   "quran.cannot_recite": "तिलावत उपलब्ध नहीं",
   "quran.recite": "तिलावत",
@@ -421,6 +417,10 @@
   "wudu.hands": "हाथ धोएँ",
   "wudu.head": "सिर और कानों का मसह",
   "wudu.mouth": "कुल्ली करें",
-  "wudu.nose": "नाक साफ़ करें"
+  "wudu.nose": "नाक साफ़ करें",
+  "builder.new_game": "नया खेल",
+  "builder.exit": "बाहर",
+  "qiblaquest.new_game": "नया खेल",
+  "qiblaquest.exit": "बाहर"
  }
 }

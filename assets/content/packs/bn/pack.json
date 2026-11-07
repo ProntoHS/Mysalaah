@@ -45,10 +45,7 @@
   "builder.again": "আবার সাজাতে চাপো।",
   "builder.done": "এক রাকাত সম্পূর্ণ হয়েছে। প্রথম চেষ্টায় {of}টি ভঙ্গির মধ্যে {score}টি সঠিক বেছেছ।",
   "builder.question": "এরপর কোন ভঙ্গি?",
-  "builder.right": "ঠিক। এরপর: {posture}।",
   "builder.title": "নামাজ সাজাও",
-  "builder.wait": "একটি ভঙ্গি জ্বলে ওঠা পর্যন্ত অপেক্ষা করো, তারপর রিং চাপো।",
-  "builder.wrong": "এরপর: {posture}।",
   "button.connected": "বোতাম যুক্ত",
   "button.disconnected": "বোতাম যুক্ত নেই",
   "call.stop": "বন্ধ",
@@ -248,7 +245,6 @@
   "qiblaquest.question": "{city} থেকে কিবলা কোন দিকে?",
   "qiblaquest.right": "হ্যাঁ। কিবলা {direction} দিকে।",
   "qiblaquest.title": "কিবলার দিক",
-  "qiblaquest.wait": "তোমার উত্তর জ্বলে ওঠা পর্যন্ত অপেক্ষা করো, তারপর রিং চাপো।",
   "qiblaquest.wrong": "কিবলা {direction} দিকে।",
   "quran.cannot_recite": "তিলাওয়াত পাওয়া যায়নি",
   "quran.recite": "তিলাওয়াত",
@@ -421,6 +417,10 @@
   "wudu.hands": "হাত ধোয়া",
   "wudu.head": "মাথা ও কান মাসেহ করা",
   "wudu.mouth": "কুলি করা",
-  "wudu.nose": "নাক পরিষ্কার করা"
+  "wudu.nose": "নাক পরিষ্কার করা",
+  "builder.new_game": "নতুন খেলা",
+  "builder.exit": "বের হও",
+  "qiblaquest.new_game": "নতুন খেলা",
+  "qiblaquest.exit": "বের হও"
  }
 }

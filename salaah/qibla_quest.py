@@ -3,6 +3,13 @@
 The rules contain no Qt and no clock.  The screen supplies both, so the game can be played
 thousands of times by the kit's fairness checker without a display.  Every round deals the
 four compass choices afresh: no fixed ring press can learn the position of the answer.
+
+THE 16-INCH IS THE MAP AND NOTHING ELSE; the words and the four choices are on the 7-inch
+companion.  This game and Build the Salaah were the last two that never used the second screen
+at all, which made them the odd ones out beside the jigsaw, the maze, Pillar Match and Prayer
+Day.  The split follows the same rule as those: what you look at stays on the big screen, what
+you read and press goes on the panel.  Prayer Day is the precedent for the answers themselves
+moving -- its answers are words too.
 """
 from __future__ import annotations
 
@@ -153,15 +160,24 @@ class DirectionBox(QtWidgets.QAbstractButton):
     IDLE, ACTIVE, RIGHT, WRONG = "idle", "active", "right", "wrong"
     WORDS_PX = 38
 
-    def __init__(self, window):
+    def __init__(self, window, on_side: bool = False):
         super().__init__()
         self.win = window
+        #: MEASURED IN THE PANEL'S OWN PIXELS when it lives on the panel. window.px() scales by
+        #: the MAIN screen's height; on a 1080x1920 panel beside a 1920x1200 display that makes
+        #: every control about half the size it was drawn at, which is the thin strip of
+        #: unreadable boxes Harry photographed in 2.00. The box paints itself, so a stylesheet
+        #: cannot rescue it the way it rescues a QPushButton -- the scale has to be right here.
+        self.on_side = on_side
         self.state = self.IDLE
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                            QtWidgets.QSizePolicy.Policy.Expanding)
-        self.setMinimumHeight(window.px(105))
+        self.setMinimumHeight(self.px(88 if on_side else 105))
+
+    def px(self, n: float) -> int:
+        return self.win.side_px(n) if self.on_side else self.win.px(n)
 
     def set_state(self, state: str) -> None:
         if state != self.state:
@@ -172,23 +188,28 @@ class DirectionBox(QtWidgets.QAbstractButton):
         c = palette()
         p = QtGui.QPainter(self)
         p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        edge, ink, thick = c.line, c.ink, self.win.px(3)
+        # INK AND NOT line FOR THE RESTING EDGE. line is #D9DCD6 on #FFFFFF paper, about
+        # 1.2 to 1, which is no visible edge at all -- the same fault Prayer Day's answer
+        # buttons had. It survived this long because these boxes were on the 16in, where the
+        # test that measures edges does not look; on the panel they are measured, and they
+        # should match the bordered controls on the other five panels anyway.
+        edge, ink, thick = c.ink, c.ink, self.px(3)
         fill = QtGui.QColor(c.paper)
         if self.state == self.ACTIVE:
-            edge, thick, fill = c.lapis, self.win.px(7), QtGui.QColor(c.pressed)
+            edge, thick, fill = c.lapis, self.px(7), QtGui.QColor(c.pressed)
         elif self.state == self.RIGHT:
-            edge, ink, thick, fill = c.green, c.green, self.win.px(7), QtGui.QColor(c.pressed)
+            edge, ink, thick, fill = c.green, c.green, self.px(7), QtGui.QColor(c.pressed)
         elif self.state == self.WRONG:
-            edge, ink, thick = c.highlight, c.highlight, self.win.px(7)
+            edge, ink, thick = c.highlight, c.highlight, self.px(7)
         if self.isDown():
             fill = QtGui.QColor(c.pressed)
         box = QtCore.QRectF(self.rect()).adjusted(thick / 2, thick / 2, -thick / 2, -thick / 2)
-        radius = self.win.px(18)
+        radius = self.px(18)
         p.setPen(QtGui.QPen(QtGui.QColor(edge), thick))
         p.setBrush(fill)
         p.drawRoundedRect(box, radius, radius)
         font = QtGui.QFont(Fonts.for_text(self.text()))
-        font.setPixelSize(max(12, self.win.px(self.WORDS_PX)))
+        font.setPixelSize(max(12, self.px(self.WORDS_PX)))
         font.setWeight(QtGui.QFont.Weight.Bold)
         p.setFont(font)
         p.setPen(QtGui.QColor(ink))
@@ -240,7 +261,7 @@ class MapPanel(QtWidgets.QFrame):
 
 
 class QiblaQuestScreen(QtWidgets.QWidget):
-    """Big-screen game, playable by scanning ring press or direct touch."""
+    """The map on the 16in, with the question and the four answers on the 7in companion."""
 
     CYCLE = 1350
     SHOWN = 1900
@@ -256,45 +277,16 @@ class QiblaQuestScreen(QtWidgets.QWidget):
         column.setContentsMargins(window.px(30), window.px(8), window.px(30), window.px(26))
         column.setSpacing(window.px(9))
 
-        top = QtWidgets.QHBoxLayout()
-        self.title = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignLeading)
-        self.title.setObjectName("gameQuestion")
-        self.where = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignTrailing)
-        self.where.setObjectName("gameWhere")
-        top.addWidget(self.title, 1)
-        top.addWidget(self.where)
-        column.addLayout(top)
-
-        self.city = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        self.city.setObjectName("cornerTitle")
-        column.addWidget(self.city)
-
         self.map = MapPanel(window)
         column.addWidget(self.map, 1)
+        #: STAYS ON THE BIG SCREEN, where the missing artwork is. A note saying the map is not
+        #: installed belongs beside the hole, not on the other screen.
         self.map_note = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
         self.map_note.setObjectName("sourceNote")
         self.map_note.setWordWrap(True)
         column.addWidget(self.map_note)
 
-        self.question = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        self.question.setObjectName("gameQuestion")
-        self.question.setWordWrap(True)
-        column.addWidget(self.question)
-
-        row = QtWidgets.QHBoxLayout()
-        row.setSpacing(window.px(15))
-        self.boxes: list[DirectionBox] = []
-        for i in range(len(DIRECTIONS)):
-            box = DirectionBox(window)
-            box.clicked.connect(lambda _=False, n=i: self.touched(n))
-            row.addWidget(box, 1)
-            self.boxes.append(box)
-        column.addLayout(row)
-
-        self.said = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        self.said.setObjectName("gameSaid")
-        self.said.setWordWrap(True)
-        column.addWidget(self.said)
+        self.companion = self._build_companion()
 
         self.stepper = QtCore.QTimer(self)
         self.stepper.setInterval(self.CYCLE)
@@ -302,7 +294,89 @@ class QiblaQuestScreen(QtWidgets.QWidget):
         self.waiting = QtCore.QTimer(self)
         self.waiting.setSingleShot(True)
         self.waiting.timeout.connect(self.go_on)
+        # STYLED HERE AND NOT LEFT TO THE FIRST THEME CHANGE. SideWindow.show_game calls
+        # follow_theme on the COMPANION, and the companion is a bare QWidget -- the method is
+        # on the screen. Without this the panel never gets its stylesheet, every label falls
+        # through to the app-wide QWidget rule at the main screen's scale, and the panel is
+        # the thin strip again. Pillar Match and the jigsaw both style themselves here; this
+        # file did not, and the type-scale test caught it at 24px against 48.
+        self.follow_theme()
         self.retell()
+
+    def _build_companion(self):
+        """The 7in panel: title, where we are, the city, the question, the four answers.
+
+        Every button is a bare value with no label in front of it -- see the note in
+        prayer_day_journey.retell. A button does not wrap, so a prefix is width the panel has
+        to find in ten languages and the longest translation sets it for everybody.
+        """
+        panel = QtWidgets.QWidget()
+        panel.setObjectName("qiblaQuestCompanion")
+        layout = QtWidgets.QVBoxLayout(panel)
+        layout.setContentsMargins(self.win.side_px(20), self.win.side_px(18),
+                                  self.win.side_px(20), self.win.side_px(18))
+        layout.setSpacing(self.win.side_px(10))
+
+        # NAMED, every one of them, or the stylesheet cannot size them: a label matching
+        # neither #gameTitle nor #gameStatus falls through to the app-wide QWidget rule, which
+        # is the MAIN screen's scale. That omission has now been found in two other games.
+        self.title = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.title.setObjectName("gameTitle")
+        self.title.setWordWrap(True)
+        layout.addWidget(self.title)
+
+        self.where = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.where.setObjectName("gameStatus")
+        layout.addWidget(self.where)
+
+        self.city = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.city.setObjectName("gameCity")
+        self.city.setWordWrap(True)
+        layout.addWidget(self.city)
+
+        self.question = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.question.setObjectName("gameStatus")
+        self.question.setWordWrap(True)
+        layout.addWidget(self.question)
+
+        self.boxes: list[DirectionBox] = []
+        for i in range(len(DIRECTIONS)):
+            box = DirectionBox(self.win, on_side=True)
+            box.clicked.connect(lambda _=False, n=i: self.touched(n))
+            layout.addWidget(box, 1)
+            self.boxes.append(box)
+
+        self.said = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.said.setObjectName("gameStatus")
+        self.said.setWordWrap(True)
+        layout.addWidget(self.said)
+
+        controls = QtWidgets.QHBoxLayout()
+        controls.setSpacing(self.win.side_px(10))
+        self.new_button = QtWidgets.QPushButton()
+        self.new_button.setObjectName("controlButton")
+        self.new_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.new_button.setMinimumHeight(self.win.side_px(64))
+        self.new_button.clicked.connect(self.start_again)
+        controls.addWidget(self.new_button, 1)
+        self.exit_button = QtWidgets.QPushButton()
+        self.exit_button.setObjectName("controlButton")
+        self.exit_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.exit_button.setMinimumHeight(self.win.side_px(64))
+        self.exit_button.clicked.connect(self.leave.emit)
+        controls.addWidget(self.exit_button, 1)
+        layout.addLayout(controls)
+        return panel
+
+    def _font(self, words, size, bold=False):
+        """In the PANEL'S pixels. pillar_match sizes these in the main screen's and is saved
+        by its stylesheet; sizing them right here means the two agree instead of one quietly
+        overriding the other."""
+        font = QtGui.QFont(Fonts.for_text(words))
+        font.setPixelSize(max(12, self.win.side_px(size)))
+        if bold:
+            font.setWeight(QtGui.QFont.Weight.Bold)
+        return font
 
     def start_again(self) -> None:
         self.waiting.stop()
@@ -339,6 +413,8 @@ class QiblaQuestScreen(QtWidgets.QWidget):
     def retell(self) -> None:
         t, game = self.win.t, self.game
         self.title.setText(t("qiblaquest.title"))
+        self.new_button.setText(t("qiblaquest.new_game"))
+        self.exit_button.setText(t("qiblaquest.exit"))
         self.map_note.setText("" if self.map.ready else t("qiblaquest.map_missing"))
         if game.done:
             self.where.setText("")
@@ -351,12 +427,26 @@ class QiblaQuestScreen(QtWidgets.QWidget):
             self.city.setText(named)
             self.question.setText(t("qiblaquest.question", city=named))
             if game.chosen is None:
-                self.said.setText(t("qiblaquest.wait"))
+                # NOTHING, where this used to say "wait for your answer to glow, then press
+                # the ring". The answers are on a touchscreen now and that is how this is
+                # played; the question is directly above the four boxes and says it already.
+                # The glow and the ring both still work -- a ring press still answers whichever
+                # box is lit -- so nothing has been taken away, but a child should not be told
+                # to wait for a light when they can simply press the answer. Left blank rather
+                # than reworded because a new sentence would be nine unreviewed translations.
+                self.said.setText("")
             else:
                 direction = t(f"qiblaquest.direction.{game.round.answer}")
                 self.said.setText(t("qiblaquest.right" if game.right else "qiblaquest.wrong",
                                     direction=direction))
             self.map.set_point(game.round.point)
+        self.title.setFont(self._font(self.title.text(), 40, True))
+        self.where.setFont(self._font(self.where.text(), 22, True))
+        self.city.setFont(self._font(self.city.text(), 32, True))
+        self.question.setFont(self._font(self.question.text(), 26))
+        self.said.setFont(self._font(self.said.text(), 24))
+        self.new_button.setFont(self._font(self.new_button.text(), 28, True))
+        self.exit_button.setFont(self._font(self.exit_button.text(), 28, True))
         self.show_boxes()
 
     def show_boxes(self) -> None:
@@ -377,12 +467,36 @@ class QiblaQuestScreen(QtWidgets.QWidget):
                 box.set_state(DirectionBox.IDLE)
 
     def follow_theme(self) -> None:
+        c = palette()
+        radius = self.win.side_px(11)
+        edge = self.win.side_px(3)
+        # TYPE SIZES IN THE PANEL'S OWN PIXELS, and paper AND ink rather than panel and paper.
+        # Both of those have been got wrong twice in this app: a panel styled background:panel
+        # with color:paper reads as black on #1C1C1C after dark, which measured 1.1 to 1, and
+        # a button whose border is its own fill has no visible edge at all. paper and ink are
+        # the one pair this palette guarantees to be opposites in both themes.
+        title = self.win.side_px(40)
+        body = self.win.side_px(26)
+        city = self.win.side_px(32)
+        label = self.win.side_px(28)
+        self.companion.setStyleSheet(
+            f"QWidget#qiblaQuestCompanion {{ background: {c.paper}; color: {c.ink}; }}"
+            f"QLabel {{ color: {c.ink}; background: {c.paper}; }}"
+            f"QPushButton#controlButton {{ background: {c.paper}; color: {c.ink}; "
+            f"border: {edge}px solid {c.ink}; border-radius: {radius}px; }}"
+            f"QPushButton#controlButton:pressed {{ background: {c.pressed}; color: {c.ink}; }}"
+            f"QLabel#gameTitle {{ font-size: {title}px; font-weight: bold; }}"
+            f"QLabel#gameCity {{ font-size: {city}px; font-weight: bold; }}"
+            f"QLabel#gameStatus {{ font-size: {body}px; }}"
+            f"QPushButton#controlButton {{ font-size: {label}px; font-weight: bold; }}")
         for box in self.boxes:
             box.update()
         self.map.update()
+        self.retell()
         self.update()
 
     def showEvent(self, event):
+        self.follow_theme()
         self.stepper.start()
         super().showEvent(event)
 

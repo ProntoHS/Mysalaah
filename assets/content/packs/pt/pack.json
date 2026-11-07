@@ -45,10 +45,7 @@
   "builder.again": "Pressione para montar novamente.",
   "builder.done": "Uma rak'ah foi concluída. Você escolheu corretamente {score} de {of} posturas na primeira tentativa.",
   "builder.question": "Qual postura vem a seguir?",
-  "builder.right": "Sim. A seguir: {posture}.",
   "builder.title": "Monte a oração",
-  "builder.wait": "Espere uma postura acender e pressione o anel.",
-  "builder.wrong": "A seguir: {posture}.",
   "button.connected": "Botão ligado",
   "button.disconnected": "Botão não ligado",
   "call.stop": "Parar",
@@ -248,7 +245,6 @@
   "qiblaquest.question": "Em que direção fica a Qibla a partir de {city}?",
   "qiblaquest.right": "Sim. A Qibla fica a {direction}.",
   "qiblaquest.title": "Rumo à Qibla",
-  "qiblaquest.wait": "Espere sua resposta acender e pressione o anel.",
   "qiblaquest.wrong": "A Qibla fica a {direction}.",
   "quran.cannot_recite": "Recitação indisponível",
   "quran.recite": "Recitar",
@@ -421,6 +417,10 @@
   "wudu.hands": "Lavar as mãos",
   "wudu.head": "Passar na cabeça e orelhas",
   "wudu.mouth": "Enxaguar a boca",
-  "wudu.nose": "Lavar o nariz"
+  "wudu.nose": "Lavar o nariz",
+  "builder.new_game": "Novo jogo",
+  "builder.exit": "Sair",
+  "qiblaquest.new_game": "Novo jogo",
+  "qiblaquest.exit": "Sair"
  }
 }

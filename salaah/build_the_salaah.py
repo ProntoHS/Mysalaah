@@ -1,8 +1,27 @@
-"""Build the Salaah: put the broad postures of one rak'ah in order.
+"""Build the Salaah: drag the six postures of one rak'ah into order.
 
-The game reuses the mat's existing faceless posture pictures.  One step is built at a time;
-three plausible postures are shuffled underneath it, so touch can choose directly and the
-single Bluetooth-ring button can choose whichever answer is currently lit.
+Six empty slots across the top of the 16-inch screen, the six posture drawings jumbled in a
+tray underneath, and a child drags each one into its place.  The 7-inch companion carries the
+title, where the build has got to, and the two controls.
+
+WHAT THIS REPLACES, AND WHY IT IS A DIFFERENT GAME.  Until 2.11 this was six multiple-choice
+rounds: one posture at a time, three pictures to choose between, "what comes next?".  Harry
+asked for the whole rak'ah at once with drag and drop, which is not a new layout over the old
+rules -- it is different rules, so the rules class is new.  The score is first-try placements
+out of six, the same shape Pillar Match already uses.
+
+THE RING CANNOT PLAY THIS, and that is deliberate rather than overlooked.  A six-piece drag
+puzzle has no one-button reading, and Harry: "both screens are touch and i want to use it to
+our advtage, contraints regarding ring button is moot, the button main design was for salaah
+steps".  BACK still leaves the game, so the ring is not dead here, only the playing of it.
+
+TWO OF THE SIX ARE THE SAME DRAWING, which the old game never had to face because the two
+prostrations were never offered in the same round.  Jumble all six into a tray and there are
+two identical tiles, and no child can tell which one "belongs" in the fourth slot rather than
+the sixth.  A question whose right answer is invisible teaches nothing, so either prostration
+tile is accepted in either prostration slot -- see [interchangeable], which asks the artwork
+rather than hard-coding the pair, so giving prostrate_again its own drawing would change the
+rules and the test for it would say so.
 
 This is an ordering aid, not an exhaustive lesson in the rulings or words of prayer.  The
 sequence and every translation remain explicitly subject to qualified review before release.
@@ -10,28 +29,17 @@ sequence and every translation remain explicitly subject to qualified review bef
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
 
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import Fonts
 from .theme import palette
 
+#: The broad postures of one rak'ah, in the order they are performed. FIXED, DELIBERATELY:
+#: the order is the whole lesson, which is why the slots are numbered and the tray is what
+#: gets shuffled.
+RAKAH = ("stand", "bow", "stand_upright", "prostrate", "sit", "prostrate_again")
 
-@dataclass(frozen=True)
-class Round:
-    answer: str
-    others: tuple[str, str]
-
-
-ROUNDS = (
-    Round("stand", ("bow", "prostrate")),
-    Round("bow", ("stand", "prostrate")),
-    Round("stand_upright", ("sit", "prostrate")),
-    Round("prostrate", ("bow", "sit")),
-    Round("sit", ("stand", "prostrate_again")),
-    Round("prostrate_again", ("stand", "bow")),
-)
-ANSWERED, AGAIN, NOTHING = "answered", "again", "nothing"
+PLACED, WRONG, NOTHING = "placed", "wrong", "nothing"
 
 
 def asset_for(action: str) -> str:
@@ -50,10 +58,10 @@ def asset_for(action: str) -> str:
 
       stand           qiyam, the opening stand, arms folded
       stand_upright   i'tidal, standing up again after the bow -- a different drawing, and the
-                      one round where telling the two stands apart is the question
-      sit             jalsa, the sit between the two prostrations, which is this game's round 5
-                      (NOT tashahhud, the sitting at the end -- that is not in one rak'ah's
-                      broad postures as this game counts them)
+                      one place where telling the two stands apart is the question
+      sit             jalsa, the sit between the two prostrations, which is this game's fifth
+                      slot (NOT tashahhud, the sitting at the end -- that is not in one
+                      rak'ah's broad postures as this game counts them)
     """
     return {"stand": "postures/standing_folded.png",
             "stand_upright": "postures/standing_itidal.png",
@@ -63,320 +71,542 @@ def asset_for(action: str) -> str:
             "sit": "postures/jalsa.png"}[action]
 
 
-class SalaahBuilder:
-    """Rules only: no Qt, time, filesystem or input-device knowledge."""
+def interchangeable(one: str, two: str) -> bool:
+    """Whether a child could be expected to tell these two postures apart on the board.
+
+    ASKS THE ARTWORK rather than naming the pair. The two prostrations are drawn with the same
+    file because they are the same posture performed twice, and a tray holding two identical
+    tiles cannot fairly insist that one of them belongs in the fourth slot and the other in the
+    sixth. Written this way round so that the day prostrate_again gets a drawing of its own,
+    the rules change with the art instead of silently disagreeing with it -- and the test that
+    pins today's answer fails, which is the alarm.
+    """
+    return one == two or asset_for(one) == asset_for(two)
+
+
+class RakahPuzzle:
+    """Rules only: no Qt, time, filesystem or input-device knowledge.
+
+    The fairness checker plays this thousands of times with no display, so nothing here may
+    reach for a widget, a clock or a file.
+    """
 
     def __init__(self, shuffle=None):
         self._shuffle = shuffle if shuffle is not None else random.shuffle
         self.restart()
 
     def restart(self) -> None:
-        self.at = 0
-        self.score = 0
-        self.done = False
-        self.deal()
-
-    def deal(self) -> None:
-        here = ROUNDS[self.at]
-        picks = [here.answer, *here.others]
-        self._shuffle(picks)
-        self.choices = tuple(picks)
-        self.active = 0
-        self.locked = False
-        self.chosen: int | None = None
-
-    @property
-    def round(self) -> Round:
-        return ROUNDS[self.at]
+        tray = list(RAKAH)
+        self._shuffle(tray)
+        #: The tray, in the jumbled order the tiles are laid out in. A tile keeps its place in
+        #: the tray for the whole game: it is lifted out and does not come back, so the gap it
+        #: leaves is where it was, and a child can see what is left.
+        self.tray = tuple(tray)
+        #: One per slot: the index of the tray tile sitting in it, or None.
+        self.slots: list[int | None] = [None] * len(RAKAH)
+        #: Tiles that have been dropped somewhere wrong at least once. Scoring is per tile and
+        #: not per slot, so a tile that went astray and was then placed does not count.
+        self.wrongly_tried: set[int] = set()
+        self.last = "ready"
 
     @property
     def rounds(self) -> int:
-        return len(ROUNDS)
+        return len(RAKAH)
 
     @property
-    def correct(self) -> int:
-        return self.choices.index(self.round.answer)
+    def filled(self) -> int:
+        return sum(1 for slot in self.slots if slot is not None)
 
     @property
-    def right(self) -> bool | None:
-        return None if self.chosen is None else self.chosen == self.correct
+    def done(self) -> bool:
+        return self.filled == len(RAKAH)
 
-    def step(self) -> None:
-        if not (self.locked or self.done):
-            self.active = (self.active + 1) % len(self.choices)
+    @property
+    def first_try(self) -> int:
+        """Placements made without that tile ever having been dropped in the wrong place."""
+        return sum(1 for slot in self.slots
+                   if slot is not None and slot not in self.wrongly_tried)
 
-    def press(self) -> str:
-        if self.done:
-            self.restart()
-            return AGAIN
-        return self.answer(self.active)
+    def placed(self, tile: int) -> bool:
+        return tile in self.slots
 
-    def answer(self, which: int) -> str:
-        if self.done or self.locked or not 0 <= which < len(self.choices):
+    def in_hand(self) -> tuple[int, ...]:
+        """The tray tiles still to be placed, by their tray index."""
+        return tuple(n for n in range(len(self.tray)) if not self.placed(n))
+
+    def accepts(self, tile: int, slot: int) -> bool:
+        """Whether this tile belongs in this slot. Any tile may go into any empty slot: a
+        child who knows prostration comes fourth can place it first and work outwards, and a
+        mistake is recoverable. It is the SLOT that refuses, not the order of play."""
+        if not (0 <= tile < len(self.tray) and 0 <= slot < len(RAKAH)):
+            return False
+        if self.placed(tile) or self.slots[slot] is not None:
+            return False
+        return interchangeable(self.tray[tile], RAKAH[slot])
+
+    def place(self, tile: int, slot: int) -> str:
+        if self.done or not (0 <= tile < len(self.tray) and 0 <= slot < len(RAKAH)):
             return NOTHING
-        self.active = which
-        self.chosen = which
-        self.locked = True
-        if self.right:
-            self.score += 1
-        return ANSWERED
+        if self.placed(tile) or self.slots[slot] is not None:
+            return NOTHING
+        if not self.accepts(tile, slot):
+            self.wrongly_tried.add(tile)
+            self.last = WRONG
+            return WRONG
+        self.slots[slot] = tile
+        self.last = "complete" if self.done else PLACED
+        return PLACED
 
-    def go_on(self) -> None:
-        if not self.locked:
-            return
-        if self.at + 1 >= len(ROUNDS):
-            self.done = True
-            self.locked = False
-            self.chosen = None
-            return
-        self.at += 1
-        self.deal()
+    def posture_in(self, slot: int) -> str | None:
+        """The posture showing in a slot, which is the TILE's name and not the slot's.
+
+        A child who put 'Prostrate again' in the fourth slot put the right posture there, and
+        the board should go on calling it what the tile called it rather than correcting them
+        to a word they did not choose.
+        """
+        tile = self.slots[slot]
+        return None if tile is None else self.tray[tile]
 
 
-class SequenceStrip(QtWidgets.QFrame):
-    """Six calm slots that fill from left to right as the rak'ah is built."""
+class RakahBoard(QtWidgets.QFrame):
+    """The whole 16in board: six slots above, the jumbled tray below, and the drag between.
 
-    def __init__(self, window):
+    ONE WIDGET AND NOT TWELVE. The drag has to be tracked across both rows, and raw touch
+    events do not travel between sibling widgets the way a mouse does -- so this paints
+    everything and does its own hit testing, which is how PillarBoard already works on this
+    hardware. The touch handling below is that file's, including the guard for the synthetic
+    mouse release that Qt delivers after a real touch ends.
+    """
+
+    dropped = Signal(int, int)
+    lifted = Signal()
+
+    #: Where the two rows sit, as a share of the board's height.
+    SLOTS_TOP, SLOTS_TALL = 0.06, 0.37
+    TRAY_TOP, TRAY_TALL = 0.55, 0.39
+
+    def __init__(self, window, game):
         super().__init__()
         self.win = window
-        self.filled = 0
-        self.setMinimumHeight(window.px(185))
-        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
-                           QtWidgets.QSizePolicy.Policy.Expanding)
-
-    def set_filled(self, count: int) -> None:
-        self.filled = count
-        self.update()
-
-    def paintEvent(self, _):
-        c = palette()
-        p = QtGui.QPainter(self)
-        p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        p.fillRect(self.rect(), QtGui.QColor(c.paper))
-        gap = self.win.px(10)
-        total = self.width() - gap * (len(ROUNDS) + 1)
-        card_w = max(1, total / len(ROUNDS))
-        top = self.win.px(8)
-        bottom = self.height() - self.win.px(8)
-        for number, round_ in enumerate(ROUNDS):
-            x = gap + number * (card_w + gap)
-            box = QtCore.QRectF(x, top, card_w, bottom - top)
-            p.setPen(QtGui.QPen(QtGui.QColor(c.ink if number < self.filled else c.line),
-                                self.win.px(3)))
-            p.setBrush(QtGui.QColor(c.paper))
-            p.drawRoundedRect(box, self.win.px(12), self.win.px(12))
-            if number < self.filled:
-                inner = QtCore.QSize(max(1, int(box.width() - self.win.px(18))),
-                                     max(1, int(box.height() - self.win.px(18))))
-                pix = self.win.images.get(self.win.picture(asset_for(round_.answer)), inner)
-                if not pix.isNull():
-                    px = int(box.center().x() - pix.width() / 2)
-                    py = int(box.bottom() - self.win.px(9) - pix.height())
-                    p.drawPixmap(px, py, pix)
-
-
-class PostureBox(QtWidgets.QAbstractButton):
-    IDLE, ACTIVE, RIGHT, WRONG = "idle", "active", "right", "wrong"
-    WORDS_PX = 31
-
-    def __init__(self, window):
-        super().__init__()
-        self.win = window
-        self.action = "stand"
-        self.state = self.IDLE
+        self.game = game
+        self.dragging: int | None = None
+        self.drag_position = None
+        self.wrong_slot: int | None = None
+        self._ignore_mouse_release = False
+        self.setAttribute(Qt.WidgetAttribute.WA_AcceptTouchEvents, True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumHeight(window.px(220))
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                            QtWidgets.QSizePolicy.Policy.Expanding)
 
-    def show_action(self, action: str, words: str) -> None:
-        self.action = action
-        self.setText(words)
+    # Geometry
+
+    def _row(self, top_share: float, tall_share: float) -> list[QtCore.QRectF]:
+        gap = self.width() * 0.012
+        cell = (self.width() - gap * (len(RAKAH) + 1)) / len(RAKAH)
+        top = self.height() * top_share
+        tall = self.height() * tall_share
+        return [QtCore.QRectF(gap + n * (cell + gap), top, max(1.0, cell), max(1.0, tall))
+                for n in range(len(RAKAH))]
+
+    def slot_rects(self) -> list[QtCore.QRectF]:
+        return self._row(self.SLOTS_TOP, self.SLOTS_TALL)
+
+    def tray_rects(self) -> list[QtCore.QRectF]:
+        return self._row(self.TRAY_TOP, self.TRAY_TALL)
+
+    def _slot_at(self, point):
+        for n, box in enumerate(self.slot_rects()):
+            if box.contains(point):
+                return n
+        return None
+
+    def _tile_at(self, point):
+        for n, box in enumerate(self.tray_rects()):
+            if box.contains(point) and not self.game.placed(n):
+                return n
+        return None
+
+    # Dragging
+
+    def reset(self) -> None:
+        self.dragging = None
+        self.drag_position = None
+        self.wrong_slot = None
         self.update()
 
-    def set_state(self, state: str) -> None:
-        if state != self.state:
-            self.state = state
+    def reject(self, slot: int) -> None:
+        self.dragging = None
+        self.drag_position = None
+        self.wrong_slot = slot
+        self.update()
+
+    def _start_drag(self, point) -> bool:
+        if self.game.done:
+            return False
+        tile = self._tile_at(point)
+        if tile is None:
+            return False
+        self.wrong_slot = None
+        self.dragging = tile
+        self.drag_position = point
+        self.lifted.emit()
+        self.update()
+        return True
+
+    def _move_drag(self, point) -> None:
+        if self.dragging is not None:
+            self.drag_position = point
             self.update()
 
+    def _finish_drag(self, point) -> None:
+        if self.dragging is None:
+            return
+        tile = self.dragging
+        self.dragging = None
+        self.drag_position = None
+        slot = self._slot_at(point)
+        if slot is None:
+            self.update()
+            return
+        self.dropped.emit(tile, slot)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._start_drag(event.position())
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            self._move_drag(event.position())
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if self._ignore_mouse_release:
+            self._ignore_mouse_release = False
+            event.accept()
+            return
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._finish_drag(event.position())
+            event.accept()
+
+    @staticmethod
+    def _touch_position(event):
+        points = event.points() if hasattr(event, "points") else event.touchPoints()
+        if not points:
+            return None
+        point = points[0]
+        return point.position() if hasattr(point, "position") else point.pos()
+
+    def event(self, event):
+        kind = event.type()
+        if kind == QtCore.QEvent.Type.TouchBegin:
+            point = self._touch_position(event)
+            if point is not None:
+                self._start_drag(point)
+            event.accept()
+            return True
+        if kind == QtCore.QEvent.Type.TouchUpdate:
+            point = self._touch_position(event)
+            if point is not None:
+                self._move_drag(point)
+            event.accept()
+            return True
+        if kind == QtCore.QEvent.Type.TouchEnd:
+            point = self._touch_position(event)
+            if point is not None:
+                self._finish_drag(point)
+            self._ignore_mouse_release = True
+            event.accept()
+            return True
+        return super().event(event)
+
+    # Painting
+
+    def _draw_posture(self, p, action: str, box: QtCore.QRectF) -> None:
+        """One posture in one cell: the drawing above, its name along the bottom."""
+        c = palette()
+        label_h = min(box.height() * 0.26, self.win.px(54))
+        picture = QtCore.QRectF(box.left() + self.win.px(10), box.top() + self.win.px(10),
+                                box.width() - self.win.px(20),
+                                box.height() - label_h - self.win.px(16))
+        if picture.width() > 1 and picture.height() > 1:
+            want = QtCore.QSize(max(1, int(picture.width())), max(1, int(picture.height())))
+            pix = self.win.images.get(self.win.picture(asset_for(action)), want)
+            if not pix.isNull():
+                p.drawPixmap(int(picture.center().x() - pix.width() / 2),
+                             int(picture.bottom() - pix.height()), pix)
+        words = self.win.t(f"builder.action.{action}")
+        font = QtGui.QFont(Fonts.for_text(words))
+        font.setPixelSize(max(11, self.win.px(25)))
+        font.setWeight(QtGui.QFont.Weight.Bold)
+        p.setFont(font)
+        p.setPen(QtGui.QColor(c.ink))
+        p.drawText(QtCore.QRectF(box.left() + self.win.px(5), box.bottom() - label_h,
+                                 box.width() - self.win.px(10), label_h),
+                   int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap), words)
+
     def paintEvent(self, _):
         c = palette()
         p = QtGui.QPainter(self)
         p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        edge, ink, thick = c.line, c.ink, self.win.px(3)
-        fill = QtGui.QColor(c.paper)
-        if self.state == self.ACTIVE:
-            edge, thick, fill = c.lapis, self.win.px(7), QtGui.QColor(c.pressed)
-        elif self.state == self.RIGHT:
-            edge, ink, thick, fill = c.green, c.green, self.win.px(7), QtGui.QColor(c.pressed)
-        elif self.state == self.WRONG:
-            edge, ink, thick = c.highlight, c.highlight, self.win.px(7)
-        if self.isDown():
-            fill = QtGui.QColor(c.pressed)
-        box = QtCore.QRectF(self.rect()).adjusted(thick / 2, thick / 2, -thick / 2, -thick / 2)
-        p.setPen(QtGui.QPen(QtGui.QColor(edge), thick))
-        p.setBrush(fill)
-        p.drawRoundedRect(box, self.win.px(17), self.win.px(17))
+        p.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
+        p.fillRect(self.rect(), QtGui.QColor(c.paper))
+        radius = self.win.px(16)
+        thin, thick = self.win.px(3), self.win.px(7)
 
-        label_h = self.win.px(62)
-        picture = QtCore.QRectF(box.left() + self.win.px(12), box.top() + self.win.px(10),
-                                box.width() - self.win.px(24), box.height() - label_h - self.win.px(20))
-        target = QtCore.QSize(max(1, int(picture.width())), max(1, int(picture.height())))
-        pix = self.win.images.get(self.win.picture(asset_for(self.action)), target)
-        if not pix.isNull():
-            px = int(picture.center().x() - pix.width() / 2)
-            py = int(picture.bottom() - pix.height())
-            p.drawPixmap(px, py, pix)
+        for n, box in enumerate(self.slot_rects()):
+            action = self.game.posture_in(n)
+            edge, width = (c.ink, thin) if action else (c.line, thin)
+            if n == self.wrong_slot:
+                edge, width = c.highlight, thick
+            elif self.dragging is not None and action is None \
+                    and self.game.accepts(self.dragging, n):
+                # The places this tile could go, while it is in the air. Not a hint about the
+                # answer when nothing is being dragged -- that would play the game for them.
+                edge, width = c.lapis, thick
+            p.setPen(QtGui.QPen(QtGui.QColor(edge), width))
+            p.setBrush(QtGui.QColor(c.paper))
+            p.drawRoundedRect(box, radius, radius)
+            if action:
+                self._draw_posture(p, action, box)
+            else:
+                font = QtGui.QFont(Fonts.english_family)
+                font.setPixelSize(max(12, self.win.px(44)))
+                font.setWeight(QtGui.QFont.Weight.Bold)
+                p.setFont(font)
+                # SOFT AND NOT line. The first render of this board had the numbers in line,
+                # which is #D9DCD6 on white paper and #3A3D40 on black -- about 1.2 to 1
+                # either way, so the only thing telling a child which slot is which was
+                # invisible in both themes. The outline of an empty slot can be faint; the
+                # number in it cannot. Caught by looking at the picture, not by a test.
+                p.setPen(QtGui.QColor(c.soft))
+                p.drawText(box, int(Qt.AlignmentFlag.AlignCenter), str(n + 1))
 
-        font = QtGui.QFont(Fonts.for_text(self.text()))
-        font.setPixelSize(max(12, self.win.px(self.WORDS_PX)))
-        font.setWeight(QtGui.QFont.Weight.Bold)
-        p.setFont(font)
-        p.setPen(QtGui.QColor(ink))
-        words = QtCore.QRectF(box.left() + self.win.px(7), box.bottom() - label_h,
-                             box.width() - self.win.px(14), label_h)
-        p.drawText(words, int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap), self.text())
+        for n, box in enumerate(self.tray_rects()):
+            if self.game.placed(n) or n == self.dragging:
+                # The gap it came out of, so what is left to place can be seen at a glance.
+                p.setPen(QtGui.QPen(QtGui.QColor(c.line), thin, Qt.PenStyle.DotLine))
+                p.setBrush(Qt.BrushStyle.NoBrush)
+                p.drawRoundedRect(box, radius, radius)
+                continue
+            p.setPen(QtGui.QPen(QtGui.QColor(c.ink), thin))
+            p.setBrush(QtGui.QColor(c.paper))
+            p.drawRoundedRect(box, radius, radius)
+            self._draw_posture(p, self.game.tray[n], box)
+
+        if self.dragging is not None and self.drag_position is not None:
+            boxes = self.tray_rects()
+            size = boxes[self.dragging].size()
+            held = QtCore.QRectF(self.drag_position.x() - size.width() / 2,
+                                 self.drag_position.y() - size.height() / 2,
+                                 size.width(), size.height())
+            # PAPER AND NOT pressed. A posture drawing carries its own background, so a tile
+            # filled with anything else shows the drawing as a patch of a different tone in
+            # the middle of the card -- plainly a seam in both themes when the first render
+            # of this was looked at. The thick lapis edge is what says the tile is in the air.
+            p.setPen(QtGui.QPen(QtGui.QColor(c.lapis), thick))
+            p.setBrush(QtGui.QColor(c.paper))
+            p.drawRoundedRect(held, radius, radius)
+            self._draw_posture(p, self.game.tray[self.dragging], held)
 
 
 class BuildTheSalaahScreen(QtWidgets.QWidget):
-    """The complete game screen, driven by touch or the host's existing ring action."""
+    """The board on the 16in, with the title and the controls on the 7in companion."""
 
-    CYCLE = 1350
-    SHOWN = 1800
+    #: How long a wrongly dropped slot stays outlined before it goes quiet again.
+    SHOWN = 900
     leave = Signal()
 
     def __init__(self, window, shuffle=None):
         super().__init__()
         self.win = window
-        self.game = SalaahBuilder(shuffle)
+        self.game = RakahPuzzle(shuffle)
         self.setObjectName("buildTheSalaahScreen")
 
         column = QtWidgets.QVBoxLayout(self)
-        column.setContentsMargins(window.px(28), window.px(8), window.px(28), window.px(26))
-        column.setSpacing(window.px(9))
+        column.setContentsMargins(0, 0, 0, 0)
+        self.board = RakahBoard(window, self.game)
+        self.board.dropped.connect(self._drop)
+        self.board.lifted.connect(self._lifted)
+        column.addWidget(self.board)
 
-        top = QtWidgets.QHBoxLayout()
-        self.title = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignLeading)
-        self.title.setObjectName("gameQuestion")
-        self.where = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignTrailing)
-        self.where.setObjectName("gameWhere")
-        top.addWidget(self.title, 1)
-        top.addWidget(self.where)
-        column.addLayout(top)
+        self.clearing = QtCore.QTimer(self)
+        self.clearing.setSingleShot(True)
+        self.clearing.timeout.connect(self._stop_showing_the_mistake)
 
-        self.sequence = SequenceStrip(window)
-        column.addWidget(self.sequence, 1)
+        self.companion = self._build_companion()
+        self.retell()
 
-        self.question = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        self.question.setObjectName("gameQuestion")
-        self.question.setWordWrap(True)
-        column.addWidget(self.question)
+    def _build_companion(self):
+        """The 7in panel: the title, how far the rak'ah has got, and the two controls.
 
-        row = QtWidgets.QHBoxLayout()
-        row.setSpacing(window.px(16))
-        self.boxes: list[PostureBox] = []
-        for i in range(3):
-            box = PostureBox(window)
-            box.clicked.connect(lambda _=False, n=i: self.touched(n))
-            row.addWidget(box, 1)
-            self.boxes.append(box)
-        column.addLayout(row, 2)
+        Harry asked for "just the side screen for title and menu buttons". The line between
+        them is where the panel says what has happened, which is what fills the middle of
+        every other game's panel rather than leaving two thirds of a tall screen blank.
+        """
+        panel = QtWidgets.QWidget()
+        panel.setObjectName("buildTheSalaahCompanion")
+        layout = QtWidgets.QVBoxLayout(panel)
+        layout.setContentsMargins(self.win.side_px(20), self.win.side_px(18),
+                                  self.win.side_px(20), self.win.side_px(18))
+        layout.setSpacing(self.win.side_px(12))
+
+        self.title = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.title.setObjectName("gameTitle")
+        self.title.setWordWrap(True)
+        layout.addWidget(self.title)
+
+        self.where = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.where.setObjectName("gameStatus")
+        layout.addWidget(self.where)
+
+        # THE RAK'AH IN WORDS, one line per slot, filling as the board fills.
+        #
+        # Harry asked for "just the side screen for title and menu buttons", and I argued
+        # myself out of this on the grounds that the slots on the 16in already are the list.
+        # Then the panel was rendered and looked at: a title, "3 of 6", one short line and
+        # two buttons left two thirds of a 1080x1920 screen blank white, which is not what
+        # the other five panels look like. It is also not redundant -- the big screen shows
+        # six PICTURES, and the sequence said in words is the thing being taught. Costs no
+        # new strings: these are builder.action.*, which all nine translated packs carry.
+        # AlignLeading and not AlignCenter, which is what the rest of this panel uses: a
+        # centred numbered list puts every number at a different place down the page, and it
+        # stopped looking like a list at all. Leading also turns itself round for Arabic and
+        # Urdu, whose packs set dir rtl, which a hard-coded left would not.
+        layout.addStretch(1)
+        self.rows: list[QtWidgets.QLabel] = []
+        for _ in RAKAH:
+            row = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignLeading)
+            row.setObjectName("gameStatus")
+            row.setWordWrap(True)
+            row.setContentsMargins(self.win.side_px(40), 0, self.win.side_px(10), 0)
+            layout.addWidget(row)
+            self.rows.append(row)
+        layout.addStretch(1)
 
         self.said = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        self.said.setObjectName("gameSaid")
+        self.said.setObjectName("gameStatus")
         self.said.setWordWrap(True)
-        column.addWidget(self.said)
+        layout.addWidget(self.said)
 
-        self.stepper = QtCore.QTimer(self)
-        self.stepper.setInterval(self.CYCLE)
-        self.stepper.timeout.connect(self.step)
-        self.waiting = QtCore.QTimer(self)
-        self.waiting.setSingleShot(True)
-        self.waiting.timeout.connect(self.go_on)
-        self.retell()
+        controls = QtWidgets.QHBoxLayout()
+        controls.setSpacing(self.win.side_px(10))
+        self.new_button = QtWidgets.QPushButton()
+        self.new_button.setObjectName("controlButton")
+        self.new_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.new_button.setMinimumHeight(self.win.side_px(64))
+        self.new_button.clicked.connect(self.start_again)
+        controls.addWidget(self.new_button, 1)
+        self.exit_button = QtWidgets.QPushButton()
+        self.exit_button.setObjectName("controlButton")
+        self.exit_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.exit_button.setMinimumHeight(self.win.side_px(64))
+        self.exit_button.clicked.connect(self.leave.emit)
+        controls.addWidget(self.exit_button, 1)
+        layout.addLayout(controls)
+        return panel
+
+    def _font(self, words, size, bold=False):
+        font = QtGui.QFont(Fonts.for_text(words))
+        font.setPixelSize(max(12, self.win.side_px(size)))
+        if bold:
+            font.setWeight(QtGui.QFont.Weight.Bold)
+        return font
+
+    # Playing
 
     def start_again(self) -> None:
-        self.waiting.stop()
+        self.clearing.stop()
         self.game.restart()
+        self.board.reset()
         self.retell()
 
-    def step(self) -> None:
-        self.game.step()
-        self.show_boxes()
+    def _lifted(self) -> None:
+        """A tile has been picked up, so last go's red outline stops meaning anything."""
+        self.clearing.stop()
+        self.retell()
 
-    def touched(self, which: int) -> None:
-        if self.game.done:
-            self.press()
-        elif self.game.answer(which) == ANSWERED:
-            self.settled()
+    def _drop(self, tile: int, slot: int) -> None:
+        result = self.game.place(tile, slot)
+        if result == WRONG:
+            self.board.reject(slot)
+            self.clearing.start(self.SHOWN)
+        else:
+            self.board.reset()
+        self.retell()
+
+    def _stop_showing_the_mistake(self) -> None:
+        self.board.wrong_slot = None
+        self.board.update()
 
     def press(self, action: str = "") -> None:
+        """BACK leaves. NOTHING ELSE DOES ANYTHING, and that is the design.
+
+        A six-piece drag puzzle has no one-button reading. The ring's job on this mat is the
+        prayer steps; both of these screens are touch.
+        """
         from .buttons import BACK
-        if action == BACK:
+        if action == BACK or str(action).lower() in ("back", "exit", "escape"):
+            self.clearing.stop()
             self.leave.emit()
-            return
-        if self.game.press() in (ANSWERED, AGAIN):
-            self.settled()
-
-    def settled(self) -> None:
-        if self.game.locked:
-            self.waiting.start(self.SHOWN)
-        self.retell()
-
-    def go_on(self) -> None:
-        self.game.go_on()
-        self.retell()
 
     def retell(self) -> None:
         t, game = self.win.t, self.game
         self.title.setText(t("builder.title"))
+        self.new_button.setText(t("builder.new_game"))
+        self.exit_button.setText(t("builder.exit"))
+        for n, row in enumerate(self.rows):
+            posture = game.posture_in(n)
+            said = t(f"builder.action.{posture}") if posture else "—"
+            row.setText(f"{n + 1}.  {said}")
+            row.setFont(self._font(said, 27, bool(posture)))
+            row.setStyleSheet("" if posture else f"color: {palette().soft};")
         if game.done:
-            self.where.setText("")
-            self.question.setText(t("builder.done", score=game.score, of=game.rounds))
-            self.said.setText(t("builder.again"))
-            self.sequence.set_filled(game.rounds)
+            self.where.setText(t("corner.item", at=game.rounds, of=game.rounds))
+            self.said.setText(t("builder.done", score=game.first_try, of=game.rounds)
+                              + "\n\n" + t("builder.again"))
         else:
-            self.where.setText(t("corner.item", at=game.at + 1, of=game.rounds))
-            self.question.setText(t("builder.question"))
-            self.sequence.set_filled(game.at + (1 if game.locked else 0))
-            if game.chosen is None:
-                self.said.setText(t("builder.wait"))
-            else:
-                named = t(f"builder.action.{game.round.answer}")
-                self.said.setText(t("builder.right" if game.right else "builder.wrong",
-                                    posture=named))
-        self.show_boxes()
-
-    def show_boxes(self) -> None:
-        game = self.game
-        for i, box in enumerate(self.boxes):
-            if game.done:
-                box.setText("")
-                box.set_state(PostureBox.IDLE)
-                continue
-            action = game.choices[i]
-            box.show_action(action, self.win.t(f"builder.action.{action}"))
-            if not game.locked:
-                box.set_state(PostureBox.ACTIVE if i == game.active else PostureBox.IDLE)
-            elif i == game.correct:
-                box.set_state(PostureBox.RIGHT)
-            elif i == game.chosen:
-                box.set_state(PostureBox.WRONG)
-            else:
-                box.set_state(PostureBox.IDLE)
+            self.where.setText(t("corner.item", at=game.filled, of=game.rounds))
+            # WORDLESS ON A WRONG DROP, on purpose. The slot outlines itself in the warning
+            # colour and the tile goes back where it came from, which says it in every
+            # language at once -- including Arabic, whose pack carries 47 of the 410 strings
+            # and falls back to English for the rest. Nothing new had to be written in nine
+            # languages and left unreviewed to make this game speak.
+            self.said.setText(t("builder.question"))
+        self.title.setFont(self._font(self.title.text(), 40, True))
+        self.where.setFont(self._font(self.where.text(), 24, True))
+        self.said.setFont(self._font(self.said.text(), 26))
+        self.new_button.setFont(self._font(self.new_button.text(), 28, True))
+        self.exit_button.setFont(self._font(self.exit_button.text(), 28, True))
+        self.board.update()
 
     def follow_theme(self) -> None:
-        self.sequence.update()
-        for box in self.boxes:
-            box.update()
-        self.update()
+        c = palette()
+        radius = self.win.side_px(11)
+        edge = self.win.side_px(3)
+        # TYPE SIZES IN THE PANEL'S OWN PIXELS, and paper AND ink rather than panel and paper.
+        # Both have been got wrong twice in this app: a panel styled background:panel with
+        # color:paper reads as black on #1C1C1C after dark, measured at 1.1 to 1, and a button
+        # whose border is its own fill has no visible edge at all.
+        title = self.win.side_px(40)
+        body = self.win.side_px(26)
+        label = self.win.side_px(28)
+        self.companion.setStyleSheet(
+            f"QWidget#buildTheSalaahCompanion {{ background: {c.paper}; color: {c.ink}; }}"
+            f"QLabel {{ color: {c.ink}; background: {c.paper}; }}"
+            f"QPushButton#controlButton {{ background: {c.paper}; color: {c.ink}; "
+            f"border: {edge}px solid {c.ink}; border-radius: {radius}px; }}"
+            f"QPushButton#controlButton:pressed {{ background: {c.pressed}; color: {c.ink}; }}"
+            f"QLabel#gameTitle {{ font-size: {title}px; font-weight: bold; }}"
+            f"QLabel#gameStatus {{ font-size: {body}px; }}"
+            f"QPushButton#controlButton {{ font-size: {label}px; font-weight: bold; }}")
+        self.retell()
+        self.board.update()
 
     def showEvent(self, event):
-        self.stepper.start()
+        self.follow_theme()
         super().showEvent(event)
 
     def hideEvent(self, event):
-        self.stepper.stop()
-        self.waiting.stop()
+        self.clearing.stop()
         super().hideEvent(event)

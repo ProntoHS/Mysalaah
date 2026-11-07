@@ -43,10 +43,7 @@
   "builder.again": "دوبارہ بنانے کے لیے دبائیں۔",
   "builder.done": "ایک رکعت مکمل ہوئی۔ آپ نے پہلی کوشش میں {of} میں سے {score} حالتیں درست چنیں۔",
   "builder.question": "اگلی حالت کون سی ہے؟",
-  "builder.right": "جی ہاں۔ اگلا مرحلہ: {posture}۔",
   "builder.title": "نماز بنائیں",
-  "builder.wait": "کسی حالت کے روشن ہونے کا انتظار کریں، پھر انگوٹھی دبائیں۔",
-  "builder.wrong": "اگلا مرحلہ: {posture}۔",
   "button.connected": "بٹن منسلک ہے",
   "button.disconnected": "بٹن منسلک نہیں",
   "call.stop": "بند کریں",
@@ -246,7 +243,6 @@
   "qiblaquest.question": "{city} سے قبلہ کس سمت میں ہے؟",
   "qiblaquest.right": "جی ہاں۔ قبلہ {direction} میں ہے۔",
   "qiblaquest.title": "قبلہ کی تلاش",
-  "qiblaquest.wait": "اپنا جواب روشن ہونے کا انتظار کریں، پھر انگوٹھی دبائیں۔",
   "qiblaquest.wrong": "قبلہ {direction} میں ہے۔",
   "quran.cannot_recite": "تلاوت دستیاب نہیں",
   "quran.recite": "تلاوت",
@@ -419,7 +415,11 @@
   "wudu.hands": "ہاتھ دھوئیں",
   "wudu.head": "سر اور کانوں کا مسح",
   "wudu.mouth": "کلی کریں",
-  "wudu.nose": "ناک صاف کریں"
+  "wudu.nose": "ناک صاف کریں",
+  "builder.new_game": "نیا کھیل",
+  "builder.exit": "باہر",
+  "qiblaquest.new_game": "نیا کھیل",
+  "qiblaquest.exit": "باہر"
  },
  "transliteration": {},
  "translation": {}

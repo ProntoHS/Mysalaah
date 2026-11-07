@@ -43,10 +43,7 @@
   "builder.again": "Appuie pour la reconstruire.",
   "builder.done": "Une rak'a est terminée. Tu as choisi correctement {score} postures sur {of} du premier coup.",
   "builder.question": "Quelle posture vient ensuite ?",
-  "builder.right": "Oui. Ensuite : {posture}.",
   "builder.title": "Construis la prière",
-  "builder.wait": "Attends qu'une posture s'allume, puis appuie sur la bague.",
-  "builder.wrong": "Ensuite : {posture}.",
   "button.connected": "Bouton connecté",
   "button.disconnected": "Bouton non connecté",
   "call.stop": "Arrêter",
@@ -246,7 +243,6 @@
   "qiblaquest.question": "Dans quelle direction se trouve la Qibla depuis {city} ?",
   "qiblaquest.right": "Oui. La Qibla est au {direction}.",
   "qiblaquest.title": "Quête de la Qibla",
-  "qiblaquest.wait": "Attends que ta réponse s'allume, puis appuie sur la bague.",
   "qiblaquest.wrong": "La Qibla est au {direction}.",
   "quran.cannot_recite": "Récitation indisponible",
   "quran.recite": "Réciter",
@@ -419,7 +415,11 @@
   "wudu.hands": "Laver les mains",
   "wudu.head": "Essuyer la tête et les oreilles",
   "wudu.mouth": "Rincer la bouche",
-  "wudu.nose": "Rincer le nez"
+  "wudu.nose": "Rincer le nez",
+  "builder.new_game": "Nouvelle partie",
+  "builder.exit": "Quitter",
+  "qiblaquest.new_game": "Nouvelle partie",
+  "qiblaquest.exit": "Quitter"
  },
  "transliteration": {},
  "translation": {}

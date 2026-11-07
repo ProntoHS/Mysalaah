@@ -43,10 +43,7 @@
   "builder.again": "Press to build it again.",
   "builder.done": "One rak'ah is complete. You chose {score} of {of} postures correctly first time.",
   "builder.question": "What comes next?",
-  "builder.right": "Yes. Next, {posture}.",
   "builder.title": "Build the Salaah",
-  "builder.wait": "Wait for a posture to glow, then press the ring.",
-  "builder.wrong": "Next, {posture}.",
   "button.connected": "Button connected",
   "button.disconnected": "Button not connected",
   "call.stop": "Stop",
@@ -246,7 +243,6 @@
   "qiblaquest.question": "Which direction is the Qibla from {city}?",
   "qiblaquest.right": "Yes. The Qibla is {direction}.",
   "qiblaquest.title": "Qibla Quest",
-  "qiblaquest.wait": "Wait for your answer to glow, then press the ring.",
   "qiblaquest.wrong": "The Qibla is {direction}.",
   "quran.cannot_recite": "No recitation available",
   "quran.recite": "Recite",
@@ -419,7 +415,11 @@
   "wudu.hands": "Wash Hands",
   "wudu.head": "Wipe Head & Ears",
   "wudu.mouth": "Rinse Mouth",
-  "wudu.nose": "Rinse Nose"
+  "wudu.nose": "Rinse Nose",
+  "builder.new_game": "New Game",
+  "builder.exit": "Exit",
+  "qiblaquest.new_game": "New Game",
+  "qiblaquest.exit": "Exit"
  },
  "transliteration": {},
  "translation": {
