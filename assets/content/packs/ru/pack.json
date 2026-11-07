@@ -421,6 +421,7 @@
   "builder.new_game": "Новая игра",
   "builder.exit": "Выйти",
   "qiblaquest.new_game": "Новая игра",
-  "qiblaquest.exit": "Выйти"
+  "qiblaquest.exit": "Выйти",
+  "corner.well_done": "Молодец!"
  }
 }

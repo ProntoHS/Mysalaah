@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import Fonts
 from .theme import palette
+from .winning import announce_if_won
 
 
 @dataclass(frozen=True)
@@ -217,13 +218,35 @@ class DirectionBox(QtWidgets.QAbstractButton):
 
 
 class MapPanel(QtWidgets.QFrame):
-    """Harry's map artwork with the current city and Makkah picked out on top."""
+    """Harry's map artwork with the current city and Makkah picked out on top.
+
+    THE MAP TURNS OVER AFTER DARK, like every other drawing on this mat. Harry: "the qibla
+    quest map is currently white background and black continents on dark theme but i want
+    this reversed... easier on the eye in their respective themes".
+
+    It is not a new convention, it is the one this app already has, and this screen was the
+    one place not following it. journey_jigsaw._image sets out where the line is drawn: ship
+    the light half and invert it for the dark screen works for LINE ART -- black ink on white
+    paper, where the inverse really is the night version of the same drawing -- and not for
+    pictures of real places, where it produces a photographic negative. A flat black
+    silhouette of the continents on white paper is line art by that test, so it inverts.
+
+    The reason it did not is mechanical rather than a decision: the postures go through
+    window.images, a PixmapCache that scales, inverts for the dark palette and caches both
+    versions. This loaded its own QPixmap and did all three itself, so it got none of them.
+    Asking the cache instead is the fix, and it is the same call the postures make.
+    """
+
+    ART = "children/qibla-quest.png"
 
     def __init__(self, window):
         super().__init__()
         self.win = window
         self.point = (0.5, 0.5)
-        self.map = QtGui.QPixmap(str(window.assets / "children" / "qibla-quest.png"))
+        self.path = window.assets / "children" / "qibla-quest.png"
+        #: Kept only to answer [ready]. What gets DRAWN comes from the cache below, so that the
+        #: theme is applied by the one piece of code that knows how.
+        self.map = QtGui.QPixmap(str(self.path))
         self.setMinimumHeight(window.px(280))
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                            QtWidgets.QSizePolicy.Policy.Expanding)
@@ -240,10 +263,10 @@ class MapPanel(QtWidgets.QFrame):
         c = palette()
         p = QtGui.QPainter(self)
         p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
         p.fillRect(self.rect(), QtGui.QColor(c.paper))
         if self.ready:
-            shown = self.map.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
-                                    Qt.TransformationMode.SmoothTransformation)
+            shown = self.win.images.get(self.path, self.size())
             left = (self.width() - shown.width()) // 2
             top = (self.height() - shown.height()) // 2
             p.drawPixmap(left, top, shown)
@@ -266,6 +289,7 @@ class QiblaQuestScreen(QtWidgets.QWidget):
     CYCLE = 1350
     SHOWN = 1900
     leave = Signal()
+    won = Signal()
 
     def __init__(self, window, shuffle=None):
         super().__init__()
@@ -448,6 +472,9 @@ class QiblaQuestScreen(QtWidgets.QWidget):
         self.new_button.setFont(self._font(self.new_button.text(), 28, True))
         self.exit_button.setFont(self._font(self.exit_button.text(), 28, True))
         self.show_boxes()
+        # No `changed` signal in this file -- retell IS what runs after
+        # every change, so the question is asked from here.
+        self._look_for_a_win()
 
     def show_boxes(self) -> None:
         game = self.game
@@ -504,3 +531,7 @@ class QiblaQuestScreen(QtWidgets.QWidget):
         self.stepper.stop()
         self.waiting.stop()
         super().hideEvent(event)
+
+    def _look_for_a_win(self) -> None:
+        """Runs after every change. See salaah/winning.py for why it is once and not always."""
+        announce_if_won(self, self.game.done)

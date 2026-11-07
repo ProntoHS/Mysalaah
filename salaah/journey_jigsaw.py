@@ -11,6 +11,7 @@ import random
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import Fonts
 from .theme import palette
+from .winning import announce_if_won
 
 
 class Rules:
@@ -86,6 +87,7 @@ class Screen(QtWidgets.QWidget):
 
     leave = Signal()
     changed = Signal()
+    won = Signal()
 
     #: The five pictures, in the order cycle_picture walks them, as they are named in
     #: assets/children. Written once: the loader and playable() both read this list, and
@@ -122,6 +124,7 @@ class Screen(QtWidgets.QWidget):
         self.companion = self._build_companion()
         self.follow_theme()
         self.changed.connect(self.update)
+        self.changed.connect(self._look_for_a_win)
         self.changed.connect(self._update_hint)
         self.start_again()
 
@@ -493,6 +496,6 @@ class Screen(QtWidgets.QWidget):
         self._lifecycle_timer.stop()
         super().hideEvent(event)
 
-
-
-
+    def _look_for_a_win(self) -> None:
+        """Runs after every change. See salaah/winning.py for why it is once and not always."""
+        announce_if_won(self, self.game.complete)

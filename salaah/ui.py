@@ -376,28 +376,52 @@ class Notice(QtWidgets.QDialog):
     prayer, and looking different from everything around it is the point.
     """
 
-    def __init__(self, parent, px, title: str):
+    def __init__(self, parent, px, title: str, on_theme: bool = False,
+                 centred: bool = False):
         super().__init__(parent)
+        #: A heading over its buttons rather than a message with buttons off to one side.
+        #: Harry asked for "a box 'Well Done' and 2 boxes underneath", and an ordinary notice
+        #: puts its heading top left and its buttons bottom right -- which is right for a
+        #: sentence somebody has to read and wrong for two words and two things to press.
+        self.centred = centred
         self.setObjectName("notice")
         self.setModal(True)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        # ON_THEME IS FOR THE GAMES AND NOTHING ELSE, and the default keeps every existing
+        # notice exactly as black as it was. The paragraph above is still right about a
+        # message concerning the app: an update, a shutdown, a call to prayer should not look
+        # like part of the screen behind it. Well Done is not one of those -- it is the game
+        # talking to a child who has just finished it -- and a box that stayed black through
+        # the light theme would be the same harshness Harry asked to have taken off the Qibla
+        # map, in the other direction. paper and ink are the one pair this palette guarantees
+        # to be opposites in both themes.
+        c = theme.palette()
+        back, fore = (c.paper, c.ink) if on_theme else ("#000000", "#FFFFFF")
+        soft = c.soft if on_theme else "#C9C9C9"
+        held = c.pressed if on_theme else "#333333"
+        button, lettering, pressed = ((c.paper, c.ink, c.pressed) if on_theme
+                                      else (BRICK, "#FFFFFF", "#8E342C"))
+        edge = f"border:{px(3)}px solid {fore};" if on_theme else "border:none;"
         self.setStyleSheet(f"""
-            QDialog#notice {{ background:#000000; border:{px(3)}px solid #FFFFFF;
+            QDialog#notice {{ background:{back}; border:{px(3)}px solid {fore};
                               border-radius:{px(20)}px; }}
-            QDialog#notice QLabel {{ color:#FFFFFF; background:transparent; }}
+            QDialog#notice QLabel {{ color:{fore}; background:transparent; }}
             QLabel#noticeTitle {{ font-size:{px(44)}px; font-weight:bold; }}
             QLabel#noticeText {{ font-size:{px(32)}px; }}
-            QLabel#noticeNotes {{ font-size:{px(24)}px; color:#C9C9C9; }}
-            QDialog#notice QPushButton {{ background:{BRICK}; color:#FFFFFF; border:none;
+            QLabel#noticeNotes {{ font-size:{px(24)}px; color:{soft}; }}
+            QDialog#notice QPushButton {{ background:{button}; color:{lettering}; {edge}
                                           border-radius:{px(8)}px; font-size:{px(28)}px;
                                           font-weight:bold;
                                           padding:{px(14)}px {px(34)}px; }}
-            QDialog#notice QPushButton:pressed {{ background:#8E342C; }}
+            QDialog#notice QPushButton:pressed {{ background:{pressed}; color:{lettering}; }}
             QDialog#notice QPushButton#quiet {{ background:transparent;
-                                                border:{px(2)}px solid #FFFFFF; }}
-            QDialog#notice QPushButton#quiet:pressed {{ background:#333333; }}
+                                                border:{px(2)}px solid {fore}; }}
+            QDialog#notice QPushButton#quiet:pressed {{ background:{held}; }}
         """)
-        self.least = px(620)          # never narrower than this, however short the message
+        #: Never narrower than this, however short the message. A centred box is two words
+        #: over two buttons and has no sentence to give room to, so it asks for less and
+        #: lets [settle] widen it if the buttons in some language need more.
+        self.least = px(400 if centred else 620)
 
         lay = QtWidgets.QVBoxLayout(self)
         lay.setContentsMargins(px(44), px(40), px(44), px(36))
@@ -405,6 +429,8 @@ class Notice(QtWidgets.QDialog):
 
         head = QtWidgets.QLabel(title)
         head.setObjectName("noticeTitle")
+        if centred:
+            head.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(head)
 
         self.text = QtWidgets.QLabel("")
@@ -422,6 +448,11 @@ class Notice(QtWidgets.QDialog):
         self.buttons = QtWidgets.QHBoxLayout()
         self.buttons.addStretch(1)
         lay.addLayout(self.buttons)
+        # A STRETCH THE OTHER SIDE TOO, which is the whole of what makes the row centred
+        # rather than pushed right. add_button appends, so everything added later lands
+        # between the two.
+        if centred:
+            self.buttons.addStretch(1)
 
     def say(self, message: str) -> None:
         """Show a message with nothing to press: the app is busy and about to say more."""
@@ -474,11 +505,20 @@ class Notice(QtWidgets.QDialog):
         if quiet:
             b.setObjectName("quiet")
         b.clicked.connect(does)
-        self.buttons.addWidget(b)
+        if self.centred:
+            # BEFORE THE TRAILING STRETCH, not after it. Appending would put every button
+            # past the stretch that is there to hold the row in the middle, which is the
+            # right-aligned row again with an extra gap in front of it.
+            self.buttons.insertWidget(self.buttons.count() - 1, b)
+        else:
+            self.buttons.addWidget(b)
         return b
 
     def clear_buttons(self) -> None:
-        while self.buttons.count() > 1:                  # the stretch at the front stays
+        # The stretch at the front stays, and on a centred box the one at the back does too:
+        # those two are the centring, not leftovers from the last set of buttons.
+        keep = 2 if self.centred else 1
+        while self.buttons.count() > keep:
             item = self.buttons.takeAt(1)
             w = item.widget()
             if w is not None:
@@ -493,7 +533,14 @@ class Notice(QtWidgets.QDialog):
         in a single pass gives a box that is too short, and the last line is cut in half.
         """
         parent = self.parentWidget()
-        wide = self.least if parent is None else max(self.least, int(parent.width() * 0.55))
+        # THE 55% FLOOR IS FOR A BOX WITH A SENTENCE IN IT. A centred box is a heading over
+        # its buttons and has no sentence to give room to, so 55% of a 1920 screen makes a
+        # 1056px box holding two words and two buttons, with a third of it empty. It takes
+        # `least` and whatever its buttons need, which the clause below still provides -- so
+        # a language whose New Game is long still gets the width, it just is not handed
+        # 1056px for nothing.
+        wide = (self.least if parent is None or self.centred
+                else max(self.least, int(parent.width() * 0.55)))
         # AND WIDE ENOUGH FOR ITS BUTTONS, which do not wrap their text.
         #
         # The width used to be 55% of the window and nothing else, fixed before adjustSize()
@@ -990,6 +1037,18 @@ class MainWindow(QtWidgets.QWidget):
         self.call = Call(volume=settings.volume)   # the call to prayer
         self.adhan = Adhan(self.assets)           # and the words of it, for the screen
         self.call_box = None                       # the TIME TO PRAY notice, while it is up
+        #: A player of its own for the praise phrase on a finished game, so that it cannot cut
+        #: the call to prayer short or be cut short by it -- the same reason Call is separate
+        #: from Recitation. It plays a whole short file and stops.
+        self.praise = Call(volume=settings.volume)
+        self.praise_box = None                     # the WELL DONE notice, while it is up
+        #: WHERE THE ROTATION LIVES. On the window rather than in a game, so the three phrases
+        #: take their turn across all six games rather than each game having its own count and
+        #: a child hearing the first phrase six times. It starts again at the first phrase when
+        #: the mat restarts, which is deliberate: a counter in settings.json would be written
+        #: to disk every time a child finished a puzzle, to remember something nobody can
+        #: notice having forgotten.
+        self.praise_at = 0
         self.called: dict[str, object] = {}        # prayer -> the day it was last called
 
         self.setWindowTitle("Salaah")
@@ -2883,6 +2942,10 @@ class MainWindow(QtWidgets.QWidget):
         if screen is None:
             screen = self.game_builders[which](self)
             screen.leave.connect(self.open_the_children_menu)
+            # Every game says so when it is won; what that LOOKS like is decided here, once,
+            # rather than six times. See salaah/winning.py.
+            if hasattr(screen, "won"):
+                screen.won.connect(lambda s=screen: self.say_well_done(s))
             self.corner_screen.addWidget(screen)
             self.games[which] = screen
         return screen
@@ -2899,6 +2962,76 @@ class MainWindow(QtWidgets.QWidget):
             self.side.show_game(companion)
         self.corner_screen.setCurrentWidget(screen)
         self.stack.setCurrentWidget(self.corner_page)
+
+    #: The praise phrases, played in turn. Found on disk rather than listed here, so that
+    #: adding a fourth recording to the folder is all it takes -- and so a mat that never
+    #: received them shows the box in silence instead of failing to show it.
+    PRAISE = "audio/praise"
+
+    def praise_sounds(self) -> list[Path]:
+        """The praise recordings, in a settled order so the turn-taking is the same each run."""
+        folder = self.assets / self.PRAISE
+        if not folder.is_dir():
+            return []
+        return sorted(p for p in folder.iterdir()
+                      if p.is_file() and p.suffix.lower() == ".mp3")
+
+    def next_praise(self) -> Path | None:
+        """The next phrase, and move the turn on.
+
+        IN TURN AND NOT AT RANDOM. Harry: "remember to play the next mp3 on the next one and
+        in turn so, each phrase will get its turn rather than random choice, and user will
+        hear all 3 at some point". Random would have been one line shorter and would let a
+        child hear the same phrase four times running, which is the thing he asked against.
+        """
+        sounds = self.praise_sounds()
+        if not sounds:
+            return None
+        chosen = sounds[self.praise_at % len(sounds)]
+        self.praise_at = (self.praise_at + 1) % len(sounds)
+        return chosen
+
+    def say_well_done(self, screen) -> None:
+        """The box on the big screen when a game is finished, and the phrase that goes with it.
+
+        Harry: "there should be a box 'Well Done' and 2 boxes underneath 'Play again' & 'Exit'
+        which will take user back to game menu". New Game rather than Play again because every
+        pack already carries those words for the other games and nothing new had to be
+        written in nine languages to say them.
+
+        Nothing to read between the heading and the buttons: Notice.choose takes an empty
+        message and leaves the box as a heading and the things to press, which is what the
+        shutdown box does. The score stays where it already is, on the 7in panel behind.
+        """
+        if screen is not self.game_in_front or self.asleep:
+            # Won off-screen, which a test can do and a reshuffle might: no box for a screen
+            # nobody is looking at, and nothing that makes a noise on a sleeping mat.
+            return
+        self.let_go_of_the_praise_box()
+        box = Notice(self, self.px, self.t("corner.well_done"), on_theme=True, centred=True)
+        box.choose("", ((self.t("mosque_maze.new_game"),
+                         lambda: self.play_a_game_again(screen), False),
+                        (self.t("mosque_maze.exit"), self.leave_a_finished_game, True)))
+        self.praise_box = box
+        box.show()
+        sound = self.next_praise()
+        if sound is not None:
+            self.praise.volume = self.settings.volume
+            self.praise.play(sound)
+
+    def let_go_of_the_praise_box(self) -> None:
+        box, self.praise_box = self.praise_box, None
+        if box is not None:
+            box.close()
+            box.deleteLater()
+
+    def play_a_game_again(self, screen) -> None:
+        self.let_go_of_the_praise_box()
+        screen.start_again()
+
+    def leave_a_finished_game(self) -> None:
+        self.let_go_of_the_praise_box()
+        self.open_the_children_menu()
 
     @property
     def game_in_front(self):

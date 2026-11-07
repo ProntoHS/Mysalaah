@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import Fonts
 from .theme import palette
+from .winning import announce_if_won
 
 PILLARS = ("faith", "prayer", "charity", "fasting", "hajj")
 
@@ -432,6 +433,7 @@ class Screen(QtWidgets.QWidget):
     SHOWN = 1050
     leave = Signal()
     changed = Signal()
+    won = Signal()
 
     def __init__(self, window, shuffle=None):
         super().__init__()
@@ -452,6 +454,7 @@ class Screen(QtWidgets.QWidget):
         self._advance.timeout.connect(self._next)
         self.companion = self._build_companion()
         self.changed.connect(self.board.update)
+        self.changed.connect(self._look_for_a_win)
         self.changed.connect(self.retell)
         self.follow_theme()
         self.start_again()
@@ -672,4 +675,6 @@ class Screen(QtWidgets.QWidget):
         self._advance.stop()
         super().hideEvent(event)
 
-
+    def _look_for_a_win(self) -> None:
+        """Runs after every change. See salaah/winning.py for why it is once and not always."""
+        announce_if_won(self, self.game.done)

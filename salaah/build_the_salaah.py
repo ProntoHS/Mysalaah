@@ -33,6 +33,7 @@ import random
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import Fonts
 from .theme import palette
+from .winning import announce_if_won
 
 #: The broad postures of one rak'ah, in the order they are performed. FIXED, DELIBERATELY:
 #: the order is the whole lesson, which is why the slots are numbered and the tray is what
@@ -416,6 +417,7 @@ class BuildTheSalaahScreen(QtWidgets.QWidget):
     #: How long a wrongly dropped slot stays outlined before it goes quiet again.
     SHOWN = 900
     leave = Signal()
+    won = Signal()
 
     def __init__(self, window, shuffle=None):
         super().__init__()
@@ -579,6 +581,9 @@ class BuildTheSalaahScreen(QtWidgets.QWidget):
         self.new_button.setFont(self._font(self.new_button.text(), 28, True))
         self.exit_button.setFont(self._font(self.exit_button.text(), 28, True))
         self.board.update()
+        # No `changed` signal in this file -- retell IS what runs after
+        # every change, so the question is asked from here.
+        self._look_for_a_win()
 
     def follow_theme(self) -> None:
         c = palette()
@@ -610,3 +615,7 @@ class BuildTheSalaahScreen(QtWidgets.QWidget):
     def hideEvent(self, event):
         self.clearing.stop()
         super().hideEvent(event)
+
+    def _look_for_a_win(self) -> None:
+        """Runs after every change. See salaah/winning.py for why it is once and not always."""
+        announce_if_won(self, self.game.done)

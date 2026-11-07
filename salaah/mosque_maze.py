@@ -9,6 +9,7 @@ from __future__ import annotations
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import Fonts
 from .theme import palette
+from .winning import announce_if_won
 
 
 class Rules:
@@ -249,6 +250,7 @@ class Screen(QtWidgets.QWidget):
 
     leave = Signal()
     changed = Signal()
+    won = Signal()
 
     def __init__(self, window):
         super().__init__()
@@ -270,6 +272,7 @@ class Screen(QtWidgets.QWidget):
 
         self.companion = self._build_companion()
         self.changed.connect(self.update)
+        self.changed.connect(self._look_for_a_win)
         self.changed.connect(self._update_hint)
         self.changed.connect(self.retell)
         self.follow_theme()
@@ -605,3 +608,7 @@ class Screen(QtWidgets.QWidget):
     def hideEvent(self, event):
         self._move_timer.stop()
         super().hideEvent(event)
+
+    def _look_for_a_win(self) -> None:
+        """Runs after every change. See salaah/winning.py for why it is once and not always."""
+        announce_if_won(self, self.game.finished)

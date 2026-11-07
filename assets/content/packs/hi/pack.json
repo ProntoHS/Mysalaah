@@ -421,6 +421,7 @@
   "builder.new_game": "नया खेल",
   "builder.exit": "बाहर",
   "qiblaquest.new_game": "नया खेल",
-  "qiblaquest.exit": "बाहर"
+  "qiblaquest.exit": "बाहर",
+  "corner.well_done": "शाबाश!"
  }
 }

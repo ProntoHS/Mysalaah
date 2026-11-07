@@ -421,6 +421,7 @@
   "builder.new_game": "Novo jogo",
   "builder.exit": "Sair",
   "qiblaquest.new_game": "Novo jogo",
-  "qiblaquest.exit": "Sair"
+  "qiblaquest.exit": "Sair",
+  "corner.well_done": "Muito bem!"
  }
 }

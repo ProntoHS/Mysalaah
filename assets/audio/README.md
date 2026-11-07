@@ -41,6 +41,39 @@ containing a digit — which is no check at all.
 
 **`kalima/` (6):** `audio/kalima/1.mp3`, `audio/kalima/2.mp3`, `audio/kalima/3.mp3`, `audio/kalima/4.mp3`, `audio/kalima/5.mp3`, `audio/kalima/6.mp3`
 
+## Generated voice — the 3 in `praise/`
+
+**`praise/` (3):** `audio/praise/1.mp3`, `audio/praise/2.mp3`, `audio/praise/3.mp3`
+
+The same source and the same terms as the 54 above: Harry supplied them in November 2026 as
+**ElevenLabs (elevenlabs.io) on a paid tier**, voice **Fahad**, on a **v2-generation model**.
+Everything the section above says about that licence, and about the attribution clause still
+being unchecked, applies to these three without change.
+
+They are the three praise phrases **Alhamdulillah, SubhanAllah and MashaAllah**, played in
+turn when a child finishes a game, so each gets its turn rather than being picked at random.
+
+**WHICH FILE HOLDS WHICH PHRASE IS NOT RECORDED HERE, BECAUSE IT IS NOT KNOWN.** The files
+arrived named by the time they were generated and nobody has identified them one by one since.
+They are numbered rather than named for that reason: `praise/1.mp3` claims only to be one of
+the three. Harry, asked: *"doesnt really matter what file name is aslong as they are tagged
+and rotated"* -- which is true of the behaviour, since any of the three suits a finished game
+and all three are used. It stops being true the moment anything wants a particular phrase at a
+particular moment, and that is when somebody has to listen to them and write it down here.
+
+What IS known about them, by measurement rather than by ear: they are three different
+recordings and not the same clip attached twice -- their loudness envelopes correlate at 0.12,
+0.31 and 0.49 against each other, where the same recording at a different bitrate correlates
+at 1.0000. Each was re-encoded from ~220kbps to 96kbps mono on the way in, 120KB down to 54KB,
+and each matches its source at 1.0000.
+
+Two things about these three are not licensing questions. **Whether a synthesised voice should
+say these words at all** is the same question as for the 54 du'as, and unanswered in the same
+way. And **whether praise phrases belong as a reward for finishing a puzzle** is a question
+this file cannot settle: it was put to Harry, who said *"they are indeed praise phrases and
+wouldnt you praise a child / someone upon completion of a task"*. That is his decision,
+recorded as his decision. It has not been reviewed by anyone qualified, as nothing here has.
+
 ## Downloaded — `azaan.mp3` and `azaan-fajr.mp3`
 
 **These two are the open problem, and they are the two the guard still skips by name.**

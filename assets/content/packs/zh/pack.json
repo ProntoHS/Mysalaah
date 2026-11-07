@@ -421,6 +421,7 @@
   "builder.new_game": "新游戏",
   "builder.exit": "退出",
   "qiblaquest.new_game": "新游戏",
-  "qiblaquest.exit": "退出"
+  "qiblaquest.exit": "退出",
+  "corner.well_done": "做得好！"
  }
 }

@@ -421,6 +421,7 @@
   "builder.new_game": "Nueva partida",
   "builder.exit": "Salir",
   "qiblaquest.new_game": "Nueva partida",
-  "qiblaquest.exit": "Salir"
+  "qiblaquest.exit": "Salir",
+  "corner.well_done": "¡Bien hecho!"
  }
 }

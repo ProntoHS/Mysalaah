@@ -419,7 +419,8 @@
   "builder.new_game": "Nouvelle partie",
   "builder.exit": "Quitter",
   "qiblaquest.new_game": "Nouvelle partie",
-  "qiblaquest.exit": "Quitter"
+  "qiblaquest.exit": "Quitter",
+  "corner.well_done": "Bravo !"
  },
  "transliteration": {},
  "translation": {}

@@ -419,7 +419,8 @@
   "builder.new_game": "New Game",
   "builder.exit": "Exit",
   "qiblaquest.new_game": "New Game",
-  "qiblaquest.exit": "Exit"
+  "qiblaquest.exit": "Exit",
+  "corner.well_done": "Well Done!"
  },
  "transliteration": {},
  "translation": {
