@@ -43,6 +43,12 @@ from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 BOX_MOST = 400
 BOX_LEAST = 240
 BOX_GAP = 24
+# HOW MUCH MORE AIR GOES BETWEEN THE ROWS THAN BETWEEN THE COLUMNS. Harry: "in the radio
+# section with the 10 icons, there is only a thin space separating top row with bottom row,
+# make space bigger by 300%" -- so four times BOX_GAP, down only. Sideways it stays at
+# BOX_GAP, because the width arithmetic in across() and the square's side are both built on
+# that number and the columns did not need moving.
+ROW_GAP_TIMES = 4
 # What is kept clear down each side of the block, at 1080p. It was 20 while there were four
 # squares to a row and they were capped at 400, so the block came nowhere near the edges and
 # the number never had to be right. Five to a row is decided by the width, so it does: at 20
@@ -338,7 +344,8 @@ class RadioScreen(QtWidgets.QWidget):
         held.setContentsMargins(window.px(BOX_SIDE_ROOM), window.px(20),
                                 window.px(BOX_SIDE_ROOM), window.px(20))
         self.rows = QtWidgets.QGridLayout()
-        self.rows.setSpacing(window.px(BOX_GAP))
+        self.rows.setHorizontalSpacing(window.px(BOX_GAP))
+        self.rows.setVerticalSpacing(window.px(BOX_GAP * ROW_GAP_TIMES))
         self.rows.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         held.addStretch(1)
         held.addLayout(self.rows)

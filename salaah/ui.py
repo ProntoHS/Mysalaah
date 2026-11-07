@@ -93,7 +93,10 @@ BANNER_RULE = 2
 #: Main screen button where there is no cog. At Harry's asking: the slider's right-hand end sat
 #: hard against the next thing along, and on a bar where everything else has air around it that
 #: reads as the two being one control.
-BANNER_GAP = 20
+#: The air between the map pin and the place name. Small on purpose: see make_banner. The
+#: pin is trimmed of its transparent columns first, so this is the whole of the gap the
+#: layout adds -- what is left beyond it is the text label's own left bearing.
+PIN_GAP = 2
 # How tall the black strip across the top is, at 1080p. Fixed rather than left to whatever is
 # in it, because what is in it differs: the screens with a Main screen button came out five
 # pixels taller than the front door and the mosque, and going between them the strip visibly
@@ -242,6 +245,21 @@ PIN_HOLE = (0.3565, 0.1864)      # how far down its middle sits, and its radius
 PIN_WIDE = 676 / 892             # the drawing is taller than it is wide
 
 
+def trim_sides(pix: QtGui.QPixmap) -> QtGui.QPixmap:
+    """The same picture with its fully transparent left and right columns cut off.
+
+    Only the sides: the height is what sets a pin's size beside lettering, and trimming the
+    top and bottom as well would make it grow and shrink as the shape changed.
+    """
+    image = pix.toImage().convertToFormat(QtGui.QImage.Format.Format_ARGB32)
+    ink = [x for x in range(image.width())
+           if any(image.pixelColor(x, y).alpha() > 8 for y in range(image.height()))]
+    if not ink or (ink[0] == 0 and ink[-1] == image.width() - 1):
+        return pix
+    return QtGui.QPixmap.fromImage(
+        image.copy(ink[0], 0, ink[-1] - ink[0] + 1, image.height()))
+
+
 def map_pin(size: int, colour: str) -> QtGui.QPixmap:
     """Harry's map pin, drawn to fit a [size] by [size] box and filled with [colour].
 
@@ -376,52 +394,35 @@ class Notice(QtWidgets.QDialog):
     prayer, and looking different from everything around it is the point.
     """
 
-    def __init__(self, parent, px, title: str, on_theme: bool = False,
-                 centred: bool = False):
+    def __init__(self, parent, px, title: str):
         super().__init__(parent)
-        #: A heading over its buttons rather than a message with buttons off to one side.
-        #: Harry asked for "a box 'Well Done' and 2 boxes underneath", and an ordinary notice
-        #: puts its heading top left and its buttons bottom right -- which is right for a
-        #: sentence somebody has to read and wrong for two words and two things to press.
-        self.centred = centred
         self.setObjectName("notice")
         self.setModal(True)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        # ON_THEME IS FOR THE GAMES AND NOTHING ELSE, and the default keeps every existing
-        # notice exactly as black as it was. The paragraph above is still right about a
-        # message concerning the app: an update, a shutdown, a call to prayer should not look
-        # like part of the screen behind it. Well Done is not one of those -- it is the game
-        # talking to a child who has just finished it -- and a box that stayed black through
-        # the light theme would be the same harshness Harry asked to have taken off the Qibla
-        # map, in the other direction. paper and ink are the one pair this palette guarantees
-        # to be opposites in both themes.
-        c = theme.palette()
-        back, fore = (c.paper, c.ink) if on_theme else ("#000000", "#FFFFFF")
-        soft = c.soft if on_theme else "#C9C9C9"
-        held = c.pressed if on_theme else "#333333"
-        button, lettering, pressed = ((c.paper, c.ink, c.pressed) if on_theme
-                                      else (BRICK, "#FFFFFF", "#8E342C"))
-        edge = f"border:{px(3)}px solid {fore};" if on_theme else "border:none;"
+        # BLACK IN BOTH THEMES, AND ONE SHAPE FOR ALL THREE BOXES. 2.13 gave the Well Done
+        # box a themed, centred variant of its own on the grounds that a reward is part of
+        # the game rather than a message about the app. Harry looked at it and asked for the
+        # opposite: "the 'well done' & 'update' pop-up boxes should be the same as the
+        # 'shutdown' box". So the variant is gone rather than left behind a default nobody
+        # passes -- three boxes that look alike are easier to recognise across a room than
+        # three that each argue their own case, and he is the one looking at the mat.
         self.setStyleSheet(f"""
-            QDialog#notice {{ background:{back}; border:{px(3)}px solid {fore};
+            QDialog#notice {{ background:#000000; border:{px(3)}px solid #FFFFFF;
                               border-radius:{px(20)}px; }}
-            QDialog#notice QLabel {{ color:{fore}; background:transparent; }}
+            QDialog#notice QLabel {{ color:#FFFFFF; background:transparent; }}
             QLabel#noticeTitle {{ font-size:{px(44)}px; font-weight:bold; }}
             QLabel#noticeText {{ font-size:{px(32)}px; }}
-            QLabel#noticeNotes {{ font-size:{px(24)}px; color:{soft}; }}
-            QDialog#notice QPushButton {{ background:{button}; color:{lettering}; {edge}
+            QLabel#noticeNotes {{ font-size:{px(24)}px; color:#C9C9C9; }}
+            QDialog#notice QPushButton {{ background:{BRICK}; color:#FFFFFF; border:none;
                                           border-radius:{px(8)}px; font-size:{px(28)}px;
                                           font-weight:bold;
                                           padding:{px(14)}px {px(34)}px; }}
-            QDialog#notice QPushButton:pressed {{ background:{pressed}; color:{lettering}; }}
+            QDialog#notice QPushButton:pressed {{ background:#8E342C; }}
             QDialog#notice QPushButton#quiet {{ background:transparent;
-                                                border:{px(2)}px solid {fore}; }}
-            QDialog#notice QPushButton#quiet:pressed {{ background:{held}; }}
+                                                border:{px(2)}px solid #FFFFFF; }}
+            QDialog#notice QPushButton#quiet:pressed {{ background:#333333; }}
         """)
-        #: Never narrower than this, however short the message. A centred box is two words
-        #: over two buttons and has no sentence to give room to, so it asks for less and
-        #: lets [settle] widen it if the buttons in some language need more.
-        self.least = px(400 if centred else 620)
+        self.least = px(620)          # never narrower than this, however short the message
 
         lay = QtWidgets.QVBoxLayout(self)
         lay.setContentsMargins(px(44), px(40), px(44), px(36))
@@ -429,8 +430,6 @@ class Notice(QtWidgets.QDialog):
 
         head = QtWidgets.QLabel(title)
         head.setObjectName("noticeTitle")
-        if centred:
-            head.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(head)
 
         self.text = QtWidgets.QLabel("")
@@ -448,11 +447,6 @@ class Notice(QtWidgets.QDialog):
         self.buttons = QtWidgets.QHBoxLayout()
         self.buttons.addStretch(1)
         lay.addLayout(self.buttons)
-        # A STRETCH THE OTHER SIDE TOO, which is the whole of what makes the row centred
-        # rather than pushed right. add_button appends, so everything added later lands
-        # between the two.
-        if centred:
-            self.buttons.addStretch(1)
 
     def say(self, message: str) -> None:
         """Show a message with nothing to press: the app is busy and about to say more."""
@@ -505,20 +499,11 @@ class Notice(QtWidgets.QDialog):
         if quiet:
             b.setObjectName("quiet")
         b.clicked.connect(does)
-        if self.centred:
-            # BEFORE THE TRAILING STRETCH, not after it. Appending would put every button
-            # past the stretch that is there to hold the row in the middle, which is the
-            # right-aligned row again with an extra gap in front of it.
-            self.buttons.insertWidget(self.buttons.count() - 1, b)
-        else:
-            self.buttons.addWidget(b)
+        self.buttons.addWidget(b)
         return b
 
     def clear_buttons(self) -> None:
-        # The stretch at the front stays, and on a centred box the one at the back does too:
-        # those two are the centring, not leftovers from the last set of buttons.
-        keep = 2 if self.centred else 1
-        while self.buttons.count() > keep:
+        while self.buttons.count() > 1:                  # the stretch at the front stays
             item = self.buttons.takeAt(1)
             w = item.widget()
             if w is not None:
@@ -533,14 +518,7 @@ class Notice(QtWidgets.QDialog):
         in a single pass gives a box that is too short, and the last line is cut in half.
         """
         parent = self.parentWidget()
-        # THE 55% FLOOR IS FOR A BOX WITH A SENTENCE IN IT. A centred box is a heading over
-        # its buttons and has no sentence to give room to, so 55% of a 1920 screen makes a
-        # 1056px box holding two words and two buttons, with a third of it empty. It takes
-        # `least` and whatever its buttons need, which the clause below still provides -- so
-        # a language whose New Game is long still gets the width, it just is not handed
-        # 1056px for nothing.
-        wide = (self.least if parent is None or self.centred
-                else max(self.least, int(parent.width() * 0.55)))
+        wide = self.least if parent is None else max(self.least, int(parent.width() * 0.55))
         # AND WIDE ENOUGH FOR ITS BUTTONS, which do not wrap their text.
         #
         # The width used to be 55% of the window and nothing else, fixed before adjustSize()
@@ -1977,11 +1955,14 @@ class MainWindow(QtWidgets.QWidget):
                                     font-size:{px(52)}px; font-weight:bold; }}
             /* A step bigger again, and square-ish: it sits in the corner of the screen now
                with nothing beside it, where before it was a block on the end of a row. */
+            /* A QUARTER BIGGER AGAIN at Harry's asking: "increase update button box & text
+               size by 25%". Every number in the rule, so the box grows with the lettering
+               rather than the words outgrowing their padding. 26 -> 32, 88 -> 110. */
             QPushButton#updateButton {{ background:{BRICK}; color:white; border:none;
-                                        font-size:{px(26)}px; font-weight:bold;
-                                        padding:{px(10)}px {px(34)}px;
-                                        border-radius:{px(8)}px;
-                                        min-height:{px(88)}px; min-width:{px(88)}px; }}
+                                        font-size:{px(32)}px; font-weight:bold;
+                                        padding:{px(13)}px {px(43)}px;
+                                        border-radius:{px(10)}px;
+                                        min-height:{px(110)}px; min-width:{px(110)}px; }}
             QPushButton#updateButton:pressed {{ background:#8E342C; }}
             QPushButton#updateButton:disabled {{ background:#8E342C; color:#E3BDB9; }}
             QWidget#knowledge {{ background:{c.paper}; }}
@@ -2398,20 +2379,33 @@ class MainWindow(QtWidgets.QWidget):
         # the rich text: no file to find, and it is drawn at whatever size the screen is.
         pin = QtWidgets.QLabel()
         pin.setObjectName("bannerPin")
-        pin.setPixmap(map_pin(self.px(30), strip.lapis))
+        # TRIMMED OF ITS DEAD COLUMNS. map_pin draws into a square, and the pin shape is
+        # taller than it is wide -- three transparent pixels down each side at this size. The
+        # label is as wide as the pixmap, so those three sat between the pin and the place
+        # name and no layout spacing could take them away: the gap measured 12px when 3 of
+        # those were the spacing, 3 the dead pixmap and 6 the label's own bearing.
+        pin.setPixmap(trim_sides(map_pin(self.px(30), strip.lapis)))
         row.addWidget(pin, 0, Qt.AlignmentFlag.AlignVCenter)
-        row.addSpacing(self.px(8))
+        # TIGHT TO THE PIN. Harry: "in top banner, narrow the gap between location icon and
+        # location text". The pin and the place name are one thing being read, not two.
+        row.addSpacing(self.px(PIN_GAP))
         label = QtWidgets.QLabel()
         label.setObjectName("bannerText")
         label.setTextFormat(Qt.TextFormat.RichText)
         self.banner_labels.append(label)
         row.addWidget(label)
+        # A STRETCH EITHER SIDE OF THE SLIDER, which is the whole of what centres it. Harry:
+        # "centre volume slider equally between the end of isha time and beginning of Main
+        # screen button". Two equal stretches do that by arithmetic rather than by a number
+        # somebody has to keep right: whatever room is left between the end of the times and
+        # whatever comes next is halved, on any screen width and in any language.
+        #
+        # IT REPLACES THE FIXED GAP ADDED IN 2.09, which was the answer to "make a little
+        # space between main menu button and volume slider". There is more space there now,
+        # not less, and the same amount on the other side.
         row.addStretch(1)
         row.addLayout(self.volume_slider(dark=True))
-        # AFTER THE SLIDER, so it holds whatever comes next off it -- the cog on most screens
-        # and the Main screen button where there is no cog. Put before the button instead, the
-        # screens that have a cog would still have the slider touching it.
-        row.addSpacing(self.px(BANNER_GAP))
+        row.addStretch(1)
         if gear and self.needs_a_gear:
             # Red, the colour everything you press is in: Menu, Main screen, the leave buttons.
             cog = GearButton(self.px(52), QtGui.QColor(BRICK))
@@ -3008,7 +3002,11 @@ class MainWindow(QtWidgets.QWidget):
             # nobody is looking at, and nothing that makes a noise on a sleeping mat.
             return
         self.let_go_of_the_praise_box()
-        box = Notice(self, self.px, self.t("corner.well_done"), on_theme=True, centred=True)
+        # THE SHUTDOWN BOX'S SIZE, at Harry's asking, and the same reasoning applies: it is
+        # pressed by a child from across a mat. [times] scales everything Notice draws --
+        # border, margins, lettering, buttons -- through the px it is handed.
+        big = (lambda n: self.px(n * self.SHUTDOWN_TIMES))
+        box = Notice(self, big, self.t("corner.well_done"))
         box.choose("", ((self.t("mosque_maze.new_game"),
                          lambda: self.play_a_game_again(screen), False),
                         (self.t("mosque_maze.exit"), self.leave_a_finished_game, True)))
@@ -4797,10 +4795,13 @@ class MainWindow(QtWidgets.QWidget):
             self.settings.theme if self.settings.theme in theme.MODES else "auto", self.set_theme)
         left.addWidget(self.theme_picker)
 
-        section(left, "settings.cursor")
-        left.addLayout(self.switch_row(self.settings.cursor,
-                                       lambda yes: self.set_cursor("1" if yes else "0"),
-                                       "cursorSwitch"))
+        # THE MOUSE POINTER ROW WAS HERE and Harry asked for it to go: "In settings page,
+        # remove mouse pointer text & option." The pointer itself is unchanged -- settings.py
+        # still carries `cursor` and apply_cursor still honours it on every start -- so his
+        # mat looks exactly as it does today. What has gone is the way to change it from the
+        # page, which means that like sleep_after it is now only reachable by editing
+        # ~/.config/salaah/settings.json. Said plainly in the release note rather than left
+        # for somebody to discover.
 
         # Who the words on the mat belong to. Its own row, named plainly, and NOT inside an
         # "about" box: the publishers whose translations these are asked how they would be
@@ -4974,7 +4975,8 @@ class MainWindow(QtWidgets.QWidget):
         from .update import DEFAULT_URL
         return self.settings.update_url or DEFAULT_URL
 
-    def say(self, message: str, title: str = "update.title", times: float = 1.0) -> None:
+    def say(self, message: str, title: str = "update.title",
+            times: float = SHUTDOWN_TIMES) -> None:
         """Put a message in front of the person, in a box they cannot overlook.
 
         The whole business of updating happens on this thread, so nothing repaints while the
