@@ -44,18 +44,29 @@ class Credit:
         return " · ".join(both) if both else ""
 
     def line(self) -> str:
-        """One line for the Sources page."""
+        """One line for the Sources page: whose it is, which edition, and where from.
+
+        FOUR THINGS AND NOT SIX, since 2.18. Harry, 8 November 2026, looking at the page on
+        the mat: "there's a lot of information that is not relevant for user to see especially
+        reasoning and internal thoughts. keep it simple, where it comes from, date, version
+        number". He is right, and the worst of it was mine.
+
+        What went: the `via` prose. It reads "quranenc.com official XML export, v1.1.2" and
+        is a note to whoever next imports the text, not to the person holding the mat -- and
+        where it carried a version it said it twice, once in the prose and once in the proper
+        field underneath. It stays in SOURCE.json, where it is a record; it is simply not
+        drawn on a page a child's parent reads.
+
+        What stays is exactly what Harry asked for and what the permission requires: who the
+        translator is, who published it, the version, the date, and the address it came from.
+        """
         said = self.who or "source not recorded"
-        if self.via and self.where:
-            said += f" ({self.via}, {self.where})"
-        elif self.via:
-            said += f" (via {self.via})"
-        elif self.where:
-            said += f" ({self.where})"
         if self.version:
-            said += f", version {self.version}"
+            said += f" — version {self.version}"
             if self.updated:
                 said += f" of {self.updated}"
+        if self.where:
+            said += f" — {self.where}"
         return said
 
     def review_line(self) -> str:

@@ -176,6 +176,25 @@ ISTIGHFAR = "istighfar"
 AFTER_FARDH = (ISTIGHFAR, "ayat_kursi")
 
 
+def sip_deleted(widget) -> bool:
+    """Whether the C++ object behind a Python widget has already been destroyed.
+
+    ASKED BY TOUCHING IT, not by importing sip or shiboken. This app runs on PyQt6 and
+    PySide6 through salaah/qt.py, and the two spell this differently -- sip.isdeleted against
+    shiboken6.isValid, with the sense reversed. Reading a property that every QObject has and
+    catching the RuntimeError the dead one raises works the same on both, costs nothing on
+    the live ones, and keeps the shim from growing a binding-specific import.
+
+    Needed because this app keeps lists of widgets that outlive the widgets: every banner
+    ever built stays in self.banners, including those whose page has been deleteLater'd.
+    """
+    try:
+        widget.objectName()
+    except RuntimeError:
+        return True
+    return False
+
+
 def no_focus(w: QtWidgets.QWidget) -> QtWidgets.QWidget:
     """Buttons must not steal Space/Enter from the prayer button."""
     w.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -1116,8 +1135,22 @@ class MainWindow(QtWidgets.QWidget):
         from the other end. The height follows the window's SHAPE, so it belongs on the resize
         and not on a scale change that a shape change need not cause.
         """
+        # THE DEAD ONES ARE DROPPED FIRST, and this was a crash waiting for somebody to
+        # resize the window at the wrong moment. Both lists only ever grow: every banner ever
+        # built is still in self.banners, including those belonging to pages that have since
+        # been removed from the stack and deleteLater'd. Calling setFixedHeight on one of
+        # those raises "wrapped C/C++ object of type QWidget has been deleted" and takes the
+        # mat down.
+        #
+        # It had never fired because the only caller was the resize, and the one page that
+        # rebuilds itself -- Sources -- is not usually opened twice with a resize in between.
+        # Calling this from make_banner so that a freshly built banner is sized at once made
+        # it fire on the second opening, every time. The fix belongs here either way: a list
+        # of widgets that outlives the widgets needs clearing out, whoever walks it.
+        alive = [w for w in getattr(self, "banners", ()) if not sip_deleted(w)]
+        self.banners = alive
         tall = self.banner_height()
-        for banner in getattr(self, "banners", ()):
+        for banner in alive:
             banner.setFixedHeight(tall)
         # And the Main screen button, which is square and FILLS the strip. It is sized from the
         # same number, so it has to follow the same resize.
@@ -1131,7 +1164,9 @@ class MainWindow(QtWidgets.QWidget):
         # other's back the button silently goes short again, which is what the test here
         # measures, in painted pixels.
         side = max(1, tall - self.px(BANNER_RULE))
-        for home in getattr(self, "banner_homes", ()):
+        self.banner_homes = [w for w in getattr(self, "banner_homes", ())
+                             if not sip_deleted(w)]
+        for home in self.banner_homes:
             home.setFixedSize(side, side)
 
     def restyle(self) -> None:
@@ -2435,6 +2470,16 @@ class MainWindow(QtWidgets.QWidget):
             # one widget along.
             self.banner_homes = getattr(self, "banner_homes", [])
             self.banner_homes.append(back)
+            # AND SIZED NOW AS WELL AS ON THE NEXT RESIZE, which is the half that was
+            # missing. set_banner_heights() squares these buttons, and it runs on a resize --
+            # fine for every banner built while the window is being laid out, and no use at
+            # all to a banner built later. The Sources page builds itself fresh every time it
+            # is opened, so its button was never squared: 97x72 against the 118x118 on every
+            # other page. Harry spotted it as "the top banner is different to the rest of the
+            # app", and when asked which part, "the only difference is the size of the Main
+            # screen button". He was right, and I had measured the banner itself twice and
+            # called them identical, because I compared the strip and not what was in it.
+            self.set_banner_heights()
             row.addWidget(back, 0, Qt.AlignmentFlag.AlignVCenter)
         # Filled in now rather than at the next tick: see write_the_times. A strip built
         # between ticks -- which is every strip but the mosque's -- would otherwise come up
@@ -4442,11 +4487,18 @@ class MainWindow(QtWidgets.QWidget):
             who.setObjectName("sourceWho")
             who.setWordWrap(True)
             rows.addWidget(who)
-            if credit.note:
-                note = QtWidgets.QLabel(credit.note)
-                note.setObjectName("sourceNote")
-                note.setWordWrap(True)
-                rows.addWidget(note)
+            # THE NOTE IS NOT DRAWN HERE ANY MORE, and taking it out is the point of the
+            # change. `note` in a SOURCE.json is a record for whoever next imports that text
+            # -- why it came through the API rather than an export, what was tried, what an
+            # earlier note got wrong. On the mat it came out as paragraphs of my own
+            # reasoning in the middle of a credits page: the French entry ran to nine lines
+            # quoting an email and correcting itself in capitals. Harry, reading it on the
+            # glass: "a lot of information that is not relevant for user to see especially
+            # reasoning and internal thoughts."
+            #
+            # Nothing is lost. The notes stay in the files, which is where tools/check_quran
+            # .py and the next importer read them; they are simply not shown to the person
+            # using the mat, who is owed the attribution and not the working out.
             rows.addSpacing(self.px(12))
 
         rows.addSpacing(self.px(8))
