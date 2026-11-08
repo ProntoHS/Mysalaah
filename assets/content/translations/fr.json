@@ -26,12 +26,12 @@
     "qunut_2": "written for this app (draft, needs review)",
     "dhikr_salam": "written for this app (draft, needs review)",
     "dhikr_tahlil": "written for this app (draft, needs review)",
-    "fatiha": "Kazimirski 1840 (Wikisource)",
+    "fatiha": "Muhammad Hamidullah (quranenc.com official API v1, captured 2026-11-07)",
     "ayat_kursi": "Kazimirski 1840 (Wikisource)",
-    "kawthar": "Kazimirski 1840 (to check against the printed text)",
-    "ikhlas": "Kazimirski 1840 (to check against the printed text)",
-    "falaq": "Kazimirski 1840 (to check against the printed text)",
-    "nas": "Kazimirski 1840 (to check against the printed text)"
+    "kawthar": "Muhammad Hamidullah (quranenc.com official API v1, captured 2026-11-07)",
+    "ikhlas": "Muhammad Hamidullah (quranenc.com official API v1, captured 2026-11-07)",
+    "falaq": "Muhammad Hamidullah (quranenc.com official API v1, captured 2026-11-07)",
+    "nas": "Muhammad Hamidullah (quranenc.com official API v1, captured 2026-11-07)"
   },
   "intention": "J'ai l'intention d'accomplir {n} rak'ats {kind} de {prayer}",
   "kinds": {
@@ -78,28 +78,28 @@
       "et il est capable de toute chose."
     ],
     "falaq": [
-      "Au nom du Dieu clément et miséricordieux.",
-      "Dis : Je cherche un refuge auprès du Seigneur de l'aube du jour",
-      "contre la méchanceté des êtres qu'il a créés,",
-      "contre le mal de la nuit sombre quand elle nous surprend,",
-      "contre la méchanceté de celles qui soufflent sur les nœuds,",
-      "contre le mal de l'envieux qui nous porte envie."
+      "Au nom d’Allah, le Tout Miséricordieux, le Très Miséricordieux.",
+      "Dis: \"Je cherche protection auprès du Seigneur de l’aube naissante,",
+      "contre le mal des êtres qu’Il a créés,",
+      "contre le mal de l’obscurité quand elle s’approfondit,",
+      "contre le mal de celles qui soufflent (les sorcières) sur les nœuds,",
+      "et contre le mal de l’envieux quand il envie.\""
     ],
     "fatiha": [
-      "Au nom du Dieu clément et miséricordieux.",
-      "Louange à Dieu, maître de l'univers,",
-      "le clément, le miséricordieux,",
-      "souverain au jour de la rétribution.",
-      "C'est toi que nous adorons, c'est toi dont nous implorons le secours.",
-      "Dirige-nous dans le sentier droit,",
-      "dans le sentier de ceux que tu as comblés de tes bienfaits, non pas de ceux qui ont encouru ta colère, ni de ceux qui s'égarent."
+      "Au nom d’Allah, le Tout Miséricordieux, le Très Miséricordieux.",
+      "Louange à Allah, Seigneur de l’Univers.",
+      "Le Tout Miséricordieux, le Très Miséricordieux,",
+      "Maître du Jour de la Rétribution.",
+      "C’est Toi [Seul] que nous adorons, et c’est Toi [Seul] dont nous implorons secours.",
+      "Guide-nous dans le droit chemin,",
+      "Le chemin de ceux que Tu as comblés de faveurs, non pas de ceux qui ont encouru Ta colère, ni des égarés."
     ],
     "ikhlas": [
-      "Au nom du Dieu clément et miséricordieux.",
-      "Dis : Dieu est un.",
-      "C'est le Dieu éternel.",
-      "Il n'a point enfanté, et n'a point été enfanté.",
-      "Il n'a point d'égal."
+      "Au nom d’Allah, le Tout Miséricordieux, le Très Miséricordieux.",
+      "Dis : \"Il est Allah, Unique.",
+      "Allah, Le Seul à être imploré pour ce que nous désirons.",
+      "Il n’a jamais engendré, n’a pas été engendré non plus.",
+      "Et nul n’est égal à Lui.\""
     ],
     "istiftah": [
       "Gloire à toi, ô Dieu, et louange à toi.",
@@ -113,19 +113,19 @@
       "Seigneur, pardonne-moi."
     ],
     "kawthar": [
-      "Au nom du Dieu clément et miséricordieux.",
-      "Nous t'avons donné l'abondance.",
-      "Adresse donc tes prières au Seigneur, et immole des victimes.",
-      "Celui qui te hait mourra sans postérité."
+      "Au nom d’Allah, le Tout Miséricordieux, le Très Miséricordieux.",
+      "Nous t’avons certes, accordé l’Abondance.",
+      "Accomplis la Ṣalāt pour ton Seigneur et sacrifie.",
+      "Celui qui te hait sera certes, sans postérité."
     ],
     "nas": [
-      "Au nom du Dieu clément et miséricordieux.",
-      "Dis : Je cherche un refuge auprès du Seigneur des hommes,",
-      "Roi des hommes,",
+      "Au nom d’Allah, le Tout Miséricordieux, le Très Miséricordieux.",
+      "Dis : \"Je cherche protection auprès du Seigneur des hommes.",
+      "Le Souverain des hommes,",
       "Dieu des hommes,",
-      "contre la méchanceté de celui qui suggère les mauvaises pensées et se dérobe,",
-      "qui souffle le mal dans les cœurs des hommes,",
-      "contre les génies et les hommes."
+      "contre le mal du mauvais conseiller, furtif,",
+      "qui insuffle des mauvaises pensées dans les poitrines des hommes,",
+      "qu’il (le conseiller) soit un djinn, ou un être humain\"."
     ],
     "qunut_1": [
       "Ô Dieu, nous te demandons ton aide et ton pardon, nous croyons en toi et nous plaçons notre confiance en toi.",

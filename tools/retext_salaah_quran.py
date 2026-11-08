@@ -21,15 +21,29 @@ WHICH LANGUAGES, and this is the part that is a judgement rather than a rule:
                      permission Harry was granted, and carries publisher_reviewed=true. A
                      publisher's own reviewed edition beats a draft written here, every time.
 
-    fr ur            LEFT ALONE, deliberately. Their step screens already use published work
-                     that is beyond doubt out of copyright -- Kazimirski (1840) and Fateh
-                     Muhammad Jalandhry (d. 1929). What is installed as their READING screen
-                     came from quran-json, not from QuranEnc, and is Hamidullah (d. 2002) and
-                     Maududi (d. 1979), both of whom died well inside copyright. Switching
-                     would trade text that is certainly free for text that is probably not.
-                     That is a worse position on a device meant to be given away, so the
-                     reading screen and the step screen are allowed to differ for these two
-                     until somebody licenses one or the other properly.
+    fr ur            SWITCHED IN 2.15, and this entry is kept rather than deleted because the
+                     reason they were left alone for so long is worth being able to read.
+
+                     They used to be left alone deliberately. Their step screens used work
+                     beyond doubt out of copyright -- Kazimirski (1840) and Fateh Muhammad
+                     Jalandhry (d. 1929) -- while their READING screen came from quran-json
+                     rather than QuranEnc, and was Hamidullah (d. 2002) and Maududi (d. 1979),
+                     both of whom died well inside copyright. Switching would have traded text
+                     that is certainly free for text that is probably not, which is a worse
+                     position on a device meant to be given away. The note said the two
+                     screens could differ "until somebody licenses one or the other properly".
+
+                     That happened. In 2.15 the French and Urdu reading screens moved off
+                     quran-json onto quranenc.com's own editions -- Hamidullah's Medina
+                     revision and Junagarhi -- under the permission Harry was granted, the
+                     Urdu from the official XML export at v1.1.3. The trade is no longer free
+                     against probably-not-free; it is public domain against a publisher's own
+                     reviewed edition carried under permission, which is the same trade the
+                     other five languages took.
+
+                     Harry asked for the switch on 8 November 2026, in those words: "lets
+                     match urdu & french steps screens". It changes the words a child prays,
+                     so it was his to ask for and not this tool's to assume.
 
 WHICH PASSAGES. Five of the six, and the sixth is the interesting one.
 
@@ -78,8 +92,10 @@ PASSAGES = {
     "nas":     [BASMALA] + [(114, n) for n in range(1, 7)],
 }
 
-# Left on their own public-domain text: see the note at the top of this file.
-KEEP_PUBLIC_DOMAIN = {"fr", "ur"}
+# Empty since 2.15, when French and Urdu were switched over: see the note at the top of this
+# file for why they sat here, and what changed. The set stays rather than the check being
+# deleted, because the next language to arrive without a licensed Qur'an belongs in it.
+KEEP_PUBLIC_DOMAIN: set[str] = set()
 
 
 def arabic_counts() -> dict[str, int]:
