@@ -11,7 +11,7 @@
  "updated": "",
  "check_updates": "",
  "private": false,
- "note": "Captured through their API v1, surah by surah. This edition is absent from their list endpoint, which names only the 76 editions that have exports, so there is no version to record and no check_updates address and the mat cannot be told this text has gone stale. The download addresses were not tried one by one for this edition the way they were for the Russian; absence from the list is the evidence. Asking them to publish an export is the fix.",
+ "note": "Captured through their API v1, surah by surah, because QuranEnc publishes no export of this edition: https://quranenc.com/en/home/d/xml/french_hameedullah was tried on 2026-11-08 and answers with an empty page, the same as the Russian. So there is no version to record and no check_updates address, and the mat cannot be told this text has gone stale. Asking them to publish an export is the fix, and they have been asked. THE EARLIER NOTE REASONED FROM THE WRONG THING: it said the edition's absence from their list endpoint was the evidence, without the address ever having been tried. IslamHouse replied to a separate report warning against exactly that -- \"not all translations necessarily appear in every catalogue, API list, or download channel. Their absence from one list does not by itself mean they have been withdrawn\" -- and they were right to. The Urdu proved it: it was in the list, it did have an export, and that export is now what the Urdu is built from.",
  "publisher_reviewed": true,
  "reviewed": false,
  "review_note": "The publisher states these are reviewed editions. Nobody engaged by this project has read a word of it, which is what reviewed: false records."
