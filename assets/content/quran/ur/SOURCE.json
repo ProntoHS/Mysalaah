@@ -1,12 +1,18 @@
 {
- "schema": 1,
+ "schema": 2,
  "lang": "ur",
  "what": "Urdu translation",
- "translator": "Abul A'la Maududi",
- "publisher": "Tanzil",
- "where": "tanzil.net/trans/ur.maududi",
- "via": "quran-json 3.1.2",
+ "translator": "Muhammad Junagarhi",
+ "publisher": "Noble Qur'an Encyclopedia",
+ "where": "https://quranenc.com/en/browse/urdu_junagarhi",
+ "via": "quranenc.com official API v1, captured 2026-11-07, v1.1.3",
+ "edition": "urdu_junagarhi",
+ "version": "1.1.3",
+ "updated": "2025-08-13",
+ "check_updates": "",
  "private": false,
- "note": "",
- "reviewed": false
+ "note": "Captured through their API v1, surah by surah. Their list endpoint names this edition and reports version 1.1.3, last updated 2025-08-13, and in every case seen so far an edition in that list also has a downloadable export -- which, if it holds here, means the export road was available and was not taken. THAT HAS NOT BEEN CHECKED for this edition: https://quranenc.com/en/home/d/xml/urdu_junagarhi either returns a file or an empty page, and one look settles it. If it returns a file, re-import from the export, which is this project's preferred road and would give check_updates an address. The version above was read from the list, not from the capture.",
+ "publisher_reviewed": true,
+ "reviewed": false,
+ "review_note": "The publisher states these are reviewed editions. Nobody engaged by this project has read a word of it, which is what reviewed: false records."
 }

@@ -1,12 +1,18 @@
 {
- "schema": 1,
+ "schema": 2,
  "lang": "fr",
  "what": "French translation",
  "translator": "Muhammad Hamidullah",
- "publisher": "Tanzil",
- "where": "tanzil.net/trans/fr.hamidullah",
- "via": "quran-json 3.1.2",
+ "publisher": "Noble Qur'an Encyclopedia",
+ "where": "https://quranenc.com/en/browse/french_hameedullah",
+ "via": "quranenc.com official API v1, captured 2026-11-07",
+ "edition": "french_hameedullah",
+ "version": "",
+ "updated": "",
+ "check_updates": "",
  "private": false,
- "note": "",
- "reviewed": false
+ "note": "Captured through their API v1, surah by surah. This edition is absent from their list endpoint, which names only the 76 editions that have exports, so there is no version to record and no check_updates address and the mat cannot be told this text has gone stale. The download addresses were not tried one by one for this edition the way they were for the Russian; absence from the list is the evidence. Asking them to publish an export is the fix.",
+ "publisher_reviewed": true,
+ "reviewed": false,
+ "review_note": "The publisher states these are reviewed editions. Nobody engaged by this project has read a word of it, which is what reviewed: false records."
 }

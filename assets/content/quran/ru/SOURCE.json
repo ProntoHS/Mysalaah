@@ -1,0 +1,18 @@
+{
+ "schema": 2,
+ "lang": "ru",
+ "what": "Russian translation",
+ "translator": "Abu Adel",
+ "publisher": "Noble Qur'an Encyclopedia",
+ "where": "https://quranenc.com/en/browse/russian_aboadel",
+ "via": "quranenc.com official API v1, captured 2026-11-07",
+ "edition": "russian_aboadel",
+ "version": "",
+ "updated": "",
+ "check_updates": "",
+ "private": false,
+ "note": "Captured through their API v1, surah by surah, because QuranEnc publishes no export of this edition: the XML and PDF download addresses answer with an empty page while the same addresses return real files for other editions, and the edition is absent from their list endpoint, which names only the 76 editions that have exports. So there is no version to record and no check_updates address, and the mat cannot be told this text has gone stale. Asking them to publish an export is the fix.",
+ "publisher_reviewed": true,
+ "reviewed": false,
+ "review_note": "The publisher states these are reviewed editions. Nobody engaged by this project has read a word of it, which is what reviewed: false records."
+}
