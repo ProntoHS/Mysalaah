@@ -805,12 +805,30 @@ the failure this exists to stop is a mat that is confidently wrong -- Bury's tim
 Birmingham, with nothing on screen to suggest it -- and a Fajr that is plainly forty minutes out
 is how a typo gets caught before it becomes a fortnight's timetable.
 
-A postcode DISTRICT, the `BL9` before the space, is the unit. Measured with the mat's own sums
-at Bury: 5km of error moves the times under a minute, 15km by one, and it takes 60km to move
-them by five. A district is a few km across, so it is comfortably inside a minute -- and a town
-list would be worse, since "Manchester" is sixty km of sprawl. It is also small enough to carry:
+A postcode DISTRICT, the `BL9` before the space, is the unit, and it is small enough to carry:
 3,077 districts is 88KB, against 70MB for 1.8 million full postcodes, and it works with no
 internet at all, which is the whole point.
+
+Since 2.20 the same box also takes **a town or city anywhere in the world** -- 33,961 places of
+15,000 people or more, 2.6MB, also carried on the card with no lookup. The postcode stays
+because it is the better answer where it applies: a district is a few km across, where
+"Manchester" is sixty km of sprawl and the nearest listed town can be twenty miles away. The
+box works out which kind of thing was typed rather than asking.
+
+How much that imprecision costs, measured at Bury, as the worst shift of any prayer:
+
+| moved | around the equinox | midwinter | midsummer |
+|---|---|---|---|
+| 5km | under a minute | 1 min | 6 min |
+| 15km | 1 min | 1 min | 11 min |
+| 60km | 2 min | 4 min | 16 min |
+
+Earlier versions of this README gave only the equinox row, for the whole year. Dhuhr, asr and
+maghrib stay inside it always; fajr and isha in summer are the sensitive ones, and from mid-May
+to July the isha shift for 60km reaches half an hour. Near the equator nothing moves by more
+than a minute or two. And for 78 days a year Bury has no real fajr at 18 degrees at all, so the
+mat falls back to the nearest day that does -- a convention, documented in `salaah/places.py`,
+that wants a qualified eye.
 
 Rebuild the table with:
 

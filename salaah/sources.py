@@ -34,6 +34,12 @@ class Credit:
     version: str = ""        # the edition's version AS THE PUBLISHER STATES IT, never inferred
     updated: str = ""        # the date they last changed it, from the same place
     check_updates: str = ""  # where to ask whether that version is still current
+    #: The licence the material is used under, and where to read it. SHOWN ON THE PAGE, not
+    #: kept with the notes: CC BY 4.0 asks that the licence be indicated alongside the
+    #: credit, so this is an obligation in the same class as naming the translator, and not
+    #: the kind of working-out that 2.18 took off this page.
+    licence: str = ""
+    licence_at: str = ""
     publisher_reviewed: bool = False   # the house that issued it says it is a reviewed edition
     reviewed: bool = False   # somebody engaged by THIS project has read it. Nobody has.
 
@@ -67,6 +73,10 @@ class Credit:
                 said += f" of {self.updated}"
         if self.where:
             said += f" — {self.where}"
+        if self.licence:
+            said += f" — {self.licence}"
+            if self.licence_at:
+                said += f" ({self.licence_at})"
         return said
 
     def review_line(self) -> str:
@@ -153,6 +163,8 @@ def rest(assets: Path) -> list[Credit]:
             out.append(Credit(what=str(row["what"]), translator=str(row.get("translator", "")),
                               publisher=str(row.get("publisher", "")),
                               where=str(row.get("where", "")), via=str(row.get("via", "")),
+                              licence=str(row.get("licence", "")),
+                              licence_at=str(row.get("licence_at", "")),
                               note=str(row.get("note", ""))))
     return out
 

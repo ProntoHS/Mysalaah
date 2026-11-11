@@ -1,34 +1,43 @@
 {
-  "schema": 1,
-  "about": "Everything on the mat that is somebody else's work, apart from the Qur'an texts. Those carry their own SOURCE.json beside the text, so that a translation added to one mat by hand brings its credit with it -- see salaah/sources.py.",
-  "items": [
-    {
-      "what": "Transliteration of the Qur'an",
-      "publisher": "Tanzil",
-      "where": "tanzil.net/trans/en.transliteration",
-      "via": "quran-json 3.1.2"
-    },
-    {
-      "what": "Hadith of Sahih al-Bukhari and Sahih Muslim",
-      "publisher": "the hadith-api dataset",
-      "where": "github.com/fawazahmed0/hadith-api",
-      "note": "Public domain (Unlicense). Arabic and English matched to each other by hadith number."
-    },
-    {
-      "what": "Arabic faces: Scheherazade New, Noto Naskh Arabic, Amiri",
-      "publisher": "SIL International and the Amiri project",
-      "note": "SIL Open Font License 1.1."
-    },
-    {
-      "what": "Recitation of the Qur'an, verse by verse",
-      "publisher": "EveryAyah",
-      "where": "everyayah.com",
-      "note": "Fetched when a verse is played; nothing is stored on the mat beyond the verse being read."
-    },
-    {
-      "what": "UK postcode districts, for finding a town",
-      "publisher": "named in the data itself",
-      "note": "The attribution its licence requires is shown on the Location screen."
-    }
-  ]
+ "schema": 1,
+ "about": "Everything on the mat that is somebody else's work, apart from the Qur'an texts. Those carry their own SOURCE.json beside the text, so that a translation added to one mat by hand brings its credit with it -- see salaah/sources.py.",
+ "items": [
+  {
+   "what": "Transliteration of the Qur'an",
+   "publisher": "Tanzil",
+   "where": "tanzil.net/trans/en.transliteration",
+   "via": "quran-json 3.1.2"
+  },
+  {
+   "what": "Hadith of Sahih al-Bukhari and Sahih Muslim",
+   "publisher": "the hadith-api dataset",
+   "where": "github.com/fawazahmed0/hadith-api",
+   "note": "Public domain (Unlicense). Arabic and English matched to each other by hadith number."
+  },
+  {
+   "what": "Arabic faces: Scheherazade New, Noto Naskh Arabic, Amiri",
+   "publisher": "SIL International and the Amiri project",
+   "note": "SIL Open Font License 1.1."
+  },
+  {
+   "what": "Recitation of the Qur'an, verse by verse",
+   "publisher": "EveryAyah",
+   "where": "everyayah.com",
+   "note": "Fetched when a verse is played; nothing is stored on the mat beyond the verse being read."
+  },
+  {
+   "what": "UK postcode districts, for finding a town",
+   "publisher": "named in the data itself",
+   "note": "The attribution its licence requires is shown on the Location screen."
+  },
+  {
+   "what": "Towns and cities of the world, for finding a place outside the UK",
+   "publisher": "GeoNames",
+   "where": "https://www.geonames.org/",
+   "via": "the cities15000 table, places of 15,000 people or more, carried as a snapshot rather than fetched",
+   "note": "The table is a snapshot taken at build time, so the mat needs no network to find a town. Rebuilt by tools/build_cities.py.",
+   "licence": "CC BY 4.0",
+   "licence_at": "https://creativecommons.org/licenses/by/4.0/"
+  }
+ ]
 }

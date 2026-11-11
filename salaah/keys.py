@@ -36,12 +36,28 @@ DONE = "⏎"
 class Key(QtWidgets.QPushButton):
     """One key. Wide enough for a thumb and no wider than its share of the row."""
 
+    #: The least a key may be squeezed to, and it came DOWN from 96 in 2.20.
+    #:
+    #: A minimum is a promise the layout cannot always keep. When the place screen started
+    #: offering a list of towns above the keyboard there was no longer room for four rows of
+    #: 96, and Qt does not refuse that -- it hands the keyboard less than its minimum and the
+    #: rows draw ON TOP OF ONE ANOTHER. On screen it looks like four rows jammed into three,
+    #: which is what rendering the screen and looking at it turned up after the whole suite
+    #: had passed.
+    #:
+    #: So the minimum is now a height a key can actually be driven down to rather than the
+    #: height one would like: where space is short the keyboard shrinks, and where it is not
+    #: -- a postcode typed, no list, the wifi screen -- the keys are still 150 and nothing
+    #: about them changes. A smaller key is a worse key; a key drawn over its neighbour is a
+    #: broken one.
+    LEAST = 72
+
     def __init__(self, label: str, window, wide: float = 1.0):
         super().__init__(label)
         self.setObjectName("key")
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumHeight(window.px(96))
+        self.setMinimumHeight(window.px(self.LEAST))
         self.setMinimumWidth(int(window.px(90) * wide))
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                            QtWidgets.QSizePolicy.Policy.Expanding)

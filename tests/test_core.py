@@ -1067,66 +1067,366 @@ class WrappingTest(unittest.TestCase):
         self.assertEqual(["अल्लाह", "के", "नाम", "से"], [p for p, _ in got])
 
 
-class PowerButtonTest(unittest.TestCase):
-    """Reading the Pi 5's power button, so a press sleeps the mat rather than shutting it down."""
+class SleepSwitchTest(unittest.TestCase):
+    """The switch on GPIO 17, which blanks the screens and brings them back.
 
-    LISTING = """I: Bus=0003 Vendor=046d Product=c52b Version=0111
-N: Name="Logitech K400"
-H: Handlers=sysrq kbd event0 leds
+    REPLACES PowerButtonTest, whose subject is gone. That class tested reading the Pi 5's power
+    button out of /dev/input -- finding the device by name, telling a click from a force-off
+    hold, the size of the kernel's input_event struct. None of it applies to a switch on a pin,
+    and the mat runs on a Pi 4B now, which has no power button to read.
 
-I: Bus=0019 Vendor=0001 Product=0001 Version=0100
-N: Name="pwr_button"
-P: Phys=
-S: Sysfs=/devices/platform/pwr_button/input/input5
-H: Handlers=kbd event5 
-B: PROP=0
-"""
+    gpiozero is not installed here and there is no GPIO on this machine, so a stand-in Button is
+    handed in. That is not a weaker test than it looks: what this module does is create a button
+    with the right pin and settings, hang a callback on it, and close it again, and a stand-in
+    records all of that exactly. What it cannot check is whether GPIO 17 is the pin the switch is
+    soldered to, and no test on any machine could.
+    """
 
-    def test_the_button_is_found_by_name_not_by_number(self):
-        """The event number moves about with whatever else is plugged in, so a mat that slept
-        only when no keyboard was connected would be a puzzling thing to own."""
-        from salaah.power import power_device
-        self.assertEqual("/dev/input/event5", power_device(self.LISTING))
+    class FakeButton:
+        """Records what gpiozero was asked for, and lets a test fire a press."""
 
-    def test_a_listing_without_one_gives_nothing_rather_than_a_guess(self):
-        from salaah.power import power_device
-        without = self.LISTING.split("\n\n")[0]
-        self.assertIsNone(power_device(without))
+        def __init__(self, pin, pull_up=None, bounce_time=None, hold_time=None):
+            self.pin = pin
+            self.pull_up = pull_up
+            self.bounce_time = bounce_time
+            self.hold_time = hold_time
+            self.when_pressed = None
+            self.when_held = None
+            self.when_released = None
+            self.closed = False
 
-    def test_a_click_counts_and_a_long_hold_does_not(self):
-        """Holding the button is someone forcing the board off in hardware. The screens should
-        not blink on the way to that."""
-        from salaah.power import PressWatch
-        watch = PressWatch(hold=1.5)
-        self.assertFalse(watch.event(1, 10.0), "nothing happens on the way down")
-        self.assertTrue(watch.event(0, 10.2), "a click counts on release")
-        self.assertFalse(watch.event(1, 20.0))
-        self.assertFalse(watch.event(0, 24.0), "a four second hold is a force-off, not a press")
+        def tap(self):
+            """Pressed and let go before hold_time. gpiozero fires only the release."""
+            if self.when_released is not None:
+                self.when_released(self)
 
-    def test_auto_repeat_while_held_is_not_a_second_press(self):
-        from salaah.power import PressWatch
-        watch = PressWatch()
-        watch.event(1, 0.0)
-        self.assertFalse(watch.event(2, 0.5))
-        self.assertFalse(watch.event(2, 1.0))
-        self.assertTrue(watch.event(0, 1.2), "still one press when it is let go")
+        def hold(self):
+            """Held past hold_time and then let go, which is both events in that order."""
+            if self.when_held is not None:
+                self.when_held(self)
+            if self.when_released is not None:
+                self.when_released(self)
 
-    def test_a_release_on_its_own_is_ignored(self):
-        """The app can start with the button already down -- during the press that booted it."""
-        from salaah.power import PressWatch
-        self.assertFalse(PressWatch().event(0, 1.0))
+        def close(self):
+            self.closed = True
 
-    def test_the_event_struct_is_the_size_the_kernel_writes(self):
-        import struct
-        from salaah.power import EVENT, EVENT_SIZE
-        self.assertEqual(struct.calcsize(EVENT), EVENT_SIZE)
-        self.assertIn(EVENT_SIZE, (16, 24), "16 on a 32-bit Pi, 24 on a 64-bit one")
+    def made(self, refuse=()):
+        """A switch wired to FakeButtons, with lists that taps and holds append to.
+
+        [refuse] names pins the stand-in will not build, for testing a mat where one of the two
+        is taken or missing.
+        """
+        from salaah.power import SleepSwitch
+        made = []
+        presses = []
+        holds = []
+
+        def build(pin, pull_up=None, bounce_time=None, hold_time=None):
+            if pin in refuse:
+                raise OSError(f"GPIO {pin} is busy")
+            button = self.FakeButton(pin, pull_up=pull_up, bounce_time=bounce_time,
+                                     hold_time=hold_time)
+            made.append(button)
+            return button
+
+        switch = SleepSwitch(lambda: presses.append(1), lambda: holds.append(1), button=build)
+        return switch, made, presses, holds
+
+    def on(self, made, pin):
+        """The stand-in built for one particular pin."""
+        return next(b for b in made if b.pin == pin)
+
+    def test_it_watches_both_pins_pulled_up_and_debounced(self):
+        """The things that have to be right for the switch Harry wired: the pins, the pull
+        direction, a debounce long enough for a mechanical contact, and a hold long enough that
+        it cannot be reached by a brisk press.
+
+        Written out rather than compared against the module's constants. A test that reads the
+        constants it is checking agrees with whatever they say, and these numbers are the
+        wiring: pulled up because the other leg goes to ground, so a press is a falling edge.
+
+        TWO PINS. 17 is header pin 11, where the switch is now; 3 is header pin 5, the one pin
+        the bootloader reads, so the same button can also start the mat from a halt. Both are
+        watched so the wire can move without an update having to land in the same minute.
+        """
+        switch, made, _, _ = self.made()
+        self.assertTrue(switch.start())
+        self.assertEqual({3, 17}, {b.pin for b in made})
+        for b in made:
+            with self.subTest(f"GPIO {b.pin}"):
+                self.assertIs(True, b.pull_up, "the switch shorts to ground, so it must pull up")
+                self.assertEqual(0.08, b.bounce_time)
+                self.assertEqual(2.0, b.hold_time)
+        self.assertEqual("", switch.why)
+
+    def test_a_tap_on_either_pin_reaches_the_app(self):
+        switch, made, presses, _ = self.made()
+        switch.start()
+        self.on(made, 17).tap()
+        self.on(made, 3).tap()
+        self.assertEqual(2, len(presses), "a tap on one of the two pins did not arrive")
+
+    def test_a_hold_asks_about_shutting_down_and_is_not_also_a_tap(self):
+        """THE WHOLE POINT OF ACTING ON RELEASE. A hold has to reach the app as a hold and
+        nothing else -- if it also counted as a press, holding the button would put the mat to
+        sleep on its way to the shutdown question, and then ask about shutting down a screen it
+        had just blacked out."""
+        switch, made, presses, holds = self.made()
+        switch.start()
+        self.on(made, 3).hold()
+        self.assertEqual(1, len(holds), "the hold never reached the app")
+        self.assertEqual([], presses, "the hold counted as a press as well")
+
+    def test_a_tap_after_a_hold_is_still_a_tap(self):
+        """The held flag has to be cleared on release, or the button would work once and then
+        be a hold for ever."""
+        switch, made, presses, holds = self.made()
+        switch.start()
+        self.on(made, 3).hold()
+        self.on(made, 3).tap()
+        self.assertEqual([1], holds)
+        self.assertEqual([1], presses, "the button stopped answering taps after one hold")
+
+    def test_it_acts_on_the_release_and_not_on_the_press(self):
+        """A REVERSAL OF A REVERSAL, so both are written down.
+
+        The Pi 5 reader acted on release. 1.98 moved it to the press, because a switch on a
+        GPIO pin has no force-off behind it and a button whose only job was to wake the screens
+        should wake them the instant it is touched.
+
+        That reason held exactly as long as the button did one thing. It now does two, and
+        gpiozero fires when_pressed the moment the contact is made -- so a hold would be a
+        press first and a hold afterwards. Telling them apart needs the release, and the cost
+        is the time a finger spends on a button, which nobody can perceive.
+
+        Checked as the absence of the old path as well as the presence of the new: nothing is
+        hung on when_pressed, so there is no second route a hold could take.
+        """
+        switch, made, presses, _ = self.made()
+        switch.start()
+        for b in made:
+            with self.subTest(f"GPIO {b.pin}"):
+                self.assertIsNone(b.when_pressed, "something still acts on the press")
+                self.assertIsNotNone(b.when_released)
+                self.assertIsNotNone(b.when_held)
+
+    def test_one_pin_being_taken_does_not_cost_the_other(self):
+        """A mat where something else holds GPIO 3 still has its switch on 17, and says so.
+        Before this the first failure was the only failure and the button went quiet."""
+        switch, made, presses, _ = self.made(refuse=(3,))
+        self.assertTrue(switch.start(), "one busy pin stopped the switch altogether")
+        self.assertEqual([17], [b.pin for b in made])
+        self.assertEqual((17,), switch.watching)
+        self.assertIn("GPIO 3", switch.why, "it did not say which pin it could not have")
+        self.on(made, 17).tap()
+        self.assertEqual(1, len(presses))
+
+    def test_both_pins_being_taken_is_a_failure(self):
+        switch, _, _, _ = self.made(refuse=(3, 17))
+        self.assertFalse(switch.start())
+        self.assertIn("GPIO 3", switch.why)
+        self.assertIn("GPIO 17", switch.why)
+
+    def test_stopping_lets_the_pin_go(self):
+        """The mat releases the pin when it shuts down, so a restart can take it again. Leaving
+        it held is how the next start gets 'GPIO busy' and no switch at all."""
+        switch, made, _, _ = self.made()
+        switch.start()
+        switch.stop()
+        self.assertTrue(all(b.closed for b in made), "a pin was left held")
+        self.assertEqual([], switch.buttons)
+        self.assertEqual((), switch.watching)
+
+    def test_stopping_twice_is_harmless(self):
+        switch, _, _, _ = self.made()
+        switch.start()
+        switch.stop()
+        switch.stop()
+
+    def test_a_press_after_stopping_reaches_nothing(self):
+        switch, made, presses, holds = self.made()
+        switch.start()
+        switch.stop()
+        self.on(made, 3).tap()
+        self.on(made, 17).hold()
+        self.assertEqual([], presses, "a closed switch still called into the app")
+        self.assertEqual([], holds, "a closed switch still offered to shut the mat down")
 
     def test_it_says_why_rather_than_failing_silently(self):
-        from salaah.power import PowerButton
-        button = PowerButton(lambda: None, listing="/does/not/exist")
-        self.assertFalse(button.start())
-        self.assertTrue(button.why)
+        """No GPIO is the normal case on everything except the mat -- this very test run, for
+        one -- and the mat must still start and say the switch is quiet rather than refuse."""
+        from salaah.power import SleepSwitch
+
+        def refuse(pin, pull_up=None, bounce_time=None, hold_time=None):
+            raise OSError("no GPIO on this machine")
+
+        switch = SleepSwitch(lambda: None, button=refuse)
+        self.assertFalse(switch.start())
+        self.assertIn("17", switch.why)
+        self.assertEqual([], switch.buttons)
+
+    def test_a_missing_gpiozero_says_how_to_install_it(self):
+        """The one failure a person can actually fix, so it says the command."""
+        import builtins
+        from salaah.power import SleepSwitch
+        real = builtins.__import__
+
+        def no_gpiozero(name, *rest):
+            if name == "gpiozero":
+                raise ImportError("no module named gpiozero")
+            return real(name, *rest)
+
+        with mock.patch.object(builtins, "__import__", no_gpiozero):
+            switch = SleepSwitch(lambda: None)
+            self.assertFalse(switch.start())
+        self.assertIn("gpiozero", switch.why)
+        self.assertIn("apt install", switch.why)
+
+    def test_the_pi_five_power_button_reader_is_gone(self):
+        """It was removed rather than left in beside the new one. Two ways to sleep the mat is
+        two things to keep working, and the old one worked on no board the mat now runs on."""
+        import salaah.power as power
+        for name in ("PowerButton", "PressWatch", "power_device", "EVIOCGRAB", "KEY_POWER"):
+            self.assertFalse(hasattr(power, name), f"salaah.power still carries {name}")
+
+
+class StatusLedTest(unittest.TestCase):
+    """The light on the front: GPIO 27, driven with pinctrl, never able to stop the mat.
+
+    It exists because a dark mat with a dark light looks exactly like a mat that is switched
+    off, which has twice ended in the plug being pulled on Harry's. So the thing being protected
+    here is not the light -- it is that the light can never be the reason the mat does not sleep,
+    wake or halt.
+    """
+
+    def runner(self, code=0, error="", raises=None):
+        calls = []
+
+        def run(command, **kw):
+            calls.append((list(command), kw.get("timeout")))
+            if raises is not None:
+                raise raises
+            return SimpleNamespace(returncode=code, stdout="", stderr=error)
+        return run, calls
+
+    def test_it_drives_gpio_27_and_not_a_pin_something_else_owns(self):
+        """GPIO 17 was where Harry put it first, and the sleep switch's Button took the pin as
+        an input and put the light out. 3 is the bootloader's wake pin and 14 is the fan's."""
+        from salaah import power
+        self.assertEqual(27, power.LED_PIN)
+        self.assertNotIn(power.LED_PIN, power.PINS, "the light is on a pin the switch watches")
+        self.assertNotIn(power.LED_PIN, (3, 17, 14))
+        self.assertEqual("header pin 13", power.HEADER[power.LED_PIN])
+
+    def test_the_command_is_exactly_what_the_boot_service_uses(self):
+        """Written out rather than built, because the service in /etc/systemd/system drives the
+        same pin with the same words and the two must not drift apart."""
+        from salaah.power import StatusLed
+        led = StatusLed()
+        self.assertEqual(["/usr/bin/pinctrl", "set", "27", "op", "dh"], led.argv(True))
+        self.assertEqual(["/usr/bin/pinctrl", "set", "27", "op", "dl"], led.argv(False))
+
+    def test_on_and_off_run_that_command(self):
+        from salaah.power import StatusLed
+        run, calls = self.runner()
+        led = StatusLed(run=run)
+        self.assertTrue(led.on())
+        self.assertTrue(led.off())
+        self.assertEqual([["/usr/bin/pinctrl", "set", "27", "op", "dh"],
+                          ["/usr/bin/pinctrl", "set", "27", "op", "dl"]],
+                         [c for c, _ in calls])
+
+    def test_it_never_waits_long_enough_to_hold_up_a_sleep(self):
+        """The call sits between the button and the screens going dark, so the timeout is the
+        longest the mat may pause for a light rather than a guess at how long pinctrl takes."""
+        from salaah.power import StatusLed
+        run, calls = self.runner()
+        led = StatusLed(run=run)
+        led.on()
+        self.assertLessEqual(calls[0][1], 1.0, f"it would wait {calls[0][1]}s for a light")
+        self.assertGreater(calls[0][1], 0)
+
+    # Nothing here may ever raise
+
+    def test_a_missing_pinctrl_is_reported_not_raised(self):
+        from salaah.power import StatusLed
+        run, _ = self.runner(raises=FileNotFoundError("/usr/bin/pinctrl"))
+        led = StatusLed(run=run)
+        self.assertFalse(led.on())
+        self.assertIn("not installed", led.why)
+
+    def test_a_refusal_is_reported_not_raised(self):
+        """What a mat where pinctrl needs root looks like."""
+        from salaah.power import StatusLed
+        run, _ = self.runner(code=1, error="Permission denied")
+        led = StatusLed(run=run)
+        self.assertFalse(led.off())
+        self.assertIn("Permission denied", led.why)
+
+    def test_a_hang_is_reported_not_raised(self):
+        from salaah.power import StatusLed
+        import subprocess as sp
+        run, _ = self.runner(raises=sp.TimeoutExpired("pinctrl", 1.0))
+        led = StatusLed(run=run)
+        self.assertFalse(led.on())
+        self.assertIn("failed", led.why)
+
+    def test_even_a_fault_nobody_thought_of_is_reported_not_raised(self):
+        """The broadest clause in power.py, and deliberate. The worst case on one side is a
+        light that does not come on; on the other, a mat that will not shut down because of a
+        light. This is the test that says which way that trade was made."""
+        from salaah.power import StatusLed
+        run, _ = self.runner(raises=ValueError("something nobody predicted"))
+        led = StatusLed(run=run)
+        self.assertFalse(led.on())
+        self.assertFalse(led.off())
+        self.assertIn("something nobody predicted", led.why)
+
+    # Finding a way to drive the pin at all
+
+    def test_start_falls_back_to_sudo_when_the_plain_command_is_refused(self):
+        """`pinctrl set` may need root depending on how a mat is set up. A light that never
+        lights with nothing in the log is a morning lost to a wiring fault that is not one."""
+        from salaah.power import StatusLed
+        calls = []
+
+        def run(command, **kw):
+            calls.append(list(command))
+            needs_root = command[0] != "sudo"
+            return SimpleNamespace(returncode=1 if needs_root else 0,
+                                   stdout="", stderr="Permission denied" if needs_root else "")
+        led = StatusLed(run=run)
+        self.assertTrue(led.start())
+        self.assertEqual(["sudo", "-n", "/usr/bin/pinctrl"], list(led.prefix))
+        # AND IT REMEMBERS, so the sleep path pays for one command rather than two.
+        calls.clear()
+        led.off()
+        self.assertEqual([["sudo", "-n", "/usr/bin/pinctrl", "set", "27", "op", "dl"]], calls)
+
+    def test_start_uses_the_plain_command_when_that_works(self):
+        from salaah.power import StatusLed
+        run, calls = self.runner()
+        led = StatusLed(run=run)
+        self.assertTrue(led.start())
+        self.assertEqual(["/usr/bin/pinctrl"], list(led.prefix))
+        self.assertEqual(1, len(calls), "it asked sudo as well when it did not need to")
+
+    def test_the_sudo_it_tries_cannot_sit_waiting_for_a_password(self):
+        """-n, because a sudo that prompts would hang start-up on a mat with no keyboard."""
+        from salaah.power import StatusLed
+        run, calls = self.runner(code=1, error="Permission denied")
+        led = StatusLed(run=run)
+        led.start()
+        tried = [c for c, _ in calls if c[0] == "sudo"]
+        self.assertTrue(tried, "it never tried sudo at all")
+        self.assertIn("-n", tried[0])
+
+    def test_start_failing_both_ways_is_reported_not_raised(self):
+        from salaah.power import StatusLed
+        run, _ = self.runner(raises=FileNotFoundError("/usr/bin/pinctrl"))
+        led = StatusLed(run=run)
+        self.assertFalse(led.start())
+        self.assertIn("not installed", led.why)
 
 
 class OutputsTest(unittest.TestCase):
@@ -1164,6 +1464,108 @@ class OutputsTest(unittest.TestCase):
         outputs = Outputs(run=run)
         self.assertFalse(outputs.set(False))
         self.assertIn("no outputs", outputs.why)
+
+    # Which outputs wlopm actually has power over
+
+    def saying(self, said, code=0):
+        """A wlopm that prints [said] when asked with no arguments."""
+        calls = []
+
+        def run(command, **kw):
+            calls.append(command)
+            return SimpleNamespace(returncode=code, stdout=said, stderr="")
+        return run, calls
+
+    def test_the_listing_is_read_into_names_and_states(self):
+        from salaah.power import Outputs
+        run, calls = self.saying("HDMI-A-1 on\nHDMI-A-2 off\n")
+        self.assertEqual({"HDMI-A-1": True, "HDMI-A-2": False}, Outputs(run=run).listing())
+        self.assertEqual([["wlopm"]], calls, "the listing asked wlopm something other than itself")
+
+    def test_an_output_wlopm_cannot_see_is_named(self):
+        """HARRY'S MAT, EXACTLY. After a sleep the main display came back disabled rather than
+        blanked, and from then on wlopm listed HDMI-A-2 alone -- a disabled output drops out of
+        its list. The mat went on blanking a screen it had no way of switching back on."""
+        from salaah.power import Outputs
+        run, _ = self.saying("HDMI-A-2 on\n")
+        outputs = Outputs(run=run)
+        self.assertEqual(["HDMI-A-1"],
+                         outputs.cannot_bring_back(("HDMI-A-1", "HDMI-A-2")))
+
+    def test_a_healthy_mat_reports_nothing_stuck(self):
+        """The half that must do nothing: both screens listed, so sleeping is safe and the
+        power saving this is all for still happens."""
+        from salaah.power import Outputs
+        run, _ = self.saying("HDMI-A-1 on\nHDMI-A-2 on\n")
+        self.assertEqual([], Outputs(run=run).cannot_bring_back(("HDMI-A-1", "HDMI-A-2")))
+
+    def test_no_wlopm_at_all_reports_nothing_stuck(self):
+        """Deliberate, not an oversight. Without wlopm, set() fails by itself and nothing is
+        ever blanked -- so there is nothing to warn about, and warning would be a lie."""
+        from salaah.power import Outputs
+
+        def run(command, **kw):
+            raise FileNotFoundError(command[0])
+        self.assertEqual([], Outputs(run=run).cannot_bring_back(("HDMI-A-1",)))
+
+
+class LayoutTest(unittest.TestCase):
+    """Switching a DISABLED output back on, which powering it cannot do.
+
+    2.01's display-setup.sh set a mode on each output and never said --on. On a disabled output
+    that reconfigures something that is still off: run against Harry's dark mat it recovered
+    nothing, cleared the 7in panel's held image, and the mat had to be power-cycled. So the one
+    thing these tests must hold is that --on is in the command.
+    """
+
+    def runner(self, code=0, error=""):
+        calls = []
+
+        def run(command, **kw):
+            calls.append(command)
+            return SimpleNamespace(returncode=code, stdout="", stderr=error)
+        return run, calls
+
+    def test_each_output_is_switched_on_by_name(self):
+        from salaah.power import Layout
+        run, calls = self.runner()
+        self.assertTrue(Layout(run=run).switch_on(("HDMI-A-1", "HDMI-A-2")))
+        self.assertEqual([["wlr-randr", "--output", "HDMI-A-1", "--on",
+                           "--output", "HDMI-A-2", "--on"]], calls)
+
+    def test_it_says_on_and_sets_no_mode(self):
+        """Both halves of the lesson in one test: --on must be there, and a mode must not --
+        the mode, transform and position are one mat's desk and belong in that mat's own
+        display-setup.sh, not in an app overruling a layout somebody chose."""
+        from salaah.power import Layout
+        run, calls = self.runner()
+        Layout(run=run).switch_on(("HDMI-A-1",))
+        self.assertIn("--on", calls[0])
+        for guessed in ("--mode", "--transform", "--pos", "--preferred", "--off"):
+            self.assertNotIn(guessed, calls[0], f"the app guessed {guessed} at the layout")
+
+    def test_nothing_to_do_asks_nothing(self):
+        from salaah.power import Layout
+        run, calls = self.runner()
+        self.assertTrue(Layout(run=run).switch_on(()))
+        self.assertTrue(Layout(run=run).switch_on(("",)))
+        self.assertEqual([], calls, "wlr-randr was run with no outputs to switch on")
+
+    def test_a_missing_wlr_randr_is_reported_not_raised(self):
+        from salaah.power import Layout
+
+        def run(command, **kw):
+            raise FileNotFoundError(command[0])
+        layout = Layout(run=run)
+        self.assertFalse(layout.switch_on(("HDMI-A-1",)))
+        self.assertIn("not installed", layout.why)
+
+    def test_a_refusal_is_reported(self):
+        from salaah.power import Layout
+        run, _ = self.runner(code=1, error="unknown output")
+        layout = Layout(run=run)
+        self.assertFalse(layout.switch_on(("HDMI-A-9",)))
+        self.assertIn("unknown output", layout.why)
 
 
 class PowerDrawTest(unittest.TestCase):
@@ -2045,15 +2447,63 @@ class DuaContentTest(unittest.TestCase):
         both sides of the comparison together and catch nothing. Two separate implementations
         agree only when both are right.
 
-        Footnote references go; a leading number goes when it IS this verse's number. The
-        translators' own bracketed words stay, because they are scripture as published.
+        Footnote references go, together with the gap they leave in front of punctuation or a
+        closing mark; a leading number goes when it IS this verse's number, and a leading LIST
+        of numbers goes when this verse is one of them, because Abu Adel's Russian renders
+        some verses jointly and writes "32, 33. " at the head of each copy. A space stranded
+        in front of a full stop or a comma goes. The translators' own bracketed words stay,
+        because they are scripture as published.
+
+        Written with a scan and plain string work rather than the patterns salaah.quran uses,
+        so that the two can still only agree by both being right.
         """
-        import re
-        out = re.sub(r"\[[0-9]+\]", "", text)
-        head = re.match(r"^([0-9]+)[.,]\s+", out)
-        if head and int(head.group(1)) == number:
-            out = out[head.end():]
-        return " ".join(out.split())
+        shuts = "»”’\"')]"
+        stops = ",.;:!?।؟،"
+
+        # 1. The footnote references, one character at a time.
+        out: list[str] = []
+        at = 0
+        while at < len(text):
+            if text[at] == "[":
+                shut = text.find("]", at)
+                inside = text[at + 1:shut] if shut > at else ""
+                if shut > at and inside.strip() and inside.strip().isdigit():
+                    after = text[shut + 1] if shut + 1 < len(text) else ""
+                    while out and out[-1].isspace():
+                        out.pop()
+                    if after and after not in shuts and after not in stops:
+                        out.append(" ")
+                    at = shut + 1
+                    continue
+            out.append(text[at])
+            at += 1
+        body = "".join(out)
+
+        # 2. A space stranded in front of a stop or a comma.
+        while " ." in body or " ," in body:
+            body = body.replace(" .", ".").replace(" ,", ",")
+
+        # 3. The head number, or the list of them.
+        head = body.lstrip()
+        digits = "0123456789٠١٢٣٤٥٦٧٨٩" \
+                 "০১২৩৪৫৬৭৮৯"
+        runnable = digits + " ,-–—"
+        end = 0
+        while end < len(head) and head[end] in runnable:
+            end += 1
+        run, rest = head[:end].rstrip(), head[end:]
+        def numbers_in(piece):
+            spaced = "".join(c if c in digits else " " for c in piece)
+            return [int(n) for n in spaced.split()]
+
+        if run.endswith(","):           # the Spanish shape: "88, Coman de lo licito..."
+            after = head[len(run):]
+            if after[:1].isspace() and number in numbers_in(run):
+                head = after.lstrip()
+        elif rest[:1] in (".", ",") and rest[1:2].isspace():
+            if number in numbers_in(run):
+                head = rest[1:].lstrip()
+        return " ".join(head.split())
 
     def verse(self, lang, surah, number):
         import json
@@ -2455,6 +2905,720 @@ class VerseStoreTest(unittest.TestCase):
         s = self.store(explode)
         s.want([(1, 1), (1, 2)])
         s.settle()                       # no exception reaches here, and it finished
+
+
+class ThreeTranslationsFromOneSourceTest(unittest.TestCase):
+    """Russian added, French and Urdu moved to the Encyclopedia, and what that exposed.
+
+    Harry asked for one source so there is one licence to keep track of. These check the
+    texts arrived whole, that they say where they came from, and -- the part that matters --
+    that the two display faults the new texts brought with them are gone from all nine
+    languages rather than just from the three that changed.
+    """
+
+    LANGS = ("en", "fr", "ur", "es", "zh", "hi", "ru", "pt", "bn")
+    #: Zakaria's Bengali types the danda inside the bracket in 2:245 and never closes the
+    #: bracket in 14:17. Taking those out mechanically would take the sentence's own danda
+    #: with it, so they stay as published and go upstream instead. Listed here so that a
+    #: THIRD one appearing is a failure rather than a number nobody is watching.
+    THEIRS_TO_FIX = {("bn", 2, 245), ("bn", 14, 17)}
+
+    def setUp(self):
+        from pathlib import Path
+        from salaah.quran import Quran
+        assets = Path(__file__).resolve().parent.parent / "assets"
+        self.root = assets / "content" / "quran"
+        self.quran = Quran(assets)
+
+    def verses(self, lang):
+        """The text as it sits on disk."""
+        import json
+        for n in range(1, 115):
+            for row in json.loads((self.root / lang / f"{n}.json").read_text(encoding="utf-8")):
+                yield n, row["n"], row["text"]
+
+    def shown(self, lang):
+        """The text as the READER hands it to the screen, which is the only thing that counts.
+
+        This used to call as_shown on the file directly, and a sabotage that de-duplicated
+        identical paragraphs inside Quran.verses() went straight past every test in this
+        class -- they were not using the reader, so breaking the reader cost nothing.
+        """
+        for n in range(1, 115):
+            for verse in self.quran.verses(n, lang):
+                yield n, verse.number, verse.meaning
+
+    def test_the_three_texts_are_all_there(self):
+        for lang in ("ru", "fr", "ur"):
+            rows = list(self.verses(lang))
+            self.assertEqual(6236, len(rows), f"{lang} is not a whole Qur'an")
+            self.assertEqual(114, len({s for s, _, _ in rows}), f"{lang} is missing a surah")
+            blank = [f"{s}:{v}" for s, v, t in rows if not t.strip()]
+            self.assertEqual([], blank, f"{lang} has blank verses")
+
+    def test_all_three_say_the_encyclopedia_is_where_they_came_from(self):
+        import json
+        for lang in ("ru", "fr", "ur"):
+            where = json.loads((self.root / lang / "SOURCE.json").read_text(encoding="utf-8"))
+            self.assertIn("quranenc", json.dumps(where).lower(), f"{lang} does not name it")
+            self.assertIs(False, where.get("reviewed"),
+                          f"{lang} claims to have been reviewed, and nobody has read it")
+
+    def test_no_verse_in_any_language_still_shows_its_own_number(self):
+        """The Russian joins verses, and the old rule made a mess of exactly that.
+
+        Abu Adel renders 26:32-33 as one paragraph and the API returns it under both verses,
+        each copy opening "32, 33. ". The single-number pattern stripped "32, " from verse 32
+        and left "33. " standing, and stripped nothing at all from verse 33.
+        """
+        import re
+        for lang in self.LANGS:
+            left = [f"{s}:{v}" for s, v, t in self.shown(lang) if re.match(r"^\d+\s*[.,]\s", t)]
+            self.assertEqual([], left, f"{lang} shows a verse number in the text")
+
+    def test_a_number_that_is_not_this_verses_is_left_alone(self):
+        """The guard that stops the rule eating a verse opening with a numeral of its own."""
+        from salaah.quran import as_shown
+        self.assertEqual("3. Un verset", as_shown("3. Un verset", 7))
+        self.assertEqual("Un verset", as_shown("3. Un verset", 3))
+        self.assertEqual("Un verset", as_shown("3, 4. Un verset", 4))
+        self.assertEqual("Un verset", as_shown("3-5. Un verset", 5))
+        self.assertEqual("3, 4. Un verset", as_shown("3, 4. Un verset", 9))
+        self.assertEqual("40 ans et un jour", as_shown("40 ans et un jour", 3))
+
+    def test_nothing_is_left_hanging_in_front_of_a_stop_or_a_comma(self):
+        import re
+        for lang in self.LANGS:
+            bad = [f"{s}:{v}" for s, v, t in self.shown(lang) if re.search(r"\s[.,]", t)]
+            self.assertEqual([], bad, f"{lang} shows a space in front of a stop or a comma")
+
+    def test_french_keeps_the_space_it_is_supposed_to_have(self):
+        """French puts a space before ; : ! ? and inside guillemets, and 2,517 verses do.
+
+        This is the one that would catch a tidying rule written too wide. The count is a
+        floor rather than the exact number so that a later text revision does not fail it,
+        but a rule that swept French punctuation away would take it to nearly zero.
+        """
+        import re
+        kept = [1 for _, _, t in self.shown("fr") if re.search(r"\s[;:!?»]", t)]
+        self.assertGreater(len(kept), 2400,
+                           "a tidying rule has eaten French typography")
+
+    def test_no_footnote_marker_reaches_the_glass_except_the_two_that_cannot_go(self):
+        import re
+        for lang in self.LANGS:
+            for s, v, t in self.shown(lang):
+                if re.search(r"\[\s*\d", t):
+                    self.assertIn((lang, s, v), self.THEIRS_TO_FIX,
+                                  f"{lang} {s}:{v} shows a footnote marker")
+
+    def test_nothing_is_shown_with_a_doubled_space(self):
+        for lang in self.LANGS:
+            bad = [f"{s}:{v}" for s, v, t in self.shown(lang) if "  " in t]
+            self.assertEqual([], bad, f"{lang} shows a doubled space")
+
+    def test_no_gap_is_left_in_front_of_a_closing_quote_or_bracket(self):
+        """The one the Russian uncovered, which had been in the English all along.
+
+        Abu Adel writes 69:1 as «Исполняемое[1]», and taking the marker out left a space in
+        front of the guillemet. The same thing was in 175 verses across seven languages --
+        Portuguese, Spanish and English worst -- and nobody had looked, because the rule that
+        closes these gaps only knew about full stops and commas.
+        """
+        import re
+        from salaah.quran import NOTE_MARK, as_shown
+        #: Checked AT THE MARKER SITES and nowhere else, because a space before a closing mark
+        #: is not always the mat's fault: Saheeh International writes "(ﷺ) ]" in 80:1 and
+        #: 81:22 inside its own interpolation, with no marker in sight. A sweep of the whole
+        #: verse called those failures, which was the test being wrong rather than the text.
+        site = re.compile(NOTE_MARK.pattern + r"(?=[»”’\"')\]])")
+        checked = 0
+        for lang in self.LANGS:
+            for surah, verse, raw in self.verses(lang):
+                shown = as_shown(raw, verse)
+                for hit in site.finditer(raw):
+                    before = NOTE_MARK.sub("", raw[:hit.start()]).rstrip()
+                    if not before:
+                        continue
+                    joined = before[-1] + raw[hit.end()]
+                    self.assertIn(joined, shown,
+                                  f"{lang} {surah}:{verse} left a gap where a marker was, "
+                                  f"in front of {raw[hit.end()]!r}")
+                    checked += 1
+        self.assertGreater(checked, 100, "the sweep found almost no marker sites to check")
+
+    def test_a_marker_before_an_opening_quote_keeps_its_space(self):
+        """26:27, which a first attempt at the rule above broke.
+
+        Saheeh International writes "[Pharaoh] said,[1047] "Indeed..." -- the space after the
+        marker belongs to the quote that follows, not to the marker. Adding closing marks to
+        the rule that eats trailing whitespace turned it into 'said,"Indeed'.
+        """
+        from salaah.quran import as_shown
+        shown = {(s, v): t for s, v, t in self.shown("en")}
+        self.assertIn('said, "Indeed', shown[(26, 27)])
+        self.assertEqual('He said, "Go"', as_shown('He said,[12] "Go"', 5))
+        self.assertEqual('He said "Go"', as_shown('He said "Go[12]"', 5))
+        self.assertEqual('«Лис»', as_shown('«Лис[1]»', 5))
+        self.assertEqual('(a word)', as_shown('(a word [3])', 5))
+
+    def test_the_joined_russian_paragraphs_are_still_a_thing_harry_has_to_decide(self):
+        """Not a defect to fix quietly -- a count, so that it cannot be forgotten.
+
+        19 groups of verses are rendered as one paragraph because the translator joined
+        them, and their text says so by opening each copy "32, 33. ". The mat now shows each
+        copy cleanly, which means the repetition is no longer explained to the reader. Saying
+        something on the screen is a change to how the Qur'an is presented and Harry's call,
+        not mine, so this counts them and will fail if a later text changes the number.
+
+        It counts by the publisher's own signal rather than by looking for repeated text,
+        because repeated text is NOT the same question: 14 further groups repeat because the
+        Qur'an repeats, the refrain of surah 55 across 27 verses among them, and those are
+        not joins and must not be touched.
+        """
+        import re
+        found = set()
+        for surah, verse, text in self.verses("ru"):
+            head = re.match(r"^\s*(\d+(?:\s*[,–—-]\s*\d+)*)\s*[.,]\s+", text)
+            if head:
+                numbers = tuple(sorted(int(x) for x in re.findall(r"\d+", head.group(1))))
+                if len(numbers) > 1 and verse in numbers:
+                    found.add((surah, numbers))
+        self.assertEqual(19, len(found),
+                         "the number of joined Russian paragraphs has changed -- the release "
+                         "note lists 19 and says Harry has not been asked about them yet")
+        self.assertIn((26, (32, 33)), found)
+        self.assertIn((80, (28, 29, 30)), found)
+
+    def test_the_russian_refrains_are_left_exactly_as_they_are(self):
+        """Surah 55's refrain is one line repeated, and must stay repeated.
+
+        Guards the test above from being 'fixed' by de-duplicating identical paragraphs,
+        which would quietly delete scripture.
+        """
+        shown = {(s, v): t for s, v, t in self.shown("ru")}
+        refrain = shown[(55, 16)]
+        same = [v for (s, v), t in shown.items() if s == 55 and t == refrain]
+        self.assertGreaterEqual(len(same), 27, "surah 55's refrain has lost repetitions")
+        self.assertTrue(refrain.strip())
+
+    def test_the_app_and_the_suite_agree_on_every_verse_in_every_language(self):
+        """The check that actually found the French damage, kept as a standing guard.
+
+        DuaContentTest carries a second implementation of the display rule, written a
+        different way on purpose so that the two can only agree by both being right. It was
+        the thing that caught salaah.quran eating the space French puts before a colon in 879
+        verses -- it disagreed, and it was right and the app was wrong.
+
+        That disagreement only surfaced because a du'a happened to quote one of the damaged
+        verses. Ten du'as out of 6,236 verses is a thin net, so this throws the whole corpus
+        at both implementations instead. If the two ever part company again, this says so
+        with the first verse they part on.
+        """
+        from salaah.quran import as_shown
+        from tests.test_core import DuaContentTest
+        apart = []
+        for lang in self.LANGS:
+            for surah, verse, raw in self.verses(lang):
+                app = as_shown(raw, verse)
+                suite = DuaContentTest.as_displayed(raw, verse)
+                if app != suite:
+                    apart.append(f"{lang} {surah}:{verse}\n  app   {app}\n  suite {suite}")
+        self.assertEqual([], apart[:3],
+                         f"the two display rules disagree on {len(apart)} verses")
+
+    def test_the_three_upstream_typos_are_the_only_ones_left(self):
+        """Theirs to fix, reported upstream, and listed here so a fourth cannot hide.
+
+        Two are Bengali brackets -- a danda typed inside the bracket in 2:245 and a bracket
+        never closed in 14:17 -- where removing the marker would take the sentence's own
+        punctuation with it. The third is Russian 69:2, where their copy of the joined
+        paragraph lost the brackets around the marker and reads "«Исполняемое1»". A rule
+        that stripped bare digits next to words would be far more dangerous than the defect.
+        """
+        import re
+        bn = [f"{s}:{v}" for s, v, t in self.shown("bn") if re.search(r"\[\s*\d", t)]
+        self.assertEqual(["2:245", "14:17"], bn)
+        shown = {(s, v): t for s, v, t in self.shown("ru")}
+        self.assertIn("«Исполняемое1»", shown[(69, 2)])
+        self.assertNotIn("«Исполняемое1»", shown[(69, 1)],
+                         "69:1 should have had its bracketed marker removed cleanly")
+
+
+class TheMatHasNoNameUntilSomebodySaysYesTest(unittest.TestCase):
+    """2.19: the community map's install id, and the promises made about it.
+
+    Harry wants the world screen to show other mats eventually, which needs each mat to call
+    itself something when it checks in. These are the rules that make that acceptable on a
+    device used by children, and they are tests rather than comments because every one of
+    them is a promise that would be easy to break by accident later.
+    """
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        self.room = Path(tempfile.mkdtemp())
+        self.path = self.room / "install-id"
+        self.addCleanup(lambda: __import__("shutil").rmtree(self.room, ignore_errors=True))
+
+    def test_a_mat_that_never_agreed_has_no_name_at_all(self):
+        """Not an unused name sitting in a file: no file."""
+        from salaah import onthemap
+        self.assertIsNone(onthemap.name_of_this_mat(self.path))
+        self.assertFalse(self.path.exists())
+
+    def test_saying_yes_makes_one_and_saying_no_destroys_it(self):
+        from salaah import onthemap
+        name = onthemap.join(self.path)
+        self.assertIsNotNone(name)
+        self.assertTrue(self.path.is_file())
+        onthemap.leave(self.path)
+        self.assertFalse(self.path.exists(), "the name outlived the refusal")
+        self.assertIsNone(onthemap.name_of_this_mat(self.path))
+
+    def test_saying_yes_twice_is_still_one_mat(self):
+        """Otherwise an upgrade, or a double tap, quietly becomes a second mat in the count."""
+        from salaah import onthemap
+        first = onthemap.join(self.path)
+        self.assertEqual(first, onthemap.join(self.path))
+        self.assertEqual(first, onthemap.name_of_this_mat(self.path))
+
+    def test_leaving_and_returning_is_a_different_mat(self):
+        """Deliberate: it stops two periods being joined into one household's history."""
+        from salaah import onthemap
+        first = onthemap.join(self.path)
+        onthemap.leave(self.path)
+        second = onthemap.join(self.path)
+        self.assertNotEqual(first, second)
+
+    def test_the_name_is_random_and_not_the_machine(self):
+        """A name derived from hardware cannot be reset by the person it identifies.
+
+        Checked by making many and finding them all different, which a MAC address or a
+        serial number or a hash of either could not be.
+        """
+        from salaah import onthemap
+        made = set()
+        for n in range(50):
+            path = self.room / f"id-{n}"
+            made.add(onthemap.join(path))
+        self.assertEqual(50, len(made), "the names are not independent of each other")
+        for name in made:
+            self.assertRegex(name, r"\A[0-9a-f]{32}\Z")
+
+    def test_a_damaged_file_is_treated_as_no_name_rather_than_guessed_at(self):
+        from salaah import onthemap
+        for rubbish in ("", "   ", "not-a-uuid", "0123", "../../etc/passwd", "x" * 32,
+                        "0123456789ABCDEF0123456789ABCDEF"):
+            self.path.write_text(rubbish, encoding="utf-8")
+            with self.subTest(rubbish[:18]):
+                self.assertIsNone(onthemap.name_of_this_mat(self.path))
+
+    def test_it_is_kept_out_of_the_settings_file(self):
+        """An identifier is not a preference, and the two must be separately deletable."""
+        from salaah import onthemap
+        from salaah.settings import Settings
+        self.assertNotIn("install", onthemap.PATH.name.replace("install-id", ""))
+        self.assertEqual("install-id", onthemap.PATH.name)
+        self.assertNotIn("install_id", Settings.__dataclass_fields__)
+        self.assertNotIn("id", Settings.__dataclass_fields__)
+
+    def test_the_setting_is_off_until_somebody_turns_it_on(self):
+        from salaah.settings import Settings
+        self.assertIs(False, Settings().on_the_map)
+
+    def test_nothing_in_the_app_knows_where_to_send_anything(self):
+        """The release that adds the switch must not be the release that starts sending.
+
+        Greps the shipped code for an address. This is a blunt check and that is the point:
+        it fails the day somebody wires a heartbeat up without the wording under the switch
+        being revisited, which currently tells the family that nothing is sent.
+        """
+        import re
+        from pathlib import Path
+        code = Path(__file__).resolve().parent.parent / "salaah"
+        #: Every address the mat already knew before the map was thought of, each one a place
+        #: it FETCHES from rather than tells anything about itself: the update it downloads,
+        #: the recitations it caches verse by verse, and the pages its credits point at. The
+        #: list is written out so that adding to it is a decision somebody makes on purpose.
+        allowed = {"quranenc.com", "tanzil.net", "raw.githubusercontent.com", "github.com",
+                   "api.github.com", "everyayah.com", "openstreetmap.org", "schemas.org",
+                   "www.w3.org"}
+        found = {}
+        for py in sorted(code.rglob("*.py")):
+            for host in re.findall(r"https?://([A-Za-z0-9.-]+)", py.read_text(encoding="utf-8")):
+                if host not in allowed:
+                    found.setdefault(py.name, set()).add(host)
+        self.assertEqual({}, found,
+                         "the app has learnt a new address -- if this is the map's service, "
+                         "the note under the switch must stop saying nothing is sent")
+
+
+class TheTownsOfTheWorldTest(unittest.TestCase):
+    """2.20: the mat can be told it is anywhere, not only in Britain.
+
+    Harry: "a person in sydney, australia wont be able to use it. postcode good for uk but
+    not any where else." The postcode table stays -- it is offline, tested, and puts a
+    British mat within a mile or two -- and this sits beside it.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        from pathlib import Path
+        from salaah.places import Cities
+        cls.assets = Path(__file__).resolve().parent.parent / "assets"
+        cls.cities = Cities(cls.assets)
+        cls.cities.rows                      # read once; every test below shares it
+
+    def test_the_table_is_whole(self):
+        self.assertGreater(len(self.cities.rows), 30000)
+        self.assertTrue(self.cities.there)
+
+    def test_every_row_says_the_same_things(self):
+        """A short row would be a silent AttributeError on the glass, not here."""
+        for row in self.cities.rows:
+            self.assertEqual(7, len(row), f"{row[:2]} is the wrong shape")
+            name, country, lat, lon, zone, others, region = row
+            self.assertTrue(name.strip())
+            self.assertEqual(2, len(country))
+            self.assertTrue(-90 <= lat <= 90, f"{name} is off the Earth")
+            self.assertTrue(-180 <= lon <= 180, f"{name} is off the Earth")
+            self.assertTrue(zone.strip(), f"{name} has no timezone")
+            self.assertIsInstance(others, list)
+
+    def test_every_timezone_is_one_python_knows(self):
+        """The whole point of carrying them is the clock check, which needs them to resolve."""
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        bad = []
+        for zone in sorted({row[4] for row in self.cities.rows}):
+            try:
+                ZoneInfo(zone)
+            except (ZoneInfoNotFoundError, ValueError):
+                bad.append(zone)
+        self.assertEqual([], bad, "the mat carries timezones it cannot resolve")
+
+    def test_the_places_this_mat_most_needs(self):
+        for typed, want, country in (("bury", "Bury", "GB"), ("sydney", "Sydney", "AU"),
+                                     ("makkah", "Makkah", "SA"), ("dhaka", "Dhaka", "BD"),
+                                     ("lahore", "Lahore", "PK"), ("batley", "Batley", "GB")):
+            with self.subTest(typed):
+                hits = self.cities.search(typed)
+                self.assertTrue(hits, f"{typed} finds nothing")
+                self.assertEqual(want, hits[0].outward)
+                self.assertEqual(country, hits[0].country)
+
+    def test_a_name_people_type_finds_the_name_the_table_uses(self):
+        """The canonical entry is "Makkah". Somebody typing "Mecca" must still get there.
+
+        This is why alternate spellings are carried at all, and the first build got it
+        wrong: it kept the six SHORTEST alternates, which gave airport codes and cut "Mecca"
+        for being a letter longer than three spellings nobody uses.
+        """
+        self.assertEqual("Makkah", self.cities.search("mecca")[0].outward)
+        self.assertEqual("Madinah", self.cities.search("medina")[0].outward)
+
+    def test_every_spelling_carried_is_one_this_mat_can_actually_type(self):
+        """What replaced a test that asked for something the mat cannot do.
+
+        THE TEST THAT WAS HERE asserted that a mat whose interface is Urdu could be searched
+        by somebody typing Urdu, and the build carried one name per script to satisfy it:
+        42,124 names in Arabic, Bengali, Devanagari, Cyrillic and Han. It passed, and it was
+        testing a feature no person could reach.
+
+        `salaah/keys.py` is the only way text gets into that box -- the field is a QLabel, so
+        there is no cursor, no physical keyboard and no input method -- and the keyboard
+        offers a-z, digits and punctuation. Nobody can type an Urdu letter on this mat. The
+        names also had no glyph in the fonts that ship, so the guard against shipping text
+        that draws as empty boxes failed the moment those names arrived, which is how this
+        was found: the two tests wanted opposite things and the unreachable one lost.
+
+        So the rule is now the reachable one, and it is cheap to keep: every spelling carried
+        is ASCII, which is exactly what the keyboard can produce. It also took a third off
+        the file.
+
+        IF THE KEYBOARD EVER LEARNS ANOTHER SCRIPT this test is the one to come back to, and
+        the fonts have to be checked in the same breath.
+        """
+        strange = [(row[0], name) for row in self.cities.rows for name in row[5]
+                   if not name.isascii()]
+        self.assertFalse(strange[:8], "spellings carried that this mat's keyboard cannot type")
+        self.assertGreater(sum(len(row[5]) for row in self.cities.rows), 50000,
+                           "almost no spellings are carried, so this proved nothing")
+
+    def test_accents_do_not_have_to_be_typed(self):
+        """The mat's own keyboard has no easy way to make them."""
+        hits = self.cities.search("malaga")
+        self.assertEqual("Málaga", hits[0].outward)
+        self.assertEqual("ES", hits[0].country, "the small Colombian one came first")
+
+    def test_the_biggest_of_a_shared_name_is_offered_first(self):
+        """Thirteen Springfields, and only one of them is likely to be meant.
+
+        This failed once for a reason worth keeping: the build looked each population up by
+        NAME, so every town sharing a name collapsed to whichever was written last, and the
+        order among exactly the rows that needed ordering was arbitrary.
+        """
+        hits = self.cities.search("springfield")
+        self.assertEqual("MO", hits[0].region, "the largest Springfield is not first")
+        self.assertTrue(all(h.outward.startswith("Springfield") for h in hits[:3]))
+
+    def test_a_region_is_shown_only_where_a_name_repeats(self):
+        """Otherwise it is noise: the UK's code is ENG, and "Bury, ENG" helps nobody."""
+        self.assertEqual("", self.cities.search("bury")[0].region)
+        self.assertNotEqual("", self.cities.search("springfield")[0].region)
+        shared = {}
+        for row in self.cities.rows:
+            shared.setdefault((row[0], row[1]), []).append(row[6])
+        for (name, country), regions in shared.items():
+            if len(regions) == 1:
+                self.assertEqual("", regions[0],
+                                 f"{name} is alone in {country} and still shows a region")
+
+    def test_one_letter_is_not_a_search(self):
+        """"b" would answer with a thousand towns, which is no answer at all."""
+        self.assertEqual([], self.cities.search("b"))
+        self.assertEqual([], self.cities.search(""))
+        self.assertNotEqual([], self.cities.search("bu"))
+
+    def test_it_offers_a_few_and_not_a_thousand(self):
+        for typed in ("san", "new", "al", "bu"):
+            with self.subTest(typed):
+                self.assertLessEqual(len(self.cities.search(typed)), 8)
+
+    def test_everything_offered_begins_with_what_was_typed(self):
+        """Matching the MIDDLE of a name is the failure this stops.
+
+        A sabotage that changed the search from "begins with" to "contains anywhere" went
+        straight past every other test in this class, because the only thing they checked
+        about an unfamiliar query was that no more than eight answers came back -- and eight
+        irrelevant answers is still eight. Typing "or" would have offered Gloucester and
+        York and Cordoba, which is a list nobody can use.
+
+        A match may be on the town's own name or on one of its spellings, so both are
+        allowed; what is not allowed is a match that starts somewhere in the middle of both.
+        """
+        from salaah.places import fold
+        for typed in ("or", "ley", "ster", "ury", "ans"):
+            with self.subTest(typed):
+                want = fold(typed)
+                for found in self.cities.search(typed):
+                    row = next(r for r in self.cities.rows
+                               if r[0] == found.outward and r[1] == found.country)
+                    names = [fold(row[0])] + [fold(n) for n in row[5]]
+                    self.assertTrue(
+                        any(name.startswith(want) for name in names),
+                        f"{found.outward} was offered for {typed!r} and begins with none "
+                        f"of {names}")
+
+    def test_a_postcode_is_still_a_postcode(self):
+        """The whole design is one box that works out which kind of thing was typed."""
+        from salaah.places import OUTWARD, Places, tidy
+        places = Places(self.assets)
+        self.assertIsNotNone(places.look_up("BL9"))
+        self.assertIsNotNone(places.look_up("bl9 0ab"))
+        # and no town can be mistaken for one: an outward code always has a digit in it
+        for row in self.cities.rows[:4000]:
+            self.assertIsNone(OUTWARD.match(tidy(row[0])),
+                              f"the town {row[0]} would be read as a postcode")
+
+    def test_a_town_knows_its_timezone_and_a_postcode_does_not_need_one(self):
+        from salaah.places import Places
+        self.assertTrue(self.cities.search("sydney")[0].is_a_town)
+        self.assertEqual("Australia/Sydney", self.cities.search("sydney")[0].timezone)
+        self.assertFalse(Places(self.assets).look_up("BL9").is_a_town)
+
+    def test_the_clock_check_notices_a_mat_in_the_wrong_timezone(self):
+        """The failure this exists to catch: a timetable eleven hours wrong, every day,
+        with nothing on the screen looking broken."""
+        from salaah.places import clock_disagrees
+        import datetime
+        here = datetime.datetime.now().astimezone().tzname()
+        self.assertFalse(clock_disagrees(""), "no zone must never be a complaint")
+        self.assertFalse(clock_disagrees("Nowhere/Invented"),
+                         "an unknown zone is this mat's fault, not the family's")
+        far = ["Pacific/Kiritimati", "Pacific/Niue", "Asia/Kathmandu"]
+        self.assertTrue(any(clock_disagrees(zone) for zone in far),
+                        f"no far-off zone disagreed with this machine's clock ({here})")
+
+    def test_geonames_is_credited_with_its_licence(self):
+        """CC BY 4.0 asks for the credit AND for the licence to be indicated."""
+        from salaah import sources
+        from salaah.quran import Quran
+        rows = [c for c in sources.everything(self.assets, Quran(self.assets))
+                if c.publisher == "GeoNames"]
+        self.assertEqual(1, len(rows), "GeoNames is not credited on the Sources page")
+        said = rows[0].line()
+        self.assertIn("GeoNames", said)
+        self.assertIn("CC BY 4.0", said)
+        self.assertIn("creativecommons.org", said)
+
+    def test_the_table_is_not_fetched_from_anywhere(self):
+        """It is a snapshot. A mat with no network must still be able to find its town."""
+        from pathlib import Path
+        code = Path(__file__).resolve().parent.parent / "salaah"
+        for py in code.rglob("*.py"):
+            text = py.read_text(encoding="utf-8")
+            self.assertNotIn("geonamescache", text,
+                             f"{py.name} imports the build-time dataset at run time")
+            self.assertNotIn("geonames.org/export", text)
+
+
+class TheSourcesPageSaysWhoAndNotWhyTest(unittest.TestCase):
+    """2.18: the credits line carries attribution, not the working out.
+
+    Harry, reading the page on the mat: "there's a lot of information that is not relevant
+    for user to see especially reasoning and internal thoughts. keep it simple, where it
+    comes from, date, version number."
+
+    He was reading my notes. A SOURCE.json `note` is a record for whoever next imports that
+    text -- why it came through the API rather than an export, what was tried, what an
+    earlier note got wrong -- and the French one had grown to nine lines that quoted an email
+    and corrected itself in capitals. It belongs in the file and not on the glass.
+    """
+
+    def credit(self, **fields):
+        from salaah.sources import Credit
+        base = dict(what="French translation", translator="Muhammad Hamidullah",
+                    publisher="Noble Qur'an Encyclopedia",
+                    where="https://quranenc.com/en/browse/french_hameedullah")
+        return Credit(**{**base, **fields})
+
+    def test_it_says_who_the_version_the_date_and_the_address(self):
+        said = self.credit(version="1.1.3", updated="2025-08-13").line()
+        self.assertIn("Muhammad Hamidullah", said)
+        self.assertIn("Noble Qur'an Encyclopedia", said)
+        self.assertIn("version 1.1.3", said)
+        self.assertIn("2025-08-13", said)
+        self.assertIn("quranenc.com/en/browse/french_hameedullah", said)
+
+    def test_the_working_out_never_reaches_the_line(self):
+        """`via` and `note` are both records for the next importer, not for the reader."""
+        said = self.credit(
+            via="quranenc.com official API v1, captured 2026-11-07",
+            note="Captured through their API v1 because QuranEnc publishes no export of this "
+                 "edition. THE EARLIER NOTE REASONED FROM THE WRONG THING.").line()
+        for leak in ("captured", "API v1", "EARLIER NOTE", "export", "official"):
+            self.assertNotIn(leak, said, f"the credits line is explaining itself: {said!r}")
+
+    def test_a_text_with_no_version_simply_does_not_claim_one(self):
+        said = self.credit().line()
+        self.assertNotIn("version", said)
+        self.assertIn("Muhammad Hamidullah", said)
+        self.assertIn("quranenc.com", said)
+
+    def test_the_notes_are_still_in_the_files_where_they_belong(self):
+        """Taking them off the page must not mean deleting them."""
+        import json
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent / "assets" / "content" / "quran"
+        fr = json.loads((root / "fr" / "SOURCE.json").read_text(encoding="utf-8"))
+        self.assertTrue(fr.get("note", "").strip(),
+                        "the French provenance note has been deleted rather than hidden")
+        self.assertIn("empty page", fr["note"],
+                      "the note no longer records what was actually tried")
+
+    def test_every_installed_text_still_names_somebody(self):
+        """The attribution is the licence's requirement, so it cannot quietly go missing."""
+        from pathlib import Path
+        from salaah import sources
+        from salaah.quran import Quran
+        assets = Path(__file__).resolve().parent.parent / "assets"
+        for credit in sources.everything(assets, Quran(assets)):
+            with self.subTest(credit.what):
+                said = credit.line()
+                self.assertTrue(said.strip())
+                self.assertNotEqual("source not recorded", said,
+                                    f"{credit.what} names nobody")
+
+
+class TheStepScreenAndTheReadingScreenAgreeTest(unittest.TestCase):
+    """What a child prays and what a child reads are the same words, in all nine languages.
+
+    They were not, for a long time, and for a reason: French and Urdu read Hamidullah and
+    Maududi from quran-json, both translators dead well inside copyright, while their step
+    screens used Kazimirski (1840) and Jalandhry (d. 1929), certainly out of it. Switching
+    would have traded free text for probably-not-free. In 2.15 the reading screens moved onto
+    quranenc.com under the permission Harry holds, the trade changed, and Harry asked for the
+    two screens to be matched.
+
+    The passage layout is written out here rather than imported from tools/retext_salaah_quran
+    .py, because tools/ does not ship -- the mat has to be right without it.
+
+    Ayat al-Kursi is not in this list on purpose. It is one verse the mat splits into nine
+    lines, and cutting a translator's prose at nine places in a language nobody here reads is
+    not quoting them. It stays a draft until somebody who reads the language does it.
+    """
+
+    LANGS = ("en", "fr", "ur", "es", "zh", "hi", "ru", "pt", "bn")
+    BASMALA = (1, 1)
+    PASSAGES = {
+        "fatiha":  [(1, n) for n in range(1, 8)],
+        "kawthar": [BASMALA] + [(108, n) for n in range(1, 4)],
+        "ikhlas":  [BASMALA] + [(112, n) for n in range(1, 5)],
+        "falaq":   [BASMALA] + [(113, n) for n in range(1, 6)],
+        "nas":     [BASMALA] + [(114, n) for n in range(1, 7)],
+    }
+
+    def setUp(self):
+        from pathlib import Path
+        self.assets = Path(__file__).resolve().parent.parent / "assets"
+
+    def reading(self, lang, surah):
+        import json
+        from salaah.quran import as_shown
+        rows = json.loads((self.assets / "content" / "quran" / lang / f"{surah}.json")
+                          .read_text(encoding="utf-8"))
+        return {r["n"]: as_shown(r["text"], r["n"]) for r in rows}
+
+    def steps(self, lang):
+        import json
+        return json.loads((self.assets / "content" / "translations" / f"{lang}.json")
+                          .read_text(encoding="utf-8"))
+
+    def test_every_quranic_passage_matches_the_reading_screen_word_for_word(self):
+        for lang in self.LANGS:
+            doc = self.steps(lang)
+            for name, refs in self.PASSAGES.items():
+                with self.subTest(f"{lang}.{name}"):
+                    want = [self.reading(lang, surah)[verse] for surah, verse in refs]
+                    self.assertEqual(want, doc["lines"].get(name),
+                                     f"{lang} {name} does not say what the reading screen says")
+
+    def test_each_passage_still_pairs_line_for_line_with_the_arabic(self):
+        """The thing that breaks first if a translation is rebuilt carelessly.
+
+        The step screen draws one line of translation against one line of Arabic. A passage
+        that gains or loses a line does not look wrong in the file, it looks wrong on the
+        glass, with a child reading the wrong line against the posture they are in.
+        """
+        import json
+        arabic = json.loads((self.assets / "content" / "core" / "arabic.json")
+                            .read_text(encoding="utf-8"))["text"]
+        for lang in self.LANGS:
+            doc = self.steps(lang)
+            for name in self.PASSAGES:
+                with self.subTest(f"{lang}.{name}"):
+                    self.assertEqual(len(arabic[name]), len(doc["lines"][name]),
+                                     f"{lang} {name} no longer pairs with the Arabic")
+
+    def test_the_passage_says_which_translator_it_came_from(self):
+        for lang in self.LANGS:
+            for name in self.PASSAGES:
+                with self.subTest(f"{lang}.{name}"):
+                    said = self.steps(lang).get("sources", {}).get(name, "")
+                    self.assertIn("quranenc.com", said,
+                                  f"{lang} {name} does not name where it came from")
+                    self.assertNotIn("draft", said.lower(),
+                                     f"{lang} {name} is still described as a draft")
+
+    def test_ayat_al_kursi_is_still_a_draft_and_still_says_so(self):
+        """The one passage deliberately left, and the test that stops it being tidied away."""
+        for lang in self.LANGS:
+            with self.subTest(lang):
+                said = self.steps(lang).get("sources", {}).get("ayat_kursi", "")
+                self.assertNotIn("quranenc.com", said,
+                                 f"{lang} ayat_kursi has been cut from a published "
+                                 f"translation at this mat's nine line breaks")
 
 
 class WordTimesTest(unittest.TestCase):

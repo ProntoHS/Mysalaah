@@ -4,12 +4,18 @@
     git clone --depth 1 https://github.com/odileeds/Postcodes2LatLon.git
     python3 tools/build_postcodes.py Postcodes2LatLon/postcodes
 
-Why a postcode rather than a list of towns. The mat works its prayer times out from the sun, so
-all it needs is a latitude and longitude -- and it is far less fussy about them than you would
-think. Measured with the mat's own sums at Bury: 5km of error moves the times by under a minute,
-15km by one minute, and it takes 60km to move them by five. A postcode DISTRICT -- the "BL9"
-before the space -- is a few km across, so it is comfortably inside a minute. "Manchester" is
-sixty km of sprawl and would be worse.
+Why a postcode AS WELL AS a list of towns. The mat works its prayer times out from the sun, so
+all it needs is a latitude and longitude. A postcode DISTRICT -- the "BL9" before the space --
+is a few km across, where "Manchester" is sixty km of sprawl, so where a postcode applies it is
+the better answer. Since 2.20 a world town list sits beside this one for everywhere else; see
+tools/build_cities.py.
+
+HOW FUSSY THE SUMS ACTUALLY ARE, corrected in 2.20. This file used to say that 5km of error
+moves the times by under a minute, 15km by one and 60km by five, measured at Bury. That is the
+equinox figure, and it was written as though it held all year. At Bury in midsummer, 5km moves
+fajr or isha by 6 minutes and 60km by 16, reaching half an hour for isha between mid-May and
+July; dhuhr, asr and maghrib stay inside the old figure always. The full measurements and the
+high-latitude fallback behind them are in salaah/places.py.
 
 That also makes the table small. There are about three thousand districts in the UK against 1.8
 million full postcodes, so this is a hundred kilobytes rather than seventy megabytes, and every
