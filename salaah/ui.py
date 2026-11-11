@@ -4864,6 +4864,33 @@ class MainWindow(QtWidgets.QWidget):
         # the block was already the longer of the two columns: adding a fifth row to it put the
         # right 141 points past the left, which is the imbalance that stops the whole page
         # being set larger. Here it pays for itself; measured, the two now end 9 points apart.
+        # Whether this mat appears on the community map. OFF unless somebody turns it on.
+        #
+        # THE HEADING SAYS WHAT THE SWITCH DOES, and that is load-bearing rather than tidy.
+        # It first read "MySalaah Community" with a two-line explanation underneath saying
+        # what would be shared -- which broke the page twice over. This page has a rule, from
+        # Harry in 1.83 when he had the text under "Play the recitation" taken off: only the
+        # Arabic lettering keeps an explanation. And measured, those two lines pushed the page
+        # into scrolling on a 1080 screen in all nine languages.
+        #
+        # Shortening the explanation was not the fix; removing it was. A heading is one line
+        # whatever it says, so moving the words INTO it costs nothing and loses nothing: a
+        # parent reads the heading before deciding either way, and "Show this mat on the map"
+        # answers the question that "MySalaah Community" did not.
+        #
+        # IN THIS COLUMN AND NOT WITH THE OTHER SWITCHES. The right column already carries the
+        # recitation, the azaan, the brightness, the qibla and the four-row block of what the
+        # mat is attached to; the left ends at the credits with room under it.
+        #
+        # NOTHING IS SENT ANYWHERE BY THIS RELEASE. There is no service yet and no address in
+        # the app -- a test greps the shipped code to keep it that way. The switch records the
+        # decision and creates or destroys the mat's name on the map (salaah/onthemap.py); the
+        # heartbeat that would honour it comes later.
+        section(left, "settings.on_the_map")
+        left.addLayout(self.switch_row(self.settings.on_the_map,
+                                       lambda yes: self.set_on_the_map(yes),
+                                       "onTheMapSwitch"))
+
         section(left, "settings.sources")
         self.sources_button = no_focus(QtWidgets.QPushButton(self.t("sources.title")))
         self.sources_button.setObjectName("pill")
@@ -5390,6 +5417,25 @@ class MainWindow(QtWidgets.QWidget):
         self.persist()
         if not self.settings.azaan and self.call_box is not None:
             self.call_box.accept()       # turned off while it was calling: stop calling
+
+    def set_on_the_map(self, yes: bool) -> None:
+        """Agree, or stop agreeing, to this mat appearing on the community map.
+
+        The name is made on yes and destroyed on no, rather than made once and ignored: see
+        salaah/onthemap.py for why a mat that never agreed should not be carrying one.
+
+        IF THE NAME CANNOT BE WRITTEN THE SWITCH DOES NOT GO ON. A mat that recorded yes but
+        has no name on disk would invent a new one every restart and count itself again each
+        time -- it would be the one mat in the world that inflates the number. Better to
+        leave the switch off, which is also the answer the family already had.
+        """
+        from . import onthemap
+        if yes:
+            yes = onthemap.join() is not None
+        else:
+            onthemap.leave()
+        self.settings.on_the_map = yes
+        self.persist()
 
     def set_brightness(self, value: int) -> None:
         self.settings.brightness = int(value)

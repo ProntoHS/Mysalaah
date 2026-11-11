@@ -338,6 +338,7 @@
   "settings.no_player": "কোনো অডিও প্লেয়ার পাওয়া যায়নি। ইনস্টল করুন: sudo apt install mpg123",
   "settings.off": "বন্ধ",
   "settings.on": "চালু",
+  "settings.on_the_map": "মাদুর মানচিত্রে দেখান",
   "settings.place": "নামাজের সময়",
   "settings.place_hint": "সময় যন্ত্রেই হিসাব করা হয় মুসলিম ওয়ার্ল্ড লীগ পদ্ধতিতে, আপনার অবস্থান ও উপরের মাজহাব অনুসারে। অবস্থান ঠিক করুন ~/.config/salaah/settings.json ফাইলে (latitude, longitude, place)।",
   "settings.qibla": "কিবলা",

@@ -338,6 +338,7 @@
   "settings.no_player": "No se encontró reproductor de audio. Instala uno con: sudo apt install mpg123",
   "settings.off": "Desactivado",
   "settings.on": "Activado",
+  "settings.on_the_map": "Mostrar esta alfombra en el mapa",
   "settings.place": "Horas de oración",
   "settings.place_hint": "Las horas se calculan en el dispositivo con el método de la Liga Mundial Islámica, a partir de tu ubicación y la escuela de arriba. Configura tu ubicación en ~/.config/salaah/settings.json (latitude, longitude, place).",
   "settings.qibla": "Quibla",

@@ -338,6 +338,7 @@
   "settings.no_player": "Аудиоплеер не найден. Установите его: sudo apt install mpg123",
   "settings.off": "Выкл",
   "settings.on": "Вкл",
+  "settings.on_the_map": "Показывать коврик на карте",
   "settings.place": "Время молитв",
   "settings.place_hint": "Время рассчитывается на устройстве по методу Всемирной мусульманской лиги, исходя из вашего местоположения и мазхаба выше. Задайте местоположение в ~/.config/salaah/settings.json (latitude, longitude, place).",
   "settings.qibla": "Кибла",

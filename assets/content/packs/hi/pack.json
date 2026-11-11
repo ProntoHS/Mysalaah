@@ -338,6 +338,7 @@
   "settings.no_player": "कोई ऑडियो प्लेयर नहीं मिला। इससे इंस्टॉल करें: sudo apt install mpg123",
   "settings.off": "बंद",
   "settings.on": "चालू",
+  "settings.on_the_map": "मुसल्ला को मानचित्र पर दिखाएँ",
   "settings.place": "नमाज़ के अवक़ात",
   "settings.place_hint": "अवक़ात डिवाइस पर ही मुस्लिम वर्ल्ड लीग के तरीक़े से, आपकी जगह और ऊपर के मसलक के हिसाब से निकाले जाते हैं। अपनी जगह ~/.config/salaah/settings.json में तय करें (latitude, longitude, place)।",
   "settings.qibla": "क़िबला",

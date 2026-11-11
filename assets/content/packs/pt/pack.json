@@ -338,6 +338,7 @@
   "settings.no_player": "Nenhum leitor de áudio encontrado. Instale um com: sudo apt install mpg123",
   "settings.off": "Desligado",
   "settings.on": "Ligado",
+  "settings.on_the_map": "Mostrar este tapete no mapa",
   "settings.place": "Horários das orações",
   "settings.place_hint": "Os horários são calculados no aparelho pelo método da Liga Mundial Islâmica, a partir da sua localização e da escola acima. Defina a localização em ~/.config/salaah/settings.json (latitude, longitude, place).",
   "settings.qibla": "Qibla",

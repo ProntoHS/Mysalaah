@@ -336,6 +336,7 @@
   "settings.no_player": "No audio player found. Install one with: sudo apt install mpg123",
   "settings.off": "Off",
   "settings.on": "On",
+  "settings.on_the_map": "Show this mat on the map",
   "settings.place": "Prayer times",
   "settings.place_hint": "Times are worked out on the device using the Muslim World League method, from your location and the school above. Set your location in ~/.config/salaah/settings.json (latitude, longitude, place).",
   "settings.qibla": "Qibla",

@@ -338,6 +338,7 @@
   "settings.no_player": "未找到音频播放器。请安装：sudo apt install mpg123",
   "settings.off": "关",
   "settings.on": "开",
+  "settings.on_the_map": "在地图上显示本拜毯",
   "settings.place": "礼拜时间",
   "settings.place_hint": "时间由本机按世界穆斯林联盟的方法，根据你的位置和上面的学派算出。请在 ~/.config/salaah/settings.json 中设置位置（latitude、longitude、place）。",
   "settings.qibla": "朝向",

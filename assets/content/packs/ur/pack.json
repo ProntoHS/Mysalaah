@@ -336,6 +336,7 @@
   "settings.no_player": "کوئی آڈیو پلیئر نہیں ملا۔ نصب کریں: sudo apt install mpg123",
   "settings.off": "آف",
   "settings.on": "آن",
+  "settings.on_the_map": "مصلیٰ کو نقشے پر دکھائیں",
   "settings.place": "نماز کے اوقات",
   "settings.place_hint": "اوقات ڈیوائس پر مسلم ورلڈ لیگ طریقے سے، آپ کے مقام اور اوپر دیے مسلک کے مطابق نکالے جاتے ہیں۔ اپنا مقام ~/.config/salaah/settings.json میں درج کریں (latitude, longitude, place)۔",
   "settings.qibla": "قبلہ",

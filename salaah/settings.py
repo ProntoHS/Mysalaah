@@ -19,6 +19,16 @@ class Settings:
     # It asked the same question as `lang` and could disagree with it, so it has gone; `lang`
     # decides the meaning now, and lang == "ar" means no meaning at all. Old settings.json
     # files may still carry the key -- load() ignores what it does not know, so it just goes.
+    #: Whether this mat has agreed to appear on the community map as a dot and a line to
+    #: Makkah. OFF UNLESS SOMEBODY TURNS IT ON, and that default is the setting's whole
+    #: point: the mat is used by children, in a bedroom, and the family should find the
+    #: counting because they went looking for it rather than discover it afterwards.
+    #:
+    #: Turning it on makes the mat an identifier (salaah/onthemap.py); turning it off
+    #: destroys it. NOTHING IS SENT ANYWHERE YET -- there is no service and no address in
+    #: this app -- so today this records a decision and creates or removes a file, and the
+    #: heartbeat that will honour it is a later release.
+    on_the_map: bool = False
     figure: str = "boy"  # whose posture pictures to show: a set in assets/postures
     theme: str = "auto"  # "auto" (dark from Maghrib to sunrise), "light" or "dark"
     cursor: bool = True  # show the mouse pointer (turn off in Settings for a touchscreen alone)
