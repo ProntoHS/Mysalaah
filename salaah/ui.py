@@ -19,7 +19,8 @@ from .prayer_times import Place, current_prayer, day_fraction, next_prayer, time
 from .pages import TextPage, build_pages
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import (FONTS, MAX_ARABIC_PX, MIN_ARABIC_PX, Fonts, PixmapCache, PostureView,
-                     ParallelText, Switch, TextBox, VolumeBar, load_posture_modes, load_timings)
+                     ParallelText, Speaker, Switch, TextBox, VolumeBar, load_posture_modes,
+                     load_timings)
 from .session import Debouncer, Page as SessionPage, PrayerSession
 from .tasbih import TasbihScreen
 from .timing import TimingScreen
@@ -96,7 +97,7 @@ BANNER_RULE = 2
 #: The air between the map pin and the place name. Small on purpose: see make_banner. The
 #: pin is trimmed of its transparent columns first, so this is the whole of the gap the
 #: layout adds -- what is left beyond it is the text label's own left bearing.
-PIN_GAP = 2
+PIN_GAP = 0
 # How tall the black strip across the top is, at 1080p. Fixed rather than left to whatever is
 # in it, because what is in it differs: the screens with a Main screen button came out five
 # pixels taller than the front door and the mosque, and going between them the strip visibly
@@ -1903,6 +1904,7 @@ class MainWindow(QtWidgets.QWidget):
             QLabel#settingHead {{ font-size:{head}px; font-weight:bold; color:{c.strong}; }}
             QLabel#settingHint {{ font-size:{hint}px; color:{c.hint}; }}
             QLabel#settingValue {{ font-size:{value}px; font-weight:bold; color:{c.strong}; }}
+            QLabel#settingVersion {{ font-size:{hint}px; color:{c.hint}; }}
             QLabel#sourceWhat {{ font-size:{value}px; font-weight:bold; color:{c.strong}; }}
             QLabel#sourceWho {{ font-size:{value}px; color:{c.strong}; }}
             QLabel#sourceNote {{ font-size:{hint}px; color:{c.hint}; }}
@@ -2419,7 +2421,10 @@ class MainWindow(QtWidgets.QWidget):
         # label is as wide as the pixmap, so those three sat between the pin and the place
         # name and no layout spacing could take them away: the gap measured 12px when 3 of
         # those were the spacing, 3 the dead pixmap and 6 the label's own bearing.
-        pin.setPixmap(trim_sides(map_pin(self.px(30), strip.lapis)))
+        # RED, like everything else a hand goes to on this mat: Menu, Main screen, the cog.
+        # Harry, 12 November 2026 -- the pin and the place are now the same colour as those,
+        # rather than the lapis they shared with nothing.
+        pin.setPixmap(trim_sides(map_pin(self.px(30), QtGui.QColor(BRICK))))
         row.addWidget(pin, 0, Qt.AlignmentFlag.AlignVCenter)
         # TIGHT TO THE PIN. Harry: "in top banner, narrow the gap between location icon and
         # location text". The pin and the place name are one thing being read, not two.
@@ -3370,17 +3375,42 @@ class MainWindow(QtWidgets.QWidget):
             """
             gap = self.px(spaces * 8)    # what the old &nbsp; run was worth, in pixels
             edge = self.px(3)
-            cells = [f'<td style="color:{band.lapis}">{where}</td>']
-            for name in PRAYERS:
-                if times.get(name) is None:
-                    continue
+            # THE SPACING IS INSIDE THE CELLS, NOT cellspacing, and that is the whole reason
+            # the pin now sits against the place name. cellspacing puts its gap around the
+            # OUTSIDE of the table as well as between the cells, so the first cell carried a
+            # full gap to the left of "Bury" that no layout spacing could reach: measured at
+            # 45px, against the 2px of PIN_GAP that was supposed to be setting it. Harry asked
+            # twice for that gap to come in; the first time I moved the only number that
+            # looked like it was in charge, and it was not.
+            #
+            # padding-left on every cell but the first does the same job between the times and
+            # nothing at all before the place.
+            # WHICH SIDE THE GAP IS PUT ON DEPENDS ON THE BORDER, and getting that wrong cost
+            # one of the five gaps. Padding on a cell that HAS a border is drawn inside it, so
+            # the boxed prayer's own padding-left bought no space at all between it and the
+            # time before it: measured at 9px where the other four gaps were 34 to 37.
+            #
+            # So the gap in front of the box is paid for by the cell BEFORE it, which has no
+            # border to swallow it, and the box asks for nothing on its left. Every other gap
+            # is the following cell's padding-left as before.
+            shown = [name for name in PRAYERS if times.get(name) is not None]
+            boxed = now_praying if now_praying in shown else None
+            # And if the boxed prayer is the FIRST one -- which it is every day at fajr -- the
+            # cell before it is the place name, so the place pays for that gap instead.
+            first = f"padding-right:{gap}px;" if shown[:1] == [boxed] else ""
+            cells = [f'<td style="{first}color:{BRICK}">{where}</td>']
+            for n, name in enumerate(shown):
                 said = f'{self.t(f"prayer.{name}")} {times[name].strftime("%H:%M")}'
-                if name == now_praying:
-                    cells.append(f'<td style="color:{band.green}; '
+                after = shown[n + 1] if n + 1 < len(shown) else None
+                style = "" if name == boxed else f"padding-left:{gap}px;"
+                if after == boxed:
+                    style += f"padding-right:{gap}px;"
+                if name == boxed:
+                    cells.append(f'<td style="{style}color:{band.green}; '
                                  f'border:{edge}px solid {band.green};">&nbsp;{said}&nbsp;</td>')
                 else:
-                    cells.append(f'<td>{said}</td>')
-            return (f'<table cellspacing="{gap}" cellpadding="{self.px(2)}"><tr>'
+                    cells.append(f'<td style="{style}">{said}</td>')
+            return (f'<table cellspacing="0" cellpadding="{self.px(2)}"><tr>'
                     + "".join(cells) + "</tr></table>")
 
         # What is coming next used to be named at the end of the row. It has gone: the five
@@ -4796,7 +4826,27 @@ class MainWindow(QtWidgets.QWidget):
             # Six gaps give the 48 back. Nothing is squeezed by it: the headings, the hints and
             # the rows of choices are all the size they were, standing a little closer.
             column.addSpacing(self.px(6))
-            heading = QtWidgets.QLabel(self.t(key))
+            # A HEADING MAY CARRY A QUIETER SECOND HALF, after an em dash. Only one does: the
+            # community-map switch, which has to say what it shares before anybody taps it.
+            # 2.22 put that in the heading itself, at Harry's choosing, because the rule on
+            # this page since 2.19 is that nothing but the Arabic lettering gets a paragraph
+            # of its own -- and then the whole sentence shouted at heading size.
+            #
+            # So the clause is dropped to hint size, which is the size of the explanation
+            # under the Arabic lettering, and the two sit on one line. Harry, 12 November
+            # 2026: "reduce '- approximate area only' in font size to the same as description
+            # text on same page."
+            #
+            # RICH TEXT RATHER THAN A SECOND LABEL, so it stays one line in the layout and
+            # cannot wrap away from the words it belongs to. Every pack's string is built the
+            # same way, around " — ", so this finds the clause in all nine without
+            # knowing a word of any of them.
+            said, _, clause = self.t(key).partition(" — ")
+            heading = QtWidgets.QLabel(said if not clause else
+                                       f'{said}<span style="font-size:{self.px(24)}px; '
+                                       f'font-weight:normal;"> — {clause}</span>')
+            if clause:
+                heading.setTextFormat(Qt.TextFormat.RichText)
             heading.setObjectName("settingHead")
             column.addWidget(heading)
             if hint:
@@ -5041,7 +5091,11 @@ class MainWindow(QtWidgets.QWidget):
         # a block this size spends most of them.
         foot.setContentsMargins(0, self.px(2), 0, 0)
         version = QtWidgets.QLabel(self.t("settings.version", number=__version__))
-        version.setObjectName("settingValue")
+        # ITS OWN NAME, not settingValue, so it can be quieter than the values beside the
+        # Ring, the audio and the wifi without taking them down with it. Harry, 12 November
+        # 2026: the version should read at the size of the explanation text on this page.
+        # It is the one thing on the page nobody needs until something has gone wrong.
+        version.setObjectName("settingVersion")
         foot.addWidget(version)
         # The version on the left, the button hard against the right-hand edge: the two things
         # in the foot are no longer a pair in the corner with the rest of the row empty.
@@ -5335,7 +5389,32 @@ class MainWindow(QtWidgets.QWidget):
         read.hide()
         bar.valueChanged.connect(lambda v: self.volume_moved(v))
         self.volume_bars.append((bar, read))
+
+        # A SPEAKER AT EACH END, so the line says what it is. Harry, 12 November 2026: "there
+        # is no distinguishing feature of slider that tells you its a volume slider" -- quite
+        # right, it was a bare line between a place name and a button, and nothing about it
+        # ruled out brightness or a progress bar.
+        #
+        # Crossed-out on the left, loud on the right, which is the arrangement on every phone
+        # and telly a family already owns. They are drawn with the SAME eleven lines as the
+        # speaker on the prayer screen's volume bar (render.paint_speaker), not a second
+        # drawing that would drift away from it.
+        #
+        # THE ROOM FOR THEM WAS MEASURED, not hoped for. The strip carries a pin, a place,
+        # five prayer times, this, a Main screen button and a cog, and in 2.09 that overran at
+        # 1920 in Spanish -- which is why the slider is 240 and not 320. Measured again now,
+        # the slack either side of the slider is 166px in Russian, the tightest language, and
+        # 222px in Chinese; two icons and their spacing come to about 88px in total, so the
+        # tightest case keeps over 120px of air on each side. The slider does not have to give
+        # anything up for them.
+        colour = theme.palette().ink if dark else self.colours().strong
+        quiet = Speaker(self.px(34), QtGui.QColor(colour), loud=False)
+        loud = Speaker(self.px(34), QtGui.QColor(colour), loud=True)
+        self.speaker_icons = getattr(self, "speaker_icons", [])
+        self.speaker_icons += [quiet, loud]
+        row.addWidget(quiet, 0, Qt.AlignmentFlag.AlignVCenter)
         row.addWidget(bar)
+        row.addWidget(loud, 0, Qt.AlignmentFlag.AlignVCenter)
         row.addWidget(read)
         return row
 

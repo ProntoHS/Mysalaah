@@ -7228,6 +7228,85 @@ class BannerTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         return w
 
+    def test_the_slider_has_a_speaker_at_each_end(self):
+        """A bare line says nothing about what it does.
+
+        Harry, 12 November 2026: "there is no distinguishing feature of slider that tells you
+        its a volume slider" -- it sat between a place name and a button, and nothing ruled
+        out brightness or a progress bar. Crossed-out speaker on the left, loud one on the
+        right, which is the arrangement on every phone and telly a family already owns.
+
+        Checked as widgets either side of the slider, not as a count of icons on the page: it
+        is the ARRANGEMENT that carries the meaning, and two speakers both on the left would
+        pass a count and teach nobody anything.
+        """
+        from salaah.render import Speaker
+        w = self.window()
+        sliders = [s for s in w.findChildren(QtWidgets.QSlider)
+                   if s.objectName() in ("volume", "volumeOnDark")]
+        self.assertTrue(sliders, "no volume slider found, so this proved nothing")
+        def holder(lay, want):
+            """The layout the slider actually sits in. It is a row nested inside the
+            banner's row, so asking the parent WIDGET for its layout finds the wrong one."""
+            for i in range(lay.count()):
+                item = lay.itemAt(i)
+                if item.widget() is want:
+                    return lay
+                if item.layout() is not None:
+                    found = holder(item.layout(), want)
+                    if found is not None:
+                        return found
+            return None
+
+        for slider in sliders:
+            row = holder(slider.parentWidget().layout(), slider)
+            self.assertIsNotNone(row, "the slider is in no layout at all")
+            spot = None
+            for i in range(row.count()):
+                if row.itemAt(i).widget() is slider:
+                    spot = i
+            self.assertIsNotNone(spot, "the slider is not in the row it is drawn in")
+            before = [row.itemAt(i).widget() for i in range(spot)]
+            after = [row.itemAt(i).widget() for i in range(spot + 1, row.count())]
+            quiet = [x for x in before if isinstance(x, Speaker)]
+            loud = [x for x in after if isinstance(x, Speaker)]
+            self.assertEqual(1, len(quiet), "no speaker to the left of the slider")
+            self.assertEqual(1, len(loud), "no speaker to the right of the slider")
+            self.assertFalse(quiet[0].loud, "the left-hand speaker is not the quiet one")
+            self.assertTrue(loud[0].loud, "the right-hand speaker is not the loud one")
+
+    def test_the_place_is_the_colour_of_the_things_you_press(self):
+        """Red, like Menu, Main screen and the cog. The pin and the name together.
+
+        Measured on the mark-up the label is actually given rather than on the constant that
+        was meant to go into it: the place is one cell of a rich-text table, and a colour can
+        be set on the wrong cell and look right until somebody changes the times.
+        """
+        from salaah.ui import BRICK
+        w = self.window(place="Bury")
+        said = w.banner_labels[0].text()
+        self.assertIn(f'color:{BRICK}">Bury<', said.replace("; ", "").replace(" >", ">"),
+                      "the place name is not in the red of the pressable things")
+
+    def test_nothing_pads_the_left_of_the_place_name(self):
+        """The gap between the pin and the name, which Harry asked for twice.
+
+        The first time I narrowed PIN_GAP, the one number that looked like it was in charge.
+        It was not: the strip is a rich-text TABLE, and cellspacing pads the outside of a
+        table as well as the gaps between its cells, so a full gap sat to the left of the
+        place name where no layout spacing could reach it. Measured at 45px against the 2px
+        PIN_GAP was supposed to be setting.
+
+        So the rule is the one that was actually wrong: the table has no cellspacing, and the
+        air between the times is padding inside the cells that follow the first.
+        """
+        w = self.window()
+        said = w.banner_labels[0].text()
+        self.assertIn('cellspacing="0"', said,
+                      "the table pads its own left edge again, in front of the place name")
+        self.assertNotIn('<td style="padding-left', said.split("</td>")[0] + "</td>",
+                         "the first cell -- the place -- has been given left padding")
+
     def test_the_knowledge_corner_has_a_banner_too(self):
         w = self.window()
         self.assertEqual(3, len(w.banner_labels),
@@ -9081,24 +9160,54 @@ class BannerLeadsWithThePinTest(unittest.TestCase):
         self.assertEqual(len(w.banner_labels), len(pins),
                          "a strip somewhere is missing its pin")
 
-    def test_the_place_is_written_in_blue_and_the_times_are_not(self):
-        """THE STRIP IS THE MAT'S OWN THEME AGAIN IN 2.07, so the blue is the mat's lapis --
-        #8FB1F0 on the dark mat this test runs, #274B8F on a light one. It used to be a
-        constant, and that constant was to the character the dark theme's own lapis, which is
-        why none of this ever needed a new colour: it needed the palette saying out loud which
-        way round the strip is."""
-        from salaah import theme
+    def test_the_place_is_written_in_red_and_the_times_are_not(self):
+        """RED SINCE 2.23, AND IT USED TO BE BLUE, which is worth saying because the blue was
+        not an accident either.
+
+        2.07 moved this off a hardcoded constant and onto the strip's own lapis, so that the
+        place followed the palette into either theme. That was the right fix for the problem
+        it had. What it never settled was why the place was a colour of its OWN: lapis is
+        used for nothing a hand goes to, so the one thing on the strip you can press -- the
+        place, which opens the location screen -- was the one colour that said nothing about
+        being pressable.
+
+        Harry, 12 November 2026: "change font colour of location and the icon to the same red
+        of main screen button". So the pin and the name are now BRICK, the colour of Menu,
+        Main screen, the leave buttons and the cog, and the times keep the strip's own ink.
+        """
+        from salaah.ui import BRICK
         w = self.window()
         said = next(x for x in w.home.findChildren(QtWidgets.QLabel)
                     if x.objectName() == "bannerText").text()
-        blue = theme.palette().lapis
-        self.assertIn(f'<td style="color:{blue}">Bury</td>', said)
-        self.assertEqual(1, said.count(blue), "the prayer times went blue as well")
+        self.assertIn(f'color:{BRICK}">Bury</td>', said)
+        self.assertEqual(1, said.upper().count(BRICK.upper()),
+                         "the prayer times went red as well")
+
+    def test_the_red_reads_on_the_strip_in_either_theme(self):
+        """The place name lost a guard when it stopped being lapis, so here it is again.
+
+        BRICK is a constant rather than a palette entry, so it does NOT follow the strip from
+        black to white -- the same red sits on both. That is the thing worth checking: a
+        colour that cannot move has to work in both places or it is only working in one.
+        """
+        from salaah import theme
+        from salaah.ui import BRICK
+        red = QtGui.QColor(BRICK)
+        self.assertGreater(red.red(), red.green() + 60, "that is not a red")
+        self.assertGreater(red.red(), red.blue() + 60, "that is not a red")
+        for dark in (True, False):
+            theme.set_dark(dark)
+            with self.subTest("dark mat" if dark else "light mat"):
+                paper = QtGui.QColor(theme.palette().paper)
+                self.assertGreater(abs(red.lightness() - paper.lightness()), 60,
+                                   "the red does not read against the strip behind it")
 
     def test_the_blue_is_a_blue_and_reads_on_the_strip_behind_it(self):
-        """The test above compares against the palette, so it follows wherever the palette
-        goes -- set the strip's lapis to off-white and that test still passes. This is what
-        pins it down, in both themes.
+        """Lapis is no longer the place name's colour -- it is the slider's fill and the dots
+        on the globe -- but it is still a palette colour that has to read on the strip.
+
+        It compares against the palette, so it follows wherever the palette goes: set the
+        strip's lapis to off-white and only the floors below catch it.
 
         THE DIRECTION IS CHECKED PER THEME, not once at the end. It used to finish with a flat
         "lightness > 110", which was true of both values while the strip was the other theme
@@ -9123,24 +9232,25 @@ class BannerLeadsWithThePinTest(unittest.TestCase):
                     self.assertLess(blue.lightness(), 145,
                                     "too pale to read on a white strip")
 
-    def test_the_place_is_painted_blue_on_the_screen(self):
+    def test_the_place_is_painted_red_on_the_screen(self):
         """Rendered: rich text that names a colour and then does not use it is a real enough
-        mistake, and only the pixels say."""
-        from salaah import theme
+        mistake, and only the pixels say. Red since 2.23 -- see the test above for why the
+        blue it replaced was not an accident either."""
+        from salaah.ui import BRICK
         w = self.window()
         front = self.strip(w, w.home)
         words = next(x for x in front.findChildren(QtWidgets.QLabel)
                      if x.objectName() == "bannerText")
         image = words.grab().toImage()
-        want = QtGui.QColor(theme.palette().lapis)
-        # Near enough the exact colour, not merely blue-ish. White lettering carries coloured
-        # fringes from the antialiasing, and some of them are bluer than the blue -- a loose
-        # test counted those and passed on a strip with no blue on it at all.
-        blue = sum(1 for y in range(image.height()) for x in range(image.width())
-                   if (abs(QtGui.QColor(image.pixel(x, y)).red() - want.red()) < 10
-                       and abs(QtGui.QColor(image.pixel(x, y)).green() - want.green()) < 10
-                       and abs(QtGui.QColor(image.pixel(x, y)).blue() - want.blue()) < 10))
-        self.assertGreater(blue, 150, "nothing on the strip is painted in the blue")
+        want = QtGui.QColor(BRICK)
+        # Near enough the exact colour, not merely reddish. White lettering carries coloured
+        # fringes from the antialiasing, and a loose test counted those and passed on a strip
+        # with none of the colour on it at all.
+        red = sum(1 for y in range(image.height()) for x in range(image.width())
+                  if (abs(QtGui.QColor(image.pixel(x, y)).red() - want.red()) < 10
+                      and abs(QtGui.QColor(image.pixel(x, y)).green() - want.green()) < 10
+                      and abs(QtGui.QColor(image.pixel(x, y)).blue() - want.blue()) < 10))
+        self.assertGreater(red, 150, "nothing on the strip is painted in the red")
 
 
 class MapPinTest(unittest.TestCase):
@@ -9384,18 +9494,24 @@ class BannerStripTest(unittest.TestCase):
             with self.subTest(name):
                 said = next(c for c in bar.findChildren(QtWidgets.QLabel)
                             if c.objectName() == "bannerText")
-                # THE GAP IS AN ATTRIBUTE NOW, not a run of &nbsp;. 2.06 made the row a
-                # one-cell-per-prayer table so the prayer of the hour could carry a border --
-                # Qt will not draw one on an inline span, which was measured rather than
-                # assumed -- and a table spaces its cells with cellspacing. Counting &nbsp;
-                # here would be counting something the code stopped writing.
+                # THE GAP IS PADDING INSIDE THE CELLS NOW, not cellspacing and not a run of
+                # &nbsp;. 2.06 made the row a one-cell-per-prayer table so the prayer of the
+                # hour could carry a border -- Qt will not draw one on an inline span, which
+                # was measured rather than assumed -- and spaced them with cellspacing.
+                #
+                # 2.23 had to take cellspacing away: it pads the OUTSIDE of a table as well
+                # as the gaps between its cells, so it was also putting a full gap to the
+                # left of the place name, where Harry wanted the pin to sit close. The air
+                # between the times is now padding on the cells, which is the same air in a
+                # different place. Counting cellspacing here would be counting something the
+                # code stopped writing, exactly as counting &nbsp; would have been.
                 #
                 # Checked on every screen because that is what this test is for: the fault it
                 # was written for was hidden pages voting the gap down on the page you were
                 # looking at. How WIDE the gaps really are is measured off the rendered strip
                 # in test_the_gaps_are_really_there, which can only be done where there are
                 # pixels to read.
-                spacing = re.search(r'cellspacing="(\d+)"', said.text())
+                spacing = re.search(r'padding-left:(\d+)px', said.text())
                 self.assertIsNotNone(spacing, f"{name}: the row is not a spaced table")
                 thin = QtGui.QFontMetrics(said.font()).horizontalAdvance(" ")
                 self.assertGreaterEqual(
@@ -9456,11 +9572,11 @@ class BannerStripTest(unittest.TestCase):
 
         It used to count a run of &nbsp;. The row is a table now -- one cell per prayer, so the
         prayer of the hour can carry a border Qt will not draw on a span -- and the gap is the
-        cellspacing. Same number on the same scale: write_the_times still works in fours down
-        to ones and multiplies by eight, so four spaces and a 32px cellspacing are the same
+        padding. Same number on the same scale: write_the_times still works in fours down
+        to ones and multiplies by eight, so four spaces and a 32px padding are the same
         setting said two ways.
         """
-        found = re.search(r'cellspacing="(\d+)"', label.text())
+        found = re.search(r'padding-left:(\d+)px', label.text())
         return int(found.group(1)) // 8 if found else 0
 
     def test_opening_one_prayer_after_another_does_not_take_the_app_down(self):
@@ -10685,6 +10801,60 @@ class TheMatCanBeToldItIsAnywhereTest(unittest.TestCase):
         self.assertFalse(screen.found.is_a_town)
         self.assertEqual([], self.offered(screen), "a postcode offered a list of towns")
         self.assertTrue(screen.save.isEnabled())
+
+    def test_the_quiet_half_of_the_map_switch_is_quieter_than_the_heading(self):
+        """Two sizes on one line, which is the whole point of putting it there.
+
+        2.22 put what the mat shares into the heading itself rather than a note underneath,
+        to keep the rule that nothing but the Arabic lettering gets a paragraph on this page.
+        The result shouted the small print at heading size. Harry, 12 November 2026: "reduce
+        '- approximate area only' in font size to the same as description text on same page."
+
+        Measured on the mark-up the label is given, and the sizes read out of the stylesheet
+        rather than typed in here, so this keeps meaning something if the page is ever
+        resized again.
+        """
+        import re
+        w = self.window()
+        w.open_settings()
+        settle(3)
+        page = w.stack.currentWidget()
+        heads = [x for x in page.findChildren(QtWidgets.QLabel)
+                 if x.objectName() == "settingHead" and "—" in (x.text() or "")]
+        self.assertEqual(1, len(heads), "expected exactly one heading with a quiet half")
+        said = heads[0].text()
+        hint = re.search(r"settingHint \{\s*font-size:(\d+)px", w.styleSheet())
+        self.assertIsNotNone(hint, "cannot find the hint size in the stylesheet")
+        self.assertIn(f"font-size:{hint.group(1)}px", said,
+                      "the clause is not at the size of the page's own description text")
+        self.assertTrue(said.startswith("Show this mat on the map"),
+                        "the loud half of the heading has changed")
+
+    def test_the_version_is_the_quietest_thing_on_the_page(self):
+        """It is the one line nobody needs until something has gone wrong.
+
+        Its own object name rather than settingValue, so it could be made quieter without
+        taking the Ring, the audio and the wifi values down with it -- which is what asking
+        for "the same size as the description text" would otherwise have done to four rows
+        nobody mentioned.
+        """
+        import re
+        w = self.window()
+        w.open_settings()
+        settle(3)
+        page = w.stack.currentWidget()
+        found = [x for x in page.findChildren(QtWidgets.QLabel)
+                 if x.objectName() == "settingVersion"]
+        self.assertEqual(1, len(found), "the version label is not named settingVersion")
+        css = w.styleSheet()
+        hint = re.search(r"settingHint \{\s*font-size:(\d+)px", css)
+        mine = re.search(r"settingVersion \{\s*font-size:(\d+)px", css)
+        value = re.search(r"settingValue \{\s*font-size:(\d+)px", css)
+        self.assertEqual(hint.group(1), mine.group(1),
+                         "the version is not at description size")
+        self.assertNotEqual(value.group(1), mine.group(1),
+                            "the version and the values are still the same size, so nothing "
+                            "was actually separated")
 
     def test_the_circle_by_location_says_whether_the_area_is_being_shared(self):
         """A privacy light, and the only circle in that column that is not about a cable.
@@ -11970,6 +12140,49 @@ class WorldScreenTest(unittest.TestCase):
         mats = w.world_screen.mats()
         self.assertEqual(3, len(mats),
                          "neighbours in this mat's own square were thrown away with it")
+
+    def test_the_globe_is_against_the_left_edge_and_the_column_is_wider(self):
+        """One change, not two: the slack was always there, it was all on the wrong side.
+
+        The globe is square and the page is not, so centring it across the width put the
+        whole of the spare room to its LEFT -- about 450px of black at 1920 -- while the
+        column of names was squeezed into 200. Harry, 12 November 2026: "move globe to left
+        hand screen and widen checked in area by extra 50% - some places will have longer
+        names than Bury ;)".
+
+        The globe loses nothing by it: its size is decided by the HEIGHT of the page, so the
+        hundred pixels the column gains come out of black.
+        """
+        w = self.with_a_remembered_map([(54, -2), (1, 103)])
+        w.open_world()
+        settle(4)
+        screen = w.world_screen
+        left, _, side = screen.world.circle()
+        self.assertEqual(0, left, "the globe is still centred in its own width")
+        # Measured against another number set in the same breath rather than against px(300)
+        # read back later: setFixedWidth keeps the pixels it was given, and px() answers for
+        # the window's size NOW, so the two disagree the moment a window is resized.
+        indent = screen.who.contentsMargins().left()      # px(40) when the column was built
+        self.assertEqual(round(indent * 300 / 40), screen.column.width(),
+                         "the column is not half as wide again")
+        self.assertGreater(side, screen.column.width(),
+                           "the globe has been shrunk to pay for the column")
+
+    def test_a_longer_place_name_fits_in_the_column(self):
+        """What the extra width was for. "Bury" fits anything; the town list this mat carries
+        since 2.20 has Kuala Lumpur and Nizhny Novgorod in it."""
+        w = self.with_a_remembered_map([(3, 101)])
+        w.settings.place = "Kuala Lumpur"
+        w.open_world()
+        settle(4)
+        screen = w.world_screen
+        named = [p for p, mat in screen.pips if mat.mine]
+        self.assertTrue(named, "this mat is not named in the column")
+        label = named[0].findChild(QtWidgets.QLabel) or named[0]
+        room = screen.column.width() - screen.who.contentsMargins().left()
+        self.assertLessEqual(label.sizeHint().width(), room,
+                             f"'{w.settings.place}' needs {label.sizeHint().width()}px and "
+                             f"the column gives it {room}px")
 
     def test_the_number_counts_mats_on_the_map_and_not_dots_on_the_globe(self):
         """Harry found this on the mat the day after 2.21 shipped.
@@ -19630,11 +19843,18 @@ class TheStripHasAirBesideTheSliderTest(unittest.TestCase):
             # on the left -- naming the sides got -1579px before the slider in Urdu, which is
             # the test being wrong rather than the strip. The question is the same either
             # way: how much room is there on each side of the slider.
-            start = slider.mapTo(banner, QtCore.QPoint(0, 0)).x()
-            stop = start + slider.width()
+            # THE WHOLE CONTROL, not the line in the middle of it. Since 2.23 the slider has
+            # a speaker at each end -- Harry: "there is no distinguishing feature of slider
+            # that tells you its a volume slider" -- and the three of them are one thing to
+            # look at. Measuring to the line alone reported 8px of air on the left, which was
+            # the gap to its own speaker and said nothing about the room on the strip.
+            from salaah.render import Speaker
+            parts = [slider] + [c for c in banner.findChildren(Speaker) if c.isVisible()]
+            start = min(c.mapTo(banner, QtCore.QPoint(0, 0)).x() for c in parts)
+            stop = max(c.mapTo(banner, QtCore.QPoint(c.width(), 0)).x() for c in parts)
             others = [c for c in banner.findChildren(QtWidgets.QWidget)
-                      if c.isVisible() and c is not slider
-                      and not slider.isAncestorOf(c) and not c.isAncestorOf(slider)]
+                      if c.isVisible() and c not in parts
+                      and not any(x.isAncestorOf(c) or c.isAncestorOf(x) for x in parts)]
             lefts = [c.mapTo(banner, QtCore.QPoint(c.width(), 0)).x() for c in others
                      if c.mapTo(banner, QtCore.QPoint(c.width(), 0)).x() <= start]
             rights = [c.mapTo(banner, QtCore.QPoint(0, 0)).x() for c in others
@@ -19642,21 +19862,32 @@ class TheStripHasAirBesideTheSliderTest(unittest.TestCase):
             before = start - (max(lefts) if lefts else 0)
             behind = (min(rights) if rights else banner.width()) - stop
             with self.subTest(lang):
-                self.assertGreater(before, w.px(10), f"{lang}: {before}px before the slider")
-                self.assertGreater(behind, w.px(10), f"{lang}: {behind}px after the slider")
+                self.assertGreater(before, w.px(10),
+                                   f"{lang}: {before}px before the volume control")
+                self.assertGreater(behind, w.px(10),
+                                   f"{lang}: {behind}px after the volume control")
                 self.assertLessEqual(
                     abs(before - behind), 2,
                     f"{lang}: {before}px of room before the slider and {behind}px after it, "
                     f"so it is not centred between the times and what follows")
 
     def test_the_gap_is_real_in_pixels(self):
-        """And it is actually there on screen, not just in the layout."""
+        """And it is actually there on screen, not just in the layout.
+
+        THE CONTROL IS THE SLIDER AND ITS TWO SPEAKERS since 2.23, so the gap being asked
+        about is the one after the right-hand speaker. Measuring from the slider's own edge
+        found 8px -- the spacing to its own speaker -- which is a true number and the wrong
+        question.
+        """
+        from salaah.render import Speaker
         w = self.window()
         banner, slider = self.strip_with_the_slider(w)
-        right = slider.mapTo(banner, QtCore.QPoint(slider.width(), 0)).x()
+        parts = [slider] + [c for c in banner.findChildren(Speaker) if c.isVisible()]
+        right = max(c.mapTo(banner, QtCore.QPoint(c.width(), 0)).x() for c in parts)
         nearest = banner.width()
         for child in banner.findChildren(QtWidgets.QWidget):
-            if child is slider or slider.isAncestorOf(child) or child.isAncestorOf(slider):
+            if child in parts or any(x.isAncestorOf(child) or child.isAncestorOf(x)
+                                     for x in parts):
                 continue
             if not child.isVisible():
                 continue

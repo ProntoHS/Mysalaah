@@ -134,9 +134,20 @@ class TurningWorld(QtWidgets.QWidget):
         super().hideEvent(ev)
 
     def circle(self) -> tuple[int, int, int]:
-        """Where the globe is drawn in this widget: left, top, and how wide."""
+        """Where the globe is drawn in this widget: left, top, and how wide.
+
+        AGAINST THE LEFT EDGE, not centred across the width. The globe is square and the page
+        is not, so centring it put all the slack on its left: at 1920 the globe sat in a
+        1626px-wide space, which left roughly 450px of black between the edge of the screen
+        and the edge of the world, and the column of names crushed into 200px on the right.
+        Harry, 12 November 2026: "move globe to left hand screen and widen checked in area".
+        Those are one change -- the slack was always there, it was just all on the wrong side.
+
+        Still centred VERTICALLY, because the height is what decides the globe's size in the
+        first place and there is nothing spare up or down to give away.
+        """
         side = min(self.width(), self.height())
-        return (self.width() - side) // 2, (self.height() - side) // 2, side
+        return 0, (self.height() - side) // 2, side
 
     def paintEvent(self, _):
         if self.film is None:
@@ -267,7 +278,14 @@ class WorldScreen:
         side.addStretch(1)
         self.column = QtWidgets.QWidget()
         self.column.setLayout(side)
-        self.column.setFixedWidth(window.px(200))
+        # HALF AS WIDE AGAIN, 200 to 300. Harry: "some places will have longer names than
+        # Bury ;)" -- and he is right that the list was sized to the one place name anybody
+        # had ever seen on it. "Kuala Lumpur" and "Nizhny Novgorod" are on the town list this
+        # mat now carries, and both are wider than 200px at this size.
+        #
+        # It costs the globe nothing: the globe is sized by the HEIGHT of the page, so the
+        # extra hundred pixels come out of the black that used to sit to its left.
+        self.column.setFixedWidth(window.px(300))
         across.addWidget(self.column)
         lay.addLayout(across, 1)
 

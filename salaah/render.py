@@ -913,6 +913,82 @@ class Switch(QtWidgets.QAbstractButton):
         painter.drawEllipse(QtCore.QRectF(left, box.top() + edge, knob, knob))
 
 
+def paint_speaker(p: QtGui.QPainter, w: float, h: float, colour: QtGui.QColor,
+                  waves: int = 2, crossed: bool = False) -> None:
+    """One loudspeaker, drawn into a w by h box at the painter's current origin.
+
+    PULLED OUT OF VolumeBar IN 2.23 so there is exactly one loudspeaker in this app. The
+    banner's slider was a bare line with nothing to say what it did -- Harry, 12 November
+    2026: "there is no distinguishing feature of slider that tells you its a volume slider"
+    -- and the obvious fix was to draw a speaker at each end of it. Drawing a SECOND speaker
+    for that would have been the mistake: two hand-made loudspeakers in one app drift apart
+    the first time either is touched, and nobody notices until they are side by side.
+
+    So the prayer screen's bar and the banner's icons are now the same eleven lines. waves is
+    how many arcs to draw (0, 1 or 2), crossed puts a cross where the arcs would be.
+    """
+    body = QtGui.QPainterPath()
+    body.moveTo(w * 0.06, h * 0.36)
+    body.lineTo(w * 0.30, h * 0.36)
+    body.lineTo(w * 0.62, h * 0.12)
+    body.lineTo(w * 0.62, h * 0.88)
+    body.lineTo(w * 0.30, h * 0.64)
+    body.lineTo(w * 0.06, h * 0.64)
+    body.closeSubpath()
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(colour)
+    p.drawPath(body)
+
+    pen = QtGui.QPen(colour)
+    pen.setWidth(max(1, int(h * 0.07)))
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    if crossed:
+        p.drawLine(QtCore.QPointF(w * 0.70, h * 0.34), QtCore.QPointF(w * 0.96, h * 0.66))
+        p.drawLine(QtCore.QPointF(w * 0.96, h * 0.34), QtCore.QPointF(w * 0.70, h * 0.66))
+        return
+    for i, reach in enumerate((0.20, 0.33)):
+        if i >= waves:
+            break
+        r = w * reach
+        span = QtCore.QRectF(w * 0.62 - r, h * 0.5 - r, r * 2, r * 2)
+        p.drawArc(span, -50 * 16, 100 * 16)
+
+
+class Speaker(QtWidgets.QWidget):
+    """A loudspeaker on its own, for the ends of the banner's volume slider.
+
+    Not a button: pressing it does nothing. It is a label that happens to be drawn rather
+    than typed, and it exists so the line between the two is obviously a volume control and
+    not a progress bar or a brightness slider.
+
+    Quiet one on the left with a cross, loud one on the right with two waves, which is the
+    arrangement on every volume control a family has already used on a phone or a telly. The
+    mat does not need to teach a convention that everybody already knows; it needs to not
+    withhold it.
+    """
+
+    def __init__(self, size: int, colour: QtGui.QColor, loud: bool = True):
+        super().__init__()
+        self.setObjectName("speakerIcon")
+        self.colour = QtGui.QColor(colour)
+        self.loud = loud
+        self.setFixedSize(size, size)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
+    def set_colour(self, colour: QtGui.QColor) -> None:
+        self.colour = QtGui.QColor(colour)
+        self.update()
+
+    def paintEvent(self, _):
+        p = QtGui.QPainter(self)
+        p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        paint_speaker(p, self.width(), self.height(), self.colour,
+                      waves=2 if self.loud else 0, crossed=not self.loud)
+        p.end()
+
+
 class VolumeBar(QtWidgets.QWidget):
     """How loud the recitation is, as a rectangle above the picture.
 
@@ -1002,35 +1078,9 @@ class VolumeBar(QtWidgets.QWidget):
 
     def _draw_speaker(self, p: QtGui.QPainter, colour: QtGui.QColor) -> None:
         """A loudspeaker, so the rectangle is unmistakably the volume."""
-        w = self.speaker_width()
-        h = self.height()
-        body = QtGui.QPainterPath()
-        body.moveTo(w * 0.06, h * 0.36)
-        body.lineTo(w * 0.30, h * 0.36)
-        body.lineTo(w * 0.62, h * 0.12)
-        body.lineTo(w * 0.62, h * 0.88)
-        body.lineTo(w * 0.30, h * 0.64)
-        body.lineTo(w * 0.06, h * 0.64)
-        body.closeSubpath()
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(colour)
-        p.drawPath(body)
-
-        pen = QtGui.QPen(colour)
-        pen.setWidth(max(1, int(h * 0.07)))
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        p.setPen(pen)
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        if self.volume <= 0:                       # a cross through it when it is silent
-            p.drawLine(QtCore.QPointF(w * 0.70, h * 0.34), QtCore.QPointF(w * 0.96, h * 0.66))
-            p.drawLine(QtCore.QPointF(w * 0.96, h * 0.34), QtCore.QPointF(w * 0.70, h * 0.66))
-            return
-        for i, reach in enumerate((0.20, 0.33)):   # one wave, two when it is well up
-            if i and self.volume < 55:
-                break
-            r = w * reach
-            span = QtCore.QRectF(w * 0.62 - r, h * 0.5 - r, r * 2, r * 2)
-            p.drawArc(span, -50 * 16, 100 * 16)
+        paint_speaker(p, self.speaker_width(), self.height(), colour,
+                      waves=0 if self.volume <= 0 else (2 if self.volume >= 55 else 1),
+                      crossed=self.volume <= 0)
 
 
 class PostureView(QtWidgets.QWidget):
