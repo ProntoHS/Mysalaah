@@ -31,9 +31,34 @@ thing it can honestly claim.
 """
 from __future__ import annotations
 
+import json
 import re
+import urllib.error
+import urllib.request
 import uuid
 from pathlib import Path
+
+#: The service mats check in with. A Cloudflare Worker in front of a key-value store; its
+#: whole source is forty lines and it can do exactly three things -- take a check-in, delete
+#: a row, and list coordinates. It holds one row per mat: the random name below, and a
+#: latitude and longitude in WHOLE DEGREES. It is told nothing else, because it is sent
+#: nothing else.
+#:
+#: Public, and in a public repository, which is worth being plain about: anybody who reads
+#: this line can post an invented name and inflate the count. There is no secret that would
+#: fix that, because a secret shipped to every mat in a public repository is not a secret.
+#: So the number is "mats that reported in", and the screen should not claim more.
+SERVICE = "https://salaah-map.square-union-9586.workers.dev"
+
+#: The last answer the service gave, so the globe has something to draw the moment it opens
+#: instead of a blank earth and a spinner. Beside the name rather than in settings.json, for
+#: the same reason the name is: this is something the service said, not something anybody
+#: chose.
+CACHE = Path.home() / ".config" / "salaah" / "mats.json"
+
+#: Long enough for a sleepy Pi on a slow line, short enough that a thread does not sit there
+#: all evening. Nothing waits on this anyway -- see `in_the_background`.
+PATIENCE = 8.0
 
 #: Beside settings.json rather than inside it. A preference is something the person chose;
 #: this is a name the mat was given, and the two keep better apart -- deleting it has to be
@@ -96,3 +121,178 @@ def leave(path: Path = PATH) -> None:
         path.unlink()
     except OSError:
         pass
+
+
+def whole(degrees: float) -> int | None:
+    """A coordinate as it is allowed to leave the house: a whole degree and nothing finer.
+
+    THIS IS THE PRIVACY BOUNDARY AND IT IS ONE LINE LONG, which is the point -- there is no
+    path out of this module that does not pass through it. A whole degree is about seventy
+    miles. On the 400px globe the world screen draws, that is a pixel and a bit: the dot
+    lands in the right country and says nothing about which street.
+
+    The mat knows exactly where it is, because it needs to for the sun. The service has no
+    use for that precision and so is not given it.
+    """
+    try:
+        rounded = round(float(degrees))
+    except (TypeError, ValueError):
+        return None
+    return rounded if -180 <= rounded <= 180 else None
+
+
+def _ask(url: str, method: str, body: dict | None, opener=None) -> dict | None:
+    """One request, and never an exception to the caller.
+
+    EVERY failure is None: no network, no DNS, a timeout, a 500, a reply that is not JSON, a
+    reply that is JSON but not an object. A prayer mat that cannot reach a counting service
+    is a prayer mat, and nothing it does next should differ.
+    """
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    request = urllib.request.Request(url, data=data, method=method)
+    if data is not None:
+        request.add_header("content-type", "application/json")
+    try:
+        with (opener or urllib.request.urlopen)(request, timeout=PATIENCE) as answer:
+            said = json.loads(answer.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError, TimeoutError):
+        return None
+    return said if isinstance(said, dict) else None
+
+
+def check_in(latitude: float, longitude: float, *, path: Path | None = None,
+             service: str | None = None, cache: Path | None = None,
+             opener=None) -> int | None:
+    """Tell the service this mat is still here, and remember what it says back.
+
+    DOES NOTHING AT ALL IF THERE IS NO NAME, which is how the switch is honoured. A mat that
+    has not opted in has no name on disk (salaah/onthemap.py, top), so this returns None
+    before it has composed a request, let alone sent one. There is no second check of a
+    setting that could drift out of step with the file: no name, no network.
+
+    Returns how many mats the service knows about, or None if anything at all went wrong.
+    """
+    path, service, cache = path or PATH, service or SERVICE, cache or CACHE
+    name = name_of_this_mat(path)
+    if not name:
+        return None
+    north, east = whole(latitude), whole(longitude)
+    if north is None or east is None or not -90 <= north <= 90:
+        return None
+    if _ask(f"{service}/checkin", "POST",
+            {"id": name, "lat": north, "lon": east}, opener) is None:
+        return None
+    return remember(fetch(service=service, opener=opener), cache=cache)
+
+
+def fetch(*, service: str | None = None, opener=None) -> list[tuple[int, int]] | None:
+    """Where the mats are, as whole degrees. No names come back; the service has none to give
+    beyond the random one, and does not return that either."""
+    said = _ask(f"{service or SERVICE}/mats", "GET", None, opener)
+    if said is None:
+        return None
+    found = []
+    for row in said.get("mats", []) or []:
+        if isinstance(row, dict):
+            north, east = whole(row.get("lat")), whole(row.get("lon"))
+            if north is not None and east is not None and -90 <= north <= 90:
+                found.append((north, east))
+    return found
+
+
+def remember(places: list[tuple[int, int]] | None, *,
+             cache: Path | None = None) -> int | None:
+    """Keep the service's answer so the globe can draw it while offline.
+
+    A failed fetch LEAVES THE OLD ANSWER ALONE rather than writing an empty one. A mat that
+    loses its wifi for an afternoon should not quietly empty the world.
+    """
+    if places is None:
+        return None
+    cache = cache or CACHE
+    try:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps({"mats": [[n, e] for n, e in places]}),
+                         encoding="utf-8")
+    except OSError:
+        return len(places)
+    return len(places)
+
+
+def remembered(cache: Path | None = None) -> list[tuple[int, int]]:
+    """The last answer, or nothing. Never raises, never waits, never touches the network."""
+    cache = cache or CACHE
+    try:
+        said = json.loads(cache.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    found = []
+    for row in (said.get("mats", []) if isinstance(said, dict) else []) or []:
+        if isinstance(row, (list, tuple)) and len(row) == 2:
+            north, east = whole(row[0]), whole(row[1])
+            if north is not None and east is not None and -90 <= north <= 90:
+                found.append((north, east))
+    return found
+
+
+def forget(cache: Path | None = None) -> None:
+    """Drop the remembered map. Used when somebody opts out: a mat that has left the map
+    should not keep drawing the community it is no longer part of."""
+    try:
+        (cache or CACHE).unlink()
+    except OSError:
+        pass
+
+
+def stop(*, path: Path | None = None, service: str | None = None,
+         cache: Path | None = None, opener=None) -> bool:
+    """Leave the map: delete the row from the service, THEN destroy the name.
+
+    THE NAME IS READ BEFORE THE FILE IS DESTROYED, and that is the line to be careful of. It
+    is the only thing that says which row on the service belongs to this mat, so a `leave`
+    that ran before the read would leave nothing to delete WITH: the row would sit there
+    being counted until it expired, while the family who turned the switch off believed they
+    had gone. Reading it into `name` first is what prevents that -- not the order of the two
+    statements below, which a sabotage run in 2.21 showed can be swapped without harm
+    precisely because the read has already happened.
+
+    Returns whether the service confirmed the deletion. FALSE IS NOT A FAILURE OF THE SWITCH:
+    the name is destroyed either way and nothing further is ever sent. It means only that the
+    row will be counted until the service drops it of its own accord, which it does after
+    sixty days of not hearing from a mat. A mat switched off on an aeroplane cannot do better
+    than that, and pretending otherwise would be the lie.
+    """
+    path, service, cache = path or PATH, service or SERVICE, cache or CACHE
+    name = name_of_this_mat(path)
+    gone = False
+    if name:
+        gone = _ask(f"{service}/checkin", "DELETE", {"id": name}, opener) is not None
+    leave(path)
+    forget(cache)
+    return gone
+
+
+def in_the_background(work) -> None:
+    """Run one of the above on a thread nobody waits for.
+
+    NOTHING ON THIS MAT MAY WAIT ON A NETWORK. The prayer times come from the sun and the
+    clock and are worked out on the mat; the map is a decoration on one screen. A mat on a
+    hotel wifi that accepts the connection and then never answers would otherwise freeze the
+    interface for as long as the timeout -- during a prayer, on a child's screen.
+
+    A daemon thread, so a mat being shut down is not held open by a request to a counting
+    service. If it dies mid-request the row is simply not updated today, and the service
+    forgets it after sixty days anyway.
+
+    The exception swallow is deliberate and total. This is the last line of a thread that
+    nothing joins and nothing checks: an exception here has nowhere to go and no one to tell.
+    """
+    import threading
+
+    def quietly():
+        try:
+            work()
+        except Exception:                       # noqa: BLE001 - see above
+            pass
+
+    threading.Thread(target=quietly, daemon=True, name="onthemap").start()

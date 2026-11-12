@@ -1,14 +1,15 @@
 {
- "schema": 1,
+ "dir": "rtl",
+ "hasTransliteration": false,
  "lang": "ur",
  "name": "Urdu",
  "nativeName": "اردو",
- "dir": "rtl",
- "version": 0,
- "hasTransliteration": false,
- "transliterationScript": "Latn",
  "reviewedBy": null,
+ "schema": 1,
+ "translation": {},
  "translationSource": "ایپ کا انٹرفیس اسی ایپ کے لیے لکھا گیا۔ مسودہ، جانچ باقی۔",
+ "transliteration": {},
+ "transliterationScript": "Latn",
  "ui": {
   "app_name": "صلاح",
   "bt.again": "دوبارہ تلاش کریں",
@@ -338,7 +339,7 @@
   "settings.no_player": "کوئی آڈیو پلیئر نہیں ملا۔ نصب کریں: sudo apt install mpg123",
   "settings.off": "آف",
   "settings.on": "آن",
-  "settings.on_the_map": "مصلیٰ کو نقشے پر دکھائیں",
+  "settings.on_the_map": "مصلیٰ کو نقشے پر دکھائیں — صرف تقریبی علاقہ",
   "settings.place": "نماز کے اوقات",
   "settings.place_hint": "اوقات ڈیوائس پر مسلم ورلڈ لیگ طریقے سے، آپ کے مقام اور اوپر دیے مسلک کے مطابق نکالے جاتے ہیں۔ اپنا مقام ~/.config/salaah/settings.json میں درج کریں (latitude, longitude, place)۔",
   "settings.qibla": "قبلہ",
@@ -426,6 +427,5 @@
   "wudu.mouth": "کلی کریں",
   "wudu.nose": "ناک صاف کریں"
  },
- "transliteration": {},
- "translation": {}
+ "version": 0
 }

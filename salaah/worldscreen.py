@@ -284,15 +284,42 @@ class WorldScreen:
         return self.world.there
 
     def mats(self) -> list[Mat]:
-        """Every mat to draw. One for now -- this one.
+        """Every mat to draw: this one, and whoever else has checked in.
 
-        The list is the seam the community arrives through: a service that mats check in with
-        would add the rest, rounded to the nearest whole degree before it ever leaves a house.
-        On a 400px globe one degree is about a pixel and a quarter, so that costs the picture
-        nothing and is the difference between a country and a street.
+        This mat is drawn from the settings at full precision, because it is the only one
+        whose exact position this mat is entitled to know -- its own. The rest come from the
+        remembered answer in whole degrees, which is all that ever left their houses.
+
+        READ FROM THE CACHE AND NEVER FROM THE NETWORK. This runs every time the screen is
+        opened and every time it is redrawn; a request here would put a web call on the path
+        of a child pressing a button. The cache is filled by a background check-in, and an
+        empty one simply means this mat has not managed to reach the service yet.
+
+        NOTHING IS DRAWN FROM THE CACHE WHILE THE SWITCH IS OFF. A mat that has left the map
+        is not part of the community and should not be shown it -- and `onthemap.stop` throws
+        the cache away on the way out, so this is the second lock rather than the only one.
+
+        ONE ENTRY IS DROPPED, and which one matters. This mat checked in, so the service's
+        answer contains this mat's own row; drawn as well as the dot above it would be the
+        same household twice and a count one too high. So exactly one entry matching this
+        mat's own rounded position is removed -- one, not all of them, because a genuine
+        neighbour seventy miles away shares that square and has as much right to a dot as
+        anybody.
         """
-        return [Mat(self.win.settings.latitude, self.win.settings.longitude,
-                    self.win.settings.place or self.win.t("world.mine"), mine=True)]
+        mine = Mat(self.win.settings.latitude, self.win.settings.longitude,
+                   self.win.settings.place or self.win.t("world.mine"), mine=True)
+        if not getattr(self.win.settings, "on_the_map", False):
+            return [mine]
+
+        from . import onthemap
+        here = (onthemap.whole(mine.latitude), onthemap.whole(mine.longitude))
+        others, dropped = [], False
+        for north, east in onthemap.remembered():
+            if not dropped and (north, east) == here:
+                dropped = True
+                continue
+            others.append(Mat(float(north), float(east), "", mine=False))
+        return [mine] + others
 
     def relight(self, _frame: int = 0) -> None:
         """Dim the dot of any mat that has gone round the back, so the number beside the globe

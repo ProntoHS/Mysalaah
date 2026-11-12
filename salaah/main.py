@@ -184,6 +184,20 @@ def main(argv: list[str] | None = None) -> int:
     # it, "none of the changes have happened" and "it crashed" look the same.
     from . import __version__
     print(f"Salaah {__version__} running with {API}", file=sys.stderr)
+
+    # Say hello to the counting service, if and only if somebody said yes to that. HERE and
+    # not in MainWindow, because MainWindow is built a thousand times by the test suite and
+    # none of those should reach for a network; this runs once, in the real application, a
+    # few seconds after the screen is up so it is never on the path of anything starting.
+    #
+    # The switch is checked AND the name has to exist -- onthemap.check_in does nothing
+    # without one -- so the setting and the file would have to agree before anything is sent.
+    if getattr(settings, "on_the_map", False):
+        from . import onthemap
+        here = (settings.latitude, settings.longitude)
+        QtCore.QTimer.singleShot(
+            5000, lambda: onthemap.in_the_background(lambda: onthemap.check_in(*here)))
+
     code = app.exec()
     if buttons:
         buttons.stop()

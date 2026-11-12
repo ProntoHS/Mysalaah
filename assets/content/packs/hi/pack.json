@@ -1,16 +1,15 @@
 {
- "schema": 1,
+ "dir": "ltr",
+ "hasTransliteration": false,
  "lang": "hi",
  "name": "Hindi",
  "nativeName": "हिन्दी",
- "dir": "ltr",
- "version": 0,
- "hasTransliteration": false,
- "transliterationScript": "Latn",
  "reviewedBy": null,
+ "schema": 1,
+ "translation": {},
  "translationSource": "Interface written for this app. DRAFT: needs review by a qualified Hindi speaker.",
  "transliteration": {},
- "translation": {},
+ "transliterationScript": "Latn",
  "ui": {
   "app_name": "Salaah",
   "bt.again": "फिर से खोजें",
@@ -340,7 +339,7 @@
   "settings.no_player": "कोई ऑडियो प्लेयर नहीं मिला। इससे इंस्टॉल करें: sudo apt install mpg123",
   "settings.off": "बंद",
   "settings.on": "चालू",
-  "settings.on_the_map": "मुसल्ला को मानचित्र पर दिखाएँ",
+  "settings.on_the_map": "मुसल्ला को मानचित्र पर दिखाएँ — केवल अनुमानित क्षेत्र",
   "settings.place": "नमाज़ के अवक़ात",
   "settings.place_hint": "अवक़ात डिवाइस पर ही मुस्लिम वर्ल्ड लीग के तरीक़े से, आपकी जगह और ऊपर के मसलक के हिसाब से निकाले जाते हैं। अपनी जगह ~/.config/salaah/settings.json में तय करें (latitude, longitude, place)।",
   "settings.qibla": "क़िबला",
@@ -427,5 +426,6 @@
   "wudu.head": "सिर और कानों का मसह",
   "wudu.mouth": "कुल्ली करें",
   "wudu.nose": "नाक साफ़ करें"
- }
+ },
+ "version": 0
 }

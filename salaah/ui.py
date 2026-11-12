@@ -5428,12 +5428,27 @@ class MainWindow(QtWidgets.QWidget):
         has no name on disk would invent a new one every restart and count itself again each
         time -- it would be the one mat in the world that inflates the number. Better to
         leave the switch off, which is also the answer the family already had.
+
+        TURNING IT OFF DELETES THE ROW BEFORE IT DESTROYS THE NAME, and onthemap.stop is
+        where that order is kept and explained. Turning it ON checks in straight away rather
+        than waiting for the next restart, so that somebody who has just said yes sees the
+        globe fill while they are still looking at it.
+
+        BOTH HAPPEN ON A THREAD NOBODY WAITS FOR. This runs from a switch being tapped, and a
+        switch that sticks for eight seconds because a hotel wifi is swallowing packets is a
+        broken switch. The setting is saved immediately and the network catches up.
         """
         from . import onthemap
         if yes:
-            yes = onthemap.join() is not None
+            name = onthemap.join()
+            yes = name is not None
+            if yes:
+                here = (self.settings.latitude, self.settings.longitude)
+                onthemap.in_the_background(lambda: onthemap.check_in(*here))
         else:
-            onthemap.leave()
+            # Not onthemap.leave(): see onthemap.stop for why the row goes first. The cache
+            # is dropped there too, so the globe stops drawing a community this mat has left.
+            onthemap.in_the_background(onthemap.stop)
         self.settings.on_the_map = yes
         self.persist()
 

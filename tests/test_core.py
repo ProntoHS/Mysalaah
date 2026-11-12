@@ -3227,12 +3227,18 @@ class TheMatHasNoNameUntilSomebodySaysYesTest(unittest.TestCase):
         from salaah.settings import Settings
         self.assertIs(False, Settings().on_the_map)
 
-    def test_nothing_in_the_app_knows_where_to_send_anything(self):
-        """The release that adds the switch must not be the release that starts sending.
+    def test_the_app_knows_exactly_one_place_to_send_anything(self):
+        """THIS TEST DID ITS JOB, so read what it used to say before changing it again.
 
-        Greps the shipped code for an address. This is a blunt check and that is the point:
-        it fails the day somebody wires a heartbeat up without the wording under the switch
-        being revisited, which currently tells the family that nothing is sent.
+        It was written in 2.19 as `test_nothing_in_the_app_knows_where_to_send_anything`,
+        when the switch existed and nothing was sent. Its whole purpose was to fail the day
+        somebody wired a heartbeat up without revisiting the wording under the switch. In
+        2.21 somebody did, and it failed, and the wording was revisited: the switch now says
+        in every language that an approximate location is sent, which it did not before.
+
+        So the list below gains ONE address, and it is the only one in the app that the mat
+        TELLS something to rather than fetches from. Everything else here is a download.
+        Adding to this list is still meant to be an uncomfortable thing to do on purpose.
         """
         import re
         from pathlib import Path
@@ -3243,7 +3249,10 @@ class TheMatHasNoNameUntilSomebodySaysYesTest(unittest.TestCase):
         #: list is written out so that adding to it is a decision somebody makes on purpose.
         allowed = {"quranenc.com", "tanzil.net", "raw.githubusercontent.com", "github.com",
                    "api.github.com", "everyayah.com", "openstreetmap.org", "schemas.org",
-                   "www.w3.org"}
+                   "www.w3.org",
+                   #: The only one the mat SPEAKS to. salaah/onthemap.py, and nothing is
+                   #: sent to it unless a name exists on disk, which means somebody said yes.
+                   "salaah-map.square-union-9586.workers.dev"}
         found = {}
         for py in sorted(code.rglob("*.py")):
             for host in re.findall(r"https?://([A-Za-z0-9.-]+)", py.read_text(encoding="utf-8")):
@@ -3252,6 +3261,188 @@ class TheMatHasNoNameUntilSomebodySaysYesTest(unittest.TestCase):
         self.assertEqual({}, found,
                          "the app has learnt a new address -- if this is the map's service, "
                          "the note under the switch must stop saying nothing is sent")
+
+
+class NothingLeavesTheMatUnlessSomebodySaidYesTest(unittest.TestCase):
+    """2.21: the mat started talking to a service, and these are the limits on that.
+
+    Every test here is a promise made to a family on a settings page, which is why they are
+    tests and not comments. NONE of them touches a real network: the module takes its opener
+    as an argument and these pass a fake that records what it was asked to send, so what is
+    checked is the actual bytes that would have left the house.
+    """
+
+    class Service:
+        """A counting service that never existed, and a record of what was said to it."""
+
+        def __init__(self, mats=None, broken=False):
+            self.said = []
+            self.mats = mats if mats is not None else []
+            self.broken = broken
+
+        def __call__(self, request, timeout=None):
+            import json as js
+            body = js.loads(request.data.decode("utf-8")) if request.data else None
+            self.said.append((request.method, request.full_url, body))
+            if self.broken:
+                import urllib.error
+                raise urllib.error.URLError("there is no network today")
+            if request.full_url.endswith("/mats"):
+                answer = {"count": len(self.mats),
+                          "mats": [{"lat": a, "lon": b} for a, b in self.mats]}
+            elif request.method == "DELETE":
+                answer = {"gone": True}
+            else:
+                answer = {"counted": True}
+            return self.Answer(js.dumps(answer).encode("utf-8"))
+
+        class Answer:
+            def __init__(self, raw):
+                self.raw = raw
+
+            def read(self):
+                return self.raw
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        self.room = Path(tempfile.mkdtemp())
+        self.name_at = self.room / "install-id"
+        self.cache = self.room / "mats.json"
+        self.addCleanup(lambda: __import__("shutil").rmtree(self.room, ignore_errors=True))
+
+    def test_a_mat_that_never_agreed_sends_nothing_at_all(self):
+        """Not an empty request, not a request that is ignored: NO REQUEST.
+
+        The switch is honoured by the absence of the name file, not by a setting that could
+        drift out of step with it. So the check is that the fake service was never called.
+        """
+        from salaah import onthemap
+        service = self.Service()
+        got = onthemap.check_in(53.59, -2.29, path=self.name_at, cache=self.cache,
+                                service="https://nowhere.invalid", opener=service)
+        self.assertIsNone(got)
+        self.assertEqual([], service.said, "a mat with no name reached for the network")
+        self.assertFalse(self.cache.exists())
+
+    def test_what_leaves_the_house_is_a_whole_degree_and_no_finer(self):
+        """The privacy boundary, measured on the bytes rather than trusted."""
+        from salaah import onthemap
+        onthemap.join(self.name_at)
+        service = self.Service()
+        onthemap.check_in(53.5933, -2.2966, path=self.name_at, cache=self.cache,
+                          service="https://nowhere.invalid", opener=service)
+        posts = [body for method, _, body in service.said if method == "POST"]
+        self.assertEqual(1, len(posts))
+        self.assertEqual(54, posts[0]["lat"])
+        self.assertEqual(-2, posts[0]["lon"])
+        for value in (posts[0]["lat"], posts[0]["lon"]):
+            self.assertIsInstance(value, int, "a fraction of a degree was about to be sent")
+
+    def test_the_name_is_sent_to_the_service_and_written_nowhere_else(self):
+        """It has to go to the service -- that is what it is for -- but it must not end up
+        in the cache, which is a file with no reason to hold an identifier."""
+        from salaah import onthemap
+        name = onthemap.join(self.name_at)
+        service = self.Service(mats=[(54, -2)])
+        onthemap.check_in(53.59, -2.29, path=self.name_at, cache=self.cache,
+                          service="https://nowhere.invalid", opener=service)
+        self.assertTrue(self.cache.exists())
+        self.assertNotIn(name, self.cache.read_text(encoding="utf-8"))
+
+    def test_no_network_is_not_an_error_anybody_hears_about(self):
+        """A mat on a dead wifi is a mat. Nothing raises, nothing is left half written."""
+        from salaah import onthemap
+        onthemap.join(self.name_at)
+        broken = self.Service(broken=True)
+        self.assertIsNone(onthemap.check_in(53.59, -2.29, path=self.name_at,
+                                            cache=self.cache,
+                                            service="https://nowhere.invalid",
+                                            opener=broken))
+        self.assertIsNone(onthemap.fetch(service="https://nowhere.invalid", opener=broken))
+        self.assertEqual([], onthemap.remembered(self.cache))
+
+    def test_a_failed_fetch_does_not_empty_a_map_that_was_already_known(self):
+        """Losing wifi for an afternoon should not empty the world."""
+        from salaah import onthemap
+        onthemap.remember([(54, -2), (1, 103)], cache=self.cache)
+        self.assertEqual([(54, -2), (1, 103)], onthemap.remembered(self.cache))
+        self.assertIsNone(onthemap.remember(None, cache=self.cache))
+        self.assertEqual([(54, -2), (1, 103)], onthemap.remembered(self.cache),
+                         "a failed fetch wiped the remembered map")
+
+    def test_leaving_deletes_the_row_before_it_destroys_the_name(self):
+        """THE ORDER IS THE POINT. The name is the only thing that says which row is this
+        mat's, so a name destroyed first strands the row on the service with nobody able to
+        name it -- counted for sixty days after the family said stop."""
+        from salaah import onthemap
+        name = onthemap.join(self.name_at)
+        onthemap.remember([(54, -2)], cache=self.cache)
+        service = self.Service()
+        self.assertTrue(onthemap.stop(path=self.name_at, cache=self.cache,
+                                      service="https://nowhere.invalid", opener=service))
+        self.assertEqual(1, len(service.said))
+        method, _, body = service.said[0]
+        self.assertEqual("DELETE", method)
+        self.assertEqual(name, body["id"], "the wrong row would have been deleted")
+        self.assertIsNone(onthemap.name_of_this_mat(self.name_at))
+        self.assertEqual([], onthemap.remembered(self.cache),
+                         "a mat that left the map still draws the community")
+
+    def test_leaving_works_even_when_the_service_cannot_be_reached(self):
+        """The switch must go off on an aeroplane. The row then waits for the service to
+        forget it, which is the honest limit and not a reason to keep the name."""
+        from salaah import onthemap
+        onthemap.join(self.name_at)
+        broken = self.Service(broken=True)
+        self.assertFalse(onthemap.stop(path=self.name_at, cache=self.cache,
+                                       service="https://nowhere.invalid", opener=broken))
+        self.assertIsNone(onthemap.name_of_this_mat(self.name_at),
+                          "the name survived somebody turning the switch off")
+
+    def test_a_service_talking_nonsense_cannot_put_a_mat_in_the_sea_or_worse(self):
+        """Whatever comes back is checked before it is believed. The service is mine, but a
+        reply is still something that arrived over a wire."""
+        from salaah import onthemap
+
+        class Nonsense(self.Service):
+            def __call__(self, request, timeout=None):
+                import json as js
+                self.said.append((request.method, request.full_url, None))
+                return self.Answer(js.dumps({"mats": [
+                    {"lat": 91, "lon": 0}, {"lat": "north", "lon": 2},
+                    {"lat": 54}, "not even a row", {"lat": 12, "lon": 77},
+                ]}).encode("utf-8"))
+
+        got = onthemap.fetch(service="https://nowhere.invalid", opener=Nonsense())
+        self.assertEqual([(12, 77)], got, "nonsense from the service reached the globe")
+
+    def test_the_switch_says_what_it_does_in_every_language(self):
+        """Consent is the wording, not the code. 2.19 shipped this switch saying only "show
+        this mat on the map", which was true then because nothing was sent. 2.21 sends, so
+        every pack that carries this string had to be revisited -- and this fails if one is
+        left behind with the old promise.
+        """
+        import json
+        from pathlib import Path
+        packs = Path(__file__).resolve().parent.parent / "assets" / "content" / "packs"
+        silent = []
+        for pack in sorted(packs.glob("*/pack.json")):
+            said = json.loads(pack.read_text(encoding="utf-8")).get("ui", {})
+            wording = said.get("settings.on_the_map")
+            if wording is None:
+                continue          # a pack that falls back to English is covered by English
+            if "\u2014" not in wording:
+                silent.append(pack.parent.name)
+        self.assertEqual([], silent,
+                         "these languages still describe the switch the way they did when "
+                         "the mat sent nothing")
 
 
 class TheTownsOfTheWorldTest(unittest.TestCase):

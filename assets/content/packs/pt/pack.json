@@ -1,16 +1,15 @@
 {
- "schema": 1,
+ "dir": "ltr",
+ "hasTransliteration": false,
  "lang": "pt",
  "name": "Portuguese",
  "nativeName": "Português",
- "dir": "ltr",
- "version": 0,
- "hasTransliteration": false,
- "transliterationScript": "Latn",
  "reviewedBy": null,
+ "schema": 1,
+ "translation": {},
  "translationSource": "Interface written for this app. DRAFT: needs review by a qualified Portuguese speaker.",
  "transliteration": {},
- "translation": {},
+ "transliterationScript": "Latn",
  "ui": {
   "app_name": "Salaah",
   "bt.again": "Procurar novamente",
@@ -340,7 +339,7 @@
   "settings.no_player": "Nenhum leitor de áudio encontrado. Instale um com: sudo apt install mpg123",
   "settings.off": "Desligado",
   "settings.on": "Ligado",
-  "settings.on_the_map": "Mostrar este tapete no mapa",
+  "settings.on_the_map": "Mostrar este tapete no mapa — apenas a área aproximada",
   "settings.place": "Horários das orações",
   "settings.place_hint": "Os horários são calculados no aparelho pelo método da Liga Mundial Islâmica, a partir da sua localização e da escola acima. Defina a localização em ~/.config/salaah/settings.json (latitude, longitude, place).",
   "settings.qibla": "Qibla",
@@ -427,5 +426,6 @@
   "wudu.head": "Passar na cabeça e orelhas",
   "wudu.mouth": "Enxaguar a boca",
   "wudu.nose": "Lavar o nariz"
- }
+ },
+ "version": 0
 }

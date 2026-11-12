@@ -1,16 +1,15 @@
 {
- "schema": 1,
+ "dir": "ltr",
+ "hasTransliteration": false,
  "lang": "ru",
  "name": "Russian",
  "nativeName": "Русский",
- "dir": "ltr",
- "version": 0,
- "hasTransliteration": false,
- "transliterationScript": "Latn",
  "reviewedBy": null,
+ "schema": 1,
+ "translation": {},
  "translationSource": "Interface written for this app. DRAFT: needs review by a qualified Russian speaker.",
  "transliteration": {},
- "translation": {},
+ "transliterationScript": "Latn",
  "ui": {
   "app_name": "Salaah",
   "bt.again": "Искать снова",
@@ -340,7 +339,7 @@
   "settings.no_player": "Аудиоплеер не найден. Установите его: sudo apt install mpg123",
   "settings.off": "Выкл",
   "settings.on": "Вкл",
-  "settings.on_the_map": "Показывать коврик на карте",
+  "settings.on_the_map": "Показывать коврик на карте — только примерный район",
   "settings.place": "Время молитв",
   "settings.place_hint": "Время рассчитывается на устройстве по методу Всемирной мусульманской лиги, исходя из вашего местоположения и мазхаба выше. Задайте местоположение в ~/.config/salaah/settings.json (latitude, longitude, place).",
   "settings.qibla": "Кибла",
@@ -427,5 +426,6 @@
   "wudu.head": "Протереть голову и уши",
   "wudu.mouth": "Прополоскать рот",
   "wudu.nose": "Промыть нос"
- }
+ },
+ "version": 0
 }

@@ -11893,6 +11893,97 @@ class WorldScreenTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         return w
 
+    def with_a_remembered_map(self, mats, on=True):
+        """A window whose cache already holds other mats, without any network."""
+        import json
+        import tempfile
+        from pathlib import Path
+        from salaah import onthemap
+        room = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(room, ignore_errors=True))
+        cache = room / "mats.json"
+        cache.write_text(json.dumps({"mats": [list(m) for m in mats]}), encoding="utf-8")
+        was = onthemap.CACHE
+        onthemap.CACHE = cache
+        self.addCleanup(lambda: setattr(onthemap, "CACHE", was))
+        w = self.window()
+        w.settings.on_the_map = on
+        return w
+
+    def test_the_globe_draws_the_mats_that_have_checked_in(self):
+        """The community arriving, from the cache and never from a network."""
+        w = self.with_a_remembered_map([(54, -2), (1, 103), (40, -74)])
+        mats = w.world_screen.mats()
+        self.assertEqual(3, len(mats), "the remembered mats did not reach the globe")
+        self.assertTrue(mats[0].mine)
+        self.assertFalse(any(m.mine for m in mats[1:]))
+        self.assertEqual({(1.0, 103.0), (40.0, -74.0)},
+                         {(m.latitude, m.longitude) for m in mats[1:]})
+
+    def test_this_mat_is_drawn_once_and_not_twice(self):
+        """This mat checked in, so the service's answer HOLDS this mat. Drawn as well as the
+        dot made from its own settings, the same household would appear twice and the count
+        beside the globe would be one too high."""
+        w = self.with_a_remembered_map([(54, -2)])
+        mats = w.world_screen.mats()
+        self.assertEqual(1, len(mats), "this mat was drawn twice, once rounded")
+        self.assertTrue(mats[0].mine)
+
+    def test_a_neighbour_in_the_same_square_still_gets_a_dot(self):
+        """Exactly ONE matching row is dropped, not all of them. Somebody seventy miles away
+        shares this mat's whole degree and has as much right to a dot as anybody."""
+        w = self.with_a_remembered_map([(54, -2), (54, -2), (54, -2)])
+        mats = w.world_screen.mats()
+        self.assertEqual(3, len(mats),
+                         "neighbours in this mat's own square were thrown away with it")
+
+    def test_a_sulking_network_cannot_freeze_the_switch(self):
+        """THE PROMISE THIS RELEASE RESTS ON. A hotel wifi that accepts a connection and then
+        never answers is the normal case, not the exotic one, and the switch is tapped by a
+        child. If the request were made on the thread that draws, the whole mat would stop
+        for the length of the timeout -- eight seconds -- with no way to tell it had.
+
+        So the work goes on a thread nobody waits for. This measures the switch rather than
+        reading the code: a service that takes three seconds to answer must not cost the
+        switch more than a moment.
+        """
+        import time
+        from salaah import onthemap
+        w = self.window()
+
+        slow = []
+
+        def crawl(*a, **k):
+            slow.append(time.monotonic())
+            time.sleep(3.0)
+            return None
+
+        was_check, was_stop = onthemap.check_in, onthemap.stop
+        onthemap.check_in, onthemap.stop = crawl, crawl
+        self.addCleanup(lambda: (setattr(onthemap, "check_in", was_check),
+                                 setattr(onthemap, "stop", was_stop)))
+        for answer in (True, False):
+            with self.subTest(answer):
+                began = time.monotonic()
+                w.set_on_the_map(answer)
+                took = time.monotonic() - began
+                self.assertLess(took, 0.5,
+                                f"the switch sat on the network for {took:.1f}s")
+        for _ in range(40):          # let the threads actually start before we judge them
+            if len(slow) == 2:
+                break
+            time.sleep(0.05)
+        self.assertEqual(2, len(slow), "the switch never reached the service at all")
+
+    def test_a_mat_that_left_the_map_is_not_shown_the_community(self):
+        """Opting out drops the cache, so this is the second lock rather than the only one --
+        but a stale file on disk must not put the world back on a screen whose family said no.
+        """
+        w = self.with_a_remembered_map([(54, -2), (1, 103), (40, -74)], on=False)
+        mats = w.world_screen.mats()
+        self.assertEqual(1, len(mats), "a mat that opted out is still drawing other mats")
+        self.assertTrue(mats[0].mine)
+
     def blue(self, widget):
         """Where the line and the marker are: the globe is black and white, so anything blue
         was drawn by us."""
@@ -15827,6 +15918,37 @@ class UpdateButtonInTheCornerTest(unittest.TestCase):
                 bar = w.settings_scroll.verticalScrollBar()
                 self.assertEqual(0, bar.maximum(),
                                  f"a {tall}px screen scrolls by {bar.maximum()}px")
+
+    def test_settings_does_not_scroll_in_ANY_language(self):
+        """The test above checks one language, and that is how 2.21 nearly shipped a
+        scrolling settings page.
+
+        Lengthening the community-map switch by five words left English, French and Urdu
+        comfortable and pushed Spanish 103 pixels over the edge, Portuguese 133 and Russian
+        61. Every test passed. The page is built once and translated ten ways, so the only
+        honest place to check a rule about its height is in all ten.
+
+        Not a style point: Harry set the no-scrolling rule for this page in 1.83, and a
+        translation is exactly the kind of change that breaks it without anybody editing a
+        layout.
+        """
+        over = {}
+        for lang in ("ar", "bn", "en", "es", "fr", "hi", "pt", "ru", "ur", "zh"):
+            w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                           Settings(theme="dark", place="Bury", lang=lang,
+                                    latitude=53.5933, longitude=-2.2966),
+                           scale=1.0, save_settings=False, aspect=None, side=True)
+            w.resize(1920, 1080)
+            w.show()
+            settle()
+            w.open_settings()
+            settle(4)
+            spare = w.settings_scroll.verticalScrollBar().maximum()
+            if spare:
+                over[lang] = spare
+            shut(w)
+        self.assertEqual({}, over,
+                         "these languages scroll the settings page on a 1080 screen")
 
 
 class CallKeepsTheStripTest(unittest.TestCase):
