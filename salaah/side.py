@@ -91,6 +91,12 @@ class SideWindow(QtWidgets.QWidget):
             self.compass.close_screen()
         self.stack.setCurrentWidget(self.prayer)
 
+    #: The call to prayer borrows the 7in the same way a game does -- it brings its own
+    #: widget and this only mounts it -- so it is the same method under a name that says
+    #: which of the two is happening. See call.CallBox.small_screen_panel.
+    def show_call(self, companion):
+        return self.show_game(companion)
+
     def show_game(self, companion):
         """Lend the 7" to a game, which brings its own widget for it.
 
