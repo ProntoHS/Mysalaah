@@ -10686,6 +10686,36 @@ class TheMatCanBeToldItIsAnywhereTest(unittest.TestCase):
         self.assertEqual([], self.offered(screen), "a postcode offered a list of towns")
         self.assertTrue(screen.save.isEnabled())
 
+    def test_the_circle_by_location_says_whether_the_area_is_being_shared(self):
+        """A privacy light, and the only circle in that column that is not about a cable.
+
+        The three above it mean "is this connected". This one means "is this mat's area
+        leaving the house" -- green while it is, red while it is not. RED IS THE DEFAULT AND
+        THE PRIVATE STATE, which is the thing to keep in mind if the rule is ever revisited:
+        on the rows above, red reads as a to-do, and here it does not.
+
+        Checked on the built widget rather than on the setting that drove it, and checked for
+        a page OPENED with the switch already on -- the wifi circle sat red on an online mat
+        for three releases because it was drawn once and then never told anything.
+        """
+        from salaah.qt import QtGui
+        from salaah.ui import BRICK, MINT
+        for shared in (True, False):
+            with self.subTest(shared=shared):
+                w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                               Settings(theme="dark", place="Bury", on_the_map=shared,
+                                        latitude=53.5933, longitude=-2.2966),
+                               scale=1.0, save_settings=False, aspect=None, side=True)
+                w.resize(1920, 1080)
+                w.show()
+                settle()
+                w.open_settings()
+                settle(3)
+                want = MINT if shared else BRICK
+                self.assertEqual(QtGui.QColor(want).name(), w.place_dot.color.name(),
+                                 "the circle beside Location is the wrong colour")
+                shut(w)
+
     def test_the_keyboard_is_not_crushed_by_a_list_of_towns(self):
         """The whole suite passed while this screen was visibly broken.
 
@@ -11648,9 +11678,16 @@ class WhatTheMatIsAttachedToTest(unittest.TestCase):
                             w.ring_button.mapTo(w, QtCore.QPoint(0, 0)).x(),
                             "the circle is not to the left of the labels")
 
-    def test_the_location_line_has_no_circle_because_it_has_no_answer(self):
-        """A location is not a thing that is either connected or not, and an always-green
-        circle would be saying nothing in the shape of an answer.
+    def test_every_line_including_location_now_has_a_circle(self):
+        """THIS TEST USED TO ASSERT THE OPPOSITE, and why it changed is worth keeping.
+
+        It was `test_the_location_line_has_no_circle_because_it_has_no_answer`, and its
+        reasoning was sound then: a location is not a thing that is either connected or not,
+        so the circle would always be green and would be "saying nothing in the shape of an
+        answer". 2.21 gave the row a yes-or-no fact worth a glance -- whether this mat's area
+        is being shared -- and Harry asked for the circle on 12 November 2026. The reasoning
+        did not stop being true; the row stopped being the row it described. On the three
+        lines above, red means "not connected yet"; on this one red is the private default.
 
         Asked of the grid rather than measured in pixels. The first try compared the circle's
         top edge with the label's and allowed 20 pixels between them; a circle put on this line
@@ -11663,11 +11700,8 @@ class WhatTheMatIsAttachedToTest(unittest.TestCase):
         rows = {"ring": 0, "bluetooth": 1, "wifi": 2, "location": 3}
         for name, at in rows.items():
             cell = w.attached.itemAtPosition(at, 0)
-            if name == "location":
-                self.assertIsNone(cell, "there is something in the Location line's circle cell")
-            else:
-                self.assertIsNotNone(cell, f"the {name} line has lost its circle")
-                self.assertIsInstance(cell.widget(), Dot)
+            self.assertIsNotNone(cell, f"the {name} line has lost its circle")
+            self.assertIsInstance(cell.widget(), Dot)
         # And the label really is the thing on that row, so row 3 is the Location line.
         self.assertIs(w.place_button, w.attached.itemAtPosition(3, 1).widget())
 
@@ -11937,6 +11971,34 @@ class WorldScreenTest(unittest.TestCase):
         self.assertEqual(3, len(mats),
                          "neighbours in this mat's own square were thrown away with it")
 
+    def test_the_number_counts_mats_on_the_map_and_not_dots_on_the_globe(self):
+        """Harry found this on the mat the day after 2.21 shipped.
+
+        He turned the switch off, the row really was deleted from the service, and the screen
+        still said 1. The 1 was HIS OWN MAT: the globe always draws a dot for where you are,
+        and the number was counting dots. A mat that has opted out is not on the map, so the
+        honest answer is 0 -- and the column underneath has to agree with it, or the screen
+        says "0" directly above a row naming Bury.
+
+        The dot itself stays either way. It is where you are, and the line to the Kaaba is
+        drawn from it.
+        """
+        w = self.with_a_remembered_map([(54, -2), (1, 103), (40, -74)], on=False)
+        w.open_world()
+        settle(4)
+        screen = w.world_screen
+        self.assertEqual("0", screen.count.text(),
+                         "a mat that opted out is still counted on the map")
+        self.assertEqual(0, len(screen.pips),
+                         "the column lists mats while the number above it says none")
+        self.assertEqual(1, len(screen.mats()), "the globe lost the dot for where you are")
+
+        w.settings.on_the_map = True
+        screen.retell()
+        settle(2)
+        self.assertEqual("3", screen.count.text())
+        self.assertEqual(3, len(screen.pips), "the column does not match the number")
+
     def test_a_sulking_network_cannot_freeze_the_switch(self):
         """THE PROMISE THIS RELEASE RESTS ON. A hotel wifi that accepts a connection and then
         never answers is the normal case, not the exotic one, and the switch is tapped by a
@@ -12162,7 +12224,13 @@ class CommunityColumnTest(unittest.TestCase):
 
     def window(self, theme="dark", place="Bury", where=(53.593, -2.298), size=(1024, 600)):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme=theme, place=place, latitude=where[0], longitude=where[1]),
+                       # ON THE MAP, because every test in this class is about the community
+                       # column, and since 2.22 that column belongs to a mat that is on the
+                       # map: one that has opted out is shown nought and an empty list, which
+                       # is its own test elsewhere. Before 2.21 there was no switch to be on
+                       # the wrong side of, so saying nothing here said nothing.
+                       Settings(theme=theme, place=place, on_the_map=True,
+                                latitude=where[0], longitude=where[1]),
                        scale=1.0, save_settings=False, aspect=None, side=True)
         w.resize(*size)
         w.show()
@@ -12242,7 +12310,13 @@ class CommunityColumnTest(unittest.TestCase):
     def test_one_mat_on_its_own_counts_one(self):
         w = self.window()
         screen = self.opened(w)
-        self.assertEqual("Active", screen.heading.text())
+        # "Checked in" since 2.22, and the word was argued over rather than drifted into.
+        # "Active" and Harry's first suggestion, "On-line", both claim the mats are connected
+        # at this moment; what the number actually holds is mats that have reported in at
+        # some point in the last sixty days, a switched-off one among them until the service
+        # forgets it. The heading is pinned here on purpose: a count is only as honest as the
+        # word above it.
+        self.assertEqual("Checked in", screen.heading.text())
         self.assertEqual("1", screen.count.text())
 
     def test_the_count_follows_the_list(self):

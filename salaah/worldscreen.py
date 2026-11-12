@@ -334,7 +334,16 @@ class WorldScreen:
         """Fill the column beside the globe."""
         mats = self.mats()
         self.heading.setText(self.win.t("world.active"))
-        self.count.setText(f"{len(mats):,}")
+
+        # THE NUMBER COUNTS MATS ON THE MAP, NOT DOTS ON THE GLOBE, and those are not the same
+        # thing. This mat always gets a dot -- it is where you are, and the globe would be a
+        # strange thing without it -- but a mat whose family has turned the switch off is not
+        # on the map at all. Counting dots meant the screen said "1" to somebody who had just
+        # opted out and whose row really had been deleted from the service, which Harry caught
+        # on the mat within a day of 2.21: "i have deactivated show this mat BUT it still
+        # showing Active = 1. shouldn't this be 0 now?" It should, and it does.
+        on_the_map = bool(getattr(self.win.settings, "on_the_map", False))
+        self.count.setText(f"{len(mats) if on_the_map else 0:,}")
         while self.who.count():
             old = self.who.takeAt(0)
             if old.widget() is not None:
@@ -345,10 +354,17 @@ class WorldScreen:
                     if inner.widget() is not None:
                         inner.widget().deleteLater()
         self.pips = []
-        # A row each, up to what the column has room for. One today; the cap is here because a
-        # list that grows without a limit is a page that pushes its own Back button off the
-        # bottom, and the day the community arrives is not the day to find that out.
-        for mat in mats[:self.ROWS]:
+        # A row each, up to what the column has room for. The cap is here because a list that
+        # grows without a limit is a page that pushes its own Back button off the bottom, and
+        # the day the community arrives is not the day to find that out.
+        #
+        # THE LIST HAS TO AGREE WITH THE NUMBER ABOVE IT. Once the number started saying 0 to
+        # a mat that had opted out, listing this mat underneath it put "Checked in / 0" above
+        # a row saying Bury -- two true things that read as a contradiction. The dot stays on
+        # the globe, because that is where you are and the line to the Kaaba is drawn from it;
+        # it is the COLUMN that lists who is checked in, and when nobody is, it is empty.
+        listed = mats if on_the_map else []
+        for mat in listed[:self.ROWS]:
             row = QtWidgets.QHBoxLayout()
             row.setSpacing(self.win.px(10))
             pip = Pip(self.win.px(16))

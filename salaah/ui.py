@@ -5004,18 +5004,30 @@ class MainWindow(QtWidgets.QWidget):
 
         # Where the mat is. Until this existed the coordinates were whatever was in the settings
         # file and there was no way to change them -- carry the mat anywhere and it kept showing
-        # Bury's times with nothing to say so. No circle: unlike the three above it, a location
-        # is not a thing that is either connected or not, and an always-green circle would be
-        # saying nothing in the shape of an answer.
+        # Bury's times with nothing to say so.
+        #
+        # THE CIRCLE ANSWERS A DIFFERENT QUESTION FROM THE THREE ABOVE IT, and that is why it
+        # is here now when 2.19 said it should not be. The old reasoning was that a location is
+        # not a thing that is either connected or not, so the circle would always be green and
+        # would be "saying nothing in the shape of an answer". True then. Since 2.21 there IS a
+        # yes-or-no fact about this row worth a glance: whether this mat's location is leaving
+        # the house. Green means it is being shared with the map; red means it is not.
+        #
+        # Red is therefore the DEFAULT and the private state, not a fault -- which is the one
+        # thing to watch, since red on the three rows above means "not connected yet" and does
+        # read as a to-do. Harry asked for it this way on purpose, 12 November 2026.
+        self.place_dot = Dot(self.px(28))
         self.place_button = no_focus(QtWidgets.QPushButton(self.t("place.row")))
         self.place_button.setObjectName("pill")
         self.place_button.clicked.connect(self.open_place)
+        self.attached.addWidget(self.place_dot, 3, 0, Qt.AlignmentFlag.AlignVCenter)
         self.attached.addWidget(self.place_button, 3, 1, Qt.AlignmentFlag.AlignVCenter)
         self.place_label = QtWidgets.QLabel(self.settings.place or "")
         self.place_label.setObjectName("settingValue")
         self.wrappable(self.place_label)
         self.attached.addWidget(self.place_label, 3, 2, Qt.AlignmentFlag.AlignVCenter)
         self.attached.setRowMinimumHeight(3, self.place_button.sizeHint().height())
+        self.show_whether_the_place_is_shared()
 
         right.addLayout(self.attached)
         right.addStretch(1)
@@ -5451,6 +5463,22 @@ class MainWindow(QtWidgets.QWidget):
             onthemap.in_the_background(onthemap.stop)
         self.settings.on_the_map = yes
         self.persist()
+        self.show_whether_the_place_is_shared()
+
+    def show_whether_the_place_is_shared(self) -> None:
+        """Paint the circle beside Location: green while this mat's area is being shared.
+
+        Called from the switch and from the settings page being built, so the circle is right
+        the moment the page opens rather than only after somebody touches the switch -- which
+        is the bug the wifi circle had in 2.14, sitting red on a mat that was online because
+        it had been drawn and then never told anything.
+        """
+        dot = getattr(self, "place_dot", None)
+        if dot is None:
+            return
+        shared = bool(getattr(self.settings, "on_the_map", False))
+        dot.set_color(MINT if shared else BRICK)
+        dot.setToolTip(self.t("settings.on_the_map"))
 
     def set_brightness(self, value: int) -> None:
         self.settings.brightness = int(value)
