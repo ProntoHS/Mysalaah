@@ -50,6 +50,32 @@ WORDS_PX = 38
 # times the height the words need, and a test holds them above one.
 WUDU_SIZES = ((1.0, 1.0), (1.3, 0.8), (1.6, 0.65))
 
+# And the three sizes when the drawing is NOT on this screen -- see WuduStep.show_step. The
+# first of them is the last of the three above: Harry, 12 November 2026, "increase its
+# starting text size to the largest of the 3 A's, then they can be scaled up in size by the
+# user if they wish to, we should have enough screen space". So a step opens at what used to
+# be as large as it went, and the A buttons go up from there rather than back down.
+#
+# There is no second number because there is no drawing here to take width from. The ceiling
+# is the panel, and it was MEASURED rather than guessed -- across all seven steps in all ten
+# languages, at 1080p, against the panel the words actually get:
+#
+#     x1.6   60px   worst case 365px of 751   49%   (head, English)
+#     x1.8   68px              ~460px         61%
+#     x2.0   76px              552px          74%   (head, English)
+#     x2.2   83px              707px          94%   (head, French)
+#     x2.4   91px              777px         103%   OVERFLOWS
+#
+# So the top of the three is 2.0, which leaves a quarter of the panel spare in the worst
+# case -- the same margin the three sizes above keep, and the same one their test holds them
+# to. 2.2 fits and 2.4 does not, but six per cent of a panel is not a margin, it is luck: a
+# longer sentence in a language nobody has reviewed yet would spill off the bottom of a step
+# with no scrollbar and no way to know it had.
+#
+# My first attempt at this comment said 2.4 was fine at 88% in French. That number was not
+# measured, it was imagined, and the measurement above is what it actually does.
+WUDU_SIZES_ALONE = (1.6, 1.8, 2.0)
+
 
 class Steps:
     """The seven steps, off the disk, and whether anybody qualified has read them."""
@@ -183,6 +209,13 @@ class WuduStep(QtWidgets.QWidget):
         self.setObjectName("wuduStep")
         self.films: list[Film] = []
         self.place, self.of = 0, 1      # which of the seven is up, and how many there are
+        #: The 7in, where there is one, and the panel put on it. Both are settled in
+        #: show_step rather than here: this widget is built while MainWindow is still being
+        #: put together, and asking for a screen that is two lines further down the
+        #: constructor is the kind of ordering that works until somebody moves a line.
+        self.small = None
+        self.companion: QtWidgets.QWidget | None = None
+        self.small_reel: QtWidgets.QBoxLayout | None = None
 
         across = QtWidgets.QHBoxLayout(self)
         across.setContentsMargins(window.px(24), window.px(14), window.px(24), window.px(18))
@@ -271,7 +304,10 @@ class WuduStep(QtWidgets.QWidget):
         to differ from it. A rule on the widget beats the app's for that one property and
         leaves the colour alone.
         """
-        bigger, _ = WUDU_SIZES[self.chosen_size]
+        if self.companion is not None:
+            bigger = WUDU_SIZES_ALONE[self.chosen_size]
+        else:
+            bigger, _ = WUDU_SIZES[self.chosen_size]
         self.words.setStyleSheet(f"font-size:{max(8, int(self.win.px(WORDS_PX) * bigger))}px;")
 
     def went_back(self) -> None:
@@ -299,19 +335,76 @@ class WuduStep(QtWidgets.QWidget):
             if old.widget() is not None:
                 old.widget().deleteLater()
         self.films = []
-        self.reel.setDirection(QtWidgets.QBoxLayout.Direction.LeftToRight
-                               if len(step["films"]) > 1
-                               else QtWidgets.QBoxLayout.Direction.TopToBottom)
-        for name in step["films"]:
-            film = Film(self.win.assets / "wudu" / name)
-            self.reel.addWidget(film, 1)
-            self.films.append(film)
+
+        # THE DRAWING GOES ON THE 7in WHERE THERE IS ONE, and the words keep this screen.
+        # Harry, 12 November 2026: "move the image to the posture screen, use full screen
+        # size for picture and the main screen will have just the step and its description".
+        #
+        # The 7in is stood upright, 600 x 1024, and these drawings are tall portraits -- the
+        # sheet they were cut from is 285 x 1027 a column. So a step's picture goes from
+        # sharing a 1920-wide screen with a paragraph to filling a screen shaped like itself,
+        # which is the whole of why this is worth doing.
+        #
+        # STACKED, NOT SIDE BY SIDE, for the one step that has two drawings. On this screen
+        # they were laid left and right; on a portrait screen Harry asked for the arrangement
+        # the menu tile already uses, one above the other.
+        #
+        # A ONE-SCREEN MAT IS UNCHANGED: the drawing stays here beside the words, at the
+        # sizes it always had. The same rule as the call to prayer in 2.24 -- moving a picture
+        # to a screen that does not exist only loses it.
+        self.small = getattr(self.win, "side", None)
+        stacked = len(step["films"]) > 1
+        if self.small is not None:
+            # ONE PANEL FOR ALL SEVEN STEPS, built the first time and refilled after that.
+            # side.show_game -- which this borrows -- adds a companion to the 7in's stack
+            # ONCE and keeps it, because a child goes in and out of the same game over and
+            # over. A fresh widget per step would have left seven of them in that stack on
+            # the first walk through wu'du and seven more on the next.
+            if self.companion is None:
+                self.companion = QtWidgets.QWidget()
+                self.companion.setObjectName("wuduCompanion")
+                self.small_reel = QtWidgets.QBoxLayout(
+                    QtWidgets.QBoxLayout.Direction.TopToBottom, self.companion)
+                self.small_reel.setContentsMargins(0, 0, 0, 0)
+            while self.small_reel.count():
+                # Held once: setParent(None) detaches it, and asking the layout item for its
+                # widget a second time afterwards answers None.
+                gone = self.small_reel.takeAt(0).widget()
+                if gone is not None:
+                    gone.setParent(None)
+                    gone.deleteLater()
+            self.small_reel.setSpacing(self.win.px(6) if stacked else 0)
+            for name in step["films"]:
+                film = Film(self.win.assets / "wudu" / name)
+                self.small_reel.addWidget(film, 1)
+                self.films.append(film)
+            self.stage.hide()
+            self.small.show_wudu(self.companion)
+        else:
+            self.companion = None
+            self.stage.show()
+            self.reel.setDirection(QtWidgets.QBoxLayout.Direction.LeftToRight if stacked
+                                   else QtWidgets.QBoxLayout.Direction.TopToBottom)
+            for name in step["films"]:
+                film = Film(self.win.assets / "wudu" / name)
+                self.reel.addWidget(film, 1)
+                self.films.append(film)
+
         self.heading.setText(heading)
         self.words.setText(words)
+        self.size_the_words()
         self.room_for_the_films()
         self.start()
 
     def room_for_the_films(self) -> None:
+        if self.companion is not None:
+            # The drawing is on the other screen and this one is all words. KEPT KNOWING IT
+            # CHANGES NOTHING ANYBODY CAN SEE: a sabotage took this return out and the words
+            # came back the same 1872x751 at all three sizes, because a hidden widget takes
+            # no room in a layout however wide it is told to be. It stays as a guard against
+            # pointless work and a stale width on a stage that is not being shown -- so no
+            # test holds it, and it is not claimed to be holding anything up.
+            return
         share = FILM_SHARE.get(len(self.films), max(FILM_SHARE.values()))
         # And narrower again as the words grow, which is what keeps a step on one screen at
         # the larger sizes: the words rewrap into the width the films give up.
@@ -330,11 +423,26 @@ class WuduStep(QtWidgets.QWidget):
 
     def start(self) -> None:
         for film in self.films:
-            film.start()
+            self.safely(film.start)
 
     def stop(self) -> None:
         for film in self.films:
-            film.stop()
+            self.safely(film.stop)
+
+    @staticmethod
+    def safely(do) -> None:
+        """Start or stop a film that may already be gone.
+
+        The drawings now live on a widget this screen does not own the lifetime of -- it is
+        mounted in the 7in's stack -- and on the way out of the application Qt deletes things
+        in an order nothing here decides. A hideEvent that arrives after the films have been
+        deleted used to take the shutdown down with it: "wrapped C/C++ object of type QMovie
+        has been deleted".
+        """
+        try:
+            do()
+        except RuntimeError:
+            pass
 
     def follow_theme(self) -> None:
         for film in self.films:
@@ -348,4 +456,22 @@ class WuduStep(QtWidgets.QWidget):
         # Thirty frames a second of a drawing nobody can see is the Pi doing work for nothing,
         # and on a mat that is left on all day it is the difference between warm and hot.
         self.stop()
+        # AND THE 7in GOES BACK whenever this screen is left, however it is left -- the arrows
+        # out of the seven, the Main screen button, the mat going to sleep. Hanging it off
+        # this rather than off the Back button is the same lesson Film learned about stopping
+        # on hide: a screen handed back only by one particular button is a screen left behind
+        # by every other way out, and a family would find the muezzin's drawing still sitting
+        # there at the next prayer.
+        self.give_the_small_screen_back()
         super().hideEvent(ev)
+
+    def give_the_small_screen_back(self) -> None:
+        """Hand the 7" back to the Knowledge Corner.
+
+        The panel itself is KEPT, not forgotten: it is mounted in the 7in's stack once and
+        refilled on the way into each step, so throwing it away here would put a new one in
+        that stack every time somebody walked out of wu'du and back in.
+        """
+        if self.companion is None or self.small is None:
+            return
+        self.small.show_idle()

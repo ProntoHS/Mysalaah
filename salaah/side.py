@@ -94,6 +94,11 @@ class SideWindow(QtWidgets.QWidget):
     #: The call to prayer borrows the 7in the same way a game does -- it brings its own
     #: widget and this only mounts it -- so it is the same method under a name that says
     #: which of the two is happening. See call.CallBox.small_screen_panel.
+    #: A wu'du step borrows it the same way, for the drawing that used to sit beside the
+    #: words on the big screen. See wudu.WuduStep.show_step.
+    def show_wudu(self, companion):
+        return self.show_game(companion)
+
     def show_call(self, companion):
         return self.show_game(companion)
 

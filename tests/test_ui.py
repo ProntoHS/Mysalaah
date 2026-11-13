@@ -5627,9 +5627,18 @@ class CallToPrayerTest(unittest.TestCase):
         w = self.window()
         self.at(w, "dhuhr")
         self.assertIsNotNone(w.call_box, "a box should be on screen")
-        self.assertTrue([t for t in self.words(w) if t.startswith("TIME TO PRAY")],
-                        f"nothing on the box says it is time: {self.words(w)}")
-        self.assertTrue([t for t in self.words(w) if "Dhuhr" in t], "and which prayer")
+        # "TIME TO PRAY" HAS GONE, at Harry's asking on 12 November 2026. The mat has just
+        # called the azaan out loud in the house; a line of screen saying it is time to pray
+        # was telling somebody what they had already been told, in the only words on that
+        # screen which are not the call itself.
+        #
+        # Which prayer it is still has to be said somewhere, and it is: on this window, which
+        # has no 7in screen, it stays at the top of the box. Where there IS a 7in the name
+        # goes there with the muezzin, which is its own test.
+        self.assertFalse([t for t in self.words(w) if "TIME TO PRAY" in t.upper()],
+                         f"the box still announces the obvious: {self.words(w)}")
+        self.assertTrue([t for t in self.words(w) if "Dhuhr" in t],
+                        f"nothing on the box says which prayer: {self.words(w)}")
         self.assertEqual(["azaan.mp3"], w.call.played)
 
     def test_fajr_is_called_with_its_own_azaan(self):
@@ -8027,6 +8036,118 @@ class AzaanScreenTest(unittest.TestCase):
         settle()
         self.addCleanup(lambda: (b.close(), b.deleteLater(), settle()))
         return b
+
+    # Which screen each part of the call goes on
+
+    def two_screens(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "dark", "recitation": False, "place": "Bury",
+                                   "azaan": True, **settings}),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(1024, 600)
+        w.side.show()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_the_muezzin_goes_to_the_small_screen_and_the_words_keep_the_big_one(self):
+        """Harry, 12 November 2026: "could the gif be moved to the 7in posture screen
+        instead. this way the text / translation will have the main screen to itself."
+
+        The 7in is free at that moment -- it shows postures during a prayer and the Knowledge
+        Corner between them, and the call comes before the prayer.
+
+        THE THING THAT WOULD HAVE SUNK THIS is not visible in the layout: the call box is
+        MODAL, and a modal dialog blocks input to every other window in the application. It
+        blocks input and not painting, so the 7in keeps drawing and its timers keep firing --
+        measured before any of this was built, and nothing on the companion is pressable
+        anyway. That is why this test asserts the film is RUNNING rather than merely mounted.
+        """
+        w = self.two_screens()
+        box = self.box(w)
+        self.assertIsNotNone(box.companion, "nothing was built for the 7in")
+        self.assertIs(w.side.stack.currentWidget(), box.companion,
+                      "the 7in is not showing the call")
+        self.assertFalse(box.drawing.isVisible(),
+                         "the muezzin is still on the big screen as well")
+        self.assertTrue(box.companion_drawing.there, "no muezzin on the 7in")
+        self.assertTrue(box.companion_drawing.moving, "the muezzin on the 7in is not moving")
+
+    def test_the_small_screen_shows_the_prayer_above_the_muezzin(self):
+        """The name centred along the top, the picture directly under it -- which prayer,
+        then the man calling it, in the order they are read."""
+        w = self.two_screens()
+        box = self.box(w, prayer="dhuhr")
+        said = [x for x in box.companion.findChildren(QtWidgets.QLabel) if x.text().strip()]
+        self.assertEqual(1, len(said), "the 7in should carry the prayer's name and nothing else")
+        self.assertEqual(w.t("prayer.dhuhr"), said[0].text())
+        self.assertEqual(Qt.AlignmentFlag.AlignCenter, said[0].alignment() & Qt.AlignmentFlag.AlignCenter)
+        self.assertLess(said[0].y(), box.companion_drawing.y(),
+                        "the muezzin is not below the name")
+
+    def test_the_7in_is_handed_back_when_the_call_ends(self):
+        """A film left running is a timer waking the Pi ten times a second to repaint
+        something nobody can see, and this mat calls five times a day for months."""
+        w = self.two_screens()
+        box = self.box(w)
+        self.assertIs(w.side.stack.currentWidget(), box.companion)
+        box.accept()
+        settle()
+        self.assertIsNot(w.side.stack.currentWidget(), box.companion,
+                         "the 7in was never given back")
+        self.assertFalse(box.companion_drawing.moving,
+                         "the muezzin is still being repainted after the call")
+
+    def test_a_mat_with_one_screen_keeps_the_muezzin_where_he_was(self):
+        """Moving him to a screen that does not exist would simply lose him: a mat with one
+        display would have gone from a picture and the words to the words alone, which
+        nobody asked for."""
+        w = self.window()           # no side screen
+        box = self.box(w)
+        self.assertIsNone(box.companion, "a companion was built with no screen to put it on")
+        self.assertTrue(box.drawing.isVisible(), "the muezzin has gone from the only screen")
+        said = [x.text() for x in box.findChildren(QtWidgets.QLabel)]
+        self.assertTrue([t for t in said if w.t("prayer.fajr") in t],
+                        f"nothing says which prayer it is: {said}")
+
+    def test_the_words_are_bigger_when_they_have_the_screen_to_themselves(self):
+        """And the room they grow into is the Stop button's old ROW, not the muezzin's column.
+
+        That is worth pinning, because the obvious reading is wrong and I had it wrong first:
+        the Arabic is set one line to a row and sized to the HEIGHT of its row, so the 550px
+        of width the picture gave back bought nothing at all -- measured against the published
+        2.22, the rows came out at 98px either way. What freed real room was taking the name
+        and the lone Stop button out of a row 120px tall and floating the button in the
+        corner.
+        """
+        big = self.box(self.two_screens())
+        small = self.box(self.window())
+        mine = [x for x in big.findChildren(QtWidgets.QLabel)
+                if x.objectName() == "callMeaning"][0]
+        theirs = [x for x in small.findChildren(QtWidgets.QLabel)
+                  if x.objectName() == "callMeaning"][0]
+        self.assertGreater(mine.font().pixelSize(), theirs.font().pixelSize(),
+                           "the meanings did not grow with the room")
+        self.assertGreater(max(a.height() for a in big.boxes.values()),
+                           max(a.height() for a in small.boxes.values()),
+                           "the Arabic did not grow with the room")
+
+    def test_the_floating_stop_never_sits_on_the_words(self):
+        """It is out of the layout, so nothing stops it overlapping except the margin the
+        lines keep for it. Checked in every language, because how wide Stop is depends on the
+        word: Arreter in French, and a phrase in Urdu."""
+        for lang in sorted(full_packs(available_packs(ASSETS))):
+            with self.subTest(lang):
+                w = self.two_screens(lang=lang)
+                box = self.box(w)
+                button = box.stop_button
+                widest = max(a.x() + a.width() for a in box.boxes.values())
+                self.assertLessEqual(widest, button.x(),
+                                     f"{lang}: the Arabic runs under the Stop button")
+                self.assertLessEqual(button.x() + button.width(), box.width(),
+                                     f"{lang}: Stop hangs off the edge of the screen")
 
     # The words
 
@@ -12141,31 +12262,44 @@ class WorldScreenTest(unittest.TestCase):
         self.assertEqual(3, len(mats),
                          "neighbours in this mat's own square were thrown away with it")
 
-    def test_the_globe_is_against_the_left_edge_and_the_column_is_wider(self):
-        """One change, not two: the slack was always there, it was all on the wrong side.
+    def test_the_globe_is_centred_and_the_column_is_still_wider(self):
+        """REPLACES test_the_globe_is_against_the_left_edge_and_the_column_is_wider.
 
-        The globe is square and the page is not, so centring it across the width put the
-        whole of the spare room to its LEFT -- about 450px of black at 1920 -- while the
-        column of names was squeezed into 200. Harry, 12 November 2026: "move globe to left
-        hand screen and widen checked in area by extra 50% - some places will have longer
-        names than Bury ;)".
+        2.23 did two things on one line of Harry's and only one of them was right. The column
+        of names needed the extra width -- "some places will have longer names than Bury ;)"
+        -- and it keeps it. Moving the globe off centre did not remove the black, it moved it
+        from the globe's left to its right, where it sat between the world and the column and
+        read as a gap instead of a margin. Harry, 12 November 2026: "spinning globe in world
+        page, needs to recentred in screen, you were right".
 
-        The globe loses nothing by it: its size is decided by the HEIGHT of the page, so the
-        hundred pixels the column gains come out of black.
+        Measured on the PICTURE rather than on circle(), because circle() is the arithmetic
+        under test: it is asked for the globe's box and would agree with itself whatever it
+        returned. This renders the widget and finds the middle of what was actually painted.
         """
-        w = self.with_a_remembered_map([(54, -2), (1, 103)])
+        w = self.with_a_remembered_map([(54, -2), (1, 103), (40, -74)])
         w.open_world()
         settle(4)
         screen = w.world_screen
-        left, _, side = screen.world.circle()
-        self.assertEqual(0, left, "the globe is still centred in its own width")
+        globe = screen.world
+        shot = QtGui.QImage(globe.size(), QtGui.QImage.Format.Format_ARGB32)
+        shot.fill(0)
+        globe.render(shot)
+        empty = shot.pixel(1, 1)
+        drawn = [x for x in range(shot.width())
+                 if any(shot.pixel(x, y) != empty for y in range(0, shot.height(), 3))]
+        self.assertTrue(drawn, "nothing was painted at all")
+        middle = (drawn[0] + drawn[-1]) / 2
+        self.assertLess(abs(middle - globe.width() / 2), globe.width() * 0.02,
+                        f"the world is painted from {drawn[0]} to {drawn[-1]}, centred on "
+                        f"{middle}, in a widget {globe.width()} wide")
+        # And the half of 2.23 that was right is untouched.
         # Measured against another number set in the same breath rather than against px(300)
         # read back later: setFixedWidth keeps the pixels it was given, and px() answers for
         # the window's size NOW, so the two disagree the moment a window is resized.
         indent = screen.who.contentsMargins().left()      # px(40) when the column was built
         self.assertEqual(round(indent * 300 / 40), screen.column.width(),
-                         "the column is not half as wide again")
-        self.assertGreater(side, screen.column.width(),
+                         "the column is no longer half as wide again")
+        self.assertGreater(globe.width(), screen.column.width(),
                            "the globe has been shrunk to pay for the column")
 
     def test_a_longer_place_name_fits_in_the_column(self):
@@ -14137,16 +14271,44 @@ class WuduScreensTest(unittest.TestCase):
                     self.assertTrue(film.film.isValid(), "the drawing will not open")
                     self.assertGreater(film.film.frameCount(), 1, "it does not move")
 
-    def test_the_drawing_takes_the_full_height_of_the_screen(self):
-        """Harry asked for the left-hand side to use the full vertical space, and it is the
-        whole reason the page is laid out this way round."""
+    def test_the_drawing_takes_the_full_height_of_the_screen_it_is_on(self):
+        """THE SCREEN IT IS ON IS THE 7in SINCE 2.25, and the point of the test is unchanged.
+
+        Harry asked in an earlier release for the drawing to use the full vertical space, and
+        this held it to that on the big screen, where it shared the width with a paragraph.
+        It now has a screen to itself -- 600 x 1024, stood upright -- and these drawings are
+        tall portraits cut from a sheet 285 x 1027 a column, so for the first time the
+        picture and the screen are the same shape.
+
+        So the measurement is the same measurement, taken against the 7in.
+        """
         w = self.window()
         w.open_wudu_step("hands")
         settle(4)
         step = w.wudu_step
-        drawn = step.films[0].drawn_size()
-        self.assertGreater(drawn.height(), step.height() * 0.9,
-                           f"the drawing is {drawn.height()}px tall on a {step.height()}px page")
+        self.assertIsNotNone(step.companion, "the drawing was not lent to the 7in")
+        self.assertFalse(step.stage.isVisible(),
+                         "the drawing is still taking room on the big screen as well")
+        # Two measurements, because one of them on its own can be true while the screen looks
+        # wrong. The first: the drawing fills the box it is given. The second: that box is
+        # most of the 7in. The 7in keeps a little furniture of its own, so the box is 900 of
+        # the screen's 1024 -- measuring the drawing against the whole screen rather than
+        # against its box failed at 88% while the picture was in fact filling everything it
+        # had been handed.
+        # IT FILLS ONE EDGE, and which edge is the drawings' business rather than mine. The
+        # films are 512 x 768 and the 7in is 600 x 1024, so a drawing scaled to fit comes out
+        # 600 x 900: hard against both sides, 124px short top and bottom. Asking for 95% of
+        # the HEIGHT failed at 900 of 1024 while the picture was in fact as large as it can
+        # be drawn without stretching a boy out of shape, which is worse than a smaller one.
+        film = step.films[0]
+        drawn = film.drawn_size()
+        fills = max(drawn.width() / film.width(), drawn.height() / film.height())
+        self.assertGreater(fills, 0.95,
+                           f"the drawing is {drawn.width()}x{drawn.height()} in a "
+                           f"{film.width()}x{film.height()} box, touching neither edge")
+        self.assertGreater(film.height(), w.side.height() * 0.8,
+                           f"the drawing's box is {film.height()}px on a "
+                           f"{w.side.height()}px screen")
         self.assertGreater(drawn.width(), 400, "and it should be wide with it")
         # Its shape is kept: a stretched boy is worse than a smaller one.
         shape = step.films[0].shape
@@ -14154,9 +14316,18 @@ class WuduScreensTest(unittest.TestCase):
                                shape.width() / shape.height(), places=1)
 
     def test_the_head_shows_both_its_drawings_at_the_same_size(self):
-        """Wiping the head and wiping the ears are one step and two drawings. Side by side,
-        because stacked they each get half the height -- and on tall portraits the height is
-        what decides how big they come out."""
+        """Wiping the head and wiping the ears are one step and two drawings.
+
+        STACKED SINCE 2.25, WHERE THEY WERE SIDE BY SIDE. The old reasoning was sound for the
+        old screen: stacked on a wide screen each drawing got half of the height, and on tall
+        portraits the height is what decides how big they come out. The 7in is stood upright,
+        so that argument turns over -- and the menu tile for this step has always shown the
+        two one above the other, which is the arrangement Harry asked for here.
+
+        What has not changed is the thing this test is really for: the two must come out the
+        SAME size as each other. One drawing bigger than its pair reads as the big one being
+        the step and the small one being a footnote, and they are one step.
+        """
         w = self.window()
         # A one-film step first, and then the head with no layout pass in between. The order
         # matters and it took two goes to find out how: opened on its own, both drawings start
@@ -14169,12 +14340,87 @@ class WuduScreensTest(unittest.TestCase):
         settle(4)
         films = w.wudu_step.films
         self.assertEqual(2, len(films))
-        left, right = sorted(films, key=lambda f: f.geometry().x())
-        self.assertLess(left.geometry().right(), right.geometry().left() + 2,
-                        "the two drawings are stacked, not side by side")
-        self.assertEqual(left.drawn_size(), right.drawn_size(),
+        top, bottom = sorted(films, key=lambda f: f.geometry().y())
+        self.assertLess(top.geometry().bottom(), bottom.geometry().top() + 2,
+                        "the two drawings are side by side, not stacked")
+        self.assertEqual(top.drawn_size(), bottom.drawn_size(),
                          "one drawing is bigger than the other")
-        self.assertGreater(left.drawn_size().height(), w.wudu_step.height() * 0.7)
+        self.assertGreater(top.drawn_size().height(), w.side.height() * 0.35,
+                           "the two drawings are too small for the screen they have")
+
+    def test_the_7in_is_handed_back_however_the_step_is_left(self):
+        """However it is left: the arrows out, the Main screen button, the mat sleeping.
+
+        Hung off hideEvent rather than off the Back button, which is the same lesson the
+        films themselves learned about stopping: a screen handed back by one particular
+        button is a screen left behind by every other way out, and a family would find a
+        wu'du drawing still sitting on the 7in at the next prayer.
+        """
+        w = self.window()
+        # BACK TO THE SEVEN-STEP SHEET, which is the route that proves the line.
+        # This asked go_home() first, and a sabotage walked straight through it: go_home
+        # hands the 7in back itself, for every screen, so the one way out that is covered
+        # twice over was the one being measured. The Back button is not -- it leaves the step
+        # for the sheet without the front door being touched.
+        w.open_wudu_step("hands")
+        settle(4)
+        panel = w.wudu_step.companion
+        self.assertIs(panel, w.side.stack.currentWidget())
+        w.wudu_step.back.emit()
+        settle(4)
+        self.assertIsNot(panel, w.side.stack.currentWidget(),
+                         "the sheet of seven is up and the 7in still shows one step's drawing")
+        # And the front door too, which is belt and braces rather than the only belt.
+        w.open_wudu_step("face")
+        settle(4)
+        self.assertIs(panel, w.side.stack.currentWidget())
+        w.go_home()
+        settle(4)
+        self.assertIsNot(panel, w.side.stack.currentWidget(),
+                         "the 7in still has the wu'du drawing on it")
+
+    def test_walking_the_seven_does_not_pile_up_panels_on_the_7in(self):
+        """ONE panel, refilled, not seven of them and seven more next time.
+
+        side.show_game -- which this borrows -- adds a companion to the 7in's stack once and
+        keeps it there, because a child goes in and out of the same game over and over. The
+        first version of this built a fresh widget per step, which that design quietly turns
+        into a leak: seven pages after one walk through wu'du, fourteen after two.
+        """
+        w = self.window()
+        before = w.side.stack.count()
+        for _ in range(2):
+            for key in self.KEYS:
+                w.open_wudu_step(key)
+                settle(1)
+        self.assertEqual(before + 1, w.side.stack.count(),
+                         f"the 7in's stack went from {before} to {w.side.stack.count()} "
+                         "pages walking the steps twice")
+
+    def test_a_mat_with_one_screen_keeps_the_drawing_beside_the_words(self):
+        """The same rule as the call to prayer: moving a picture to a screen that is not
+        there only loses it. On a one-screen mat the step is exactly what it always was."""
+        from salaah.wudu import WUDU_SIZES
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)      # no side screen
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_wudu_step("hands")
+        settle(4)
+        step = w.wudu_step
+        self.assertIsNone(step.companion, "a panel was built with no screen to put it on")
+        self.assertTrue(step.stage.isVisible(), "the drawing has gone from the only screen")
+        self.assertTrue(step.films, "there is no drawing at all")
+        self.assertIn(QtGui.QFontMetrics(step.words.font()).height(), range(1, 10_000))
+        # And the words keep the sizes that were measured for a screen with a drawing on it.
+        step.resize_words(0)
+        settle()
+        first = step.words.styleSheet()
+        self.assertIn(str(int(w.px(38) * WUDU_SIZES[0][0])), first,
+                      f"a one-screen mat did not open at its own first size: {first}")
 
     def test_back_is_square_at_the_bottom_right_and_returns_to_the_seven(self):
         w = self.window()
@@ -14330,14 +14576,22 @@ class WuduTextSizeTest(unittest.TestCase):
     the words grow and the words rewrap into it.
     """
 
-    def window(self, lang="en", **kw):
+    def window(self, lang="en", one_screen=False, **kw):
+        """A mat with the 7in beside it, or -- with one_screen -- a mat that has only the one.
+
+        Both are wanted here since 2.25: the sizes differ between them, and a test that only
+        ever builds the two-screen mat cannot tell whether the step is reading the right
+        table or simply reading a table.
+        """
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="dark", recitation=False, place="Bury", lang=lang, **kw),
-                       scale=1.0, save_settings=False, aspect=None, side=True)
+                       scale=1.0, save_settings=False, aspect=None,
+                       side=not one_screen)
         w.resize(1920, 1080)
         w.show()
-        w.side.resize(600, 1024)
-        w.side.show()
+        if not one_screen:
+            w.side.resize(600, 1024)
+            w.side.show()
         w.tick()
         settle()
         self.addCleanup(lambda: shut(w))
@@ -14412,21 +14666,46 @@ class WuduTextSizeTest(unittest.TestCase):
                     self.assertEqual(i == at, red,
                                      f"box {i} is {'red' if red else 'grey'} and {at} is chosen")
 
-    def test_each_step_up_makes_the_words_bigger_and_the_drawing_smaller(self):
-        """Both halves, because the second is how the first is paid for: the words only have
-        room to grow because the films hand width over, and a size that grew the words without
-        narrowing the stage would push the last lines off the bottom of the panel."""
+    def test_each_step_up_makes_the_words_bigger(self):
+        """AND NOTHING HAS TO PAY FOR IT SINCE 2.25, which is why this test lost a half.
+
+        It used to check two things, and the second was how the first was paid for: the words
+        could only grow because the films handed width over, and growing them without
+        narrowing the stage would have pushed the last lines off the bottom of the panel.
+
+        The drawing is on the 7in now and the big screen is all words, so there is no stage
+        on it to give anything up. What is left is the half that was always the point -- each
+        A is bigger than the one before it -- and the ceiling is held by the test below,
+        which is the one that actually guards the panel.
+
+        The step starts at what used to be the LARGEST of the three, at Harry's asking:
+        "increase its starting text size to the largest of the 3 A's, then they can be
+        scaled up in size by the user if they wish to".
+        """
         w = self.window()
         step = w.wudu_step
-        sizes, stages = [], []
+        self.assertIsNotNone(step.companion, "this window has no 7in, so this proves nothing")
+        sizes = []
         for at in (0, 1, 2):
             step.resize_words(at)
             settle()
             sizes.append(QtGui.QFontMetrics(step.words.font()).height())
-            stages.append(step.stage.width())
         self.assertEqual(sorted(set(sizes)), sizes, f"the words do not grow: {sizes}")
-        self.assertEqual(sorted(set(stages), reverse=True), stages,
-                         f"the drawing does not give up any width: {stages}")
+
+        # AND THE FIRST OF THEM IS THE OLD LARGEST, measured on the words themselves.
+        # This read WUDU_SIZES[-1][0] == WUDU_SIZES_ALONE[0] until a sabotage walked through
+        # it: making size_the_words ignore the new table altogether broke nothing, because
+        # comparing one constant with another never asks whether the code opens either of
+        # them. So the same step is built on a mat with no 7in, and the two are measured.
+        alone = self.window(one_screen=True)
+        was = []
+        for at in (0, 1, 2):
+            alone.wudu_step.resize_words(at)
+            settle()
+            was.append(QtGui.QFontMetrics(alone.wudu_step.words.font()).height())
+        self.assertEqual(was[-1], sizes[0],
+                         f"a step with the screen to itself opens at {sizes[0]}px; the "
+                         f"largest A on a one-screen mat is {was[-1]}px")
 
     def test_every_step_fits_in_one_slide_at_every_size(self):
         """What Harry actually asked for, and the thing that decided the numbers.

@@ -136,18 +136,22 @@ class TurningWorld(QtWidgets.QWidget):
     def circle(self) -> tuple[int, int, int]:
         """Where the globe is drawn in this widget: left, top, and how wide.
 
-        AGAINST THE LEFT EDGE, not centred across the width. The globe is square and the page
-        is not, so centring it put all the slack on its left: at 1920 the globe sat in a
-        1626px-wide space, which left roughly 450px of black between the edge of the screen
-        and the edge of the world, and the column of names crushed into 200px on the right.
-        Harry, 12 November 2026: "move globe to left hand screen and widen checked in area".
-        Those are one change -- the slack was always there, it was just all on the wrong side.
+        CENTRED AGAIN IN 2.25, after one release against the left edge.
 
-        Still centred VERTICALLY, because the height is what decides the globe's size in the
-        first place and there is nothing spare up or down to give away.
+        2.23 moved it left because centring it put all the spare width on one side -- about
+        450px of black -- while the column of names was crushed into 200px. Widening the
+        column to 300 was the half of that change that was actually wanted. Moving the globe
+        was the half that was not: it did not remove the black, it only moved it from the
+        globe's left to its right, where it sat between the world and the column instead and
+        read as a gap rather than as a margin.
+
+        I said so in the note at the time, and Harry looked at it on the glass: "spinning
+        globe in world page, needs to be recentred in screen, you were right". So the globe
+        is centred and the column keeps its extra width, which is where the two halves of
+        that change should have landed in the first place.
         """
         side = min(self.width(), self.height())
-        return 0, (self.height() - side) // 2, side
+        return (self.width() - side) // 2, (self.height() - side) // 2, side
 
     def paintEvent(self, _):
         if self.film is None:
