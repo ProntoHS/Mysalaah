@@ -239,7 +239,17 @@ class WuduStep(QtWidgets.QWidget):
         self.words = QtWidgets.QLabel("")
         self.words.setObjectName("wuduWords")
         self.words.setWordWrap(True)
-        self.words.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        # DOWN THE MIDDLE SINCE 2.26, not hugging the top. With the drawing moved to the 7in
+        # in 2.25 the description was left sitting in the top third of a 1920x1080 screen with
+        # two thirds of black under it, which Harry saw at once.
+        #
+        # Vertically centred, LEFT aligned: a paragraph of several lines centred horizontally
+        # gives a ragged left edge, and the left edge is what the eye returns to on every line.
+        #
+        # Safe only because test_every_step_fits_in_one_slide_at_every_size holds: a label that
+        # overflows while top aligned loses its last lines, and one that overflows while
+        # centred loses its first AND its last. If that test is ever relaxed, this goes back.
+        self.words.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         right.addWidget(self.words, 1)
 
         # Bottom right, as asked, and square: the same shape as the big Back on the world and

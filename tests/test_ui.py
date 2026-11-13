@@ -13727,14 +13727,17 @@ class EveryWayBackTest(unittest.TestCase):
         settle()
         self.assertIsNot(w.welcome, w.stack.currentWidget(), "we never left the front door")
         page = w.stack.currentWidget()
-        # Matched on the words with the whitespace flattened: since 2.06 the Main screen
-        # button is square and carries its label over two lines, so its text() holds a newline
-        # where the pack holds a space. Finding a button by its exact label was brittle the
-        # moment anything laid one out differently.
+        # BY NAME RATHER THAN BY LABEL, since 2.26. This matched on the words with the
+        # whitespace flattened, because the Main screen button carried its label over two
+        # lines; it now carries a drawn house and no words at all, and a test that finds a
+        # button by reading it finds nothing. Which is the lesson the flattening was already
+        # halfway to: a button is identified by what it IS, and its label is a thing that
+        # changes -- by language, by layout, and in this case out of existence.
         def flat(words):
             return " ".join(words.split())
-        wanted = {flat(w.t("player.menu")), flat(w.t("settings.main_screen"))}
-        home = [b for b in page.findChildren(QtWidgets.QPushButton) if flat(b.text()) in wanted]
+        menu = flat(w.t("player.menu"))
+        home = [b for b in page.findChildren(QtWidgets.QPushButton)
+                if b.objectName() == "mainScreen" or flat(b.text()) == menu]
         self.assertTrue(home, "there is no way back off a prayer's units")
         home[0].click()
         settle()
@@ -14347,6 +14350,38 @@ class WuduScreensTest(unittest.TestCase):
                          "one drawing is bigger than the other")
         self.assertGreater(top.drawn_size().height(), w.side.height() * 0.35,
                            "the two drawings are too small for the screen they have")
+
+    def test_the_words_sit_down_the_middle_of_the_screen(self):
+        """Harry, 13 November 2026: "centre the text in the middle of the screen for wu'du
+        steps."
+
+        2.25 moved the drawing to the 7in and left the description hugging the top of a
+        1920x1080 screen with two thirds of black under it.
+
+        Measured on the PAINTED TEXT rather than on the alignment flag: a flag says what was
+        asked for, and the question is where the words ended up. A label that is centred in a
+        box which is itself pinned to the top of the page is still a paragraph at the top of
+        the page.
+        """
+        w = self.window()
+        w.open_wudu_step("hands")
+        settle(4)
+        words = w.wudu_step.words
+        shot = QtGui.QImage(words.size(), QtGui.QImage.Format.Format_ARGB32)
+        shot.fill(0)
+        words.render(shot)
+        empty = shot.pixel(1, 1)
+        rows = [y for y in range(shot.height())
+                if any(shot.pixel(x, y) != empty for x in range(0, shot.width(), 3))]
+        self.assertTrue(rows, "no words were painted at all")
+        middle = (rows[0] + rows[-1]) / 2
+        self.assertLess(abs(middle - shot.height() / 2), shot.height() * 0.05,
+                        f"the words are painted from {rows[0]} to {rows[-1]} of "
+                        f"{shot.height()}, centred on {middle}")
+        # And they are still ranged left, because a centred paragraph has a ragged left edge
+        # and the left edge is what the eye returns to on every line.
+        self.assertTrue(words.alignment() & Qt.AlignmentFlag.AlignLeft,
+                        "the words have been centred sideways as well")
 
     def test_the_7in_is_handed_back_however_the_step_is_left(self):
         """However it is left: the arrows out, the Main screen button, the mat sleeping.
@@ -18358,9 +18393,9 @@ class TheStripIsTheMatsOwnThemeTest(unittest.TestCase):
     here -- in both themes, so that neither direction can be the one that happens to work.
     """
 
-    def window(self, mode="dark", wide=1920, tall=1200):
+    def window(self, mode="dark", wide=1920, tall=1200, lang="en"):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme=mode, recitation=False, place="Bury",
+                       Settings(theme=mode, recitation=False, place="Bury", lang=lang,
                                 main_output="HDMI-A-1", side_output="HDMI-A-2"),
                        scale=1.0, save_settings=False, aspect=None)
         w.resize(wide, tall)
@@ -18621,18 +18656,87 @@ class TheStripIsTheMatsOwnThemeTest(unittest.TestCase):
         self.assertLess(tall[(1920, 1080)][1], tall[(1920, 1200)][1],
                         "the button did not follow the strip down")
 
-    def test_its_lettering_is_a_tenth_bigger_than_it_was(self):
-        """26px to 29px, asked for alongside the taller button. Checked as a ratio as well as
-        a number, so that raising one without the other is visible in the failure."""
-        win = self.window()
-        self.assertAlmostEqual(1.1, 29 / 26, places=1)
-        self.assertIn(f"font-size:{win.px(29)}px", win.stylesheet().split("#mainScreen")[1][:200])
+    def test_it_carries_a_house_and_no_words_at_all(self):
+        """REPLACES test_its_words_are_over_two_lines and
+        test_its_lettering_is_a_tenth_bigger_than_it_was, both of which measured lettering
+        that is no longer on the button.
 
-    def test_its_words_are_over_two_lines(self):
+        The words never fitted the square. Measured on a 70px button: "Main screen" overran it
+        by 27px and the Russian by 57, and eight of the ten languages overflowed. Fitting them
+        in meant 13px in Spanish, French, Portuguese and Russian -- under half the English
+        size, on the one button that has to be found from across a room. Harry had been
+        reading it as "Main creen" since 2.19 and chose the house over shrinking the words.
+
+        A drawn house has no translation to overflow, so there is nothing here about size in
+        any particular language: there is nothing on it that a language can change.
+        """
         win = self.window()
         _, button = self.banner_with_the_button(win)
-        self.assertEqual(2, button.text().count("\n") + 1,
-                         f"{button.text()!r} is not on two lines")
+        self.assertEqual("", button.text(), "the button still carries words")
+        self.assertFalse(button.icon().isNull(), "the button has no house on it")
+        # Drawn at the size the button actually is, not scaled into it.
+        self.assertEqual(button.size(), button.iconSize(),
+                         "the house is not drawn at the button's own size")
+        # And the words are still somewhere a screen reader can reach them.
+        self.assertEqual(win.t("settings.main_screen"), button.accessibleName())
+
+    def test_the_house_is_drawn_at_whatever_size_the_strip_turns_out_to_be(self):
+        """The same reason the button is squared on every resize rather than once: the strip's
+        height follows the window's SHAPE, so the size is not known when the button is built.
+        A house made once and scaled into the square would be softest on the screens that
+        changed most.
+
+        Two windows rather than one resized, which is how its sibling above does it and is the
+        reason this test failed first time round: self.window() is already 1920x1200, so
+        "resizing" it to 1920x1200 proved nothing at all and I had read the pass as the code
+        being wrong.
+        """
+        drawn = {}
+        for wide, high in ((1920, 1200), (1920, 1080)):
+            win = self.window(wide=wide, tall=high)
+            _, button = self.banner_with_the_button(win)
+            self.assertFalse(button.icon().isNull(), f"no house at {wide}x{high}")
+            self.assertEqual(button.size(), button.iconSize(),
+                             f"at {wide}x{high} the house is {button.iconSize()} on a "
+                             f"{button.size()} button")
+            drawn[(wide, high)] = button.iconSize()
+        self.assertNotEqual(drawn[(1920, 1200)], drawn[(1920, 1080)],
+                            "the strip is a different height on the two and the house is not")
+
+    def test_what_is_drawn_on_it_is_a_house_and_not_a_box(self):
+        """ADDED AFTER A SABOTAGE WALKED THROUGH THE OTHERS. Taking the roof out of
+        paint_house broke nothing: the tests above ask whether there is an icon and whether it
+        is the right size, and a roofless box is an icon of the right size. The whole reason
+        for a picture instead of words is that it is read at a glance from across a room, and
+        a box is not read as the way home.
+
+        Checked by the one property that makes a house a house and survives any redrawing of
+        it: the drawing NARROWS towards the top, because a roof comes to a point and walls do
+        not. Measured on the painted pixels, with no reference to the numbers paint_house uses.
+        """
+        win = self.window()
+        _, button = self.banner_with_the_button(win)
+        picture = button.icon().pixmap(button.iconSize()).toImage()
+        painted = {}
+        for y in range(picture.height()):
+            xs = [x for x in range(picture.width())
+                  if QtGui.QColor.fromRgba(picture.pixel(x, y)).alpha() > 40]
+            if xs:
+                painted[y] = xs[-1] - xs[0]
+        self.assertTrue(painted, "nothing is drawn on the button at all")
+        rows = sorted(painted)
+        near_the_top = max(painted[y] for y in rows[:max(1, len(rows) // 8)])
+        near_the_foot = max(painted[y] for y in rows[-max(1, len(rows) // 8):])
+        self.assertLess(near_the_top, near_the_foot * 0.5,
+                        f"the drawing is {near_the_top}px wide at the top and "
+                        f"{near_the_foot}px at the foot -- that is a box, not a house")
+
+    def test_nothing_is_left_styling_lettering_that_is_not_there(self):
+        """A rule for text on a button with no text is a rule the next reader has to work out
+        is idle. Removed with the words it was for."""
+        win = self.window()
+        mine = win.stylesheet().split("#mainScreen")[1][:200]
+        self.assertNotIn("font-size", mine, f"a font size survives the words: {mine!r}")
 
     def test_it_keeps_its_red_and_white(self):
         """The one thing on the strip you press, and red is what everything pressable on this
@@ -18642,21 +18746,25 @@ class TheStripIsTheMatsOwnThemeTest(unittest.TestCase):
         self.assertIn(f"QPushButton#mainScreen {{ background:{BRICK}; color:white",
                       win.stylesheet())
 
-    def test_the_words_break_evenly_in_every_language(self):
-        """By counting, not by breaking at the first space: 'Main screen' is two words in
-        English, one in Chinese and three in some others."""
-        from salaah.ui import over_two_lines
-        for words, expected in (("Main screen", "Main\nscreen"),
-                                ("Pantalla principal", "Pantalla\nprincipal"),
-                                ("one", "one")):
-            with self.subTest(words):
-                self.assertEqual(expected, over_two_lines(words))
-        for pack in available_packs(ASSETS).values():
-            said = pack.ui.get("settings.main_screen")
-            if said:
-                with self.subTest(pack.lang):
-                    self.assertLessEqual(over_two_lines(said).count("\n"), 1,
-                                         "more than two lines")
+    def test_every_language_still_says_where_the_button_goes(self):
+        """REPLACES test_the_words_break_evenly_in_every_language, which tested over_two_lines
+        -- a function removed with the words it broke up.
+
+        The words are gone from the FACE of the button and not from the mat: they are its
+        accessible name, so a screen reader and a long press still say where it goes.
+
+        Asked of the mat rather than of the pack, which is the honest question. The ar pack
+        carries no settings.main_screen at all and falls back to English, as it does for about
+        360 strings -- a gap that is on the open list and is not this button's doing. What
+        must never happen is a BLANK name, which is what a reader would be given if the
+        fallback were ever removed without the Arabic being written.
+        """
+        for lang in available_packs(ASSETS):
+            with self.subTest(lang):
+                win = self.window(lang=lang)
+                _, button = self.banner_with_the_button(win)
+                self.assertTrue(button.accessibleName().strip(),
+                                f"on a {lang} mat the button cannot say where it goes")
 
 
 class PillarMatchTest(unittest.TestCase):

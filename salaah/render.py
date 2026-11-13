@@ -1214,3 +1214,51 @@ def invert(pix: QtGui.QPixmap) -> QtGui.QPixmap:
     image = pix.toImage().convertToFormat(QtGui.QImage.Format.Format_ARGB32)
     image.invertPixels(QtGui.QImage.InvertMode.InvertRgb)
     return QtGui.QPixmap.fromImage(image)
+
+
+def paint_house(p: QtGui.QPainter, w: float, h: float, colour: QtGui.QColor) -> None:
+    """One house, drawn into a w by h box at the painter's current origin.
+
+    THE WAY HOME, WITHOUT WORDS. The Main screen button is square and fills the banner strip,
+    and the words it carried did not fit it in eight of the ten languages this mat speaks:
+    "Main screen" overran a 70px button by 27px, and the Russian by 57. Shrinking the words
+    into the square meant 13px lettering in Spanish, French, Portuguese and Russian -- under
+    half the English size, on the one button that has to be found from across a room.
+
+    A house has no translation to overflow. It is drawn rather than carried as a picture so
+    that it is sharp at whatever size the strip turns out to be: the strip's height follows the
+    window's shape, and a pixmap scaled into it would be soft on exactly the screens that
+    needed it most.
+
+    Stroked rather than filled, with the same round caps and the same proportional pen as the
+    loudspeaker beside it, so the two read as one hand.
+    """
+    pen = QtGui.QPen(colour)
+    pen.setWidthF(max(1.0, h * 0.085))
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+
+    # The roof: a wide shallow triangle sitting on the walls, with eaves that overhang them.
+    roof = QtGui.QPainterPath()
+    roof.moveTo(w * 0.08, h * 0.46)
+    roof.lineTo(w * 0.50, h * 0.14)
+    roof.lineTo(w * 0.92, h * 0.46)
+    p.drawPath(roof)
+
+    # The walls, which stop under the eaves rather than at the edge of the box.
+    walls = QtGui.QPainterPath()
+    walls.moveTo(w * 0.19, h * 0.42)
+    walls.lineTo(w * 0.19, h * 0.84)
+    walls.lineTo(w * 0.81, h * 0.84)
+    walls.lineTo(w * 0.81, h * 0.42)
+    p.drawPath(walls)
+
+    # The door, open at the floor so it reads as a door and not as a window.
+    door = QtGui.QPainterPath()
+    door.moveTo(w * 0.40, h * 0.84)
+    door.lineTo(w * 0.40, h * 0.58)
+    door.lineTo(w * 0.60, h * 0.58)
+    door.lineTo(w * 0.60, h * 0.84)
+    p.drawPath(door)

@@ -20,7 +20,7 @@ from .pages import TextPage, build_pages
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import (FONTS, MAX_ARABIC_PX, MIN_ARABIC_PX, Fonts, PixmapCache, PostureView,
                      ParallelText, Speaker, Switch, TextBox, VolumeBar, load_posture_modes,
-                     load_timings)
+                     load_timings, paint_house)
 from .session import Debouncer, Page as SessionPage, PrayerSession
 from .tasbih import TasbihScreen
 from .timing import TimingScreen
@@ -52,25 +52,6 @@ INK = "#1D2327"
 LAPIS = "#274B8F"
 # The banner is black whatever the theme, so the place is picked out in a blue that reads on
 # black rather than the ink-dark lapis used on paper.
-def over_two_lines(words: str) -> str:
-    """Breaks a label over two lines as evenly as it can.
-
-    By counting rather than by looking for a particular space. "Main screen" is two words in
-    English, one in Chinese and three in some of the others, so a rule like "break at the first
-    space" gives a lopsided button in half the languages this mat speaks. A single word is left
-    alone: a break inside a word is worse than a narrow line.
-    """
-    parts = words.split()
-    if len(parts) < 2:
-        return words
-    best, where = None, 1
-    for cut in range(1, len(parts)):
-        gap = abs(len(" ".join(parts[:cut])) - len(" ".join(parts[cut:])))
-        if best is None or gap < best:
-            best, where = gap, cut
-    return " ".join(parts[:where]) + "\n" + " ".join(parts[where:])
-
-
 BANNER_BLUE = "#8FB1F0"
 
 #: The prayer times on the strip. Raised a tenth now the strip is taller than it was: a 16:10
@@ -1169,6 +1150,31 @@ class MainWindow(QtWidgets.QWidget):
                              if not sip_deleted(w)]
         for home in self.banner_homes:
             home.setFixedSize(side, side)
+            self.draw_the_way_home(home, side)
+
+    @staticmethod
+    def draw_the_way_home(home, side: int) -> None:
+        """Put a house on the Main screen button, drawn at the size the button has just become.
+
+        DRAWN HERE RATHER THAN LOADED, and redrawn on every resize, for the reason the button
+        is squared here in the first place: the strip's height follows the window's shape, so
+        the size is not known when the button is built. A picture made once at the wrong size
+        and scaled into the right one would be softest on the screens that changed most.
+        """
+        if side <= 0:
+            return
+        picture = QtGui.QPixmap(side, side)
+        picture.fill(QtGui.QColor(0, 0, 0, 0))
+        p = QtGui.QPainter(picture)
+        p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        # Inside the square rather than against its corners: the button has rounded corners,
+        # and a roof that reaches them is a roof that looks clipped even when it is not.
+        inset = side * 0.18
+        p.translate(inset, inset)
+        paint_house(p, side - inset * 2, side - inset * 2, QtGui.QColor("white"))
+        p.end()
+        home.setIcon(QtGui.QIcon(picture))
+        home.setIconSize(picture.size())
 
     def restyle(self) -> None:
         """Text and spacing follow the box size, so the app looks the same on any screen."""
@@ -1937,10 +1943,11 @@ class MainWindow(QtWidgets.QWidget):
             /* Square, and no side padding: the width is set in make_banner to match its own
                height, and padding would fight that. Its red and white are deliberately NOT
                the strip's -- it is the one thing on the banner you press, and red is what
-               everything pressable on this mat is. */
+               everything pressable on this mat is.
+               NO FONT SIZE SINCE 2.26: it carries a drawn house and no words, and a rule for
+               lettering that is not there is a rule the next reader has to work out is idle. */
             QPushButton#mainScreen {{ background:{BRICK}; color:white; border:none;
-                                      border-radius:{px(8)}px; font-size:{px(29)}px;
-                                      font-weight:bold; padding:0; }}
+                                      border-radius:{px(8)}px; padding:0; }}
             QPushButton#mainScreen:pressed {{ background:#8E342C; }}
             QPushButton#backButton {{ background:{BRICK}; color:white; border:none;
                                       border-radius:{px(8)}px; font-size:{px(28)}px;
@@ -2461,11 +2468,23 @@ class MainWindow(QtWidgets.QWidget):
             # LAST IN THE ROW AND SQUARE, hard against the right edge of the strip. It used to
             # sit before the cog as a wide lozenge; the strip is taller now, so there is room
             # for a square that is easier to hit than a thin bar and sits where a hand already
-            # goes. The words are broken over two lines to fit it -- see over_two_lines, which
-            # does it by counting rather than by looking for a space, because "Main screen" is
-            # one word in some languages and three in others.
-            back = QtWidgets.QPushButton(over_two_lines(self.t("settings.main_screen")))
+            # goes.
+            #
+            # A HOUSE RATHER THAN WORDS SINCE 2.26, because the words never fitted the square.
+            # They were broken over two lines and balanced by letter count, as well as anything
+            # could -- and it was not enough: measured on the button, "Main screen"
+            # overran a 70px square by 27px and the Russian by 57, in eight of the ten
+            # languages this mat speaks. Shrinking them in meant 13px lettering in Spanish,
+            # French, Portuguese and Russian, on the one button that has to be found from
+            # across a room. Harry had seen it as "Main creen" on the glass since 2.19.
+            #
+            # The words stay on the button where they cost nothing and still help: as its
+            # accessible name and its tooltip, so a screen reader and a long press both still
+            # say where it goes, in the language the mat is set to.
+            back = QtWidgets.QPushButton()
             back.setObjectName("mainScreen")
+            back.setAccessibleName(self.t("settings.main_screen"))
+            back.setToolTip(self.t("settings.main_screen"))
             back.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             back.clicked.connect(self.go_home)
             # KEPT, AND RE-SIZED ON EVERY RESIZE, for the reason the banners themselves are.
