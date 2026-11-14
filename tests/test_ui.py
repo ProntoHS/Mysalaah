@@ -17556,11 +17556,12 @@ class TheSevenInchIsMeasuredWhenItHasARealSizeTest(unittest.TestCase):
                            f"panel, which is the thin strip Harry photographed")
 
 
-class TheStatusLightFollowsTheMatTest(unittest.TestCase):
-    """The light on GPIO 27, wired into sleep, wake and shutdown.
+class TheLightAndTheFanFollowTheMatTest(unittest.TestCase):
+    """The light on GPIO 27 and the fan on GPIO 14, wired into sleep, wake and shutdown.
 
-    The helper itself is tested in test_core. What is tested here is the ORDER and, far more
-    importantly, that the light can never be the reason the mat does not sleep, wake or halt.
+    RENAMED IN 2.27, when the fan joined the light on this path. The helpers themselves are
+    tested in test_core. What is tested here is the ORDER and, far more importantly, that
+    NEITHER of them can ever be the reason the mat does not sleep, wake or halt.
     """
 
     # TWO FAKES SHARING ONE LIST, not one object playing both parts. The first attempt here was
@@ -17568,6 +17569,27 @@ class TheStatusLightFollowsTheMatTest(unittest.TestCase):
     # answer to set(), so the second definition silently replaced the first and every call the
     # app made to the light was logged as a call to the screens. The ordering tests would have
     # passed on a mat with no light in it at all.
+
+    class FakeFan:
+        """The fan answers set() like the light and check() like nothing else, so it gets its
+        own fake rather than a second FakeLight -- which would log its calls as the light's and
+        let every ordering test below pass on a mat with no fan in it. That exact mistake is
+        recorded two comments up; it is not being made again."""
+
+        def __init__(self, log, breaks=False):
+            self.log, self.breaks, self.why = log, breaks, ""
+
+        def set(self, running):
+            self.log.append("fan on" if running else "fan off")
+            if self.breaks:
+                raise RuntimeError("the fan is broken")
+            return True
+
+        def check(self):
+            self.log.append("fan checked")
+            if self.breaks:
+                raise RuntimeError("the fan is broken")
+            return True
 
     class FakeLight:
         """set() is StatusLed's own interface, so changing that signature breaks this rather
@@ -17631,6 +17653,7 @@ class TheStatusLightFollowsTheMatTest(unittest.TestCase):
         if fake:
             screens = self.FakeScreens(log)
             w.led = self.FakeLight(log, breaks)
+            w.fan = self.FakeFan(log, breaks)
             w.outputs = screens
             w.layout = screens
         return w, log
@@ -17722,6 +17745,87 @@ class TheStatusLightFollowsTheMatTest(unittest.TestCase):
         w, _ = self.window(fake=False)
         self.assertIsInstance(w.led, StatusLed)
         self.assertEqual(LED_PIN, w.led.pin)
+
+    def test_the_real_window_carries_a_fan_on_the_pin_the_brief_reserved(self):
+        """And the same point as the test above it: the fake would pass with no fan at all."""
+        from salaah.power import FAN_PIN, Fan
+        w, _ = self.window(fake=False)
+        self.assertIsInstance(w.fan, Fan)
+        self.assertEqual(FAN_PIN, w.fan.pin)
+        self.assertIsNot(w.fan, w.led, "the fan and the light are the same object")
+
+    def test_the_fan_follows_the_mat_to_sleep_and_back(self):
+        """Harry, 14 November 2026: the fan should run "when the app is on, similar to how the
+        led light comes on and off when sleep"."""
+        win, log = self.window()
+        log.clear()
+        win.sleep()
+        self.assertIn("fan off", log, f"the mat slept and the fan kept running: {log}")
+        log.clear()
+        win.wake()
+        self.assertIn("fan on", log, f"the mat woke and the fan did not: {log}")
+
+    def test_the_fan_stops_when_the_app_goes_away(self):
+        win, log = self.window()
+        log.clear()
+        win.shutdown()
+        self.assertIn("fan off", log, "the app went away and left the fan running")
+
+    def test_a_broken_fan_cannot_stop_the_mat_sleeping_or_waking_or_halting(self):
+        """The same promise the light makes, for the same reason and in the same place.
+
+        A test that replaced the light with a broken one once found the mat would not sleep at
+        all. The fan is a second thing on that path and gets the same proof, rather than the
+        assumption that whatever protects the light protects it.
+        """
+        win, log = self.window(breaks=True)
+        win.sleep()
+        self.assertTrue(win.asleep, "a broken fan stopped the mat sleeping")
+        win.wake()
+        self.assertFalse(win.asleep, "a broken fan stopped the mat waking")
+        win.shutdown()      # must not raise
+
+    def test_the_fan_is_watched_even_with_the_azaan_switched_off(self):
+        """The backstop hangs off the fifteen-second timer in its own slot, NOT inside
+        check_the_hour -- which returns at once when the azaan is off, and a mat with the call
+        silenced still has an SoC in it."""
+        win, log = self.window()
+        win.settings.azaan = False
+        log.clear()
+        win.muezzin.timeout.emit()
+        settle()
+        self.assertIn("fan checked", log,
+                      f"the azaan is off and nothing looked at the temperature: {log}")
+
+    def test_a_fan_that_throws_on_the_fifteen_second_timer_cannot_stop_the_clock(self):
+        """ADDED AFTER A SABOTAGE WALKED THROUGH. Taking the try/except off the backstop broke
+        nothing, because the broken-fan test above only ever sleeps, wakes and halts -- it
+        never fires the timer. So the one guard on the one path that runs forever, asleep and
+        awake, was the guard nothing checked.
+
+        It matters more than the others, not less: this slot runs every fifteen seconds for as
+        long as the mat is powered, and an exception out of a Qt slot does not stay politely
+        inside it. The timer it shares is the one that calls the prayers.
+        """
+        win, log = self.window(breaks=True)
+        log.clear()
+        win.muezzin.timeout.emit()          # must not raise
+        settle()
+        self.assertIn("fan checked", log, "the backstop never ran at all, so this proves nothing")
+        # And the thing sharing that timer still works afterwards.
+        win.sleep()
+        self.assertTrue(win.asleep, "the mat stopped working after the fan threw on the timer")
+
+    def test_the_backstop_runs_while_the_mat_is_asleep(self):
+        """Which is the only time it can do anything: awake, the app is already asking for the
+        fan and the thermometer can only agree with it."""
+        win, log = self.window()
+        win.sleep()
+        self.assertTrue(win.asleep)
+        log.clear()
+        win.muezzin.timeout.emit()
+        settle()
+        self.assertIn("fan checked", log, f"the mat is asleep and unwatched: {log}")
 
 
 class TheMatWillNotBlankAScreenItCannotBringBackTest(unittest.TestCase):

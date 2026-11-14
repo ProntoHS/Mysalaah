@@ -141,6 +141,17 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(f"status light: {win.led.why}", file=sys.stderr)
 
+    # The fan, started the same way and reported the same way. Worth a line of its own at
+    # start-up for the reason the light has one: when it does not work, the message names the
+    # pin and what was tried, so the answer is on the screen rather than in a guess about
+    # wiring. A mat with no pinctrl says so once here instead of silently never cooling.
+    if win.fan.start():
+        where = HEADER.get(win.fan.pin, f"GPIO {win.fan.pin}")
+        how = " via sudo" if "sudo" in win.fan.prefix else ""
+        print(f"fan: running on GPIO {win.fan.pin} ({where}){how}", file=sys.stderr)
+    else:
+        print(f"fan: {win.fan.why}", file=sys.stderr)
+
     win.apply_cursor()
     if args.windowed:
         win.resize(1280, 720)

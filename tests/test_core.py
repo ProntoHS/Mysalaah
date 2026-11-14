@@ -1290,6 +1290,152 @@ class SleepSwitchTest(unittest.TestCase):
             self.assertFalse(hasattr(power, name), f"salaah.power still carries {name}")
 
 
+class FanTest(unittest.TestCase):
+    """The case fan on GPIO 14: on with the app, off when the mat sleeps, on anyway if hot.
+
+    What is being protected here is not the fan. It is that the fan can no more stop the mat
+    than the light can, and that a mat which has gone to sleep partway through some work cannot
+    quietly sit there throttling with the air switched off.
+    """
+
+    def fan(self, code=0, error="", raises=None, celsius=None):
+        """A fan whose pinctrl is a recorder and whose thermometer is a file I can write."""
+        from salaah.power import Fan
+        calls = []
+
+        def run(command, **kw):
+            calls.append(list(command))
+            if raises is not None:
+                raise raises
+            return SimpleNamespace(returncode=code, stdout="", stderr=error)
+
+        where = Path(tempfile.mkdtemp()) / "temp"
+        if celsius is not None:
+            where.write_text(str(int(celsius * 1000)))
+        made = Fan(run=run, thermometer=str(where))
+        return made, calls, where
+
+    @staticmethod
+    def at(where, celsius):
+        where.write_text(str(int(celsius * 1000)))
+
+    @staticmethod
+    def last(calls):
+        return calls[-1][-1] if calls else None      # "dh" or "dl"
+
+    def test_it_drives_gpio_14_which_is_the_pin_the_wiring_brief_reserved(self):
+        from salaah import power
+        self.assertEqual(14, power.FAN_PIN)
+        self.assertEqual("header pin 8", power.HEADER[power.FAN_PIN])
+        self.assertNotEqual(power.FAN_PIN, power.LED_PIN, "the fan and the light share a pin")
+        self.assertNotIn(power.FAN_PIN, power.PINS, "the fan is on a pin the switch watches")
+
+    def test_it_lets_go_of_the_pin_exactly_as_the_light_does(self):
+        """`pinctrl set` drives and releases. THE WHOLE REASON the fan is not gpiozero and not
+        dtoverlay=gpio-fan: either of those HOLDS GPIO 14, and a pin two things own is the
+        GPIO 17 story in Harry's brief -- the LED went dark while the service read as healthy.
+        """
+        made, _, _ = self.fan()
+        self.assertEqual(["/usr/bin/pinctrl", "set", "14", "op", "dh"], made.argv(True))
+        self.assertEqual(["/usr/bin/pinctrl", "set", "14", "op", "dl"], made.argv(False))
+
+    def test_it_says_fan_and_not_status_light_when_it_cannot_run(self):
+        """A fan that reports itself as the light sends somebody to the wrong end of the mat."""
+        made, _, _ = self.fan(raises=FileNotFoundError())
+        made.set(True)
+        self.assertIn("fan", made.why)
+        self.assertNotIn("status light", made.why)
+
+    def test_it_follows_the_app_awake_and_asleep(self):
+        made, calls, where = self.fan(celsius=40)
+        made.set(True)
+        self.assertEqual("dh", self.last(calls), "the mat woke and the fan did not start")
+        made.set(False)
+        self.assertEqual("dl", self.last(calls), "the mat slept and the fan kept running")
+
+    def test_a_sleeping_mat_that_gets_hot_turns_the_fan_back_on(self):
+        """The reason the backstop exists. Sleep is on a timer, so the mat can go to sleep
+        partway through fetching an update -- the app stops asking for air and the SoC does
+        not stop needing it."""
+        made, calls, where = self.fan(celsius=40)
+        made.set(True)
+        made.set(False)
+        self.assertEqual("dl", self.last(calls))
+        self.at(where, 65)
+        made.check()
+        self.assertEqual("dh", self.last(calls), "the mat is asleep at 65C with no air")
+        self.assertTrue(made.because_it_is_hot)
+
+    def test_the_thermometer_may_not_overrule_a_start(self):
+        """It can hold the fan ON past a stop. Nothing is served by it refusing air."""
+        made, calls, where = self.fan(celsius=20)
+        made.set(True)
+        self.assertEqual("dh", self.last(calls))
+
+    def test_it_does_not_chatter_around_one_number(self):
+        """ON at 60 and OFF at 55, not both at 60. A single threshold makes a fan hunt across
+        it, which is the most irritating noise a fan can make and the hardest wear on it."""
+        made, calls, where = self.fan(celsius=40)
+        made.set(False)
+        self.at(where, 65)
+        made.check()
+        self.assertEqual("dh", self.last(calls))
+        calls.clear()
+        self.at(where, 57)                 # between the two thresholds
+        made.check()
+        self.assertEqual([], calls, "57C made it change its mind; that is not hysteresis")
+        self.at(where, 54)
+        made.check()
+        self.assertEqual("dl", self.last(calls), "it stayed on below the lower threshold")
+
+    def test_it_spends_nothing_saying_what_the_pin_already_says(self):
+        """This runs every fifteen seconds for as long as the mat is powered. A subprocess
+        every fifteen seconds to repeat itself is a cost with no buyer."""
+        made, calls, where = self.fan(celsius=40)
+        made.set(False)
+        calls.clear()
+        for _ in range(20):
+            made.check()
+        self.assertEqual([], calls, f"{len(calls)} pinctrl calls with nothing changing")
+
+    def test_with_no_thermometer_it_fails_quiet_and_not_loud(self):
+        """Deliberate, and the reasoning is in the class: a hot Pi protects itself by slowing
+        down, so the backstop is about staying out of throttling rather than out of harm.
+        Failing the other way would pin a fan on all night in a child's bedroom because a file
+        would not read."""
+        made, calls, where = self.fan(celsius=40)
+        made.set(True)
+        where.unlink()
+        made.set(False)
+        self.assertEqual("dl", self.last(calls), "an unreadable thermometer held the fan on")
+        self.assertFalse(made.because_it_is_hot)
+        self.assertIsNone(made.degrees())
+
+    def test_a_broken_thermometer_does_not_raise(self):
+        """Whatever is in that file, this runs on the path between the button and sleep."""
+        made, calls, where = self.fan(celsius=40)
+        for rubbish in ("", "   ", "not a number", "\x00\x01"):
+            with self.subTest(rubbish):
+                where.write_text(rubbish)
+                self.assertIsNone(made.degrees())
+                made.check()
+
+    def test_nothing_it_does_can_stop_the_mat(self):
+        """Every way pinctrl can fail, on every call the sleep path makes."""
+        from salaah.power import Fan
+        for breakage in (dict(code=1, error="refused"),
+                         dict(raises=FileNotFoundError()),
+                         dict(raises=OSError("no")),
+                         dict(raises=RuntimeError("nobody predicted this"))):
+            with self.subTest(breakage):
+                made, _, _ = self.fan(celsius=40, **breakage)
+                self.assertFalse(made.start())
+                made.set(True)
+                made.set(False)
+                made.check()
+                self.assertTrue(made.why, "it failed and said nothing about why")
+
+
 class StatusLedTest(unittest.TestCase):
     """The light on the front: GPIO 27, driven with pinctrl, never able to stop the mat.
 

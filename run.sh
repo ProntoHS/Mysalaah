@@ -14,6 +14,62 @@
 cd "$(dirname "$0")"
 if [ -x .venv/bin/python ]; then PY=.venv/bin/python; else PY=python3; fi
 
+# ---------------------------------------------------------------------------
+# The status light on GPIO 27 (header pin 13).
+#
+# The app drives this itself -- on while awake, off before it sleeps, off before a halt -- and
+# this is the backstop for the cases the app cannot cover. A Python `finally` runs on a clean
+# exit and on an unhandled exception; it does NOT run on a kill, an out-of-memory kill, or a
+# pulled plug. So the light goes out here on the way out of the script, whatever took it down.
+#
+# THE LIGHT IS ALSO LIT BEFORE EVERY START, and that matters more than it looks. This script
+# restarts the app after a crash, after an update and after a rollback. An app that died while
+# the light was off -- asleep, or part way through a shutdown -- would otherwise come back up
+# running normally with a dark light, and the one instrument on the front of the mat would be
+# lying from then until the next sleep.
+#
+# Nothing here may stop the mat starting, so every failure is swallowed on purpose: `|| true`
+# at the end, and a `command -v` first so a mat without pinctrl says nothing rather than
+# printing an error on every boot. `sudo -n` is tried second because `pinctrl set` may need
+# root depending on the mat; -n so it fails at once rather than waiting for a password nobody
+# is going to type into a prayer mat.
+STATUS_LED_PIN=27
+# THE CASE FAN, added in 2.27 and driven exactly like the light and for the same reasons. GPIO
+# 14 is physical pin 8; the fan's red goes to pin 4 (5V) and black to pin 6, and this pin only
+# ever carries a logic signal into the fan's own driver. The motor never draws through a GPIO.
+#
+# There must be NO dtoverlay=gpio-fan in config.txt. That hands this pin to the kernel, and a
+# pin two things own is the GPIO 17 story: the app's writes would be overruled while every log
+# looked healthy.
+FAN_PIN=14
+PINCTRL=/usr/bin/pinctrl
+
+pin() {
+    [ -x "$PINCTRL" ] || PINCTRL=$(command -v pinctrl 2>/dev/null) || return 0
+    [ -n "$PINCTRL" ] || return 0
+    "$PINCTRL" set "$1" op "$2" >/dev/null 2>&1 \
+        || sudo -n "$PINCTRL" set "$1" op "$2" >/dev/null 2>&1 \
+        || true
+}
+
+led() { pin "$STATUS_LED_PIN" "$1"; }
+
+# THE FAN IS NOT STARTED HERE, only stopped. Lighting the LED before the app starts is right
+# because a dark light reads as a dead mat; spinning the fan before the app starts would just
+# be noise in a bedroom during the seconds before anything needs cooling. The app starts it
+# when it is ready. What this DOES have to do is stop it on the way out -- an app that dies
+# while the fan is running would otherwise leave it running until something else turned it off.
+fan() { pin "$FAN_PIN" "$1"; }
+
+# EXIT does the work and TERM/INT just exit, rather than all three doing it: an exit from a
+# signal handler fires the EXIT trap too, so putting the work in each would run it twice. The
+# codes are the conventional 128+signal, so whatever started this script still learns how it
+# went.
+trap 'led dl; fan dl' EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+# ---------------------------------------------------------------------------
+
 STATE="update-state.json"
 REPLACED="salaah assets"          # must match REPLACES in salaah/update.py
 
@@ -105,6 +161,34 @@ while true; do
             count_attempt
         fi
     fi
+
+    # Put the displays back the way the mat wants them before EVERY start: the first one and
+    # every restart after a crash, an update or a rollback. The launcher that starts this
+    # script does it once at boot, and a restart got none of it -- which is why the screens
+    # swapped over again when an update installed itself and the app came back.
+    #
+    # Here rather than in the launcher because run.sh is the one file an update never replaces,
+    # so a hook here stays put for good. Optional: a mat with no such file starts exactly as it
+    # always did. A setup that fails does not stop the app either -- the right thing on the
+    # wrong screen still beats a dark mat.
+    # -f AND bash, NOT -x AND ./ -- which is how this spent an evening switched off without
+    # saying a word. A file downloaded from a chat or copied off a memory stick arrives without
+    # its executable bit, so an -x test skipped it silently and the mat booted with whatever
+    # layout the desktop happened to leave. Running it through bash means the bit never matters
+    # again. The file therefore has to stay a bash script: bash ignores its shebang.
+    #
+    # The else is the point as much as the if. A missing or failing setup is something the log
+    # has to say out loud, because a silent skip looks exactly like a working one.
+    if [ -f ./display-setup.sh ]; then
+        bash ./display-setup.sh || echo "salaah: display-setup.sh failed; starting anyway" >&2
+    else
+        echo "salaah: no display-setup.sh, so the screens are left as the desktop set them" >&2
+    fi
+
+    # Lit before every start, including the restarts: see the note at the top of this file.
+    # The app lights it again itself once its own GPIO set-up is done; this is so that the
+    # gap between the Pi being up and the app being ready is not a dark light.
+    led dh
 
     began=$SECONDS
     "$PY" -m salaah "$@"

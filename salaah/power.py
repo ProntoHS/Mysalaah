@@ -84,9 +84,30 @@ HOLD = 2.0
 #: and it is not the fan's 14.
 LED_PIN = 27
 
+#: The case fan, BCM numbering. GPIO 14 is physical pin 8, which the wiring brief has reserved
+#: for the fan since before there was one on the board.
+#:
+#: A THREE-WIRE FAN OF THE RASPBERRY PI KIND, which is not the same animal as a three-wire fan
+#: out of a PC. On a PC fan the third wire is a TACHOMETER -- a pulse train coming OUT of the
+#: fan -- and wiring that to this pin would control nothing and put the fan's own 5V onto a
+#: 3V3 input. On the Pi-type fan (the official Case Fan, the HighPi Pro and their like) the
+#: third wire is a PWM control INPUT: red to header pin 4 (5V), black to pin 6 (ground), blue
+#: to pin 8. Harry has the red/blue/black kind.
+#:
+#: THE MOTOR DOES NOT DRAW THROUGH THIS PIN and never may. A GPIO will source about 16mA, and
+#: roughly 50mA across the whole header; the motor wants several times that and takes it from
+#: pin 4. This pin carries a logic signal into the fan's own driver and nothing else.
+#:
+#: GPIO 14 IS ALSO THE UART's TX. `pinctrl set 14 op` claims it as a plain output and takes it
+#: off that alternate function, which is convenient -- but only from the moment something runs
+#: it. With a serial console enabled the pin carries boot messages before then, and the fan
+#: twitches its way through start-up. The console has to be off.
+FAN_PIN = 14
+
 #: Where each pin comes out on the header, for the line the app prints at start-up. A person
 #: looking at the board needs the physical pin, not the BCM number.
-HEADER = {WAKE_PIN: "header pin 5", PIN: "header pin 11", LED_PIN: "header pin 13"}
+HEADER = {WAKE_PIN: "header pin 5", PIN: "header pin 11", LED_PIN: "header pin 13",
+          FAN_PIN: "header pin 8"}
 
 #: Seconds gpiozero ignores further edges after one it has acted on. Mechanical switches chatter
 #: for a few milliseconds and would otherwise read as several presses; 80 ms is what was tested
@@ -338,6 +359,11 @@ class StatusLed:
 
     COMMAND = "/usr/bin/pinctrl"
 
+    #: What this thing is, for the one message that names it. A class attribute because Fan
+    #: below is the same pin-driving under another name, and a fan reporting itself as "the
+    #: status light" would send somebody to the wrong end of the mat.
+    WHAT = "status light"
+
     #: A second, not the two the brief suggested. It only bites when pinctrl hangs, and this
     #: sits on the path between pressing the button and the screens going dark -- so it is the
     #: longest the mat may pause for a light, not a guess at how long pinctrl takes. In practice
@@ -365,7 +391,7 @@ class StatusLed:
             done = self.run(self.argv(on, prefix), capture_output=True, text=True,
                             timeout=self.TIMEOUT)
         except FileNotFoundError:
-            self.why = f"{self.command} is not installed, so the status light stays as it is"
+            self.why = f"{self.command} is not installed, so the {self.WHAT} stays as it is"
             return False
         except Exception as problem:          # see the class docstring: never fatal
             self.why = f"{self.command} failed: {problem}"
@@ -398,6 +424,126 @@ class StatusLed:
 
     def off(self) -> bool:
         return self.set(False)
+
+
+class Fan(StatusLed):
+    """The case fan on GPIO 14, on while the mat is awake and off while it sleeps.
+
+    THE SAME PIN-DRIVING AS THE LIGHT, deliberately. Harry asked for the fan to follow the app
+    "similar to how the led light comes on and off when sleep", and the light had already paid
+    for the two hard parts: `pinctrl set` drives a pin and LETS GO, so nothing here owns GPIO 14
+    and fights the boot service for it; and every failure is swallowed and reported through
+    [why] rather than raised, so a fan can no more stop a sleep than a light can.
+
+    WHY THERE IS NO dtoverlay=gpio-fan, and why there must never be one. That overlay hands
+    GPIO 14 to the kernel, which then drives it from the SoC's temperature. The app would go on
+    issuing pinctrl calls that the kernel quietly overrules, and the fan would do something
+    nobody had asked for while the logs looked perfectly healthy. That is not a guess: it is
+    the GPIO 17 story in Harry's own wiring brief, where a gpiozero Button took the LED's pin
+    as an input and the light went out while the service still read as running. Two things
+    cannot own one pin. Either the kernel runs this fan or the app does.
+
+    THE BACKSTOP, which is the one place this is not simply the light again. A light that is
+    wrong costs nothing; a fan that is off while the SoC is working does not. Sleeping is not
+    the same as idling -- the mat sleeps on a timer and may still be fetching an update or
+    finishing a download -- so [set] and [check] both drive the pin on what the app wants OR
+    what the thermometer says, whichever asks for more air.
+
+    IT FAILS QUIET, NOT LOUD. With no thermometer to read, the backstop simply is not there and
+    the fan does what the app asked. That is the right way round here because of what is
+    actually at stake: a Pi that gets hot protects itself by SLOWING DOWN -- Raspberry Pi's own
+    thermal testing describes throttling in terms of clock speed and nothing else -- so the
+    backstop is about keeping the mat out of throttling, not about keeping it from harm. The
+    alternative, failing loud, would pin a fan on all night in a child's bedroom because a file
+    would not read, and that is a worse answer to a smaller problem.
+    """
+
+    WHAT = "fan"
+
+    #: Where the SoC's temperature is, in thousandths of a degree.
+    THERMOMETER = "/sys/class/thermal/thermal_zone0/temp"
+
+    #: ON above this, OFF below the lower one -- and the gap between them is the point. A single
+    #: threshold makes the fan chatter on and off around it, which is both the most irritating
+    #: noise a fan can make and the hardest wear on it. Raspberry Pi's own driver for this fan
+    #: is a bang-bang controller with hysteresis for the same reason.
+    #:
+    #: 60 degrees because that is where a Pi 3B+ begins its soft throttle, which makes it a
+    #: sensible place to start blowing air rather than a number chosen for the look of it.
+    HOT = 60.0
+    COOL = 55.0
+
+    def __init__(self, pin: int = FAN_PIN, command: str = StatusLed.COMMAND,
+                 run=subprocess.run, thermometer: str | None = None):
+        super().__init__(pin=pin, command=command, run=run)
+        self.thermometer = thermometer or self.THERMOMETER
+        #: What the app last asked for, kept apart from what the pin is actually doing, because
+        #: the backstop can hold the fan on after the app has asked for it to stop.
+        self.wanted = False
+        #: What the pin was last driven to, or None for "not yet driven". The check below runs
+        #: every fifteen seconds for as long as the mat is powered, and a subprocess every
+        #: fifteen seconds forever to say what it said last time is a cost with no buyer.
+        self.driving: bool | None = None
+        #: True while the thermometer is holding the fan on past what the app asked for.
+        self.because_it_is_hot = False
+
+    def degrees(self) -> float | None:
+        """The SoC's temperature, or None if it cannot be read. Never raises: see the class."""
+        try:
+            with open(self.thermometer) as readings:
+                return int(readings.read().strip()) / 1000.0
+        except Exception:
+            return None
+
+    def too_hot(self) -> bool:
+        """Whether the thermometer wants the fan on, with the hysteresis applied.
+
+        Reads the CURRENT state to pick the threshold, which is what makes it hysteresis rather
+        than two numbers: once the fan is running it keeps running until 55, and once it has
+        stopped it stays stopped until 60.
+        """
+        now = self.degrees()
+        if now is None:
+            self.because_it_is_hot = False
+            return False
+        self.because_it_is_hot = now >= (self.COOL if self.because_it_is_hot else self.HOT)
+        return self.because_it_is_hot
+
+    def set(self, on: bool) -> bool:
+        """What the app asks for -- the mat waking or sleeping. The thermometer may overrule a
+        stop, and may never overrule a start: nothing is served by refusing air."""
+        self.wanted = on
+        # ASKED FIRST, not left to the right-hand side of an `or` that may never reach it.
+        # too_hot() is what keeps the hysteresis current, so skipping it whenever the answer
+        # was already settled leaves [because_it_is_hot] remembering a temperature from
+        # minutes ago -- and the mat is awake, and therefore skipping it, for most of the day.
+        hot = self.too_hot()
+        return self.drive(on or hot)
+
+    def check(self) -> bool:
+        """Called on the fifteen-second timer that runs whether the mat is awake or asleep.
+
+        Its whole job is the sleeping mat: while the mat is awake [wanted] is already True and
+        this can only agree with itself.
+        """
+        hot = self.too_hot()            # see set(): taken every time, for the same reason
+        return self.drive(self.wanted or hot)
+
+    def drive(self, on: bool) -> bool:
+        """Put the pin where it is wanted, and spend nothing saying what it already says."""
+        if on == self.driving:
+            return True
+        if not super().set(on):
+            return False
+        self.driving = on
+        return True
+
+    def start(self) -> bool:
+        """Work out how the pin can be driven, exactly as the light does, and remember it."""
+        lit = super().start()
+        self.wanted = lit
+        self.driving = True if lit else None
+        return lit
 
 
 class Layout:

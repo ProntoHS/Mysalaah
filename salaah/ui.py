@@ -42,7 +42,7 @@ from .recite import Store, WordTimes
 from .call import Adhan, CallBox
 from .reading import LIST_BAR, NUMBER_LINE, READING_TEXT_SIZE_PX, Reader, SurahList
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
-from .power import Halt, Layout, Outputs, StatusLed
+from .power import Fan, Halt, Layout, Outputs, StatusLed
 from .settings import Settings
 from . import theme
 from types import SimpleNamespace
@@ -985,6 +985,10 @@ class MainWindow(QtWidgets.QWidget):
         #: test, which is harmless: set() works without start() and simply uses the plain
         #: command, and a machine with no pinctrl on it reports that and carries on.
         self.led = StatusLed()
+        #: The case fan, which follows the mat's waking exactly as the light does. Its own
+        #: object rather than a flag on the light: they share the pin-driving and nothing else,
+        #: and the fan carries a thermometer the light has no use for.
+        self.fan = Fan()
         #: Which outputs the last sleep actually switched off, by name. Empty means none were
         #: -- they were darkened instead, or left alone on purpose -- and waking must not try
         #: to undo something that never happened.
@@ -1064,6 +1068,11 @@ class MainWindow(QtWidgets.QWidget):
         self.muezzin = QtCore.QTimer(self)
         self.muezzin.setInterval(15_000)
         self.muezzin.timeout.connect(self.check_the_hour)
+        # A SECOND SLOT ON THE SAME TIMER rather than a line inside check_the_hour, which
+        # returns at once when the azaan is switched off -- and a mat with the call silenced
+        # still has an SoC in it. Fifteen seconds is finer than a fan needs and costs nothing:
+        # Fan.check reads one small file and only spends a pinctrl call when the answer moves.
+        self.muezzin.timeout.connect(self.watch_the_temperature)
         self.muezzin.start()
         self.call_watch = QtCore.QTimer(self)       # notices when the call has finished
         self.call_watch.setInterval(500)
@@ -1341,11 +1350,11 @@ class MainWindow(QtWidgets.QWidget):
         # passwordless sudo for shutdown, and a light left dark over a mat that is still running
         # is the light telling a lie. The boot service drives the pin low at shutdown as well,
         # so the real halt is covered twice over and this one only has to be honest.
-        self.light(False)
+        self.show_whether_the_mat_is_awake(False)
         if not self.halt.now():
             # Refused: the mat is still running and the person is owed an explanation rather
             # than a button that appeared to do nothing.
-            self.light(True)
+            self.show_whether_the_mat_is_awake(True)
             print(f"shutdown: {self.halt.why}", file=sys.stderr)
             self.say("", title="shutdown.title")
             self.notice.finish(self.halt.why, self.t("update.close"))
@@ -1395,8 +1404,13 @@ class MainWindow(QtWidgets.QWidget):
         self.blackout.hide()
         self.apply_brightness()
 
-    def light(self, on: bool) -> None:
-        """Ask for the status light, and never let it matter.
+    def show_whether_the_mat_is_awake(self, on: bool) -> None:
+        """Ask the light and the fan to say what the mat is doing, and never let it matter.
+
+        RENAMED FROM light() IN 2.27, when the fan joined it. The five places that call this
+        are not asking for a light -- they are saying the mat has just woken, or is going to
+        sleep, or is stopping -- and a method named for one of the two things it drives is a
+        method somebody adds a third thing to and leaves lying about the second.
 
         StatusLed already swallows everything it can go wrong with -- a missing pinctrl, a
         refusal, a hang, a fault nobody predicted -- so on the face of it this is a belt over a
@@ -1409,10 +1423,17 @@ class MainWindow(QtWidgets.QWidget):
         with a broken one found this: the mat stopped sleeping. The light is a nicety and sleep
         is not, so the ordering of those two is settled here as well as there.
         """
+        # SEPARATELY, so that one failing cannot take the other with it. They are independent
+        # pieces of hardware on independent pins and there is no reading of this mat in which
+        # a fan that will not start is a reason to leave the light dark.
         try:
             self.led.set(on)
         except Exception as problem:       # a light may never cost a sleep: see above
             print(f"status light: {problem}", file=sys.stderr)
+        try:
+            self.fan.set(on)
+        except Exception as problem:       # nor may a fan: the same promise, the same reason
+            print(f"fan: {problem}", file=sys.stderr)
 
     def sleep(self) -> None:
         """Screens off, and everything that was only drawing them stopped.
@@ -1428,7 +1449,7 @@ class MainWindow(QtWidgets.QWidget):
         # asks for it immediately before sleep, and before is the useful order: if a screen
         # then fails to blank, the light is already saying "asleep" and the mat's state is
         # readable from the front rather than inferred from a panel that is lying.
-        self.light(False)
+        self.show_whether_the_mat_is_awake(False)
         self.idle.stop()     # nothing to count down to; waking starts it again
         self.stop_audio()
         # NEVER BLANK A SCREEN THIS CANNOT PROVE IT CAN BRING BACK. The mat used to fire the
@@ -1491,7 +1512,7 @@ class MainWindow(QtWidgets.QWidget):
         # It costs one pinctrl call -- a few milliseconds -- ahead of the displays, which is
         # not a delay in the sense the brief warns about. Harry has this written down and can
         # have it the other way round for a line.
-        self.light(True)
+        self.show_whether_the_mat_is_awake(True)
         self.come_back()
         if self.blanked:
             if not self.outputs.set(True, self.blanked):
@@ -1529,7 +1550,7 @@ class MainWindow(QtWidgets.QWidget):
         # exception, and not on a kill, an OOM or a pulled plug. run.sh carries a trap on
         # TERM, INT and EXIT for those, and lights it again before each start -- so a crash the
         # guard restarts comes back lit even though nothing here ran.
-        self.light(False)
+        self.show_whether_the_mat_is_awake(False)
         # Never leave the screens dark for the next thing that runs: the app owns their power
         # while it is up, so it has to hand them back before it goes.
         if self.asleep:
@@ -3191,6 +3212,22 @@ class MainWindow(QtWidgets.QWidget):
     def azaan_file(self) -> Path:
         """Kept for the four prayers that share the one recording."""
         return self.assets / "audio" / "azaan.mp3"
+
+    def watch_the_temperature(self) -> None:
+        """Keep the fan on while the SoC is hot, even though the mat has gone to sleep.
+
+        The fan follows the app, which is what Harry asked for and is right nearly all of the
+        time: the mat sleeps because nobody has touched it, and a Pi nobody is touching is a
+        Pi that is barely working. Nearly all is not all. Sleep runs on a timer, and the mat
+        can go to sleep partway through fetching an update -- at which point the app has
+        stopped asking for air and the SoC has not stopped needing it.
+
+        Never fatal, by the same rule as the light: see show_whether_the_mat_is_awake.
+        """
+        try:
+            self.fan.check()
+        except Exception as problem:       # a fan may never cost the mat its clock
+            print(f"fan: {problem}", file=sys.stderr)
 
     def check_the_hour(self) -> None:
         """Has a prayer just fallen due? Runs every fifteen seconds, asleep or awake.
