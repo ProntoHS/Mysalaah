@@ -41,12 +41,17 @@ class Rules:
         {
             'name': 'beginner',
             'asset': 'mosque-maze-beginner.png',
-            'mask': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1f000000000000000000000000000000000000f81f000000000000000000000000000000000000f89fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcf7fffff99fffffff3ffeffffff7ffeffffff7ffcc3fffff99f1f00f03efe0300e07ffe0700c07ffca303f8f99f1f00f03efe0300e07ffe0700c07ffcf203f8f99f1f00707cfeffffff7ffeffffff7f7ef003f8f99f1f0070fcffffffffffffffffffff3ff003f8f99f1f0070f8ffffffffffffffffffff3ff803f8f99f1f0070fcfffffffffffffffffffffffe03f8f99ffffffffffffffffffffffffffffffffefffff99ffffffffffffffffffffffffffffffffffffff99fffffff7f0080ff00000080ff0100fefffffff99fffffff3f0080ff00000000ff0000fcfffffff99fffffff3f0080ff01000080ff0100fcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff91f00fcf33ffeffffff7ffeffffff7ffccf3f00f81f00fcf33ffeffffff7ffeffffff7ffccf3f00f8fffffcf33ffeffffff7ffeffffff7ffccf3ffffffffffcf33ffeffffff7ffeffffff7ffccf3ffffffffffcf33ffeffffff7ffeffffff7ffccf3ffffffffffcf33ffeff03e0ffff07c0ff7ffccf3ffffffffffcf33ffeff03e0ffff07c0ff7ffccf3ffffffffffcf33ffefff3ffffffffcfff7ffccf3ffffffffffcf3fffffff3ffffffffcfffffffcf3ffffffffffcf3fffffff3ff7ffeffcfffffffcf3fffff1f00fcf3fffffff3ffffffffcfffffffcf3f00f81f00fcf3fffffff3cf7ffefbcfffffffcf3f00f8ffffff030000fcf3cf1ff8ffcf3f0000c0ffffffffffff030000fcf3ef0ff0ffcf3f0000c0fffffffffffffffffffff3cf0ff0f9cfffffffff73ffffff7ffefffffffff3cf07f0f9cfffffffff01ffffff1ffefffffffff3cf0180f9cfffffffff01fffffffffffffffffff3cf0000f9cfffffffff01ffffff7ffefffffffff34fc003f9cfffffffff8dffffff1ffffffffffff34fc803f9cfffffffff09feffffffff030000fcf34fea5ff9cf3f0000c0ffffffffffff030000fcf34fca5bf1cf3f0000c0ffffff1f00fcf3fffffff307e002f0cfffffffcf3f00f81f00fcf3fffffff3ffffffffcfffffffcf3f00f8fffffcf3fffffff3ff1ffcffcfffffffcf3ffffffffffcf3fffffff3ffffffffcfffffffcf3ffffffffffcf37ffeff0300000000c0ff7ffecf3ffffffffffcf33ffeff0300000000c0ff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3fffff1f00fcf33ffeffffffffffffffff7ffccf3f00f81f00fcf33f0080ff00000000ff0000fccf3f00f89fffffff7f0080ff00000080ff0000fefffffff99fffffffffffffffff7ffefffffffffffffffff99fffffffffffffffff7ffefffffffffffffffff99fffff7ffeffffffff7ffeffffffff3ffcfffff99fffff3ffcffffffff7ffeffffffff5ffafffff99fffff3ffcffffffff7ffeffffffffbff9fffff99f1f00bcfdffffffff7ffeffffffff3f3900f8f99f1f00bc3dfe0700e07ffe0700e07f1c3900f8f99f1f00bc3ffe0700e07ffe0700e07fbc3d00f8f99f1f003c3cfe0700e07ffe0700e07ffc3f00f8f99f1f003c3cfeffffff7ffeffffff7ffc3f00f8f99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff91f000000000000000000000000000000000000f81f000000000000000000000000000000000000f8ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+            'mask': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1f000000000000000000000000000000000000f81f000000000000000000000000000000000000f89fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcf7fffff99fffffff3ffeffffff7ffeffffff7ffcc3fffff99f1f00f03efe0300e07ffe0700c07ffca303f8f99f1f00f03efe0300e07ffe0700c07ffcf203f8f99f1f00707cfeffffff7ffeffffff7f7ef003f8f99f1f0070fcffffffffffffffffffff3ff003f8f99f1f0070f8ffffffffffffffffffff3ff803f8f99f1f0070fcfffffffffffffffffffffffe03f8f99ffffffffffffffffffffffffffffffffefffff99ffffffffffffffffffffffffffffffffffffff99fffffff7f0080ff00000080ff0100fefffffff99fffffff3f0080ff00000000ff0000fcfffffff99fffffff3f0080ff01000080ff0100fcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff91f00fcf33ffeffffff7ffeffffff7ffccf3f00f81f00fcf33ffeffffff7ffeffffff7ffccf3f00f8fffffcf33ffeffffff7ffeffffff7ffccf3ffffffffffcf33ffeffffff7ffeffffff7ffccf3ffffffffffcf33ffeffffff7ffeffffff7ffccf3ffffffffffcf33ffeff0300000000c0ff7ffccf3ffffffffffcf33ffeff0300000000c0ff7ffccf3ffffffffffcf33ffefff3ffffffffcfff7ffccf3ffffffffffcf3fffffff3ffffffffcfffffffcf3ffffffffffcf3fffffff3ff7ffeffcfffffffcf3fffff1f00fcf3fffffff3ffffffffcfffffffcf3f00f81f00fcf3fffffff3cf7ffefbcfffffffcf3f00f8ffffff030000fcf3cf1ff8ffcf3f0000c0ffffffffffff030000fcf3ef0ff0ffcf3f0000c0fffffffffffffffffffff3cf0ff0f9cfffffffff73ffffff7ffefffffffff3cf07f0f9cfffffffff01ffffff1ffefffffffff3cf0180f9cfffffffff01fffffffffffffffffff3cf0000f9cfffffffff01ffffff7ffefffffffff34fc003f9cfffffffff8dffffff1ffffffffffff34fc803f9cfffffffff09feffffffff030000fcf34fea5ff9cf3f0000c0ffffffffffff030000fcf34fca5bf1cf3f0000c0ffffff1f00fcf3fffffff307e002f0cfffffffcf3f00f81f00fcf3fffffff3ffffffffcfffffffcf3f00f8fffffcf3fffffff3ff1ffcffcfffffffcf3ffffffffffcf3fffffff3ffffffffcfffffffcf3ffffffffffcf37ffeff0300000000c0ff7ffecf3ffffffffffcf33ffeff0300000000c0ff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3fffff1f00fcf33ffeffffffffffffffff7ffccf3f00f81f00fcf33f0080ff00000000ff0000fccf3f00f89fffffff7f0080ff00000080ff0000fefffffff99fffffffffffffffff7ffefffffffffffffffff99fffffffffffffffff7ffefffffffffffffffff99fffff7ffeffffffff7ffeffffffff3ffcfffff99fffff3ffcffffffff7ffeffffffff5ffafffff99fffff3ffcffffffff7ffeffffffffbff9fffff99f1f00bcfdffffffff7ffeffffffff3f3900f8f99f1f00bc3dfe0700e07ffe0700e07f1c3900f8f99f1f00bc3ffe0700e07ffe0700e07fbc3d00f8f99f1f003c3cfe0700e07ffe0700e07ffc3f00f8f99f1f003c3cfeffffff7ffeffffff7ffc3f00f8f99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff91f000000000000000000000000000000000000f81f000000000000000000000000000000000000f8ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
             'start': (14, 45),
             'items': ((34, 18), (129, 16), (139, 45), (32, 69), (128, 68)),
             'item_norm': ((0.203125, 0.199074), (0.809896, 0.194444), (0.880208, 0.490741), (0.203125, 0.768519), (0.802083, 0.763889)),
             'approach': (80, 55),
             'goal': (80, 49),
+            'item_cells': ('000000000000000000000000000000000000000800800300f000001f00e003007c0000070000000000000000000000000000000000000000',
+                           '00000000000000000000000000000000000000c00100fc00c01f00fc01c01f00fc03803f00e0030018000000000000000000000000000000',
+                           '00000000000000000000000000000000c03f00f80f00ff01e03f00fc0780ff00000100000000000000000000000000000000000000000000',
+                           '00000000000000000000006000000c00c003007800801f00e003007c00800f00f801003e00c0070000000000000000000000000000000000',
+                           '00000000000000000000000000000000000000fc00801f00f80700ff00e01f00f801001e0000000000000000000000000000000000000000'),
             'gate_norm': (0.471354, 0.5, 0.528646, 0.615741),
         },
         {
@@ -58,17 +63,33 @@ class Rules:
             'item_norm': ((0.161458, 0.208333), (0.619792, 0.162037), (0.854167, 0.203704), (0.929688, 0.49537), (0.117188, 0.712963), (0.333333, 0.819444), (0.799479, 0.805556)),
             'approach': (80, 55),
             'goal': (80, 49),
+            'item_cells': ('00000000000000000000000000000400c000003c00800700f000001e00000000000000000000000000000000000000000000000000000000',
+                           '000000000000000000000000000000000000001c008001003000003e00c00700000000000000000000000000000000000000000000000000',
+                           '00000000000000000000000000001000000700f001007f00f007007f00f007007e0080070060000000000000000000000000000000000000',
+                           '00000000000000000000000000000000e00700fe01c03f00f80700ff00e01f00000000000000000000000000000000000000000000000000',
+                           '000000000000000000000000000000000000003000800f003003006600c00f00e00100300000060000000000000000000000000000000000',
+                           '00000000000000000000000000000800800300f800001f00e003006c00800d00f001003e0000000000000000000000000000000000000000',
+                           '000000000000000000000000000000000000000000000300f801003f00e00700fc00801f00e0010000000000000000000000000000000000'),
             'gate_norm': (0.466146, 0.49537, 0.523438, 0.611111),
         },
         {
             'name': 'expert',
             'asset': 'mosque-maze-expert.png',
-            'mask': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0f000000000000000000000000000000000000f0efff0ffeffffdffffffdffcfffff7ffffffffff7effffffeffffdffffffdffcfffff7ffffffffff7effffffeffffdffffffdffcfffff7ffffffffff76ff8fffe3f00c0ffff3d00ccffff7f0f3c0000f76f30f0003c00c003c03d00ce7d00700fbeff3ff7ef33ffff3dffdffbffbdffcffcff77efbfff3ff7ef33ffff3dffdffbffbdffcffcff77efbfbf3ff7ef33ffff3dffdffbffbdffcff1ff77efbf5f3ff7ef33ffef3dffff3b00bcfbcfff9ff7ef80cf3ef70f3080c73d07fc3b00bc7bc0ff9ff7effcbf3ff70ff0bfc73de7ff3bffbffb0f009cf7effcc33ff7efffbfcf3de7ff3bffbffb0f009cf7effce101f7efffbfdf01e7ff3bffbffbffff9c07e0fcf901f7efffbfffcde701380f80fbffff9cfffffcf3f9f7ef01bcffffe7fd3f0f800300f09cffff00fff9f7eff93c00fce7fd3ffffbfffff39cffff01fff9f7eff93c00fce7fd3ffffbfffff380ffff3fff79f0eff9fcfffde03d38ff03e0fff30000fe3fff39f0eff9fcff3de03d308003c0fff31f00fe3f0f38ffeff9fcfffdfffd7380ffcf81f3ffff1e30ff3fffeff900e0fdfffdf39fffcf9ff3ffff0e30ff3fffeff901e0fdfffdf39fffcf9ff3ffffce3fff7fffeff9ffef01fffcf39f7fc09f0300f8ce3fff7fffeff9ffef010f80f39f7fc09ff3fff9ce3f0000f0fff9ffef7fff9f03807fff9ff3fff9c0f3f7fff70fc001ee7fff9ff3ff7fff9ff3fff9c0f3f7fff70fc0f9ef7fff9ff3ff7fff9ff3fff9fff3f7fff7ffdff90f70ff9ff30100008003f0f9fff3f701f7ffdff9ff73ff9ff30100008003f0f9fff3f700f7ffdff9ff7300fcf3fdffff9fff33001e70f07cf7ffdf01bff3fffdf3fdffff9fff33001e70f07cf70fc0010ff3fffdf3fdbfff9fff33ff9fffff7cf7efff3fe7f3fffdf3bd7fff9ee833ff9fffff7cf7efff3fc3f3fffdf3b97fff1ec033ff9fefcc7cf7efff3fff03e001f0b93ffe9eff33ff9fefc07cf70f003eff03e0fffff90ff89fff330780efc07cf7ffff3ffff3e7ffffb90ff89eff3fe7ffeff17cf07fff3f00f0e7ffffb90ff89eff3fe7ffefc0fcf71ffefff7ffe78103b801c09eff3fe7ffeffffcf7fffffff7ffe78103bc01801ec03fe7ffeffffcf70fffe1f7ffe79df3bd00809edf3f07780f0080f7bfffe7f7ffe79df3bd0aa89edf010f70ffff9ff7ffffe7f700e79df3390aa89edfffff73ffff9ff70ff0e7f700e79df31920009cdfffff7bffff9ff7efffe7f77ee09dfff91f389edfffff73ffff9ff7efffe7f77ee09dfff91ffc9f1f00e073007880f7efff07f07eff9dfff97fff9f1f00e0fbff7980f7ef0107f07eff9dff01600380dfffefffff79fff7ef00feff7eff1dc0ff7fffffdfffefffff79fff7ef7cfeff7eff1dc0ff7fffffdfbf0f00e079fff7ef7cfeff7e0ffccfff7fffffdfbf0f00e079fff7ef7cfeff0eefffcfff7fffffc11fefffef7900f0ef7cc001eeefffcf017c00e0c05defffeff9fff7effccffdefefffcff9fcffe7fffdefffeff9fff7effccffdefefffcff9fcffe7fffdef01fff9fff70fbccffdef0f00cffdfcffe7ff01e001ff01c0f7efefcffdefff7f0ff8fcffe7ff01e03dfff9dff7efefce01eeff7f0ffc00c007c0fdff3dfff9dff7efefce01eeff7fffff00c007c0fdff3d03f8dff7efbfcfffeeff7fffffffdfffdffdff3df3ffdff7efffceff0e0078ffffffdfffdf3d003cf37fdcf7eff9cefffeff79e00180dfffdf3dff3ff3ffdcf7eff90ff0feff79c0fd9fdfffdf3dff3ff3ffdcf7eff90ff0fefff9cffd9f1f80df3dff3f73001cf0ef01e0f7fefff9cffd9fdf9fc33dff3f3300fcf7effffff700f0b9cffd9fdf9fc33d070073fffff7effffff7fff319cf7d1fc09ffb3ff7ff3ffffff7effffff7fff319cf7d1fc09ffb3ff7ff7fdbfff70ffcfff7ff3378cf7dffff9ffb3ff7ff7f8f03f7ef3c80f7ff3358cf7fffff9ffb00f701008973f7effcbf07e0335fcf7fffff9ffb80f701008773f7effcbfc7ef331fcf7f07009cfbfff7fdffdb73f7effcbfffff33ff0f7007009cfbfff7fdffff73f7ef00bcffff33000060e7ff1c00c0f7fdffff73f7ef00bcff3f3000c07fe7ff1c00c0f73d000070f7efff3f00ffffffff7ff7fffcffcfff3d0000f0f7efffff3fffffffff7ffff0fcffcffffdfffffff7efffff3fffffffff3ffff0fcffcffffdfffffff70f000000000000000000000000000000000000f0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+            'mask': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0f000000000000000000000000000000000000f0efff0ffeffffdffffffdffcfffff7ffffffffff7effffffeffffdffffffdffcfffff7ffffffffff7effffffeffffdffffffdffcfffff7ffffffffff76ff8fffe3f00c0ffff3d00ccffff7f0f3c0000f76f30f0003c00c003c03d00ce7d00700fbeff3ff7ef33ffff3dffdffbffbdffcffcff77efbfff3ff7ef33ffff3dffdffbffbdffcffcff77efbfbf3ff7ef33ffff3dffdffbffbdffcff1ff77efbf5f3ff7ef33ffef3dffff3b00bcfbcfff9ff7ef80cf3ef70f3080c73d07fc3b00bc7bc0ff9ff7effcbf3ff70ff0bfc73de7ff3bffbffb0f009cf7effcc33ff7efffbfcf3de7ff3bffbffb0f009cf7effce101f7efffbfdf01e7ff3bffbffbffff9c07e0fcf901f7efffbfffcde701380f80fbffff9cfffffcf3f9f7ef01bcffffe7fd3f0f800300f09cffff00fff9f7eff93c00fce7fd3ffffbfffff39cffff01fff9f7eff93c00fce7fd3ffffbfffff380ffff3fff79f0eff9fcfffde03d38ff03e0fff30000fe3fff39f0eff9fcff3de03d308003c0fff31f00fe3f0f38ffeff9fcfffdfffd7380ffcf81f3ffff1e30ff3fffeff900e0fdfffdf39fffcf9ff3ffff0e30ff3fffeff901e0fdfffdf39fffcf9ff3ffffce3fff7fffeff9ffef01fffcf39f7fc09f0300f8ce3fff7fffeff9ffef010f80f39f7fc09ff3fff9ce3f0000f0fff9ffef7fff9f03807fff9ff3fff9c0f3f7fff70fc001ee7fff9ff3ff7fff9ff3fff9c0f3f7fff70fc0f9ef7fff9ff3ff7fff9ff3fff9fff3f7fff7ffdff90f70ff9ff30100008003f0f9fff3f701f7ffdff9ff73ff9ff30100008003f0f9fff3f700f7ffdff9ff7300fcf3fdffff9fff33001e70f07cf7ffdf01bff3fffdf3fdffff9fff33001e70f07cf70fc0010ff3fffdf3fdbfff9fff33ff9fffff7cf7efff3fe7f3fffdf3bd7fff9ee833ff9fffff7cf7efff3fc3f3fffdf3b97fff1ec033ff9fefcc7cf7efff3fff03e001f0b93ffe9eff33ff9fefc07cf70f003eff03e0fffff90ff89fff330780efc07cf7ffff3ffff3e7ffffb90ff89eff3fe7ffeff17cf07fff3f00f0e7ffffb90ff89eff3fe7ffefc0fcf71ffefff7ffe78103b801c09eff3fe7ffeffffcf7fffffff7ffe78103bc01801ec03fe7ffeffffcf70fffe1f7ffe79df3bd00809edf3f07780f0080f7bfffe7f7ffe79df3bd0aa89edf010f70ffff9ff7ffffe7f700e79df3390aa89edfffff73ffff9ff70ff0e7f700e79df31920009cdfffff7bffff9ff7efffe7f77ee09dfff91f389edfffff73ffff9ff7efffe7f77ee09dfff91ffc9f1f00e073007880f7efff07f07eff9dfff97fff9f1f00e0fbff7980f7ef0107f07eff9dff01000080dfffefffff79fff7ef00feff7eff1dc0ff7fffffdfffefffff79fff7ef7cfeff7eff1dc0ff7fffffdfbf0f00e079fff7ef7cfeff7e0ffccfff7fffffdfbf0f00e079fff7ef7cfeff0eefffcfff7fffffc11fefffef7900f0ef7cc001eeefffcf017c00e0c05defffeff9fff7effccffdefefffcff9fcffe7fffdefffeff9fff7effccffdefefffcff9fcffe7fffdef01fff9fff70fbccffdef0f00cffdfcffe7ff01e001ff01c0f7efefcffdefff7f0ff8fcffe7ff01e03dfff9dff7efefce01eeff7f0ffc00c007c0fdff3dfff9dff7efefce01eeff7fffff00c007c0fdff3d03f8dff7efbfcfffeeff7fffffffdfffdffdff3df3ffdff7efffceff0e0078ffffffdfffdf3d003cf37fdcf7eff9cefffeff79e00180dfffdf3dff3ff3ffdcf7eff90ff0feff79c0fd9fdfffdf3dff3ff3ffdcf7eff90ff0fefff9cffd9f1f80df3dff3f73001cf0ef01e0f7fefff9cffd9fdf9fc33dff3f3300fcf7effffff700f0b9cffd9fdf9fc33d070073fffff7effffff7fff319cf7d1fc09ffb3ff7ff3ffffff7effffff7fff319cf7d1fc09ffb3ff7ff7fdbfff70ffcfff7ff3378cf7dffff9ffb3ff7ff7f8f03f7ef3c80f7ff3358cf7fffff9ffb00f701008973f7effcbf07e0335fcf7fffff9ffb80f701008773f7effcbfc7ef331fcf7f07009cfbfff7fdffdb73f7effcbfffff33ff0f7007009cfbfff7fdffff73f7ef00bcffff33000060e7ff1c00c0f7fdffff73f7ef00bcff3f3000c07fe7ff1c00c0f73d000070f7efff3f00ffffffff7ff7fffcffcfff3d0000f0f7efffff3fffffffff7ffff0fcffcffffdfffffff7efffff3fffffffff3ffff0fcffcffffdfffffff70f000000000000000000000000000000000000f0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
             'start': (10, 44),
             'items': ((29, 14), (98, 12), (140, 15), (30, 39), (138, 39), (14, 62), (54, 74), (110, 58), (139, 75)),
             'item_norm': ((0.177083, 0.166667), (0.614583, 0.138889), (0.875, 0.175926), (0.182292, 0.435185), (0.864583, 0.453704), (0.088542, 0.694444), (0.338542, 0.805556), (0.690104, 0.634259), (0.875, 0.833333)),
             'approach': (80, 55),
             'goal': (82, 50),
+            'item_cells': ('0000000000000000000000000000000000000000000000004000001c00800300f800001f0080030000000000000000000000000000000000',
+                           '0000000000000000000000000000000000000030000007006000001c00800f00e00000000000000000000000000000000000000000000000',
+                           '00000000000000000000000000000000000000c001007c00c01f00fc01c01f00fc01801f00e0010018000000000000000000000000000000',
+                           '000000000000000000000000000000000000007000000f00f801000f00e00100000000000000000000000000000000000000000000000000',
+                           '000000000000000000000000000000000000000000000000000000fe01c03f00f80700ff00e01f0060000000000000000000000000000000',
+                           '000000000000000000000000000000000000000000000000e003006c00800c00f001003c00000e00c301600000fc3f80ff07f0ff00000000',
+                           '000000000000000000000000000000000003007000001e00e003007800000d00f001003e00c0070000000000000000000000000000000000',
+                           '000000000000000000000000000000000000002000001f00e003003800000500000000000000000000000000000000000000000000000000',
+                           '00000000000000000000000000000000000000f000003f00e00f00fc01803f00f003003c0000000000000000000000000000000000000000'),
             'gate_norm': (0.46875, 0.49537, 0.526042, 0.611111),
         },
     )
@@ -104,6 +125,8 @@ class Rules:
         self.start = tuple(level["start"])
         self.items = tuple(tuple(cell) for cell in level["items"])
         self.item_norm = tuple(tuple(point) for point in level["item_norm"])
+        self.item_cells = tuple(self._unpack_item(level["item_cells"][index], cell)
+                                for index, cell in enumerate(self.items))
         self.gate_cell = tuple(level["approach"])
         self.goal = tuple(level["goal"])
         self.gate_norm = tuple(level["gate_norm"])
@@ -112,6 +135,38 @@ class Rules:
         self.last_item = None
         self.route = []
         self.trail = [self.start]
+
+    #: How far either side of an item's own cell its drawing is recorded.
+    ITEM_REACH = 10
+
+    @classmethod
+    def _unpack_item(cls, hexed: str, centre) -> frozenset:
+        """The cells one pickup's DRAWING covers, which is not what `active` can tell you.
+
+        WHY THIS IS STORED RATHER THAN WORKED OUT. The maze mask was derived from the artwork,
+        so it calls an item's own drawing a wall exactly as it calls a wall a wall -- the only
+        floor cell an item has is the single one a child stands on. Asking the mask which
+        pixels belong to the water drop gets the answer "none of them", and an erase clipped
+        to floor cells rubbed out the gap around a drawing and left the drawing.
+
+        What separates a drawing from a wall is SHAPE: a wall is a long run that leaves any
+        window you put around an item, and an item is a small thing that does not. That is a
+        connected-component question over the artwork -- far too slow to ask while a child is
+        playing, and pointless to ask twice -- so it was asked once and the answer written
+        down here, the same way the maze's own walls are.
+
+        Recorded in CELLS rather than pixels because it is 1.5KB that way and 52KB the other.
+        The two only share a cell where a wall passes within a pixel or two of a drawing, and
+        there the wall loses that corner; see the erasing note in Screen.paintEvent.
+        """
+        packed = bytes.fromhex(hexed)
+        span = cls.ITEM_REACH * 2 + 1
+        cx, cy = centre
+        return frozenset(
+            (cx - cls.ITEM_REACH + n % span, cy - cls.ITEM_REACH + n // span)
+            for n in range(span * span)
+            if packed[n // 8] & (1 << (n % 8))
+        )
 
     def cycle_difficulty(self) -> None:
         self.difficulty = (self.difficulty + 1) % len(self.LEVEL_DATA)
@@ -245,12 +300,77 @@ class Rules:
         return "walking"
 
 
+class Catalogue(QtWidgets.QWidget):
+    """What has been collected so far, drawn on the 7in as the things themselves.
+
+    Harry, 15 November 2026: "the small screen catalogues the items collected." Once the
+    items vanish from the maze there is nothing on the big screen saying what a child has
+    picked up, and "Items: 3 of 5" says how many but not which.
+
+    THE DRAWINGS RATHER THAN THEIR NAMES, for two reasons. A child of six recognises the
+    lantern and the prayer mat long before reading either word. And the words for these
+    things exist on the mat only as whole sentences -- "Wash for prayer. This washing is
+    called wudu." -- so a list of names would mean inventing nine short labels in ten
+    languages, every one of them unreviewed, to say what the pictures already say. There is
+    enough unreviewed wording in this game.
+
+    The pictures are cut out of the maze artwork itself, so the thing on the 7in is exactly
+    the thing that was on the board a moment ago, and nothing new has to be drawn or shipped.
+    """
+
+    def __init__(self, screen):
+        super().__init__()
+        self.screen = screen
+        self.setObjectName("mosqueMazeCatalogue")
+
+    def sizeHint(self):
+        return QtCore.QSize(self.screen.win.side_px(560), self.screen.win.side_px(190))
+
+    def paintEvent(self, _):
+        game = self.screen.game
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
+        got = [i for i, cell in enumerate(game.items) if cell in game.collected]
+        if not got:
+            return
+        # One row while they fit, two when nine of them will not. Worked out from how many
+        # there are rather than from the level, so the expert board does not decide the
+        # layout for a beginner who has collected five.
+        across = len(got) if len(got) <= 5 else (len(got) + 1) // 2
+        down = 1 if len(got) <= 5 else 2
+        box = min(self.width() / max(1, across), self.height() / down)
+        left = (self.width() - box * across) / 2
+        top = (self.height() - box * down) / 2
+        for place, index in enumerate(got):
+            icon = self.screen.item_icon(index, int(box * 0.86))
+            if icon is None or icon.isNull():
+                continue
+            x = left + (place % across) * box + (box - icon.width()) / 2
+            y = top + (place // across) * box + (box - icon.height()) / 2
+            painter.drawPixmap(int(x), int(y), icon)
+
+
 class Screen(QtWidgets.QWidget):
     """Artwork-only main maze; ``companion`` is mounted on the 7-inch screen."""
 
     leave = Signal()
     changed = Signal()
     won = Signal()
+
+    #: How far around an item's centre is repainted when it is collected. The widest drawing
+    #: measured on this artwork reaches 66px of 1920, so this covers every one of them with a
+    #: little to spare. It can be generous because the paint is clipped to floor cells and
+    #: cannot reach a wall however large it is; see paintEvent.
+    ERASE = 80
+
+    #: The footprint size. Was 7 until 2.28, when Harry asked for "slightly bigger".
+    FOOT = 10
+
+
+    #: Anything darker than this in the artwork is floor, not a drawing. Not zero, because the
+    #: floor in these files is not a flat black: it carries values all the way up from 0, and
+    #: a cut-out that trusted pure black came out as a speckled white tile.
+    FLOOR_IS_BELOW = 110
 
     def __init__(self, window):
         super().__init__()
@@ -269,6 +389,8 @@ class Screen(QtWidgets.QWidget):
         self._move_timer.setInterval(24)
         self._move_timer.timeout.connect(self._advance)
         self._ignore_mouse_release = False
+        #: {(difficulty, item index, ink): the item's own drawing, for the 7in catalogue}.
+        self._icons: dict[tuple[int, int, str], QtGui.QPixmap] = {}
 
         self.companion = self._build_companion()
         self.changed.connect(self.update)
@@ -298,6 +420,12 @@ class Screen(QtWidgets.QWidget):
         self.hint.setMinimumHeight(self.win.side_px(250))
         self.hint.installEventFilter(self)
         layout.addWidget(self.hint, 1)
+
+        # Under the little maze and above the words: what has been picked up so far. It sits
+        # in the gap the panel already had -- there were about 180 blank pixels here.
+        self.catalogue = Catalogue(self)
+        self.catalogue.setMinimumHeight(self.win.side_px(150))
+        layout.addWidget(self.catalogue)
 
         self.status = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
         self.status.setObjectName("gameStatus")
@@ -366,6 +494,7 @@ class Screen(QtWidgets.QWidget):
         new_game = self.win.t("mosque_maze.new_game")
         exit_game = self.win.t("mosque_maze.exit")
 
+        self.catalogue.update()
         self.title.setText(title)
         self.progress_button.setText(progress)
         self.difficulty_button.setText(difficulty)
@@ -397,6 +526,7 @@ class Screen(QtWidgets.QWidget):
         self.companion.setStyleSheet(
             f"QWidget#mosqueMazeCompanion {{ background: {c.paper}; color: {c.ink}; }}"
             f"QLabel {{ color: {c.ink}; background: {c.paper}; }}"
+            f"QWidget#mosqueMazeCatalogue {{ background: {c.paper}; }}"
             # See journey_jigsaw.follow_theme: background:panel with color:paper was black on
             # #1C1C1C after dark. paper and ink are opposites in both themes; panel is not.
             f"QPushButton#gameButton {{ background: {c.paper}; color: {c.ink}; "
@@ -408,6 +538,7 @@ class Screen(QtWidgets.QWidget):
         )
         self.retell()
         self._update_hint()
+        self.catalogue.update()
         self.update()
 
     @property
@@ -513,6 +644,77 @@ class Screen(QtWidgets.QWidget):
         if result in ("nothing", "finished") or not self.game.route:
             self._move_timer.stop()
 
+    def item_icon(self, index: int, size: int):
+        """One item's drawing, cut from the maze artwork and recoloured to suit the theme.
+
+        The artwork is white on black and the 7in panel follows the mat's theme, so a plain
+        crop would be a black tile on a white panel in daylight mode. The black is turned into
+        a mask instead, and what is left is painted in the panel's own ink.
+
+        Cached per level, item and ink -- the ink is in the key so that changing the theme
+        does not hand back yesterday's colour, which is the bug that a cache keyed on the
+        cheap half of the question always has.
+        """
+        if size <= 0:
+            return None
+        image = self.images[self.game.difficulty]
+        if image.isNull():
+            return None
+        key = (self.game.difficulty, index, palette().ink, size)
+        found = self._icons.get(key)
+        if found is not None:
+            return found
+        x, y = self.game.item_norm[index]
+        reach = int(image.width() * self.ERASE / 1920)
+        piece = image.copy(QtCore.QRect(int(x * image.width()) - reach,
+                                        int(y * image.height()) - reach,
+                                        reach * 2, reach * 2))
+        # SCALED FIRST, THEN READ PIXEL BY PIXEL. The brightness has to become the alpha, and
+        # Qt has no one call that does it -- createMaskFromColor was tried and is the wrong
+        # tool: it keys on ONE colour, and this artwork's floor is not one colour. It carries
+        # values all the way up from 0, so keying out pure black left the floor behind and the
+        # catalogue came out as dark shapes on speckled white tiles.
+        #
+        # Reading the pixels is therefore the honest way, and doing it AFTER the scale is what
+        # makes it cheap: a few thousand pixels at the size it is shown instead of 25,600 at
+        # the size it was drawn. It happens once per item per theme, not per repaint.
+        small = (piece.toImage()
+                 .convertToFormat(QtGui.QImage.Format.Format_Grayscale8)
+                 .scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio,
+                         Qt.TransformationMode.SmoothTransformation))
+        out = QtGui.QImage(small.size(), QtGui.QImage.Format.Format_ARGB32_Premultiplied)
+        out.fill(QtGui.QColor(0, 0, 0, 0))
+        ink = QtGui.QColor(palette().ink)
+        # ONLY WHAT STANDS ON FLOOR, by the same mask the eraser is clipped to. A square cut
+        # around an item catches whatever else is near it, and near is near: the walls in this
+        # artwork come within 2px of some of these drawings. Without this the catalogue showed
+        # the lantern with two lengths of somebody else's wall standing beside it.
+        #
+        # It also makes the two halves agree by construction. What the board loses and what
+        # the 7in gains are decided by one bitmap, so the catalogue cannot show a thing that is
+        # still on the board, or miss one that is gone.
+        left_px = int(x * image.width()) - reach
+        top_px = int(y * image.height()) - reach
+        span = reach * 2
+        for row in range(small.height()):
+            ay = top_px + (row + 0.5) * span / small.height()
+            cell_y = int(ay * self.game.HEIGHT / image.height())
+            for column in range(small.width()):
+                value = small.pixelColor(column, row).red()      # grey: r == g == b
+                if value < self.FLOOR_IS_BELOW:
+                    continue
+                ax = left_px + (column + 0.5) * span / small.width()
+                if (int(ax * self.game.WIDTH / image.width()),
+                        cell_y) not in self.game.item_cells[index]:
+                    continue
+                out.setPixelColor(column, row, QtGui.QColor(
+                    ink.red(), ink.green(), ink.blue(),
+                    min(255, (value - self.FLOOR_IS_BELOW) * 255
+                        // (255 - self.FLOOR_IS_BELOW))))
+        shown = QtGui.QPixmap.fromImage(out)
+        self._icons[key] = shown
+        return shown
+
     def _cell_point(self, cell):
         return QtCore.QPointF((cell[0] + 0.5) * self.width() / self.game.WIDTH,
                               (cell[1] + 0.5) * self.height() / self.game.HEIGHT)
@@ -545,8 +747,11 @@ class Screen(QtWidgets.QWidget):
             source = QtCore.QRectF(0, 0, image.width(), image.height())
             painter.drawPixmap(QtCore.QRectF(self.rect()), image, source)
 
+        # The maze artwork is white on black in either theme, so "the colour of the floor" is
+        # the dark one whichever way round the mat is set. The gate opening and a collected
+        # item being erased both paint with it. (A `foreground` partner to this went with the
+        # ticks in 2.28: nothing else was ever drawn in it.)
         background = QtGui.QColor(c.paper if c.dark else c.ink)
-        foreground = QtGui.QColor(c.ink if c.dark else c.paper)
         if self.game.gate_open:
             left, top, right, bottom = self.game.gate_norm
             gate = QtCore.QRectF(left * self.width(), top * self.height(),
@@ -556,32 +761,51 @@ class Screen(QtWidgets.QWidget):
             painter.setBrush(background)
             painter.drawRoundedRect(gate, self.win.px(8), self.win.px(8))
 
+        # WHAT IS COLLECTED IS GONE, not ticked. Harry, 15 November 2026: "instead of the
+        # items collected showing a tick they disappear and the small screen catalogues the
+        # items collected." A tick left the thing on the board and wrote on it; a child
+        # looking for what is left still had to read every marker to see which were spent.
+        #
+        # ERASED CELL BY CELL, over exactly the cells the drawing occupies. The items are
+        # painted into the maze artwork, so removing one means covering it -- and a disc big
+        # enough to cover an item is bigger than the gap to the wall beside it. Measured on
+        # this artwork: the drawings reach up to 66px from their centres while a wall can be
+        # 2px away. A disc would have eaten holes in the maze, and a hole in the wall of a
+        # maze is not a blemish, it is a lie about where a child may walk.
+        #
+        # Clipping to the cells the MASK calls floor was tried and is wrong for a reason worth
+        # keeping: the mask was made from this artwork, so it calls the drawing a wall too.
+        # That erase rubbed out the floor around each item and left the item sitting in it.
+        # Rules.item_cells is the list of what each drawing actually covers.
+        wide = self.width() / self.game.WIDTH
+        tall = self.height() / self.game.HEIGHT
         for index, cell in enumerate(self.game.items):
             if cell not in self.game.collected:
                 continue
-            x, y = self.game.item_norm[index]
-            centre = QtCore.QPointF(x * self.width(), y * self.height())
-            radius = self.win.px(18)
-            painter.setPen(QtGui.QPen(QtGui.QColor(c.soft), self.win.px(4)))
-            painter.setBrush(background)
-            painter.drawEllipse(centre, radius, radius)
-            painter.setPen(QtGui.QPen(foreground, self.win.px(4),
-                                      Qt.PenStyle.SolidLine,
-                                      Qt.PenCapStyle.RoundCap,
-                                      Qt.PenJoinStyle.RoundJoin))
-            painter.drawLine(QtCore.QPointF(centre.x() - radius * 0.48, centre.y()),
-                             QtCore.QPointF(centre.x() - radius * 0.10,
-                                            centre.y() + radius * 0.38))
-            painter.drawLine(QtCore.QPointF(centre.x() - radius * 0.10,
-                                            centre.y() + radius * 0.38),
-                             QtCore.QPointF(centre.x() + radius * 0.55,
-                                            centre.y() - radius * 0.42))
+            for x, y in self.game.item_cells[index]:
+                # Rounded outward so neighbouring cells overlap by a pixel rather than leaving
+                # a hairline of the drawing along the seam between them.
+                left, top = int(x * wide), int(y * tall)
+                painter.fillRect(left, top,
+                                 int((x + 1) * wide) - left + 1,
+                                 int((y + 1) * tall) - top + 1, background)
 
+        # THE TRAIL IN GREEN, AND BIGGER. Harry: "have the footprints in green colour and make
+        # slightly bigger." On a white-on-black maze the old grey prints were the one thing on
+        # the screen with no colour of its own and they were easy to lose. Green is the mat's
+        # own colour for "this is the live one" -- it is what the current prayer is drawn in --
+        # so it carries the same meaning here without a new colour being invented for it.
+        #
+        # The older prints keep the sense of a trail by fading rather than by greying: the same
+        # green, carrying less of itself the further back it is.
         trail = self.game.trail[-18:]
+        green = QtGui.QColor(c.green)
         for index, cell in enumerate(trail):
-            colour = QtGui.QColor(c.soft if index < len(trail) - 1 else c.ink)
+            colour = QtGui.QColor(green)
+            if index < len(trail) - 1:
+                colour.setAlpha(70 + int(120 * index / max(1, len(trail) - 1)))
             self._draw_footprint(painter, self._cell_point(cell),
-                                 float(self.win.px(7)), colour)
+                                 float(self.win.px(self.FOOT)), colour)
 
         if self.game.finished:
             centre = self._cell_point(self.game.goal)
@@ -598,6 +822,25 @@ class Screen(QtWidgets.QWidget):
             return
         shown = image.scaled(self.hint.size(), Qt.AspectRatioMode.KeepAspectRatio,
                              Qt.TransformationMode.SmoothTransformation)
+        # AND WHAT HAS BEEN COLLECTED IS GONE FROM THE LITTLE MAP TOO. This is a picture of
+        # the board, and from 2.28 the board no longer has those things on it. Left alone it
+        # would show a child a map with the water drop still sitting where they picked it up,
+        # a hand's width from the catalogue saying they have it -- which is the sort of
+        # disagreement a six-year-old notices long before an adult does.
+        got = [i for i, cell in enumerate(self.game.items) if cell in self.game.collected]
+        if got:
+            wide = shown.width() / self.game.WIDTH
+            tall = shown.height() / self.game.HEIGHT
+            painter = QtGui.QPainter(shown)
+            c = palette()
+            for index in got:
+                for x, y in self.game.item_cells[index]:
+                    left, top = int(x * wide), int(y * tall)
+                    painter.fillRect(left, top,
+                                     int((x + 1) * wide) - left + 1,
+                                     int((y + 1) * tall) - top + 1,
+                                     QtGui.QColor(c.paper if c.dark else c.ink))
+            painter.end()
         self.hint.setPixmap(shown)
 
     def showEvent(self, event):

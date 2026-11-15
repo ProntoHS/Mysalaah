@@ -17147,6 +17147,57 @@ class MosqueMazeTest(unittest.TestCase):
         while game.route:
             game.step()
 
+    def test_the_mosque_is_sealed_and_the_gate_is_the_only_way_in(self):
+        """Harry, 15 November 2026: "the mosque in the centre should be sealed completely
+        around, there are currently 2 opening above it, there shouldn't be."
+
+        He was right, and it was worse than he could see: two of the three levels let a child
+        stroll into the mosque without collecting anything, which is the whole game. On
+        beginner the enclosure's top wall had a 22-cell hole in it, divided into the two
+        doorways he could see by a wall stub hanging above it. On expert the same thing
+        happened at the bottom, where the two channels either side of a stub ran straight
+        past the drawn door. Medium was already right, which is what told me what right was.
+
+        Measured from the inside out, with the gate SHUT, which is the question that actually
+        matters: can you get from the mosque to the start without it? Counting openings would
+        mean agreeing where the wall is; this does not.
+        """
+        from collections import deque
+        g = self.game()
+        for level in range(3):
+            with self.subTest(g.level["name"]):
+                inside = [c for c in g._cardinal(g.goal) if c in g.active]
+                self.assertTrue(inside, "there is no floor inside the mosque at all")
+                seen, queue = set(inside), deque(inside)
+                while queue:
+                    for near in g._cardinal(queue.popleft()):
+                        if near in g.active and near not in seen:
+                            seen.add(near)
+                            queue.append(near)
+                self.assertNotIn(g.start, seen,
+                                 f"{g.level['name']}: a child can walk into the mosque with "
+                                 f"the gate shut -- the pocket runs to {len(seen)} cells")
+                # Sealed, not bricked up: the way in still has to exist once it is earned.
+                g.collected = set(g.items)
+                self.assertTrue(g.gate_open)
+                self.assertTrue(g.walk_to(g.goal), "the gate opened on nothing")
+            g.cycle_difficulty()
+
+    def test_every_level_can_still_be_finished_after_the_sealing(self):
+        """The companion to the test above, and the reason it is a separate one: a wall that
+        seals the mosque could just as easily seal an item away behind it, and the failure
+        would read as 'sealed' rather than 'broken'."""
+        g = self.game()
+        for level in range(3):
+            with self.subTest(g.level["name"]):
+                for item in g.items:
+                    self.walk(g, item)
+                self.assertTrue(g.gate_open, "collecting everything did not open the gate")
+                self.walk(g, g.goal)
+                self.assertTrue(g.finished, "the journey cannot be completed")
+            g.cycle_difficulty()
+            g.restart()
+
     def test_the_three_levels_hold_five_seven_and_nine_things_to_collect(self):
         g = self.game()
         counts = []
@@ -17266,6 +17317,213 @@ class MosqueMazeTest(unittest.TestCase):
                              f"{level['asset']} is not 1920x1080")
         self.assertLess(total, 2 * 1024 * 1024, f"the three mazes weigh {total} bytes")
         self.assertTrue(Screen.playable(root))
+
+
+class WhatTheMazeDoesWithACollectedThingTest(unittest.TestCase):
+    """2.28: a thing picked up leaves the board and turns up on the 7in instead.
+
+    Harry, 15 November 2026: "instead of the items collected showing a tick they disappear
+    and the small screen catalogues the items collected."
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        settle(2)
+        self.addCleanup(lambda: shut(w))
+        w.open_a_game("mosque")
+        settle(3)
+        return w, w.games["mosque"]
+
+    @staticmethod
+    def shot(widget):
+        image = QtGui.QImage(widget.size(), QtGui.QImage.Format.Format_ARGB32)
+        image.fill(0)
+        widget.render(image)
+        return image
+
+    @staticmethod
+    def brightest(image, cell, game):
+        """The lightest pixel drawn in one maze cell."""
+        wide = image.width() / game.WIDTH
+        tall = image.height() / game.HEIGHT
+        x, y = cell
+        found = 0
+        for px in range(int(x * wide) + 2, int((x + 1) * wide) - 1):
+            for py in range(int(y * tall) + 2, int((y + 1) * tall) - 1):
+                if 0 <= px < image.width() and 0 <= py < image.height():
+                    found = max(found, QtGui.qGray(image.pixel(px, py)))
+        return found
+
+    def test_a_collected_thing_is_rubbed_out_and_no_wall_is_touched(self):
+        """THE WHOLE DIFFICULTY OF THIS CHANGE, in one test.
+
+        The items are painted into the maze artwork, so taking one off the board means
+        covering it up -- and the drawings reach up to 66px from their centres while a wall
+        can be 2px away. The first attempt covered a disc and ate holes in the maze. A hole in
+        the wall of a maze is not a blemish: it tells a child they can walk somewhere they
+        cannot.
+
+        So this asks both halves at once, on the pixels: is the thing gone, and is every wall
+        near it still exactly as bright as the artwork drew it?
+        """
+        win, screen = self.window()
+        game = screen.game
+        self.assertTrue(game.walk_to(game.items[0]))
+        while game.route:
+            game.step()
+        # AND THEN WALK AWAY, which is not fussiness: a child stands on the thing to pick it
+        # up, and a green footprint on the cell it used to occupy is bright enough to read as
+        # the thing still being there. The first run of this failed on exactly that.
+        self.assertTrue(game.walk_to(game.start))
+        while game.route:
+            game.step()
+        screen.changed.emit()
+        settle(2)
+        shot = self.shot(screen)
+
+        trodden = {(x + dx, y + dy) for x, y in game.trail[-18:]
+                   for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
+        looked = [c for c in game.item_cells[0] if c not in trodden]
+        self.assertTrue(looked, "the trail covers the whole drawing, so this proves nothing")
+        for cell in looked:
+            self.assertLess(self.brightest(shot, cell, game), 90,
+                            f"the collected thing is still drawn at {cell}")
+
+        cx, cy = game.items[0]
+        walls = [(x, y)
+                 for x in range(cx - 12, cx + 13)
+                 for y in range(cy - 12, cy + 13)
+                 if (x, y) not in game.active and (x, y) not in game.item_cells[0]
+                 and 0 <= x < game.WIDTH and 0 <= y < game.HEIGHT]
+        artwork = screen.images[game.difficulty].toImage()
+        bitten = [cell for cell in walls
+                  if self.brightest(artwork, cell, game) > 160
+                  and self.brightest(shot, cell, game) < 90]
+        self.assertEqual([], bitten,
+                         f"{len(bitten)} wall cells were rubbed out with the item: {bitten[:6]}")
+
+    def test_nothing_is_rubbed_out_before_it_is_collected(self):
+        """Or the test above would pass on a maze with no items drawn in it at all."""
+        win, screen = self.window()
+        game = screen.game
+        shot = self.shot(screen)
+        lit = [c for c in game.item_cells[0] if self.brightest(shot, c, game) > 160]
+        self.assertTrue(lit, "the first thing is not on the board to begin with")
+
+    def test_the_7in_shows_the_things_that_have_been_collected(self):
+        win, screen = self.window()
+        game = screen.game
+        blank = self.shot(screen.catalogue)
+        self.assertEqual(0, max(QtGui.qGray(blank.pixel(x, y))
+                                for x in range(0, blank.width(), 4)
+                                for y in range(0, blank.height(), 4)),
+                         "the catalogue has something on it before anything is collected")
+        for item in game.items[:2]:
+            self.assertTrue(game.walk_to(item))
+            while game.route:
+                game.step()
+        screen.changed.emit()
+        settle(2)
+        drawn = self.shot(screen.catalogue)
+        ink = sum(1 for x in range(drawn.width()) for y in range(0, drawn.height(), 2)
+                  if QtGui.qGray(drawn.pixel(x, y)) > 120)
+        self.assertGreater(ink, 200, "two things were collected and the catalogue is empty")
+
+    def test_each_thing_is_catalogued_as_its_own_drawing_and_not_a_wall(self):
+        """Cut from the artwork, so the thing on the 7in is the thing that was on the board.
+
+        The cut-out is clipped to the item's own cells for the same reason the erase is: a
+        square cut around a drawing catches whatever is near it, and the first version showed
+        the water drop with two lengths of somebody else's wall standing beside it.
+        """
+        win, screen = self.window()
+        game = screen.game
+        for index in range(len(game.items)):
+            with self.subTest(game.ITEM_KEYS[index]):
+                icon = screen.item_icon(index, 90)
+                self.assertIsNotNone(icon)
+                self.assertFalse(icon.isNull())
+                shown = icon.toImage()
+                solid = [(x, y) for x in range(shown.width()) for y in range(shown.height())
+                         if QtGui.QColor.fromRgba(shown.pixel(x, y)).alpha() > 120]
+                self.assertGreater(len(solid), 40, "the cut-out came back empty")
+
+                # AND EVERY LIT PIXEL BELONGS TO THE THING ITSELF. Counting them and hoping
+                # the total looked small enough was the first version of this, and a sabotage
+                # walked through it: dropping the clip altogether let the walls in and the
+                # count stayed under the bar. So each lit pixel is mapped back to the cell it
+                # was cut from and has to be one of the item's own.
+                art = screen.images[game.difficulty]
+                nx, ny = game.item_norm[index]
+                reach = int(art.width() * screen.ERASE / 1920)
+                left_px = int(nx * art.width()) - reach
+                top_px = int(ny * art.height()) - reach
+                span = reach * 2
+                stray = set()
+                for x, y in solid:
+                    ax = left_px + (x + 0.5) * span / shown.width()
+                    ay = top_px + (y + 0.5) * span / shown.height()
+                    cell = (int(ax * game.WIDTH / art.width()),
+                            int(ay * game.HEIGHT / art.height()))
+                    if cell not in game.item_cells[index]:
+                        stray.add(cell)
+                self.assertEqual(set(), stray,
+                                 f"the cut-out carries {len(stray)} cells that are not the "
+                                 f"thing itself: {sorted(stray)[:6]}")
+
+    def test_the_footprints_are_green_and_bigger_than_they_were(self):
+        """Harry: "have the footprints in green colour and make slightly bigger." Green is the
+        mat's own colour for the live thing -- it is what the current prayer is drawn in -- so
+        nothing new was invented for this."""
+        from salaah.mosque_maze import Screen as MazeScreen
+        from salaah.theme import palette
+        self.assertGreater(MazeScreen.FOOT, 7, "the footprints are no bigger than they were")
+        win, screen = self.window()
+        game = screen.game
+        self.assertTrue(game.walk_to(game.items[0]))
+        while game.route:
+            game.step()
+        screen.changed.emit()
+        settle(2)
+        shot = self.shot(screen)
+        want = QtGui.QColor(palette().green)
+        greens = 0
+        for x in range(0, shot.width(), 2):
+            for y in range(0, shot.height(), 2):
+                pixel = QtGui.QColor.fromRgb(shot.pixel(x, y))
+                if (pixel.green() > pixel.red() + 30 and pixel.green() > pixel.blue() + 10
+                        and abs(pixel.green() - want.green()) < 90):
+                    greens += 1
+        self.assertGreater(greens, 25, "there is no green trail on the board")
+
+    def test_walking_into_the_mosque_says_well_done(self):
+        """The gate opening was never the end of the game -- entering the mosque is, and the
+        game is called Journey to the Mosque. Before 2.28 two of the three levels let a child
+        wander in through a gap in the wall instead, landing anywhere but the one cell that
+        counts, so the box Harry was expecting never came."""
+        win, screen = self.window()
+        game = screen.game
+        shouts = []
+        screen.won.connect(lambda: shouts.append("won"))
+        for item in game.items:
+            self.assertTrue(game.walk_to(item))
+            while game.route:
+                game.step()
+        screen.changed.emit()
+        settle()
+        self.assertEqual([], shouts, "it said well done before the mosque was reached")
+        self.assertTrue(game.walk_to(game.goal))
+        while game.route:
+            game.step()
+        screen.changed.emit()
+        settle()
+        self.assertEqual(["won"], shouts, "the journey finished and nothing said so")
 
 
 class TwoScreensAreMeasuredSeparatelyTest(unittest.TestCase):
