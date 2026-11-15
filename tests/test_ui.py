@@ -17527,12 +17527,48 @@ class WhatTheMazeDoesWithACollectedThingTest(unittest.TestCase):
         self.assertEqual([], bitten,
                          f"{len(bitten)} wall cells were rubbed out with the item: {bitten[:6]}")
 
+    def test_no_thing_claims_a_piece_of_somebody_elses_wall(self):
+        """THE TEST THAT SHOULD HAVE CAUGHT THIS AND DID NOT.
+
+        item_cells is worked out offline by shape: a wall is a long run that leaves any window
+        drawn around an item, and an item is a small thing that does not. A wall bar that sits
+        ENTIRELY INSIDE that window passes the test, and one did -- the miswak on expert came
+        back with twelve cells of maze wall attached. Collecting it would have rubbed out that
+        wall: a gap in the picture where the mask still says you cannot walk, which is the one
+        thing a maze must never do.
+
+        It slipped past test_a_collected_thing_is_rubbed_out_and_no_wall_is_touched because
+        that test EXCLUDES the recorded cells when it looks for bitten walls -- it trusted the
+        very data it was meant to be checking. This checks the data itself: a drawing here
+        reaches about five cells from its centre, so anything claiming more than six is
+        claiming something that is not it.
+        """
+        win, screen = self.window()
+        game = screen.game
+        for level in range(3):
+            with self.subTest(game.level["name"]):
+                for index, item in enumerate(game.items):
+                    far = max((max(abs(x - item[0]), abs(y - item[1]))
+                               for x, y in game.item_cells[index]), default=0)
+                    self.assertLessEqual(
+                        far, 6,
+                        f"{game.ITEM_KEYS[index]} claims a cell {far} away from itself, "
+                        "which is further than any of these drawings reach")
+            game.cycle_difficulty()
+            game.restart()
+
     def test_nothing_is_rubbed_out_before_it_is_collected(self):
-        """Or the test above would pass on a maze with no items drawn in it at all."""
+        """Or the test above would pass on a maze with no items drawn in it at all.
+
+        Asks whether anything is DRAWN there, not whether anything is white. Since 2.30 each
+        thing is painted in its own colour, and the first of them is a blue that comes to 156
+        on a grey scale -- under the 160 this used to want. The test failed and the game was
+        fine, which is the right way round but still an hour of mine.
+        """
         win, screen = self.window()
         game = screen.game
         shot = self.shot(screen)
-        lit = [c for c in game.item_cells[0] if self.brightest(shot, c, game) > 160]
+        lit = [c for c in game.item_cells[0] if self.brightest(shot, c, game) > 60]
         self.assertTrue(lit, "the first thing is not on the board to begin with")
 
     def test_the_7in_shows_the_things_that_have_been_collected(self):
@@ -17595,6 +17631,178 @@ class WhatTheMazeDoesWithACollectedThingTest(unittest.TestCase):
                 self.assertEqual(set(), stray,
                                  f"the cut-out carries {len(stray)} cells that are not the "
                                  f"thing itself: {sorted(stray)[:6]}")
+
+    def test_the_mosque_is_green_and_each_thing_has_its_own_colour(self):
+        """Harry, 15 November 2026: "the mosque should be green and the items to be collected
+        in red or individual colours." Individual, because it costs no more and does more.
+
+        And NO THING IS GREEN, which is the rule that matters: green already means the mosque
+        and it means the footprints, so a green pickup would be the one colour on the board
+        that says something else. The first palette had a mint in it and the badge read as a
+        small piece of mosque.
+        """
+        from salaah.mosque_maze import Rules
+        from salaah.theme import palette
+        win, screen = self.window()
+        game = screen.game
+        green = QtGui.QColor(palette().green)
+        for colour in Rules.ITEM_COLOURS:
+            with self.subTest(colour):
+                shade = QtGui.QColor(colour)
+                self.assertFalse(
+                    shade.green() > shade.red() + 40 and shade.green() > shade.blue() + 40,
+                    f"{colour} is a green, and green is the mosque")
+                apart = abs(shade.hue() - green.hue())
+                self.assertGreater(min(apart, 360 - apart), 40,
+                                   f"{colour} sits too near the mosque's green")
+        self.assertGreaterEqual(len(set(Rules.ITEM_COLOURS)), 9, "two things share a colour")
+
+        shot = self.shot(screen)
+        found = set()
+        for cell in game.mosque_cells:
+            pixel = QtGui.QColor.fromRgb(shot.pixel(*self.middle(shot, cell, game)))
+            if pixel.green() > pixel.red() + 30 and pixel.green() > pixel.blue() + 10:
+                found.add(cell)
+        self.assertGreater(len(found), len(game.mosque_cells) // 4,
+                           "the mosque is not drawn in green")
+
+    @staticmethod
+    def middle(image, cell, game):
+        return (int((cell[0] + 0.5) * image.width() / game.WIDTH),
+                int((cell[1] + 0.5) * image.height() / game.HEIGHT))
+
+    def test_no_wall_is_painted_in_a_thing_colour(self):
+        """ADDED AFTER A SABOTAGE WALKED THROUGH, and after the same fault was found by eye.
+
+        The colour is cut as a RECTANGLE around each drawing, and a rectangle catches whatever
+        else is inside it -- which on this artwork means maze wall. The prayer beads on expert
+        came back with a blue bar beside them, which is a wall painted as if it were something
+        to pick up. Removing the clip that stops this broke no test at all.
+
+        So: every wall the mask knows about, that is not part of a drawing, has to stay the
+        colour walls are. Checked on saturation rather than on a particular grey, because the
+        mat has two themes and white and black are both unsaturated while every one of these
+        colours is not.
+        """
+        win, screen = self.window()
+        game = screen.game
+        # EVERY LEVEL. The first version of this looked at beginner only, and the wall that
+        # was actually being painted was on expert -- so the sabotage that removes the clip
+        # walked straight through it. The fault had already been found by eye on expert by
+        # then, which made passing here doubly misleading.
+        for level in range(3):
+            with self.subTest(game.level["name"]):
+                game.restart()
+                screen.changed.emit()
+                settle()
+                shot = self.shot(screen)
+                theirs = set(game.mosque_cells)
+                for cells in game.item_cells:
+                    theirs |= set(cells)
+                painted = []
+                for x in range(game.WIDTH):
+                    for y in range(game.HEIGHT):
+                        if (x, y) in game.active or (x, y) in theirs:
+                            continue
+                        spot = self.middle(shot, (x, y), game)
+                        pixel = QtGui.QColor.fromRgb(shot.pixel(*spot))
+                        if pixel.saturation() > 90 and pixel.value() > 80:
+                            painted.append((x, y))
+                self.assertEqual([], painted[:8],
+                                 f"{len(painted)} wall cells on {game.level['name']} are "
+                                 "painted in a colour that belongs to something you pick up")
+            game.cycle_difficulty()
+
+    def test_the_way_is_actually_drawn_on_the_little_map(self):
+        """The companion to test_the_map_draws_a_way_to_the_next_thing, which asks the game
+        for the route and never checks anybody drew it. Blanking the line broke nothing.
+
+        Looks partway ALONG the route -- not at either end. The thing being headed for is
+        already that colour, and so is the dot showing where the child is, so both ends would
+        pass on a map with no line on it at all.
+        """
+        win, screen = self.window()
+        game = screen.game
+        screen._update_hint()
+        settle()
+        shown = screen.hint.pixmap()
+        self.assertFalse(shown.isNull(), "there is no little map")
+        objective = screen.what_we_are_after()
+        way = screen.the_way_to(objective)
+        self.assertGreater(len(way), 8, "the route is too short to prove anything")
+        want = QtGui.QColor(game.ITEM_COLOURS[
+            [i for i, c in enumerate(game.items) if c == objective][0]])
+        picture = shown.toImage()
+        middles = [way[len(way) // 3], way[len(way) // 2], way[2 * len(way) // 3]]
+        found = 0
+        for cell in middles:
+            x, y = self.middle(picture, cell, game)
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    if 0 <= x + dx < picture.width() and 0 <= y + dy < picture.height():
+                        pixel = QtGui.QColor.fromRgb(picture.pixel(x + dx, y + dy))
+                        if (abs(pixel.hue() - want.hue()) < 25
+                                and pixel.saturation() > 60):
+                            found += 1
+        self.assertGreater(found, 0,
+                           "nothing is drawn along the middle of the way on the map")
+
+    def test_the_map_draws_a_way_to_the_next_thing(self):
+        """Harry on expert: "there is no way to collect the items as the routes lead to dead
+        ends." Everything was reachable; tracing it is about 1,975 cells of corridor against
+        beginner's 424, and a child cannot see round a corner.
+
+        The line is on the 7in MAP and not on the board, so finding the way is still the game.
+        Every step of it has to be a move the child could actually make -- a line that cuts a
+        corner through a wall would be worse than no line at all.
+        """
+        win, screen = self.window()
+        game = screen.game
+        for level in range(3):
+            with self.subTest(game.level["name"]):
+                for _ in range(len(game.items) + 1):
+                    objective = screen.what_we_are_after()
+                    if objective is None:
+                        break
+                    way = screen.the_way_to(objective)
+                    self.assertTrue(way, "the map shows no way at all")
+                    self.assertEqual(game.player, way[0], "the line starts somewhere else")
+                    self.assertEqual(objective, way[-1], "the line stops short of the thing")
+                    for here, next_one in zip(way, way[1:]):
+                        self.assertIn(next_one, game.neighbours(here),
+                                      f"the line steps from {here} to {next_one}, "
+                                      "which is through a wall")
+                    if len(game.collected) == len(game.items):
+                        break
+                    nxt = next(i for i in game.items if i not in game.collected)
+                    self.assertTrue(game.walk_to(nxt))
+                    while game.route:
+                        game.step()
+            game.cycle_difficulty()
+
+    def test_the_map_does_not_search_the_board_on_every_step(self):
+        """The help may not cost more than the thing it is helping.
+
+        Drawn the obvious way -- route_to(nearest_objective()) each redraw -- this measured
+        112ms a step on expert against a move timer that fires every 24ms, and a Pi is several
+        times slower again. nearest_objective alone searches the whole board once per
+        remaining thing: nine searches a frame.
+
+        So the search runs once per objective and the line walks downhill from what it found.
+        Counted rather than timed, because a clock on a busy machine makes a flaky test.
+        """
+        win, screen = self.window()
+        game = screen.game
+        searches = []
+        real = game.distances
+        game.distances = lambda *a, **k: (searches.append(1), real(*a, **k))[1]
+        self.addCleanup(lambda: setattr(game, "distances", real))
+        objective = screen.what_we_are_after()
+        for _ in range(25):
+            screen.the_way_to(objective)
+        self.assertLessEqual(len(searches), 1,
+                             f"the board was searched {len(searches)} times to redraw one "
+                             "line that never moved")
 
     def test_the_footprints_are_green_and_bigger_than_they_were(self):
         """Harry: "have the footprints in green colour and make slightly bigger." Green is the

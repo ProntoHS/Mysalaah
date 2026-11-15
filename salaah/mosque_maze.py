@@ -86,7 +86,7 @@ class Rules:
                            '00000000000000000000000000000000000000c001007c00c01f00fc01c01f00fc01801f00e0010018000000000000000000000000000000',
                            '000000000000000000000000000000000000007000000f00f801000f00e00100000000000000000000000000000000000000000000000000',
                            '000000000000000000000000000000000000000000000000000000fe01c03f00f80700ff00e01f0060000000000000000000000000000000',
-                           '000000000000000000000000000000000000000000000000e003006c00800c00f001003c00000e00c301600000fc3f80ff07f0ff00000000',
+                           '000000000000000000000000000000000000000000000000e003006c00800c00f001003c00000e00c0010000000000000000000000000000',
                            '000000000000000000000000000000000003007000001e00e003007800000d00f001003e00c0070000000000000000000000000000000000',
                            '000000000000000000000000000000000000002000001f00e003003800000500000000000000000000000000000000000000000000000000',
                            '00000000000000000000000000000000000000f000003f00e00f00fc01803f00f003003c0000000000000000000000000000000000000000'),
@@ -145,6 +145,7 @@ class Rules:
         self.gate_cell = tuple(level["approach"])
         self.goal = tuple(level["goal"])
         self.inside = self._the_mosque()      # needs goal, so it comes after it
+        self.mosque_cells = self._the_building()
         self.gate_norm = tuple(level["gate_norm"])
         self.player = self.start
         self.collected = set()
@@ -154,6 +155,23 @@ class Rules:
 
     #: How far either side of an item's own cell its drawing is recorded.
     ITEM_REACH = 10
+
+    #: One colour per pickup, in the order they appear in each level's `items`.
+    #:
+    #: Harry, 15 November 2026: "the mosque should be green and the items to be collected in
+    #: red or individual colours." Individual, because it costs nothing more and does more: a
+    #: child hunting the blue one has something to hunt, and the catalogue on the 7in shows
+    #: each thing in the colour it had on the board, so the two read as the same object.
+    #:
+    #: Chosen to stay apart from each other on black and from the green of the mosque, and
+    #: light enough to read at the size these are drawn. None of them is the mat's own red,
+    #: which belongs to the things you press.
+    #: NONE OF THEM GREEN, which is the rule that matters. Green means the mosque, and it
+    #: means the footprints, so a green thing to collect would be the one colour on the board
+    #: that already says something else. The first draft had a mint and a lime in it and the
+    #: mint badge read as a small piece of mosque.
+    ITEM_COLOURS = ("#F2545B", "#F0924F", "#F0C24F", "#D9D94F", "#4FB3F0",
+                    "#4F7BF0", "#9B7BE8", "#E85FD0", "#F07FB0")
 
     #: How close a child has to come to pick something up, in steps along the floor.
     #:
@@ -188,6 +206,25 @@ class Rules:
                     queue.append(near)
             cursor += 1
         return frozenset(found)
+
+    def _the_building(self) -> frozenset:
+        """The cells the mosque itself is drawn on, so it can be coloured.
+
+        Worked out from the floor rather than recorded: inside the enclosure the only thing
+        that is not floor IS the mosque, so it is the not-floor cells within the sealed
+        pocket's own bounds. The bounds are drawn in one cell from the edge so the enclosure
+        wall -- which is maze, not mosque -- keeps the colour of every other wall.
+        """
+        if not self.inside:
+            return frozenset()
+        xs = [cell[0] for cell in self.inside]
+        ys = [cell[1] for cell in self.inside]
+        return frozenset(
+            (x, y)
+            for x in range(min(xs) + 1, max(xs))
+            for y in range(min(ys) + 1, max(ys))
+            if (x, y) not in self.active
+        )
 
     def _near_enough(self, item) -> frozenset:
         """The floor a child can be standing on and still have picked this up. See PICKUP."""
@@ -505,6 +542,14 @@ class Screen(QtWidgets.QWidget):
         self._move_timer.setInterval(24)
         self._move_timer.timeout.connect(self._advance)
         self._ignore_mouse_release = False
+        #: Which thing the map's line points at; see what_we_are_after.
+        self._after = None
+        self._after_key = None
+        #: How far every cell is from the thing being headed for; see the_way_to.
+        self._field: dict = {}
+        self._field_key = None
+        #: {key: (tinted pixmap, cell bounds)}; see painted().
+        self._tints: dict = {}
         #: {(difficulty, item index, ink): the item's own drawing, for the 7in catalogue}.
         self._icons: dict[tuple[int, int, str], QtGui.QPixmap] = {}
 
@@ -760,6 +805,100 @@ class Screen(QtWidgets.QWidget):
         if result in ("nothing", "finished") or not self.game.route:
             self._move_timer.stop()
 
+    def painted(self, cells, colour: str):
+        """The artwork over those cells, in `colour`, with the floor left transparent.
+
+        FAST ON PURPOSE. The obvious way -- read the brightness of every pixel and write a
+        coloured one back -- is what item_icon does for the 7in, where it runs once on a
+        thumbnail. Doing it here would mean a quarter of a million pixels for nine things
+        every time the level changed, which on a Pi is a pause a child would see.
+
+        So Qt does the work: the crop is thresholded to one bit, inverted so the DRAWING is
+        what shows rather than the floor, and used as a mask over a flat fill of the colour.
+        Measured at 49ms for the whole 1920x1080 board, against seconds for the pixel loop.
+
+        Cached by the cells and the colour, so it survives repaints and is rebuilt only when
+        the level or the theme changes.
+        """
+        image = self.images[self.game.difficulty]
+        if image.isNull() or not cells:
+            return None, None
+        key = (self.game.difficulty, colour, len(cells), min(cells), max(cells))
+        found = self._tints.get(key)
+        if found is not None:
+            return found
+        xs = [cell[0] for cell in cells]
+        ys = [cell[1] for cell in cells]
+        wide = image.width() / self.game.WIDTH
+        tall = image.height() / self.game.HEIGHT
+        box = QtCore.QRect(int(min(xs) * wide), int(min(ys) * tall),
+                           int((max(xs) + 1 - min(xs)) * wide),
+                           int((max(ys) + 1 - min(ys)) * tall))
+        piece = image.copy(box)
+        mono = piece.toImage().convertToFormat(QtGui.QImage.Format.Format_Mono,
+                                               Qt.ImageConversionFlag.MonoOnly
+                                               | Qt.ImageConversionFlag.ThresholdDither)
+        mono.invertPixels()
+        tint = QtGui.QPixmap(piece.size())
+        tint.fill(QtGui.QColor(colour))
+        tint.setMask(QtGui.QBitmap.fromImage(mono))
+        self._tints[key] = (tint, (min(xs), min(ys), max(xs) + 1, max(ys) + 1))
+        return self._tints[key]
+
+    def colour_layer(self, painter, wide: float, tall: float, background) -> None:
+        """Paint the mosque green and each uncollected thing its own colour, at any scale.
+
+        TAKES ITS SCALE rather than reading the widget's, so the big board and the little map
+        on the 7in draw the same layer. They were drifting apart once already -- the map went
+        on showing things the board had lost -- and two copies of this would do it again.
+
+        Each drawing is rubbed out before it is painted back. A colour laid on top of white
+        comes out washed; laid on the floor colour it comes out as itself.
+        """
+        def rub_out(cells):
+            for x, y in cells:
+                # Rounded outward so neighbouring cells overlap by a pixel rather than
+                # leaving a hairline of the old drawing along the seam between them.
+                left, top = int(x * wide), int(y * tall)
+                painter.fillRect(left, top,
+                                 int((x + 1) * wide) - left + 1,
+                                 int((y + 1) * tall) - top + 1, background)
+
+        def put_back(cells, colour):
+            tint, bounds = self.painted(cells, colour)
+            if tint is None:
+                return
+            # CLIPPED TO THE SAME CELLS THAT WERE RUBBED OUT. The tint is cut as a rectangle
+            # around the drawing, and a rectangle around a drawing catches whatever else is
+            # inside it -- which on this artwork means walls. Without this the prayer beads
+            # on expert came back with a blue box drawn round them: the corridor walls in
+            # their corner, painted in the beads' colour.
+            #
+            # Rubbing out and painting back have to agree on their edges or one of them shows.
+            region = QtGui.QRegion()
+            for x, y in cells:
+                left, top = int(x * wide), int(y * tall)
+                region += QtCore.QRect(left, top,
+                                       int((x + 1) * wide) - left + 1,
+                                       int((y + 1) * tall) - top + 1)
+            left, top, right, foot = bounds
+            painter.save()
+            painter.setClipRegion(region)
+            painter.drawPixmap(QtCore.QRectF(left * wide, top * tall,
+                                             (right - left) * wide, (foot - top) * tall),
+                               tint, QtCore.QRectF(tint.rect()))
+            painter.restore()
+
+        # The enclosure wall keeps the colour of every other wall: it is maze, not mosque.
+        rub_out(self.game.mosque_cells)
+        put_back(self.game.mosque_cells, palette().green)
+        for index, cell in enumerate(self.game.items):
+            rub_out(self.game.item_cells[index])
+            if cell in self.game.collected:
+                continue      # collected: rubbed out and not put back. That is the point.
+            put_back(self.game.item_cells[index],
+                     self.game.ITEM_COLOURS[index % len(self.game.ITEM_COLOURS)])
+
     def item_icon(self, index: int, size: int):
         """One item's drawing, cut from the maze artwork and recoloured to suit the theme.
 
@@ -776,7 +915,8 @@ class Screen(QtWidgets.QWidget):
         image = self.images[self.game.difficulty]
         if image.isNull():
             return None
-        key = (self.game.difficulty, index, palette().ink, size)
+        colour = self.game.ITEM_COLOURS[index % len(self.game.ITEM_COLOURS)]
+        key = (self.game.difficulty, index, colour, size)
         found = self._icons.get(key)
         if found is not None:
             return found
@@ -800,7 +940,7 @@ class Screen(QtWidgets.QWidget):
                          Qt.TransformationMode.SmoothTransformation))
         out = QtGui.QImage(small.size(), QtGui.QImage.Format.Format_ARGB32_Premultiplied)
         out.fill(QtGui.QColor(0, 0, 0, 0))
-        ink = QtGui.QColor(palette().ink)
+        ink = QtGui.QColor(colour)      # the colour it had on the board, so they match
         # ONLY WHAT STANDS ON FLOOR, by the same mask the eraser is clipped to. A square cut
         # around an item catches whatever else is near it, and near is near: the walls in this
         # artwork come within 2px of some of these drawings. Without this the catalogue showed
@@ -893,18 +1033,11 @@ class Screen(QtWidgets.QWidget):
         # keeping: the mask was made from this artwork, so it calls the drawing a wall too.
         # That erase rubbed out the floor around each item and left the item sitting in it.
         # Rules.item_cells is the list of what each drawing actually covers.
-        wide = self.width() / self.game.WIDTH
-        tall = self.height() / self.game.HEIGHT
-        for index, cell in enumerate(self.game.items):
-            if cell not in self.game.collected:
-                continue
-            for x, y in self.game.item_cells[index]:
-                # Rounded outward so neighbouring cells overlap by a pixel rather than leaving
-                # a hairline of the drawing along the seam between them.
-                left, top = int(x * wide), int(y * tall)
-                painter.fillRect(left, top,
-                                 int((x + 1) * wide) - left + 1,
-                                 int((y + 1) * tall) - top + 1, background)
+        # THE MOSQUE IN GREEN AND EACH THING IN ITS OWN COLOUR. Harry, 15 November 2026:
+        # "the mosque should be green and the items to be collected in red or individual
+        # colours." The same layer is drawn on the 7in's little map; see colour_layer.
+        self.colour_layer(painter, self.width() / self.game.WIDTH,
+                          self.height() / self.game.HEIGHT, background)
 
         # THE TRAIL IN GREEN, AND BIGGER. Harry: "have the footprints in green colour and make
         # slightly bigger." On a white-on-black maze the old grey prints were the one thing on
@@ -929,6 +1062,105 @@ class Screen(QtWidgets.QWidget):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawEllipse(centre, self.win.px(34), self.win.px(34))
 
+    def what_we_are_after(self):
+        """Which thing the line on the map points at, chosen once per thing collected.
+
+        Rules.nearest_objective searches the board once FOR EVERY remaining item to find the
+        closest -- nine searches on expert. Called on every redraw that cost more than the
+        drawing did: it was most of the 112ms a step this was measured at.
+
+        It only needs asking when the answer can have changed, which is when something has
+        been collected or the gate has opened. Keeping the same objective in between is also
+        better to follow: a line that re-aims itself every time a child shuffles a step is a
+        line that is hard to walk along.
+        """
+        key = (self.game.difficulty, len(self.game.collected), self.game.gate_open)
+        if self._after_key != key:
+            self._after = self.game.nearest_objective()
+            self._after_key = key
+        return self._after
+
+    def the_way_to(self, objective):
+        """The cells from the child to their objective, worked out cheaply enough to redraw.
+
+        SEARCHED FROM THE OBJECTIVE, NOT FROM THE CHILD, and that is the whole trick. The
+        obvious route_to(objective) runs a fresh search of the whole board every time anything
+        moves: measured at 42ms a step on beginner and 67ms on expert, against a move timer
+        that fires every 24ms. On a Pi, several times slower again, the game would have
+        crawled -- a help that makes the thing it is helping unusable.
+
+        The objective changes nine times in a game; the child moves hundreds of times. So the
+        search runs once per objective and stores how far every cell is FROM it, and each
+        redraw just walks downhill from wherever the child is. That is a few hundred
+        comparisons instead of ten thousand.
+
+        Keyed on the gate as well as the level, because opening the gate adds a way through
+        the mosque wall and so changes every distance behind it.
+        """
+        key = (self.game.difficulty, objective, self.game.gate_open)
+        if self._field_key != key:
+            self._field = self.game.distances(objective)
+            self._field_key = key
+        cell = self.game.player
+        if cell not in self._field:
+            return []
+        route = [cell]
+        while cell != objective and len(route) < len(self._field):
+            nearer = [near for near in self.game.neighbours(cell)
+                      if near in self._field and self._field[near] < self._field[cell]]
+            if not nearer:
+                break
+            cell = min(nearer, key=lambda near: self._field[near])
+            route.append(cell)
+        return route
+
+    def draw_the_way(self, painter, wide: float, tall: float) -> None:
+        """On the little map only: a line from where the child is to what they are after.
+
+        Harry, 15 November 2026, on the expert maze: "there is no way to collect the items as
+        the routes lead to dead ends." They were all reachable -- I had walked every one -- but
+        reaching them means tracing about 1,975 cells of corridor on expert, against 424 on
+        beginner, and a child cannot see round a corner. The maze was not unfair, it was
+        unreadable.
+
+        ON THE 7in AND NOT ON THE BOARD, which is the whole idea. The big screen keeps the
+        maze exactly as it was, so finding the way is still the game; the little screen is a
+        map, and drawing the route on a map is what a map is for. A child who wants to work it
+        out can ignore it, the way you can ignore a signpost.
+
+        IN THE COLOUR OF WHAT IT LEADS TO, so the line explains itself: blue while it is
+        taking you to the blue thing, green once everything is collected and the only thing
+        left is the mosque. Nothing has to say in words what the line means, which also means
+        nothing has to say it in ten languages.
+        """
+        objective = self.what_we_are_after()
+        if objective is None or self.game.finished:
+            return
+        colour = QtGui.QColor(palette().green)
+        for index, cell in enumerate(self.game.items):
+            if cell == objective:
+                colour = QtGui.QColor(
+                    self.game.ITEM_COLOURS[index % len(self.game.ITEM_COLOURS)])
+        route = self.the_way_to(objective)
+
+        def middle(cell):
+            return QtCore.QPointF((cell[0] + 0.5) * wide, (cell[1] + 0.5) * tall)
+
+        if len(route) > 1:
+            faint = QtGui.QColor(colour)
+            faint.setAlpha(150)
+            pen = QtGui.QPen(faint, max(1.0, wide * 0.8))
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPolyline(QtGui.QPolygonF([middle(cell) for cell in route]))
+
+        # And where the child is now, or the line starts from nowhere.
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(colour)
+        painter.drawEllipse(middle(self.game.player), wide * 1.6, tall * 1.6)
+
     def _update_hint(self) -> None:
         if not hasattr(self, "hint"):
             return
@@ -943,20 +1175,15 @@ class Screen(QtWidgets.QWidget):
         # would show a child a map with the water drop still sitting where they picked it up,
         # a hand's width from the catalogue saying they have it -- which is the sort of
         # disagreement a six-year-old notices long before an adult does.
-        got = [i for i, cell in enumerate(self.game.items) if cell in self.game.collected]
-        if got:
-            wide = shown.width() / self.game.WIDTH
-            tall = shown.height() / self.game.HEIGHT
-            painter = QtGui.QPainter(shown)
-            c = palette()
-            for index in got:
-                for x, y in self.game.item_cells[index]:
-                    left, top = int(x * wide), int(y * tall)
-                    painter.fillRect(left, top,
-                                     int((x + 1) * wide) - left + 1,
-                                     int((y + 1) * tall) - top + 1,
-                                     QtGui.QColor(c.paper if c.dark else c.ink))
-            painter.end()
+        c = palette()
+        wide = shown.width() / self.game.WIDTH
+        tall = shown.height() / self.game.HEIGHT
+        painter = QtGui.QPainter(shown)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        self.colour_layer(painter, wide, tall,
+                          QtGui.QColor(c.paper if c.dark else c.ink))
+        self.draw_the_way(painter, wide, tall)
+        painter.end()
         self.hint.setPixmap(shown)
 
     def showEvent(self, event):
