@@ -238,6 +238,139 @@ class TextSize(QtWidgets.QWidget):
             self.chose.emit(here)
 
 
+class ColumnChoice(QtWidgets.QWidget):
+    """Three columns, two, or one. Touch one to set how the list of surahs is laid out.
+
+    Harry drew these as three SVGs and the shapes here are measured off them -- the columns,
+    their corner radius, the three lines across each one and their thickness, all read out of
+    his files and expressed as proportions of a 256 square so they hold at any size.
+
+    DRAWN RATHER THAN SHIPPED AS THE SVGs HE SENT, for the same reasons TextSize above is
+    drawn rather than pictured: a file does not know how big the screen is, does not turn over
+    when the mat goes from dark to light, and three of them would be three more things in the
+    release that have to agree with each other. These are nine rectangles and nine lines.
+
+    It follows TextSize because it IS the same control in a different costume -- a row of three
+    that makes the words bigger -- so it uses the same red for the chosen one, the same grey
+    for the others, the same lighten on press. A child who has used the three A's on the
+    reading page has already learned this one.
+
+    Left to right is fewest words per line to most, which is smallest text to largest: the same
+    direction the three A's grow in, so the two rows do not contradict each other.
+    """
+
+    chose = Signal(int)
+
+    CHOSEN = TextSize.CHOSEN
+    RESTING = TextSize.RESTING
+    GAP = 0.16                  # of one icon's width
+    TALL = 52                   # the icons' height at 1080p, if nobody says otherwise
+
+    #: (columns, bar width, corner radius, line inset, line thickness) as proportions of the
+    #: 256 square Harry drew in. The columns stand 28..228 in every one of the three, so they
+    #: are all the same height and only the number and the width of them changes.
+    SHAPES = (
+        (3, 62 / 256, 12 / 256, 15 / 256, 10 / 256),
+        (2, 86 / 256, 14 / 256, 19 / 256, 12 / 256),
+        (1, 140 / 256, 16 / 256, 24 / 256, 14 / 256),
+    )
+    TOP, BOTTOM = 28 / 256, 228 / 256
+    LINES = (78 / 256, 128 / 256, 178 / 256)
+    SPREAD = 220 / 256          # the three-column drawing is the widest; all are centred
+
+    def __init__(self, window, columns: int = 3, tall: int = 0):
+        super().__init__()
+        self.win = window
+        self.columns = columns
+        self.tall = int(tall) or self.TALL
+        self.pressed: int | None = None
+        self.setObjectName("columnChoice")
+        # Nothing behind the icons but the page. Without this the widget paints its palette
+        # colour first, which on the dark theme is a pale slab under three dark drawings.
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed,
+                           QtWidgets.QSizePolicy.Policy.Fixed)
+        self.setFixedSize(self.sizeHint())
+
+    def one_wide(self) -> float:
+        """How wide a single icon is. His drawings are square, so: as tall as they stand."""
+        return self.win.px(self.tall)
+
+    def sizeHint(self) -> QtCore.QSize:
+        one = self.one_wide()
+        return QtCore.QSize(int(one * 3 + one * self.GAP * 2), int(self.win.px(self.tall)))
+
+    def set_columns(self, columns: int) -> None:
+        if columns != self.columns:
+            self.columns = columns
+            self.update()
+
+    def boxes(self) -> list[QtCore.QRectF]:
+        one = self.one_wide()
+        gap = one * self.GAP
+        wide = one * 3 + gap * 2
+        x = (self.width() - wide) / 2
+        out = []
+        for _ in self.SHAPES:
+            out.append(QtCore.QRectF(x, 0, one, self.height()))
+            x += one + gap
+        return out
+
+    def paintEvent(self, _):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        for i, (box, shape) in enumerate(zip(self.boxes(), self.SHAPES)):
+            columns, bar_w, radius, inset, weight = shape
+            colour = QtGui.QColor(self.CHOSEN if columns == self.columns else self.RESTING)
+            if i == self.pressed:
+                colour = colour.lighter(130)
+            unit = min(box.width(), box.height())
+            top = box.top() + box.height() * self.TOP
+            tall = box.height() * (self.BOTTOM - self.TOP)
+            wide = unit * bar_w
+            # The columns sit on one line and are centred as a group, exactly as he drew them.
+            spread = unit * self.SPREAD
+            left = box.center().x() - spread / 2
+            step = (spread - wide) / (columns - 1) if columns > 1 else 0
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(colour)
+            for n in range(columns):
+                x = left + step * n if columns > 1 else box.center().x() - wide / 2
+                painter.drawRoundedRect(QtCore.QRectF(x, top, wide, tall),
+                                        unit * radius, unit * radius)
+            pen = QtGui.QPen(QtGui.QColor("white"))
+            pen.setWidthF(max(1.0, unit * weight))
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            for n in range(columns):
+                x = left + step * n if columns > 1 else box.center().x() - wide / 2
+                for line in self.LINES:
+                    y = box.top() + box.height() * line
+                    painter.drawLine(QtCore.QPointF(x + unit * inset, y),
+                                     QtCore.QPointF(x + wide - unit * inset, y))
+
+    def which(self, point: QtCore.QPointF) -> int | None:
+        for i, box in enumerate(self.boxes()):
+            if box.contains(point):
+                return i
+        return None
+
+    def mousePressEvent(self, event):
+        self.pressed = self.which(event.position())
+        self.update()
+
+    def mouseReleaseEvent(self, event):
+        was, self.pressed = self.pressed, None
+        self.update()
+        here = self.which(event.position())
+        if here is not None and here == was:
+            columns = self.SHAPES[here][0]
+            self.set_columns(columns)
+            self.chose.emit(columns)
+
+
 class Fonts:
     """Loads the bundled Arabic faces. Falls back to whatever the system has."""
 

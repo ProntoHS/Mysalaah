@@ -41,7 +41,8 @@ from .local import LocalScreen, Nearby
 from .duaboard import DuaBoard
 from .recite import Store, WordTimes
 from .call import Adhan, CallBox
-from .reading import LIST_BAR, NUMBER_LINE, READING_TEXT_SIZE_PX, Reader, SurahList
+from .reading import (COLUMN_TEXT, LIST_BAR, NUMBER_LINE, READING_TEXT_SIZE_PX, Reader,
+                      SurahList)
 from .qibla import MOVED, Facing, NoCompass, bearing_to_kaaba, turn_needed
 from .power import Fan, Halt, Layout, Outputs, StatusLed
 from .settings import Settings
@@ -1801,6 +1802,10 @@ class MainWindow(QtWidgets.QWidget):
     def stylesheet(self) -> str:
         px = self.px
         c = self.colours()
+        # How much bigger the surah list's words are drawn, which depends on how many columns
+        # it is laid out in. Read from the setting rather than from the list itself, because
+        # this is built before the list exists and again every time the theme changes.
+        grew = COLUMN_TEXT.get(getattr(self.settings, "surah_columns", 3), 1.0)
         # THE STRIP ACROSS THE TOP IS THE MAT'S OWN THEME. Black with white lettering while the
         # mat is dark, white with black while it is light. 2.06 had it the other way round on
         # purpose and 2.07 puts it back, so this name no longer means anything clever: it is
@@ -2044,12 +2049,18 @@ class MainWindow(QtWidgets.QWidget):
                                     border-radius:{px(12)}px; text-align:left; }}
             QPushButton#surahRow:pressed {{ background:{c.pressed}; border-color:{c.lapis}; }}
             QPushButton#surahRow QLabel {{ background:transparent; }}
-            QLabel#surahNumber {{ font-size:{px(30)}px; font-weight:bold; color:{c.strong};
-                background:transparent; border:{px(NUMBER_LINE)}px solid {c.strong}; }}
-            QLabel#surahName {{ font-size:{px(28)}px; font-weight:bold; color:{c.strong}; }}
-            QLabel#surahMeaning {{ font-size:{px(20)}px; color:{c.stone}; }}
+            /* The list of surahs is laid out three across, two or one, and the words grow as
+               the columns go: fewer columns, more room per row, bigger type. That is the whole
+               reason the control exists -- Harry: "not everyone has the same eyesight, this
+               will help to what is good for them" -- so the sizes here are multiplied rather
+               than the layout merely rearranged. COLUMN_TEXT in reading.py holds the numbers
+               and says why they are not simply the ratio of the widths. */
+            QLabel#surahNumber {{ font-size:{px(30 * grew)}px; font-weight:bold; color:{c.strong};
+                background:transparent; border:{px(NUMBER_LINE * grew)}px solid {c.strong}; }}
+            QLabel#surahName {{ font-size:{px(28 * grew)}px; font-weight:bold; color:{c.strong}; }}
+            QLabel#surahMeaning {{ font-size:{px(20 * grew)}px; color:{c.stone}; }}
             QLabel#surahArabic {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
-                                  font-size:{px(34)}px; color:{c.strong}; }}
+                                  font-size:{px(34 * grew)}px; color:{c.strong}; }}
             QLabel#readerTitle {{ font-size:{px(30)}px; font-weight:bold; color:{c.strong}; }}
             /* Whose translation is on the page. Quieter than the surah's name beside it: it is
                there to be read once and then not to compete with the text. */

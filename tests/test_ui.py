@@ -14248,6 +14248,194 @@ class TwoNewTilesTest(unittest.TestCase):
 # the stronger claim -- every passage under a heading, in order, every time.
 
 
+class HowWideTheSurahListIsTest(unittest.TestCase):
+    """Three columns, two or one, chosen on the page.
+
+    Harry asked for it for one reason and it is worth keeping in front of whoever reads this:
+    "not everyone has the same eyesight, this will help to what is good for them." The columns
+    are the means; the size of the words is the point. So the tests that matter measure the
+    words, in the pixels they are actually drawn at, not the layout.
+    """
+
+    def window(self, columns=3):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury",
+                                surah_columns=columns),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_corner_list()
+        settle()
+        return w
+
+    @staticmethod
+    def name_size(w):
+        """The size the surah's name is really drawn at, off the widget, not off a constant."""
+        row = w.surah_list.grid.itemAtPosition(0, 0).widget()
+        for label in row.findChildren(QtWidgets.QLabel):
+            if label.objectName() == "surahName":
+                return QtGui.QFontMetrics(label.font()).height()
+        raise AssertionError("no surah name in the first row")
+
+    def test_the_three_icons_are_on_the_page_and_the_one_in_use_is_lit(self):
+        w = self.window(columns=2)
+        choice = w.surah_list.columns_choice
+        self.assertTrue(choice.isVisibleTo(w.surah_list))
+        self.assertEqual(2, choice.columns)
+        self.assertEqual([3, 2, 1], [shape[0] for shape in choice.SHAPES],
+                         "the icons are not in the order fewest words per line to most")
+
+    def test_they_sit_in_the_middle_of_the_page(self):
+        """Harry: "the three icons could sit centre top just under the top banner".
+
+        The middle of the PAGE, which is not the middle of what is left over after the empty
+        heading label on the left -- that is what a single stretch would have given, and it
+        would have sat them visibly off to one side.
+        """
+        w = self.window()
+        choice = w.surah_list.columns_choice
+        middle = choice.mapTo(w.surah_list, choice.rect().center()).x()
+        self.assertAlmostEqual(middle, w.surah_list.width() // 2,
+                               delta=max(8, w.surah_list.width() // 60),
+                               msg="the icons are not centred on the page")
+
+    def test_fewer_columns_means_bigger_words(self):
+        """THE ONE THAT MATTERS, and it is measured in painted pixels.
+
+        Checked against the stylesheet's own numbers this would pass with the layout change
+        and no change of size at all, since both sides would be reading the same constant.
+        """
+        sizes = {}
+        for columns in (3, 2, 1):
+            w = self.window(columns=columns)
+            sizes[columns] = self.name_size(w)
+        self.assertLess(sizes[3], sizes[2], f"two columns is no bigger than three: {sizes}")
+        self.assertLess(sizes[2], sizes[1], f"one column is no bigger than two: {sizes}")
+        # And by enough to be the point of the control rather than a rounding difference.
+        self.assertGreater(sizes[1], sizes[3] * 1.4,
+                           f"one column is barely larger than three: {sizes}")
+
+    def test_touching_an_icon_lays_the_list_out_again_and_remembers_it(self):
+        w = self.window(columns=3)
+        was = self.name_size(w)
+        w.surah_list.set_columns(1)
+        settle()
+        self.assertEqual(1, w.settings.surah_columns, "the choice was not remembered")
+        self.assertEqual(1, w.surah_list.grid.columnCount())
+        self.assertEqual(114, w.surah_list.grid.rowCount())
+        self.assertGreater(self.name_size(w), was, "the words did not grow with the change")
+        rows = [b for b in w.surah_list.findChildren(QtWidgets.QPushButton)
+                if b.objectName() == "surahRow"]
+        self.assertEqual(114, len(rows), "surahs were lost or doubled in the rebuild")
+
+    def test_the_surah_you_were_looking_at_is_still_the_one_you_are_looking_at(self):
+        """Change the width halfway down and you keep your place.
+
+        Without this the control throws you back to Al-Fatihah every time you touch it, which
+        makes it something you are punished for using while hunting for Ya-Sin. It took three
+        goes to get right: the row positions and the slider's range are both still wrong
+        immediately after the rebuild, and both are believable -- position 0, range 0 -- so the
+        wrong answer looked like a working one.
+        """
+        w = self.window(columns=3)
+        bar = w.surah_list.scroll.verticalScrollBar()
+        bar.setValue(int(bar.maximum() * 0.5))
+        settle()
+        was = w.surah_list.top_surah()
+        self.assertGreater(was, 20, "the test did not manage to scroll anywhere")
+        w.surah_list.set_columns(1)
+        settle()
+        self.assertEqual(was, w.surah_list.top_surah(),
+                         "changing the width threw the page back to the beginning")
+
+    def test_a_number_nobody_expected_falls_back_rather_than_breaking_the_page(self):
+        w = self.window(columns=3)
+        w.settings.surah_columns = 7
+        self.assertEqual(3, w.surah_list.columns)
+        w.settings.surah_columns = 0
+        self.assertEqual(3, w.surah_list.columns)
+
+    def test_the_icons_are_drawn_the_way_Harry_drew_them(self):
+        """His three SVGs, as proportions. Drawn rather than shipped, so this is what keeps
+        them honest: three bars, then two wider ones, then one wider still, all the same
+        height, three lines across each."""
+        w = self.window()
+        choice = w.surah_list.columns_choice
+        widths = [shape[1] for shape in choice.SHAPES]
+        self.assertEqual(widths, sorted(widths), "the bars do not get wider as they get fewer")
+        self.assertEqual(3, len(choice.LINES), "a column is not drawn with three lines on it")
+        self.assertEqual(3, len(choice.boxes()), "there are not three icons to touch")
+        for box in choice.boxes():
+            self.assertGreaterEqual(box.width(), w.px(44),
+                                    "an icon is too small a target for a fingertip")
+
+
+class TheSlidersAreAllTheSameTest(unittest.TestCase):
+    """One mat, one slider. Harry, of the Local page: "barely visible".
+
+    The stylesheet has carried a note since 2.09 saying a screen added later gets the wide
+    slider "by joining the list" of names in that rule. Local shipped at 2.32 without joining
+    it, so it had the 14px bar Qt draws for a mouse pointer -- on a screen dragged with a
+    thumb. This is the check that would have caught it, and it is written against every screen
+    that has one of these lists rather than against the three Harry happened to name.
+    """
+
+    def test_every_list_on_the_mat_has_the_same_slider(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+
+        from salaah.reading import LIST_BAR
+        w.open_corner_list()
+        settle()
+        quran = w.surah_list.scroll.verticalScrollBar().width()
+        self.assertEqual(w.px(LIST_BAR), quran, "the Qur'an list's slider has changed width")
+
+        w.open_corner("local")
+        settle()
+        self.assertEqual(quran, w.local_screen.scroll.verticalScrollBar().width(),
+                         "the Local page's slider is not the one the lists share")
+
+        # Where the words come from, which has a rule of its own name in the same selector.
+        w.open_sources()
+        settle()
+        found = [s for s in w.findChildren(QtWidgets.QScrollArea)
+                 if s.objectName() == "sourcesScroll"]
+        self.assertTrue(found, "no sources list to look at")
+        self.assertEqual(quran, found[0].verticalScrollBar().width(),
+                         "the sources list's slider is not the one the lists share")
+
+    def test_a_list_that_forgets_to_join_the_rule_is_caught(self):
+        """The fault itself, reproduced: a scroll area with no name gets the mouse-sized bar.
+
+        This is here so that the number in the test above is known to mean something. Without
+        it, `assertEqual(84, 84)` could be two readings of the same default.
+        """
+        unnamed = QtWidgets.QScrollArea()
+        self.addCleanup(unnamed.deleteLater)
+        unnamed.setWidgetResizable(True)
+        inner = QtWidgets.QWidget()
+        inner.setMinimumHeight(5000)
+        unnamed.setWidget(inner)
+        unnamed.resize(400, 400)
+        unnamed.show()
+        settle()
+        self.assertLess(unnamed.verticalScrollBar().width(), 40,
+                        "an unnamed list already has a wide slider, so the rule proves nothing")
+
+
 class LocalPlacesTest(unittest.TestCase):
     """The Local screen: the mosques near this mat.
 

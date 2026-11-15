@@ -140,6 +140,12 @@ class LocalScreen(QtWidgets.QWidget):
         self.nothing.setWordWrap(True)
 
         self.scroll = QtWidgets.QScrollArea()
+        # The wide, touchable slider the lists share. The stylesheet's own note says a fourth
+        # screen added later gets it "by joining the list", and I did not join it: this screen
+        # shipped with the 14px bar Qt draws for a mouse pointer, on a mat scrolled with a
+        # thumb. Harry, straight away: "the scroll bar used on the local page is barely
+        # visible". The name is the whole of what makes it the right one.
+        self.scroll.setObjectName("listScroll")
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)

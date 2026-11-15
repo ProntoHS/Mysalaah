@@ -19,7 +19,7 @@ from __future__ import annotations
 from .audio import WHOLE, Span
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .quran import RTL, Quran, Surah, Verse
-from .render import ArrowButton, Fonts, ParallelText, TextBox, TextSize
+from .render import ArrowButton, ColumnChoice, Fonts, ParallelText, TextBox, TextSize
 from .theme import palette
 
 # The Arabic is never drawn smaller than this (at 1080p). Fitting more verses on a page by
@@ -75,12 +75,30 @@ NUMBER_LINE = 4          # and how thick its outline is drawn
 # dragging rather than the width of the line somebody thought looked right.
 LIST_BAR = 84
 
+#: How much bigger everything in a surah row is drawn at each width. Three columns is what the
+#: page has always been and is the 1.0 everything else is measured against.
+#:
+#: These are NOT the ratio of the widths. A row in one column is three times as wide as a row
+#: in three, and type three times the size would be absurd -- it is a surah's name, not a
+#: headline. They are the sizes at which the longest name on the page still sits on one line
+#: with room to spare, which is the real limit: "Al-Mumtahanah · 13" in one column at 1.75 has
+#: room, at 2.0 it does not.
+#:
+#: Harry asked for this for a plain reason -- "not everyone has the same eyesight, this will
+#: help to what is good for them" -- so the point of the control is the type, and the columns
+#: are only how the type is given room.
+COLUMN_TEXT = {3: 1.0, 2: 1.35, 1: 1.75}
+
 
 class SurahList(QtWidgets.QWidget):
-    """All 114, in Arabic and in English, as a grid of touchable rows."""
+    """All 114, in Arabic and in English, as a grid of touchable rows.
+
+    Three columns, two or one, chosen on the page by the row of icons under the banner. The
+    choice is kept in settings, so the mat opens the way it was left.
+    """
 
     chose = Signal(int)
-    COLUMNS = 3
+    COLUMNS = 3            # what a mat gets if nothing has ever been chosen
 
     def __init__(self, window, quran: Quran):
         super().__init__()
@@ -104,7 +122,25 @@ class SurahList(QtWidgets.QWidget):
         self.title = QtWidgets.QLabel("")
         self.title.setObjectName("readerTitle")
         bar.addWidget(self.title)
+        # The three icons, in the middle of that empty strip. A stretch on each side rather
+        # than one on the right: the title is an empty label holding the space open, so
+        # centring on the layout centres on the page, which is where Harry asked for them --
+        # "the three icons could sit centre top just under the top banner".
         bar.addStretch(1)
+        # As tall as the three A's on the reading bar, which is the control this one is a
+        # cousin of: a row of three that makes the words bigger. Touched with a fingertip, not
+        # pointed at, so the box matters more than the drawing in it.
+        self.columns_choice = ColumnChoice(self.win, columns=self.columns,
+                                           tall=READING_TEXT_SIZE_PX)
+        self.columns_choice.chose.connect(self.set_columns)
+        bar.addWidget(self.columns_choice)
+        bar.addStretch(1)
+        # A matching empty label went here at first, to balance the heading on the left so the
+        # icons sat on the middle of the page rather than the middle of what was left over.
+        # It is not here because it did nothing: the heading has been EMPTY since 1.93 -- it
+        # holds the gap open and takes no width at all -- so the two stretches already centre
+        # on the page. Taking the balancer out moved nothing by a single pixel, which is how
+        # it was found. If a heading ever goes back above this list, it will need one.
         outer.addLayout(bar)
 
         self.scroll = QtWidgets.QScrollArea()
@@ -112,14 +148,99 @@ class SurahList(QtWidgets.QWidget):
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        inner = QtWidgets.QWidget()
-        self.grid = QtWidgets.QGridLayout(inner)
-        self.grid.setContentsMargins(self.win.px(20), self.win.px(10),
-                                     self.win.px(20), self.win.px(20))
-        self.grid.setSpacing(self.win.px(10))
-        self.scroll.setWidget(inner)
+        self.grid = self.fresh_grid()
         outer.addWidget(self.scroll, 1)
         self.filled = False
+        #: Set by set_columns, acted on when the page knows its own length. See there.
+        self.restore_to: int | None = None
+        self.scroll.verticalScrollBar().rangeChanged.connect(self.the_page_knows_its_length)
+
+    def fresh_grid(self) -> QtWidgets.QGridLayout:
+        """A new, empty grid in a new widget, handed to the scroll area.
+
+        A NEW ONE each time rather than emptying the old one. A QGridLayout remembers how many
+        rows and columns it has ever held: taking all 114 rows out of a one-column grid and
+        putting them back three across leaves it reporting 114 rows and claiming space for
+        them. Emptying it works for the rows you can see and leaves the shape behind.
+        """
+        inner = QtWidgets.QWidget()
+        grid = QtWidgets.QGridLayout(inner)
+        grid.setContentsMargins(self.win.px(20), self.win.px(10),
+                                self.win.px(20), self.win.px(20))
+        grid.setSpacing(self.win.px(10))
+        self.scroll.setWidget(inner)          # the old widget, and its rows, go with it
+        return grid
+
+    @property
+    def columns(self) -> int:
+        """How many across, as the mat was left. Anything unexpected in the file falls back."""
+        want = getattr(self.win.settings, "surah_columns", self.COLUMNS)
+        return want if want in COLUMN_TEXT else self.COLUMNS
+
+    @property
+    def grew(self) -> float:
+        return COLUMN_TEXT[self.columns]
+
+    def set_columns(self, columns: int) -> None:
+        """One of the three icons was touched: lay the list out again, larger or smaller.
+
+        The surah at the top of the page stays at the top of the page. Without that, changing
+        the width throws you back to Al-Fatihah, and the control becomes something you are
+        punished for touching while you are halfway down looking for Ya-Sin.
+        """
+        if columns not in COLUMN_TEXT or columns == self.columns:
+            return
+        keep = self.top_surah()
+        self.win.settings.surah_columns = columns
+        self.win.persist()
+        self.columns_choice.set_columns(columns)
+        # The type sizes live in the stylesheet, which reads the setting, so the whole window
+        # is restyled before the rows are rebuilt at their new size.
+        self.win.restyle()
+        self.filled = False
+        # Asked for now, done when the page is in a state to do it. Straight after fill() the
+        # 114 new rows all report a position near zero AND the slider's range is still 0, so
+        # both halves of the sum are wrong and the answer -- back to Al-Fatihah -- is a
+        # perfectly believable one. A zero-delay timer is no better; it fires before Qt has
+        # laid the new grid out. So the scroll area is asked to say when it knows how long the
+        # page is, which is the moment both numbers become true.
+        # Asked for AFTER the rebuild, not before. Replacing the scroll area's widget tears the
+        # old grid down, and that tear-down is itself a change of range: the request arrived
+        # while self.grid still pointed at the layout being deleted, and reading a deleted
+        # QGridLayout is not a wrong answer, it is a crash.
+        self.fill()
+        self.restore_to = keep
+
+    def top_surah(self) -> int:
+        """Which surah is at the top of the view, 1-114, or 1 if nothing is laid out yet."""
+        bar = self.scroll.verticalScrollBar()
+        rows = self.grid.rowCount()
+        if not rows or not self.filled:
+            return 1
+        reach = max(1, bar.maximum() + self.scroll.viewport().height())
+        row = int(bar.value() / reach * rows)
+        return max(1, min(len(self.quran.index), row * self.columns + 1))
+
+    def the_page_knows_its_length(self, _lo=0, _hi=0) -> None:
+        """The scroll area has worked out how long the page is: now the slider can be set.
+
+        Cleared before it acts, not after, so that the scrolling this does -- which changes
+        the range again on a page this long -- cannot come straight back in here.
+        """
+        if self.restore_to is None:
+            return
+        number, self.restore_to = self.restore_to, None
+        self.show_surah_at_top(number)
+
+    def show_surah_at_top(self, number: int) -> None:
+        widget = self.grid.itemAtPosition((number - 1) // self.columns,
+                                          (number - 1) % self.columns)
+        if widget is None or widget.widget() is None:
+            return
+        # After a rebuild the layout has not been given its geometry yet, so the row's position
+        # is still whatever it was before. Asking for it now gives last time's answer.
+        self.grid.activate()
+        self.scroll.verticalScrollBar().setValue(widget.widget().pos().y())
 
     def showEvent(self, ev):
         # Built the first time it is looked at, not at start-up. 114 rows is the better part of
@@ -131,30 +252,36 @@ class SurahList(QtWidgets.QWidget):
         if self.filled:
             return
         self.filled = True
-        while self.grid.count():
-            item = self.grid.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
+        across = self.columns
+        if self.grid.count():
+            self.grid = self.fresh_grid()
         for i, surah in enumerate(self.quran.index):
-            self.grid.addWidget(self.row(surah), i // self.COLUMNS, i % self.COLUMNS)
+            self.grid.addWidget(self.row(surah), i // across, i % across)
+        self.columns_choice.set_columns(across)
 
     def row(self, surah: Surah) -> QtWidgets.QWidget:
         b = QtWidgets.QPushButton()
         b.setObjectName("surahRow")
         b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         b.setCursor(Qt.CursorShape.PointingHandCursor)
-        b.setMinimumHeight(self.win.px(96))
+        # The row grows with the type in it. Left at 96 the words in one column would be half
+        # as big again inside a box the size they used to need, which is a thick band of
+        # nothing above and below every name.
+        grew = self.grew
+        b.setMinimumHeight(int(self.win.px(96) * grew))
         b.clicked.connect(lambda _=False, n=surah.number: self.chose.emit(n))
 
         lay = QtWidgets.QHBoxLayout(b)
-        lay.setContentsMargins(self.win.px(16), self.win.px(8), self.win.px(16), self.win.px(8))
-        lay.setSpacing(self.win.px(12))
+        lay.setContentsMargins(int(self.win.px(16) * grew), int(self.win.px(8) * grew),
+                               int(self.win.px(16) * grew), int(self.win.px(8) * grew))
+        lay.setSpacing(int(self.win.px(12) * grew))
 
         # A square, fixed both ways, so 1 and 114 sit in boxes of exactly the same size and
         # the left-hand edge of every row lines up down the column.
         number = QtWidgets.QLabel(str(surah.number))
         number.setObjectName("surahNumber")
-        number.setFixedSize(self.win.px(NUMBER_BOX), self.win.px(NUMBER_BOX))
+        number.setFixedSize(int(self.win.px(NUMBER_BOX) * grew),
+                            int(self.win.px(NUMBER_BOX) * grew))
         number.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(number)
 

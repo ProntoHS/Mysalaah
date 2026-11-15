@@ -38,6 +38,13 @@ class Settings:
                               # the one before -- see reading.TEXT_STEPS. Kept here rather than
                               # on the Settings screen because it is a thing you reach for
                               # while reading, with the page in front of you.
+    surah_columns: int = 3    # how many columns the list of 114 surahs is laid out in: 3, 2
+                              # or 1, chosen by the three icons under the banner on that page.
+                              # Fewer columns means more room per row, and the words grow to
+                              # take it -- see reading.COLUMN_TEXT. Harry: "not everyone has
+                              # the same eyesight, this will help to what is good for them."
+                              # Kept here, like text_step, because it is a thing you reach for
+                              # with the page in front of you rather than a trip to Settings.
     wudu_text_step: int = 0   # the same question for the wu'du steps, which have their own row
                               # of three A buttons beside the arrows. A separate setting because
                               # the two screens are read at different distances -- the Qur'an
