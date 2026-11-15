@@ -37,6 +37,7 @@ from .prayer_day_journey import Screen as PrayerDayJourneyScreen
 from .qibla_quest import QiblaQuestScreen
 from .wudu import WORDS_PX as WUDU_WORDS_PX, Steps, WuduStep
 from .radio import RadioScreen, Stations
+from .local import LocalScreen, Nearby
 from .duaboard import DuaBoard
 from .recite import Store, WordTimes
 from .call import Adhan, CallBox
@@ -2720,6 +2721,13 @@ class MainWindow(QtWidgets.QWidget):
         self.radio_screen.wifi.connect(self.open_wifi)
         stack.addWidget(self.radio_screen)
 
+        # Local: the mosques near this mat. Only ones somebody has ticked by hand are drawn,
+        # so on a mat whose file has not been gone through this is an empty screen saying so --
+        # which is the same thing the tile did before the section existed, and is true.
+        self.nearby = Nearby(self.assets / "content")
+        self.local_screen = LocalScreen(self, self.nearby)
+        stack.addWidget(self.local_screen)
+
         self.corner_soon = self.page_soon()
         stack.addWidget(self.corner_soon)
 
@@ -2861,6 +2869,13 @@ class MainWindow(QtWidgets.QWidget):
             return
         if which == "world" and getattr(self, "world_screen", None) is not None:
             self.open_world()
+            return
+        # Local always opens, full or empty, for the reason the radio does: the screen says
+        # which it is, and a tile that does nothing when pressed says nothing at all.
+        if which == "local" and getattr(self, "local_screen", None) is not None:
+            self.local_screen.retell()
+            self.corner_screen.setCurrentWidget(self.local_screen)
+            self.stack.setCurrentWidget(self.corner_page)
             return
         if which == "radio" and getattr(self, "radio_screen", None) is not None:
             # Always opens, with or without a connection: the screen says what is wrong and

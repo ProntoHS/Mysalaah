@@ -1,0 +1,89 @@
+{
+ "schema": 1,
+ "reviewed": false,
+ "source": {
+  "name": "UK Mosque/Masjid Directory",
+  "site": "https://mosques.muslimsinbritain.org/",
+  "file": "MosquesNov26Extended.csv",
+  "sha256": "b5af6e6aeedcc82d6c6710e18b3d0dd729577c2a4822aa66d5cc1b0fc469488c",
+  "taken": "",
+  "permission": "The site's notice says the material is drawn from the public domain and may be reproduced, preferably with acknowledgement. It says nothing about selling. ASK BEFORE THIS IS A PRODUCT."
+ },
+ "near": "Bury",
+ "within_km": 6.0,
+ "checked_by_hand": 7,
+ "not_checked_yet": 0,
+ "places": [
+  {
+   "name": "Jamia Masjid Noor-ul-Islam",
+   "street": "2-4 Yarwood Street",
+   "town": "Bury",
+   "postcode": "BL9 7AU",
+   "phone": "0161 705 2891",
+   "lat": 53.593708,
+   "lon": -2.288058,
+   "checked": true
+  },
+  {
+   "name": "Jamia Masjid-e-Khizra and Islamic Centre",
+   "street": "21-25 Parker Street",
+   "town": "Bury",
+   "postcode": "BL9 0RJ",
+   "phone": "0161 763 6884",
+   "lat": 53.592186,
+   "lon": -2.287093,
+   "checked": true
+  },
+  {
+   "name": "Al Mehdi Foundation",
+   "street": "St. Johns Works, Fern Street",
+   "town": "Bury",
+   "postcode": "BL9 5BP",
+   "phone": "",
+   "lat": 53.599241,
+   "lon": -2.293192,
+   "checked": true
+  },
+  {
+   "name": "Jamia Khizra Masjid and Islamic Centre Bury",
+   "street": "85 Walmersley Road",
+   "town": "Bury",
+   "postcode": "BL9 5AN",
+   "phone": "0161 764 1638",
+   "lat": 53.599302,
+   "lon": -2.290022,
+   "checked": true
+  },
+  {
+   "name": "Qadria Jilania Islamic Centre and Cultural Association",
+   "street": "Church Street",
+   "town": "Bury",
+   "postcode": "BL9 6BN",
+   "phone": "0161 764 7306",
+   "lat": 53.59672,
+   "lon": -2.285596,
+   "checked": true
+  },
+  {
+   "name": "Masjid Noor and Islamic Education Centre",
+   "street": "48 Bridgefield Street",
+   "town": "Bury",
+   "postcode": "M26 2SG",
+   "phone": "0161 723 4741",
+   "lat": 53.561871,
+   "lon": -2.323142,
+   "checked": true
+  },
+  {
+   "name": "Darul Uloom Al-Arabiya Al-Islamia",
+   "street": "Holcombe Hall, Holcombe Brook or Holcombe Old Road",
+   "town": "Bury",
+   "postcode": "BL8 4NG",
+   "phone": "01706 826106",
+   "lat": 53.6383,
+   "lon": -2.335174,
+   "checked": true
+  }
+ ],
+ "checked_how": "Ticked on Harry's instruction on 2026-11-15, ahead of the calls, to see the screen working. Carries the same standing as the translations: to be checked before anybody else's mat has it."
+}

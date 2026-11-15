@@ -14189,25 +14189,28 @@ class TwoNewTilesTest(unittest.TestCase):
                 self.assertIs(w.corner_page, w.stack.currentWidget())
                 self.assertIs(getattr(w, screen), w.corner_screen.currentWidget())
 
-    def test_local_is_the_one_that_does_land_on_nothing_here_yet(self):
-        """REPLACES test_learn_is_the_one_that_does_land_on_nothing_here_yet.
+    def test_local_has_a_screen_of_its_own_now(self):
+        """REPLACES test_local_is_the_one_that_does_land_on_nothing_here_yet, which replaced
+        the same test about Learn.
 
-        Learn was the placeholder from 1.89 and is gone at 2.31: Harry redrew the sheet in all
-        ten languages -- "i have removed learn and shuffled a few icons around" -- and Local
-        took the empty square. Nothing was lost, because Learn never had a screen behind it.
+        Learn was the placeholder from 1.89 and went at 2.31, when Harry redrew the sheet in
+        all ten languages. Local took its square, and landed on "nothing here yet" for exactly
+        one release. It has its own screen now.
 
-        The reasoning for keeping a drawn, touchable, empty tile is unchanged: the menu does
-        not change shape when it is filled in, and a page with its own name on it looks like
-        something not finished rather than something broken.
+        The screen opens whether or not there is anything on it, for the reason the radio does:
+        an empty screen that says it is empty tells a child something, and a tile that does
+        nothing when pressed tells them nothing at all. What is ON it is the business of
+        LocalPlacesTest below.
         """
         w = self.window()
         tiles = {t.name: t for t in w.side.corner.tiles}
         self.assertIn("local", tiles)
         self.assertNotIn("learn", tiles, "Learn is still on the sheet")
         w.open_corner("local")
-        self.assertIs(w.corner_soon, w.corner_screen.currentWidget())
-        self.assertEqual(w.t("corner.local"), w.soon_title.text())
-        self.assertTrue(w.soon_title.text().strip(), "the page is not named")
+        self.assertIs(w.local_screen, w.corner_screen.currentWidget())
+        self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget())
+        self.assertEqual(w.t("corner.local"), w.local_screen.title.text())
+        self.assertTrue(w.local_screen.title.text().strip(), "the page is not named")
 
     def test_the_two_of_them_are_named_in_every_language_the_mat_speaks(self):
         for lang, pack in full_packs(available_packs(ASSETS)).items():
@@ -14243,6 +14246,218 @@ class TwoNewTilesTest(unittest.TestCase):
 # category, not be given a fresh sample of it. The bag, the shuffle and the four tests that
 # held them to account are all gone; what replaced them is WalkingTheBoardsTest, which makes
 # the stronger claim -- every passage under a heading, in order, every time.
+
+
+class LocalPlacesTest(unittest.TestCase):
+    """The Local screen: the mosques near this mat.
+
+    The thing being guarded here is not a layout. It is that a child could read an address off
+    this screen and walk to it. So the tests that matter are the ones about WHICH rows reach
+    the screen -- the tick, the distance, the sect labels -- and they are written against the
+    screen's output rather than against the data it was handed, because the data being right
+    and the screen drawing the right rows are two different claims.
+    """
+
+    SEVEN = [
+        {"name": "Nearest", "street": "1 One Street", "town": "Bury", "postcode": "BL9 1AA",
+         "phone": "0161 111 1111", "lat": 53.5940, "lon": -2.2970, "checked": True},
+        {"name": "Middle", "street": "2 Two Street", "town": "Bury", "postcode": "BL9 2BB",
+         "phone": "", "lat": 53.6100, "lon": -2.3100, "checked": True},
+        {"name": "Furthest", "street": "3 Three Street", "town": "Bury", "postcode": "BL9 3CC",
+         "phone": "0161 333 3333", "lat": 53.6500, "lon": -2.3500, "checked": True},
+    ]
+
+    def window(self, places=None):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury",
+                                latitude=53.5933, longitude=-2.2966),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        if places is not None:
+            w.nearby.places = [dict(p) for p in places]
+            w.local_screen.retell()
+            settle()
+        return w
+
+    def words_on_screen(self, w):
+        return " \n".join(label.text() for label in
+                          w.local_screen.findChildren(QtWidgets.QLabel))
+
+    def test_a_place_nobody_has_ticked_is_not_drawn(self):
+        """THE ONE THAT MATTERS. `checked` is not a label, it is a gate.
+
+        The draft that feeds this file comes out of a directory that is candid about its own
+        reliability -- phone numbers it says may be very old, rows it marks as possibly gone.
+        A row nobody has rung is not shown at all: not greyed, not marked provisional, not
+        shown. The failure being guarded against is a child walking to a mosque that shut years
+        ago, and there is no wording that makes that acceptable.
+
+        Tested through Nearby, which is what the screen is handed, so that a file edited by
+        hand cannot get round the gate either.
+        """
+        from salaah.local import Nearby
+        import json, tempfile, pathlib
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = pathlib.Path(tmp) / "local"
+            folder.mkdir()
+            no_key = {k: v for k, v in self.SEVEN[2].items() if k != "checked"}
+            mixed = [dict(self.SEVEN[0], checked=True),
+                     dict(self.SEVEN[1], name="Not ticked", checked=False),
+                     dict(no_key, name="Also not ticked")]       # the key is absent entirely
+            (folder / "places.json").write_text(json.dumps({"places": mixed}),
+                                                encoding="utf-8")
+            nearby = Nearby(pathlib.Path(tmp))
+        self.assertEqual(["Nearest"], [p["name"] for p in nearby.places])
+
+    def test_the_nearest_is_at_the_top(self):
+        """Handed to the screen BACKWARDS on purpose.
+
+        Written the obvious way -- hand it the three in order, check they come out in order --
+        this passed with the sort deleted, because the answer was already sitting in the
+        fixture. A sabotage caught it. The list going in is now the reverse of the list that
+        must come out, so nothing but a real sort can produce it.
+        """
+        w = self.window(list(reversed(self.SEVEN)))
+        drawn = [c.findChildren(QtWidgets.QLabel)[0].text()
+                 for c in w.local_screen.rows()]
+        self.assertEqual(["Nearest", "Middle", "Furthest"], drawn)
+
+    def test_somewhere_far_away_is_not_local(self):
+        """A mat in Bury does not list a mosque in London, however good the file is."""
+        far_off = [dict(self.SEVEN[0], name="London", lat=51.5074, lon=-0.1278)]
+        w = self.window(self.SEVEN + far_off)
+        self.assertNotIn("London", self.words_on_screen(w))
+        self.assertEqual(3, len(w.local_screen.rows()))
+
+    def test_a_long_list_is_cut_to_a_length_somebody_can_read(self):
+        """Bury has seven. Birmingham, when the country goes in, has over a hundred inside the
+        same radius, and a hundred rows is not a list, it is a phone book."""
+        from salaah.local import MOST
+        many = [dict(self.SEVEN[0], name=f"Masjid {n}",
+                     lat=53.5933 + n / 2000, lon=-2.2966) for n in range(MOST + 15)]
+        w = self.window(list(reversed(many)))        # furthest first, as above
+        self.assertEqual(MOST, len(w.local_screen.rows()))
+        # and it is the NEAREST that survive the cut, not the first in the file
+        self.assertEqual("Masjid 0", w.local_screen.rows()[0].findChildren(
+            QtWidgets.QLabel)[0].text())
+        self.assertNotIn("Masjid 26", self.words_on_screen(w),
+                         "the cut kept the furthest and threw the nearest away")
+
+    def test_the_sect_never_reaches_the_screen(self):
+        """The source labels nearly every mosque Deobandi, Bareilvi, Shia, Sufi or Salafi, and
+        says itself that those labels are contentious. On a child's mat they turn "where can I
+        pray" into "whose mosque is this".
+
+        This checks the whole screen rather than the fields, because the way a label like that
+        would arrive is somebody passing the source's flags through into a name or an address,
+        not somebody adding a field called "sect".
+        """
+        w = self.window(self.SEVEN)
+        said = self.words_on_screen(w).lower()
+        for label in ("deoband", "barelvi", "bareilvi", "brel", "deob", "salafi", "salf",
+                      "sufi", "shia", "maud", "ahl-e-hadith", "gujrti", "pkstn", "bangla"):
+            with self.subTest(label):
+                self.assertNotIn(label, said)
+
+    def test_a_place_with_no_phone_number_gets_no_empty_line(self):
+        w = self.window(self.SEVEN)
+        middle = w.local_screen.rows()[1]
+        self.assertEqual(2, len(middle.findChildren(QtWidgets.QLabel)),
+                         "the one with no phone number has a line it cannot fill")
+        nearest = w.local_screen.rows()[0]
+        self.assertEqual(3, len(nearest.findChildren(QtWidgets.QLabel)))
+
+    def test_an_empty_file_says_so_in_the_mats_own_language(self):
+        w = self.window([])
+        self.assertEqual(0, len(w.local_screen.rows()))
+        self.assertTrue(w.local_screen.nothing.isVisibleTo(w.local_screen))
+        self.assertEqual(w.t("corner.not_yet"), w.local_screen.nothing.text())
+
+    def test_the_name_plate_stays_a_plate_on_the_empty_screen(self):
+        """The plate is white and filled, so any height it is given, it takes up.
+
+        With the list hidden there was nothing else in the page wanting room, and the plate
+        grew into a tall white slab down the left of the screen with the word Local adrift in
+        the middle of it. Every other test here passed: the right rows were on screen, which
+        was none of them, and they were named correctly. I found it by looking at the screen
+        from Birmingham, which is the state a mat is in anywhere this file does not reach --
+        so it is the state most mats will be in, not an edge case.
+        """
+        # A WINDOW IS BUILT AND THROWN AWAY FIRST, and that is not superstition. The slab only
+        # appears on a window that is not the first one this process has made: measured on a
+        # lone window the plate reports its proper 91 whether the fix is in or out, and a test
+        # that gives the same answer either way is not measuring the thing it names. Run as
+        # part of the whole suite this would pass by luck, since hundreds of windows have been
+        # made by then. Run on its own -- which is how anybody debugging it would run it -- it
+        # would not. So the first window is made here, deliberately, rather than relied upon.
+        self.window([])                 # thrown away; cleanup shuts it with the rest
+        w = self.window([])
+        w.open_corner("local")          # opened, not merely built: an unshown page is unlaid
+        settle()
+        plate = w.local_screen.title
+        self.assertGreater(plate.height(), 0, "the plate is not drawn at all")
+        self.assertLessEqual(plate.height(), plate.sizeHint().height() + 4,
+                             "the plate has stretched beyond the size of the word on it")
+        self.assertLess(plate.height(), w.local_screen.height() // 4,
+                        "the plate is taking a quarter of the screen")
+
+        # And the message sits in the middle of the room the list would have had, which is
+        # where this mat has put "nothing here yet" since 1.89. Two assertions because there
+        # are two separate things holding the shape up -- the plate's fixed height and the
+        # message's claim on the space -- and either one alone is enough to keep the plate
+        # small. Checked one way only, whichever of the two was deleted, nothing complained.
+        said = w.local_screen.nothing
+        middle = said.mapTo(w.local_screen, said.rect().center()).y()
+        self.assertAlmostEqual(middle, w.local_screen.height() // 2,
+                               delta=w.local_screen.height() // 8,
+                               msg="the empty message is not in the middle of the page")
+
+    def test_a_file_that_is_missing_or_broken_is_an_empty_screen_not_a_crash(self):
+        """A mat whose assets were half copied is a real mat; so is one whose card is going."""
+        from salaah.local import Nearby
+        import json, tempfile, pathlib
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self.assertEqual([], Nearby(root).places, "missing file")
+            (root / "local").mkdir()
+            (root / "local" / "places.json").write_text("{ not json", encoding="utf-8")
+            self.assertEqual([], Nearby(root).places, "unreadable file")
+            (root / "local" / "places.json").write_text(json.dumps(
+                {"places": [{"name": "No point on the earth", "checked": True},
+                            {"name": "Bad numbers", "checked": True,
+                             "lat": "north a bit", "lon": -2.3},
+                            {"name": "", "checked": True, "lat": 53.6, "lon": -2.3}]}),
+                encoding="utf-8")
+            self.assertEqual([], Nearby(root).places, "rows with nothing to draw")
+
+    def test_the_file_that_ships_carries_its_source_and_claims_nothing(self):
+        """The shipped file has to say where it came from and that nobody has reviewed it.
+
+        It also must not arrive with rows already ticked that no one has actually checked --
+        which a test cannot prove, so it checks the thing it can: that the count the file
+        states about itself matches the rows in it. A file whose own summary is wrong is a file
+        nobody has looked at.
+        """
+        import json
+        book = json.loads((ASSETS / "content" / "local" / "places.json")
+                          .read_text(encoding="utf-8"))
+        self.assertFalse(book["reviewed"], "the file claims to have been reviewed")
+        self.assertIn("mosques.muslimsinbritain.org", book["source"]["site"])
+        self.assertTrue(book["source"]["sha256"], "no fingerprint for the file it came from")
+        ticked = [p for p in book["places"] if p.get("checked")]
+        self.assertEqual(book["checked_by_hand"], len(ticked))
+        self.assertEqual(book["not_checked_yet"], len(book["places"]) - len(ticked))
+        for place in book["places"]:
+            with self.subTest(place.get("name")):
+                for field in ("name", "street", "town", "postcode", "lat", "lon"):
+                    self.assertIn(field, place)
+                self.assertNotIn("flags", place, "the source's sect codes are in the file")
 
 
 class TheTrialEndsTest(unittest.TestCase):
