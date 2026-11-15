@@ -5806,11 +5806,81 @@ class KnowledgeCornerTest(unittest.TestCase):
         return w
 
     def test_the_small_screen_offers_ten_things_between_prayers(self):
+        """Still ten at 2.31, but Learn has gone and Local has arrived.
+
+        The ORDER is the whole point of this test. The boxes have not moved -- the grid is the
+        same ten rectangles it has been since 1.89 -- so nothing in the app can tell that two
+        of them now have different words painted in them. This list is what a press routes on,
+        and if it ever drifts from what is drawn, every child pressing Knowledge gets Local.
+        """
         w = self.window()
         self.assertTrue(w.side.showing_corner, "the 7in should show the corner between prayers")
         self.assertEqual(["quran", "salaah", "hadith", "duas", "children",
-                          "learn", "knowledge", "world", "settings", "radio"],
+                          "knowledge", "local", "world", "settings", "radio"],
                          [t.name for t in w.side.corner.tiles])
+
+    def test_every_language_has_a_menu_drawing_of_the_right_shape(self):
+        """The names are positional, so a language left on an older drawing is a mat where
+        two tiles open the wrong thing -- silently, with every other check passing.
+
+        Checks the shape and that all ten are present. It cannot check the WORDS: they are
+        painted into the picture, which is what tools/check_menu_names.py exists for and why
+        each of these ten was cropped at these coordinates and read by eye before the list in
+        knowledge.py was touched.
+        """
+        from salaah.knowledge import TILES
+        import json
+        folder = ASSETS / "knowledge"
+        spec = json.loads((folder / "menu.json").read_text(encoding="utf-8"))
+        self.assertEqual(list(TILES), list(spec["tiles"]),
+                         "menu.json names a different set of boxes than the app routes on")
+        wide, tall = spec["size"]
+        # THE NAME MENU.JSON GIVES, not one this test makes up. A sabotage pointed the Urdu
+        # entry at a file that does not exist and nothing failed, because this used to build
+        # "menu.ur.gif" for itself and then check that -- proving only that a file it had
+        # named was on disk. FilmSheet reads films[lang] (see filmsheet.py), so that is the
+        # name that has to be there; a wrong one falls back to the stills in silence.
+        for lang, named in spec["films"].items():
+            with self.subTest(lang):
+                drawing = folder / named
+                self.assertTrue(drawing.exists(),
+                                f"menu.json sends {lang} to {named}, which is not there")
+                picture = QtGui.QPixmap(str(drawing))
+                self.assertFalse(picture.isNull(), f"{lang}'s drawing will not load")
+                self.assertEqual((wide, tall), (picture.width(), picture.height()),
+                                 f"{lang}'s drawing is not the shape menu.json describes, so "
+                                 "the boxes land somewhere else on it")
+
+    def test_every_sheet_still_has_all_the_frames_the_others_have(self):
+        """Added at 2.31, because at 2.31 I re-encoded all ten sheets to make them smaller.
+
+        Harry's ten drawings came in at 21.8 MB together, which is a long wait on a mat
+        fetching an update over a house's broadband; squeezing the palette down took them to
+        5.7 MB. A squeeze is a re-encode, and a re-encode is the one operation that can quietly
+        drop frames -- the picture still loads, the shape is still right, every other check
+        here still passes, and the menu just moves less than it used to.
+
+        The app would not complain either: filmsheet falls back to the stills only below two
+        frames (see filmsheet.py), so a sheet cut to a tenth of its animation runs happily.
+
+        This does not name a number. Naming 48 would mean editing this test the next time Harry
+        draws them, which is exactly when a test stops being checked and starts being updated.
+        It asks instead that the ten agree with each other, which is true of any set he draws
+        and false of any set where one has been through something the others have not.
+        """
+        import json
+        folder = ASSETS / "knowledge"
+        spec = json.loads((folder / "menu.json").read_text(encoding="utf-8"))
+        counted = {}
+        for lang, named in spec["films"].items():
+            film = QtGui.QMovie(str(folder / named))
+            self.assertTrue(film.isValid(), f"{lang}'s drawing will not play")
+            counted[lang] = film.frameCount()
+        self.assertGreater(min(counted.values()), 2,
+                           f"a sheet has next to no animation left in it: {counted}")
+        self.assertEqual(1, len(set(counted.values())),
+                         "the ten sheets no longer have the same number of frames, so one of "
+                         f"them has lost some: {counted}")
 
     def test_the_posture_takes_the_small_screen_back_during_a_prayer(self):
         w = self.window()
@@ -9771,10 +9841,12 @@ class SixTileMenuTest(unittest.TestCase):
 
         This test has been wrong since 1.88 and nobody noticed, because it was wrong in a crowd
         of other failures. It still expected a "wudu" tile that became "children" at 1.88, and
-        eight tiles where 1.89 draws ten. Both are written out again here from the sheet that
-        actually ships -- Qur'an/Salaah, Hadith/Du'as, Children/Learn, Knowledge/World,
-        Settings/Radio -- and note that this is NOT the old order with two appended: Radio,
-        Settings and World all moved.
+        eight tiles where 1.89 draws ten.
+
+        Read off the sheet that actually ships, which at 2.31 is Qur'an/Salaah, Hadith/Du'as,
+        Children/Knowledge, Local/World, Settings/Radio. Learn has gone and Local has taken
+        the empty square; the GRID has not moved, only two of the words painted in it, which
+        is exactly the kind of change nothing in the app can see for itself.
         """
         w = self.window()
         tiles = w.side.corner.tiles
@@ -9786,7 +9858,7 @@ class SixTileMenuTest(unittest.TestCase):
         # reading order: across, then down
         order = sorted(tiles, key=lambda t: (t.y(), t.x()))
         self.assertEqual(["quran", "salaah", "hadith", "duas", "children",
-                          "learn", "knowledge", "world", "settings", "radio"],
+                          "knowledge", "local", "world", "settings", "radio"],
                          [t.name for t in order])
 
     def test_the_heading_is_gone_and_the_tiles_take_the_height(self):
@@ -14117,25 +14189,29 @@ class TwoNewTilesTest(unittest.TestCase):
                 self.assertIs(w.corner_page, w.stack.currentWidget())
                 self.assertIs(getattr(w, screen), w.corner_screen.currentWidget())
 
-    def test_learn_is_the_one_that_does_land_on_nothing_here_yet(self):
-        """Deliberately, and it says "Learn" at the top rather than one title for all of them.
+    def test_local_is_the_one_that_does_land_on_nothing_here_yet(self):
+        """REPLACES test_learn_is_the_one_that_does_land_on_nothing_here_yet.
 
-        Harry asked for Learn as a placeholder at 1.89 -- the tile is drawn and touchable so
-        the menu does not change shape when it is filled in, which is the same reasoning as
-        the children's eighteen squares. A tile that opened nothing at all would look like a
-        fault; one that opens a page with its own name on it looks like what it is.
+        Learn was the placeholder from 1.89 and is gone at 2.31: Harry redrew the sheet in all
+        ten languages -- "i have removed learn and shuffled a few icons around" -- and Local
+        took the empty square. Nothing was lost, because Learn never had a screen behind it.
+
+        The reasoning for keeping a drawn, touchable, empty tile is unchanged: the menu does
+        not change shape when it is filled in, and a page with its own name on it looks like
+        something not finished rather than something broken.
         """
         w = self.window()
         tiles = {t.name: t for t in w.side.corner.tiles}
-        self.assertIn("learn", tiles)
-        w.open_corner("learn")
+        self.assertIn("local", tiles)
+        self.assertNotIn("learn", tiles, "Learn is still on the sheet")
+        w.open_corner("local")
         self.assertIs(w.corner_soon, w.corner_screen.currentWidget())
-        self.assertEqual(w.t("corner.learn"), w.soon_title.text())
+        self.assertEqual(w.t("corner.local"), w.soon_title.text())
         self.assertTrue(w.soon_title.text().strip(), "the page is not named")
 
     def test_the_two_of_them_are_named_in_every_language_the_mat_speaks(self):
         for lang, pack in full_packs(available_packs(ASSETS)).items():
-            for name in ("knowledge", "learn", "radio"):
+            for name in ("knowledge", "local", "radio"):
                 with self.subTest(f"{lang}.{name}"):
                     self.assertTrue(pack.ui.get(f"corner.{name}", "").strip(),
                                     f"{lang} cannot name {name}")

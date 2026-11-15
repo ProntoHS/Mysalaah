@@ -47,7 +47,17 @@ from .theme import palette
 #
 # Wu'du came back within reach at 1.89 too, one press behind Knowledge. Harry's new children's
 # sheet has no Wu'du tile on it at all, so without that route it was unreachable from anywhere.
-TILES = ("quran", "salaah", "hadith", "duas", "children", "learn", "knowledge", "world",
+# TEN STILL AT 2.31, but Learn has gone and Local has arrived. Harry drew a new sheet in all
+# ten languages: "i have removed learn and shuffled a few icons around. you will need to map
+# accordingly." The boxes have NOT moved -- the grid is the same ten rectangles -- so nothing
+# in menu.json's coordinates changed. What changed is which word is drawn in two of them, and
+# that is exactly the kind of change nothing in the app can see: box 5 used to say Learn and
+# now says Knowledge, box 6 used to say Knowledge and now says Local.
+#
+# Each of the ten drawings was cropped at these coordinates and read before this list was
+# touched. Learn had no screen behind it in any case -- it fell through to "Not filled in
+# yet" -- so nothing was lost with it.
+TILES = ("quran", "salaah", "hadith", "duas", "children", "knowledge", "local", "world",
          "settings", "radio")
 ACROSS = 2
 
