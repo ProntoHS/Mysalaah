@@ -112,7 +112,21 @@ class Rules:
 
     @property
     def finished(self) -> bool:
-        return self.player == self.goal and self.gate_open
+        """Inside the mosque with the gate open -- ANYWHERE inside it, not on one flagstone.
+
+        Harry, 15 November 2026: "when completed and clicked mosque, no well done message or
+        sound appeared." He was doing exactly the right thing and the game was not listening.
+
+        This used to be `player == goal`: one named cell. Once the gate opens the mosque is a
+        room a child can walk about in, and tapping it lands them wherever the tap was nearest
+        -- so the game ended only if they happened to touch the one cell that counted.
+        Measured by tapping every spot inside the mosque from the door: it finished 1 time in
+        117 on beginner, 6 in 117 on medium, 30 in 117 on expert. He thought the expert maze
+        was unfinishable. It was the other two that were nearly impossible to finish.
+
+        The journey is called Journey to the Mosque. Arriving at the mosque is arriving.
+        """
+        return self.gate_open and (self.player == self.goal or self.player in self.inside)
 
     def restart(self) -> None:
         level = self.LEVEL_DATA[self.difficulty]
@@ -127,8 +141,10 @@ class Rules:
         self.item_norm = tuple(tuple(point) for point in level["item_norm"])
         self.item_cells = tuple(self._unpack_item(level["item_cells"][index], cell)
                                 for index, cell in enumerate(self.items))
+        self.item_reach = tuple(self._near_enough(cell) for cell in self.items)
         self.gate_cell = tuple(level["approach"])
         self.goal = tuple(level["goal"])
+        self.inside = self._the_mosque()      # needs goal, so it comes after it
         self.gate_norm = tuple(level["gate_norm"])
         self.player = self.start
         self.collected = set()
@@ -138,6 +154,56 @@ class Rules:
 
     #: How far either side of an item's own cell its drawing is recorded.
     ITEM_REACH = 10
+
+    #: How close a child has to come to pick something up, in steps along the floor.
+    #:
+    #: Harry, 15 November 2026: "when collecting items, you have to be very precise and go
+    #: over with your footprints, make the area on & around the object easier, so it becomes
+    #: collected rather than finding its sweet spot ;)". It was one cell -- the single floor
+    #: cell under a drawing that is five or six cells wide -- so a child could walk over the
+    #: lantern and not pick it up, which is a rule nobody can see and nobody would guess.
+    #:
+    #: Counted in STEPS ALONG THE FLOOR rather than as a distance, so it cannot be collected
+    #: through a wall: three steps round a corner is three, three steps through a wall is not
+    #: a route at all. Generous is the point, magic is not.
+    PICKUP = 3
+
+    def _the_mosque(self) -> frozenset:
+        """The floor sealed inside the mosque wall: what counts as having arrived.
+
+        Worked out rather than written down, by walking out from the goal over the floor
+        WITHOUT the gate -- so it is the pocket the wall encloses, whatever shape that is. If
+        a future map's mosque is a different shape this still knows where inside is, and if
+        somebody leaves a hole in a wall this grows to the whole maze, which the sealing test
+        is watching for.
+        """
+        start = [cell for cell in self._cardinal(self.goal) if cell in self.active]
+        found = set(start)
+        queue = list(start)
+        cursor = 0
+        while cursor < len(queue):
+            for near in self._cardinal(queue[cursor]):
+                if near in self.active and near not in found:
+                    found.add(near)
+                    queue.append(near)
+            cursor += 1
+        return frozenset(found)
+
+    def _near_enough(self, item) -> frozenset:
+        """The floor a child can be standing on and still have picked this up. See PICKUP."""
+        steps = {item: 0}
+        queue = [item]
+        cursor = 0
+        while cursor < len(queue):
+            current = queue[cursor]
+            cursor += 1
+            if steps[current] >= self.PICKUP:
+                continue
+            for near in self._cardinal(current):
+                if near in self.active and near not in steps:
+                    steps[near] = steps[current] + 1
+                    queue.append(near)
+        return frozenset(steps)
 
     @classmethod
     def _unpack_item(cls, hexed: str, centre) -> frozenset:
@@ -227,30 +293,80 @@ class Rules:
         route.reverse()
         return route
 
+    def within_reach(self) -> dict:
+        """Every cell a finger could move to in one touch, with how many steps away it is.
+
+        The ordinary distances() walks the whole board; this stops at MAX_TOUCH_ROUTE, which
+        is all touch_to will accept anyway. On expert that is a few hundred cells instead of
+        ten thousand, and it runs on every drag event.
+        """
+        reach = {self.player: 0}
+        queue = [self.player]
+        cursor = 0
+        while cursor < len(queue):
+            current = queue[cursor]
+            cursor += 1
+            if reach[current] >= self.MAX_TOUCH_ROUTE:
+                continue
+            for neighbour in self.neighbours(current):
+                if neighbour not in reach:
+                    reach[neighbour] = reach[current] + 1
+                    queue.append(neighbour)
+        return reach
+
     def nearest_active(self, target, radius=5):
+        """The cell a touch means, which is the nearest one the finger can ACTUALLY GET TO.
+
+        THIS USED TO PICK THE NEAREST CELL AS THE CROW FLIES, and that one word is why Harry
+        could not finish the expert maze. A cell one step away through a wall beat a cell two
+        steps away along the corridor, so a finger dragged round a corner kept landing on the
+        far side of something and the mat did nothing. Measured over the whole board before
+        this change: 7.3% of touches did nothing on beginner, 13.8% on medium and 20.6% on
+        expert -- one touch in five -- and of the ones refused for distance the median real
+        route was 96 cells against a cap of 14.
+
+        Nothing about that is a blocked maze. Every level could be finished by a program all
+        along, which is exactly why the test I had did not notice: it walked with walk_to,
+        which knows the whole board, and a child has a fingertip.
+
+        So reachability comes first and nearness second: of the cells near the touch that can
+        be reached in one touch, take the one closest to where the finger actually is. The cap
+        itself is untouched -- it is what stops a tap solving the maze.
+        """
         target = tuple(target)
-        if target in self.active or (target == self.goal and self.gate_open):
+        reach = self.within_reach()
+        if target in reach:
             return target
         tx, ty = target
-        candidates = [
-            cell for cell in self.active
-            if abs(cell[0] - tx) <= radius and abs(cell[1] - ty) <= radius
-        ]
-        if self.gate_open:
-            candidates.append(self.goal)
+        candidates = [cell for cell in reach
+                      if abs(cell[0] - tx) <= radius and abs(cell[1] - ty) <= radius]
         if not candidates:
-            return None
+            # Nothing within a touch of here. Fall back to the old answer so that callers
+            # which only want "name a cell" -- and the tests that check this names one --
+            # still get one; touch_to will refuse it on the route length, as it always did.
+            near = [cell for cell in self.active
+                    if abs(cell[0] - tx) <= radius and abs(cell[1] - ty) <= radius]
+            if self.gate_open:
+                near.append(self.goal)
+            if not near:
+                return None
+            return min(near, key=lambda cell: (cell[0] - tx) ** 2 + (cell[1] - ty) ** 2)
         return min(candidates,
-                   key=lambda cell: (cell[0] - tx) ** 2 + (cell[1] - ty) ** 2)
+                   key=lambda cell: ((cell[0] - tx) ** 2 + (cell[1] - ty) ** 2, reach[cell]))
 
     def _arrive(self, cell) -> str:
         self.player = cell
         self.trail.append(cell)
         self.trail = self.trail[-34:]
         event = "moved"
-        if cell in self.items and cell not in self.collected:
-            self.collected.add(cell)
-            self.last_item = self.ITEM_KEYS[self.items.index(cell)]
+        # NEAR ENOUGH, not exactly on it. See PICKUP: standing anywhere within a few steps of
+        # a thing counts as having picked it up, because the thing is drawn several cells wide
+        # and a child walking over it and not collecting it is a rule they cannot see.
+        for index, item in enumerate(self.items):
+            if item in self.collected or cell not in self.item_reach[index]:
+                continue
+            self.collected.add(item)
+            self.last_item = self.ITEM_KEYS[index]
             event = "gate" if self.gate_open else "collected"
         if self.finished:
             self.route = []

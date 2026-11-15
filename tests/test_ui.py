@@ -17147,6 +17147,125 @@ class MosqueMazeTest(unittest.TestCase):
         while game.route:
             game.step()
 
+    def test_a_finger_can_move_nearly_everywhere_it_points(self):
+        """THE FAULT HARRY READ AS A BLOCKED MAZE, and the reason my own tests missed it.
+
+        He said: "the expert level actually has no way of completing, its route is blocked, so
+        can never actually, i tried". Every level could be finished all along -- by a PROGRAM.
+        My test walked with walk_to, which knows the whole board. A child has a fingertip.
+
+        nearest_active used to take the nearest cell as the crow flies, so a cell one step away
+        through a wall beat a cell two steps away along the corridor, and a finger dragged
+        round a corner kept landing on the far side of something. Measured over the whole
+        board before the change: 7.3% of touches did nothing on beginner, 13.8% on medium and
+        20.6% on expert -- one touch in five -- with a median real route of 96 cells against a
+        cap of 14.
+
+        The cap stays; it is what stops a tap solving the maze. What changed is that
+        reachability is asked FIRST and nearness second.
+        """
+        g = self.game()
+        for level in range(3):
+            with self.subTest(g.level["name"]):
+                tried = refused = 0
+                # Sampled, not exhaustive. Every 29th floor cell and a 5x5 of spots around it
+                # is a few thousand touches, which is plenty to measure a rate and keeps this
+                # off the critical path of a suite that runs eleven hundred tests.
+                for cell in sorted(g.active)[::29]:
+                    g.player = cell
+                    for dx in range(-2, 3):
+                        for dy in range(-2, 3):
+                            spot = (cell[0] + dx, cell[1] + dy)
+                            if spot == cell:
+                                continue
+                            tried += 1
+                            target = g.nearest_active(spot)
+                            route = g.route_to(target) if target else []
+                            if not route or len(route) > g.MAX_TOUCH_ROUTE:
+                                refused += 1
+                self.assertLess(refused / tried, 0.07,
+                                f"{g.level['name']}: {100 * refused / tried:.1f}% of touches "
+                                "do nothing, which reads as a blocked maze")
+            g.cycle_difficulty()
+
+    def test_one_tap_cannot_cross_the_maze(self):
+        """The cap on how far a single touch may travel, which is what keeps this a maze a
+        child traces rather than one the mat solves for them.
+
+        A behaviour rather than a number: a test that reads MAX_TOUCH_ROUTE back and compares
+        it to 14 passes whatever the game then does with it. This asks the game.
+        """
+        g = self.game()
+        for level in range(3):
+            with self.subTest(g.level["name"]):
+                g.player = g.start
+                far = max(g.distances(g.start).items(), key=lambda pair: pair[1])
+                self.assertGreater(far[1], g.MAX_TOUCH_ROUTE * 2,
+                                   "this maze is too small to prove anything")
+                self.assertEqual("nothing", g.touch_to(far[0]),
+                                 f"one touch carried a child {far[1]} cells across the maze")
+                self.assertEqual(g.start, g.player, "and it moved them anyway")
+            g.cycle_difficulty()
+            g.restart()
+
+    def test_walking_near_a_thing_picks_it_up(self):
+        """Harry: "make the area on & around the object easier, so it becomes collected rather
+        than finding its sweet spot". It was one cell under a drawing five or six cells wide.
+
+        And it may not be collectable THROUGH a wall, which is the other half: being generous
+        about where a child has to stand is not the same as reaching through the maze.
+        """
+        g = self.game()
+        for level in range(3):
+            with self.subTest(g.level["name"]):
+                for index, item in enumerate(g.items):
+                    self.assertGreaterEqual(
+                        len(g.item_reach[index]), 4,
+                        f"{g.ITEM_KEYS[index]} still wants its sweet spot")
+                    for cell in g.item_reach[index]:
+                        self.assertTrue(g.route_to(cell) or cell == g.player,
+                                        f"{cell} counts as collecting {g.ITEM_KEYS[index]} "
+                                        "but cannot be walked to")
+                # Standing beside a thing collects it; the far side of a wall does not.
+                g.restart()
+                near = sorted(g.item_reach[0] - {g.items[0]})[0]
+                self.walk(g, near)
+                self.assertIn(g.items[0], g.collected,
+                              f"standing at {near}, a step from it, collected nothing")
+            g.cycle_difficulty()
+            g.restart()
+
+    def test_arriving_anywhere_inside_the_mosque_finishes_the_journey(self):
+        """Harry: "when completed and clicked mosque, no well done message or sound appeared."
+
+        He was doing the right thing. `finished` wanted the player on ONE named cell, and once
+        the gate opens the mosque is a room -- so a tap landed wherever it was nearest and the
+        game ended only by luck. Tapping every spot inside the mosque from the door finished
+        it 1 time in 117 on beginner, 6 in 117 on medium, 30 in 117 on expert. The level he
+        called unfinishable was the one that worked most often.
+        """
+        g = self.game()
+        for level in range(3):
+            with self.subTest(g.level["name"]):
+                self.assertGreater(len(g.inside), 100, "the mosque has no room in it")
+                g.collected = set(g.items)
+                self.assertTrue(g.gate_open)
+                landed = 0
+                for cell in sorted(g.inside)[::9]:
+                    g.player = cell
+                    if g.finished:
+                        landed += 1
+                    else:
+                        self.fail(f"standing inside the mosque at {cell} is not finishing")
+                self.assertGreater(landed, 10, "too few places tried to mean anything")
+                # And outside it is still outside, gate or no gate.
+                g.player = g.start
+                self.assertFalse(g.finished, "standing at the start counts as arriving")
+                g.player = g.gate_cell
+                self.assertFalse(g.finished, "standing at the door counts as being inside")
+            g.cycle_difficulty()
+            g.restart()
+
     def test_the_mosque_is_sealed_and_the_gate_is_the_only_way_in(self):
         """Harry, 15 November 2026: "the mosque in the centre should be sealed completely
         around, there are currently 2 opening above it, there shouldn't be."
