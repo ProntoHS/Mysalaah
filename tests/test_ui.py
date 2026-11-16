@@ -41,8 +41,21 @@ CONTENT_ARABIC = CONTENT.arabic
 
 # "Arabic only" is a pack so that the mat can reach Harry's Arabic menu drawings and lay itself
 # out right to left, but it is a deliberately partial one -- the menu headings and nothing else.
-# See the note in test_core.py. "Every language the mat speaks" means the six it is WRITTEN in.
-WRITTEN_IN = ("en", "fr", "es", "ur", "hi", "zh")
+# See the note in test_core.py. "Every language the mat speaks" means the ones it is WRITTEN in.
+#
+# IT SAID SIX UNTIL 2.38, AND THE MAT HAS SHIPPED NINE FOR A LONG TIME. Bengali, Portuguese and
+# Russian were added and this was not, and the damage came in two halves that hid each other:
+#
+#   - Four tests assert a COUNT against this tuple -- the language picker's length, the set of
+#     packs, the set of films. All four went red when the mat grew and have been sitting in the
+#     known-failures list ever since, which is where a red test goes to stop being read.
+#   - Five tests LOOP over it. Those stayed green, and quietly stopped covering three of the
+#     ten languages. The banner strip, the wu'du screens, the Qur'an page, the kalima menu and
+#     the language list have not been checked in Bengali, Portuguese or Russian since.
+#
+# Widened here and measured before and after: all nine usages, 64 tests, green either way, so
+# it costs nothing and it takes four names off the known-failures list.
+WRITTEN_IN = ("en", "fr", "es", "ur", "hi", "zh", "bn", "pt", "ru")
 ARABIC_ONLY = "ar"
 
 
@@ -2882,7 +2895,12 @@ class MenusAreDrawnInEveryLanguageTest(unittest.TestCase):
         return json.loads((ASSETS / folder / "menu.json").read_text(encoding="utf-8"))
 
     def test_every_language_has_its_own_film_of_every_menu(self):
-        for folder in ("hadith-menu", "duas-menu", "knowledge"):
+        # "children" added at 2.38, when Harry replaced all ten of its films at once. It is
+        # the menu where a shifted grid matters most -- six games, and a child who presses
+        # Islamic Jigsaw and gets Five Pillars -- and it was the one menu none of these
+        # checks covered. It could only be added once WRITTEN_IN was widened: until then this
+        # test could not pass for any folder.
+        for folder in ("hadith-menu", "duas-menu", "knowledge", "children"):
             films = self.described(folder).get("films", {})
             with self.subTest(folder):
                 self.assertEqual(set(WRITTEN_IN) | {ARABIC_ONLY}, set(films))
@@ -2908,7 +2926,7 @@ class MenusAreDrawnInEveryLanguageTest(unittest.TestCase):
 
     def test_every_film_is_the_size_the_boxes_were_cut_at(self):
         from PIL import Image
-        for folder, attr in self.MENUS:
+        for folder, attr in self.MENUS + (("knowledge", ""), ("children", "")):
             described = self.described(folder)
             wide, tall = described["size"]
             for lang, name in described["films"].items():
@@ -2942,7 +2960,7 @@ class MenusAreDrawnInEveryLanguageTest(unittest.TestCase):
         _sys.path.insert(0, str(ASSETS.parent / "tools"))
         from build_tiles import tiles_in
         from PIL import Image
-        for folder, attr in self.MENUS + (("knowledge", ""),):
+        for folder, attr in self.MENUS + (("knowledge", ""), ("children", "")):
             described = self.described(folder)
             want = described["tiles"]
             for lang, name in sorted(described["films"].items()):
@@ -4865,7 +4883,10 @@ class EveryInterfaceLanguageTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         return w
 
-    def test_all_six_are_offered(self):
+    def test_every_language_the_mat_is_written_in_is_offered(self):
+        """Was called test_all_six_are_offered until 2.38, by which time it was nine.
+        A test whose NAME carries a count is a test that has to be renamed every time
+        Harry adds a language, and this one was not."""
         packs = available_packs(ASSETS)
         self.assertEqual(set(WRITTEN_IN) | {ARABIC_ONLY}, set(packs))
         # Counted against English rather than against a number written in here: a hard-coded
@@ -4942,7 +4963,8 @@ class EveryInterfaceLanguageTest(unittest.TestCase):
         from salaah.render import Fonts
         w = self.window("en")
         picker = w.language_picker
-        self.assertEqual(len(WRITTEN_IN) + 1, picker.count(), "six languages, and Arabic only")
+        self.assertEqual(len(WRITTEN_IN) + 1, picker.count(),
+                         "every language the mat is written in, and Arabic only")
         wanted = {"中文": Fonts.scripts["han"], "हिन्दी": Fonts.scripts["devanagari"],
                   "English": Fonts.english_family, "Español": Fonts.english_family}
         seen = {}
@@ -17715,6 +17737,45 @@ class JourneyJigsawPicturesTest(unittest.TestCase):
                 width, height = img.size
             self.assertAlmostEqual(width / height, 16 / 9, places=2,
                                    msg=f"{name} is {width}x{height}")
+
+    def test_no_two_pieces_of_any_picture_are_the_same_piece(self):
+        """THE WAY A JIGSAW GOES WRONG, and nothing was asking it.
+
+        If two pieces of a picture look the same, a child can lay the puzzle out so that it
+        looks finished and be told it is not, with no way of seeing why. On a drawing with a
+        big empty sky that is easy to do by accident -- and Harry's five scenes at 2.38 have
+        far more open space in them than the five they replace.
+
+        So: cut every picture at all three difficulties and compare every pair of pieces.
+        Measured on the five that shipped before and the five that replaced them -- no twins
+        in either set, at any size. This holds that.
+
+        The bar is "a child could not tell these apart", not "identical": two pixels of
+        difference in a 266x300 piece is the same piece as far as anybody playing is
+        concerned. Two levels of 255, averaged over the piece.
+        """
+        import itertools
+        import numpy as np
+        from PIL import Image
+        from salaah.journey_jigsaw import Rules
+        root = Path(__file__).resolve().parent.parent / "assets" / "children"
+        for name in self.pictures():
+            with Image.open(root / name) as img:
+                whole = np.asarray(img.convert("L")).astype(int)
+            for columns, rows in Rules.GRIDS:
+                with self.subTest(picture=name, grid=f"{columns}x{rows}"):
+                    tall, wide = whole.shape
+                    pieces = [whole[r * tall // rows:(r + 1) * tall // rows,
+                                    c * wide // columns:(c + 1) * wide // columns]
+                              for r in range(rows) for c in range(columns)]
+                    for i, j in itertools.combinations(range(len(pieces)), 2):
+                        if pieces[i].shape != pieces[j].shape:
+                            continue
+                        apart = np.abs(pieces[i] - pieces[j]).mean()
+                        self.assertGreater(
+                            apart, 2.0,
+                            f"{name} at {columns}x{rows}: pieces {i} and {j} are the same "
+                            f"piece ({apart:.2f} apart), so the puzzle has two answers")
 
     def test_the_game_is_not_offered_when_its_pictures_are_not_there(self):
         """playable() is read off the disk rather than from a list, because the pictures are
