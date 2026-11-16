@@ -5618,10 +5618,14 @@ class CallToPrayerTest(unittest.TestCase):
             self.stopped += 1
             self.playing = False
 
-    def window(self, **settings):
+    def window(self, save_settings=False, **settings):
+        # save_settings is the mat's "you may touch the disk" flag, not one of its settings,
+        # so it is taken out here rather than handed to Settings(). Only the test about the
+        # record surviving a restart turns it on, and that one sends everything it would
+        # write somewhere disposable.
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(**{"theme": "light", "recitation": False, **settings}),
-                       scale=1.0, save_settings=False, aspect=None)
+                       scale=1.0, save_settings=save_settings, aspect=None)
         w.call = self.Speaker()
         w.outputs = type(w.outputs)()
         w.resize(1920, 1200)
@@ -5644,6 +5648,91 @@ class CallToPrayerTest(unittest.TestCase):
 
     def words(self, w):
         return [x.text() for x in w.call_box.findChildren(QtWidgets.QLabel)]
+
+    def test_the_same_prayer_is_not_called_again_after_the_app_restarts(self):
+        """THE AZAAN PLAYING TWICE. Harry: "when azaan plays, it plays twice ... i press stop
+        and there is another azaan playing i press stop again".
+
+        A prayer stays worth calling for two minutes after it falls due, so that a mat which
+        was busy does not miss it. The guard against calling it twice was a dict built empty
+        in __init__, so it guarded one RUN of the app rather than one day. Anything that
+        restarted the app inside those two minutes -- and run.sh restarts it after `sleep 2`
+        whenever it exits non-zero -- came back with an empty dict, found the prayer still
+        inside its window, and called it again. The gap Harry heard was however long the
+        restart took: two seconds one day, a minute another.
+
+        So: call a prayer, throw the whole window away, build another one exactly as the
+        restart would, and ask it the same question five seconds later.
+        """
+        import tempfile
+        with tempfile.TemporaryDirectory() as elsewhere:
+            kept = Path(elsewhere) / "called.json"
+            # save_settings=True because writing it down is the whole point -- a mat that is
+            # not allowed to touch the disk cannot be asked whether it remembers. Both of the
+            # places that would reach the real machine are sent somewhere disposable: the
+            # record itself, and the settings file that save_settings also gates.
+            with mock.patch.object(MainWindow, "CALLED_AT", kept), \
+                 mock.patch.object(Settings, "save", lambda self, path=None: None):
+                first = self.window(save_settings=True)
+                self.at(first, "dhuhr")
+                self.assertEqual(["azaan.mp3"], first.call.played)
+                self.assertTrue(kept.is_file(), "nothing was written down")
+                # The first mat is left to the cleanup the helper registered: shutting it here
+                # as well takes it down twice, which raises out of the timer teardown.
+                second = self.window(save_settings=True)      # the app, started again
+                self.assertIn("dhuhr", second.called,
+                              "the restarted app has forgotten it already called dhuhr")
+                self.at(second, "dhuhr", seconds_late=10)
+                self.assertEqual([], second.call.played,
+                                 "the restarted app called dhuhr a second time")
+
+    def test_a_mat_that_must_not_touch_the_disk_does_not_write_the_record(self):
+        """The guard on the guard above. save_settings=False means this mat writes nothing,
+        and the record has to go through that like the settings file does -- without it the
+        suite wrote into the real ~/.salaah and handed one test's prayers to the next."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as elsewhere:
+            kept = Path(elsewhere) / "called.json"
+            with mock.patch.object(MainWindow, "CALLED_AT", kept):
+                w = self.window()                 # save_settings=False, as every test mat is
+                self.at(w, "dhuhr")
+                self.assertEqual(["azaan.mp3"], w.call.played, "it did not call at all")
+                self.assertFalse(kept.exists(),
+                                 "a mat told not to save wrote to the disk anyway")
+
+    def test_a_call_left_playing_by_a_dead_app_is_stopped_by_the_next_one(self):
+        """The other half of the doubling, and the half the stop button could never fix.
+
+        The player is a separate process. stop() ends it, and stop() only runs while there is
+        an app alive to run it -- so an app that went down mid-azaan left mpg123 sounding with
+        nothing on the mat able to reach it.
+
+        Uses a real process, because the whole point is that it outlives the thing that made
+        it, and it checks the identity guard as well: the note names a pid AND a command line,
+        and a pid whose command line no longer matches must be left alone. Pid numbers get
+        reused, and killing whatever inherited one would be far worse than the fault.
+        """
+        import subprocess
+        import tempfile
+        from salaah.audio import Call
+        with tempfile.TemporaryDirectory() as elsewhere:
+            note = Path(elsewhere) / "calling.json"
+            spare = subprocess.Popen(["sleep", "30"])
+            self.addCleanup(spare.kill)
+            note.write_text(json.dumps({"pid": spare.pid, "command": ["sleep", "30"]}),
+                            encoding="utf-8")
+            self.assertEqual("sleep", Call(note=note).left_behind())
+            spare.wait(timeout=5)
+            self.assertIsNotNone(spare.poll(), "the leftover player was not stopped")
+            self.assertFalse(note.is_file(), "the note was left behind for the next run")
+
+            # A pid that is alive but is something else entirely: left alone.
+            other = subprocess.Popen(["sleep", "30"])
+            self.addCleanup(other.kill)
+            note.write_text(json.dumps({"pid": other.pid, "command": ["mpg123", "-q", "x.mp3"]}),
+                            encoding="utf-8")
+            self.assertIsNone(Call(note=note).left_behind())
+            self.assertIsNone(other.poll(), "something that was not the call got signalled")
 
     def test_a_prayer_falling_due_says_so_and_calls(self):
         w = self.window()
@@ -5977,6 +6066,30 @@ class QuranTest(unittest.TestCase):
         settle()
         self.addCleanup(lambda: shut(w))
         return w
+
+    def test_leaving_the_book_by_the_small_screen_stops_the_recitation(self):
+        """Harry: "i was playing the qu'ran and i clicked on another menu option on the side
+        menu, the app carried on as normal but the qu'ran carried on playing, it shouldn't do".
+
+        The rule was already written down -- put_it_all_down says "leaving the book stops the
+        recitation" -- and it was simply never applied to this door. Menu in the banner went
+        through it; the 7in tiles did not. So the same act of leaving behaved differently
+        depending on which way you left, and the way a child actually leaves was the one that
+        left a voice talking to an empty room.
+
+        Checked for every tile the small screen offers, not just one, because the fix belongs
+        at the door rather than in any single destination.
+        """
+        for tile in ("duas", "hadith", "knowledge", "children", "local", "radio", "world"):
+            with self.subTest(tile):
+                w = self.window()
+                w.open_corner_list()
+                settle()
+                w.reader.reciting = True        # as though a surah were being recited
+                w.open_corner(tile)
+                settle()
+                self.assertFalse(w.reader.reciting,
+                                 f"opening {tile} left the Qur'an playing")
 
     def test_all_one_hundred_and_fourteen_are_listed(self):
         w = self.window()
@@ -9581,6 +9694,59 @@ class BannerStripTest(unittest.TestCase):
         settle()
         self.addCleanup(lambda: shut(w))
         return w
+
+    def test_a_slider_whose_page_has_gone_does_not_take_the_mat_down(self):
+        """THE SECOND MOST COMMON CRASH ON HARRY'S MAT -- sixteen times in his
+        startup-error.log, from version 1.66 through to 2.05, every one of them in
+        show_volume:
+
+            RuntimeError: wrapped C/C++ object of type QSlider has been deleted
+
+        A strip is built fresh every time a page is, and the old page is thrown away with its
+        slider on it -- while volume_bars goes on holding a Python wrapper around a widget Qt
+        has already deleted. show_volume is called from a timer and from touching a prayer's
+        units, so it took the app down from somewhere that looked nothing like the cause.
+
+        The same fault and the same cure as forget_the_strips_that_have_gone, which was
+        written for the banner labels and never applied to the sliders beside them.
+
+        A REAL DEAD WRAPPER, made through the binding rather than stood in for with a class
+        that raises on cue. The whole fault is about what PyQt and PySide do to a Python object
+        when Qt deletes the thing underneath it, and a hand-made impostor would be testing the
+        impostor. Dropping the parent and collecting is not enough -- measured, the child is
+        still alive after processEvents and a gc pass -- so the binding is asked directly.
+        """
+        delete = None
+        try:                                        # PyQt6
+            from PyQt6 import sip
+            delete = sip.delete
+        except ImportError:
+            try:                                    # PySide6
+                import shiboken6
+                delete = shiboken6.delete
+            except ImportError:
+                pass
+        if delete is None:
+            self.skipTest("neither binding offers a way to delete a widget outright")
+
+        w = self.window()
+        self.assertTrue(w.volume_bars, "no volume sliders were built at all")
+        held = len(w.volume_bars)
+        # A strip of its own, built and then taken down the way a page is.
+        page = QtWidgets.QWidget()
+        doomed = QtWidgets.QSlider(page)
+        reading = QtWidgets.QLabel(page)
+        w.volume_bars.append((doomed, reading))
+        delete(page)
+        with self.assertRaises(RuntimeError):        # the wrapper really is dead
+            doomed.value()
+
+        w.show_volume()                              # this is what used to take the mat down
+
+        self.assertEqual(held, len(w.volume_bars),
+                         "the slider whose page had gone was not let go of")
+        for bar, _ in w.volume_bars:
+            bar.value()                              # every one still here is alive
 
     @staticmethod
     def strip(page):
@@ -17480,7 +17646,15 @@ class QiblaQuestTest(unittest.TestCase):
         from salaah.qibla_quest import ROUNDS
         pins = {r.city: r.point for r in ROUNDS}
         self.assertEqual(sorted(self.WHERE), sorted(pins))
-        width, height = 1672, 941          # the drawing these fractions are of
+        # The drawing these fractions are of -- ASKED OF THE FILE, not written down. It was
+        # 1672x941 until 2.39 and is 1920x1080 now, and a residual in pixels means nothing
+        # without the size it is a fraction of. The projection did not change with it: the new
+        # map is the same drawing scaled, with the Kaaba added, which was checked pixel for
+        # pixel before it was installed.
+        from PIL import Image
+        with Image.open(Path(__file__).resolve().parent.parent / "assets" / "children"
+                        / "qibla-quest.png") as drawing:
+            width, height = drawing.size
 
         def worst(known: list, drawn: list, span: int) -> float:
             """How far the furthest pin is from the straight line through all five, in pixels."""
@@ -17502,6 +17676,108 @@ class QiblaQuestTest(unittest.TestCase):
                                      f"line: one of them is not where its city is")
         self.assertLess(down, 6.0, f"the pins are {down:.1f} px from a single latitude line: "
                                    f"one of them is not where its city is")
+
+    def test_the_kaaba_is_drawn_into_the_map_at_makkah(self):
+        """Harry: "the qibla quest has this picture but no kaaba on it."
+
+        He was right, and the file said otherwise: MapPanel's docstring claimed it drew "the
+        current city and Makkah" and there was no Makkah marker anywhere in it. A game about
+        which way to face Makkah had no Makkah on the map.
+
+        He has drawn it into the artwork, which is the better answer than painting it each
+        round -- the one fixed point in the game should not come and go with the question.
+
+        So this asks the PICTURE. Makkah is at 21.42 N, 39.83 E; put through the same linear
+        fit the city pins use, that lands inside the Arabian landmass, which is solid black.
+        The Kaaba is drawn in white, so what proves it is there is a patch of paper in a place
+        that would otherwise be all ink.
+        """
+        from PIL import Image
+        import numpy as np
+        png = Path(__file__).resolve().parent.parent / "assets" / "children" / "qibla-quest.png"
+        with Image.open(png) as drawing:
+            whole = np.asarray(drawing.convert("L"))
+        tall, wide = whole.shape
+        # Makkah as a fraction of the map, from the fit in salaah/qibla_quest.py.
+        x, y = int(wide * 0.5664), int(tall * 0.4935)
+
+        # A SMALL ENCLOSED MARK, which took three goes to get right and is worth the room.
+        #
+        # First try: "is anything light within 40 pixels of Makkah". A sabotage that put the
+        # OLD map back -- no Kaaba on it anywhere -- sailed through, because forty pixels at
+        # Makkah takes in the Red Sea and the sea is paper. In an 80px box the map with the
+        # Kaaba is 30% light and the map without it 18%: no honest threshold separates those.
+        #
+        # Second try: a tight patch, searched over a small window so a nudged drawing would
+        # still pass. Also sailed through -- the window reached the sea and scored 73%.
+        #
+        # What actually tells them apart is not how much paper is there but WHAT SHAPE it is.
+        # The Kaaba is a small mark with ink all round it. The Red Sea is a huge connected run
+        # of paper that leaves the neighbourhood entirely. Measured: the light region nearest
+        # Makkah is 308 pixels and enclosed on the map with the Kaaba, and 8,678 pixels and
+        # running off the edge of the window on the map without it. Twenty-eight times apart,
+        # and different in kind rather than degree.
+        from collections import deque
+        half = 100
+        window = whole[y - half:y + half, x - half:x + half] > 200
+        height, width = window.shape
+        paper = np.argwhere(window)
+        self.assertTrue(len(paper), "there is no paper at all near Makkah")
+        nearest = paper[(((paper[:, 0] - half) ** 2 + (paper[:, 1] - half) ** 2)).argmin()]
+        seen = np.zeros_like(window)
+        queue = deque([tuple(nearest)])
+        seen[tuple(nearest)] = True
+        size, escapes = 0, False
+        while queue:
+            at_y, at_x = queue.popleft()
+            size += 1
+            if at_y in (0, height - 1) or at_x in (0, width - 1):
+                escapes = True
+            for step in ((at_y - 1, at_x), (at_y + 1, at_x), (at_y, at_x - 1), (at_y, at_x + 1)):
+                if (0 <= step[0] < height and 0 <= step[1] < width
+                        and window[step] and not seen[step]):
+                    seen[step] = True
+                    queue.append(step)
+        self.assertFalse(escapes,
+                         f"the paper nearest Makkah runs off out of the neighbourhood "
+                         f"({size}px): that is the sea, not a mark on the land")
+        self.assertTrue(60 < size < 4000,
+                        f"the mark at Makkah is {size}px, which is not the size of a drawing "
+                        f"of the Kaaba")
+
+    def test_the_city_marker_is_a_filled_dot_and_not_a_ring(self):
+        """Harry: "make it slightly bigger and fill it in, so its a red dot rather than a
+        circle."
+
+        A ring on a map of coastlines is one more outline among thousands, and it left the
+        middle showing whatever was underneath -- which for a city is the very pixel being
+        pointed at. Asked of the painted panel: the centre of the marker has to be the
+        highlight colour, which a ring leaves alone.
+        """
+        from salaah.qibla_quest import MapPanel
+        from salaah.theme import palette
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        panel = MapPanel(w)
+        panel.resize(1200, 600)
+        panel.set_point((0.5, 0.5))
+        settle()
+        painted = panel.grab().toImage()
+        want = QtGui.QColor(palette().highlight)
+        middle = QtGui.QColor(painted.pixel(painted.width() // 2, painted.height() // 2))
+        self.assertEqual((want.red(), want.green(), want.blue()),
+                         (middle.red(), middle.green(), middle.blue()),
+                         "the middle of the marker is not filled: it is still a ring")
+        # And bigger than the ring it replaced, which was 13 across the radius.
+        across = sum(QtGui.QColor(painted.pixel(x, painted.height() // 2)).rgb() == want.rgb()
+                     for x in range(painted.width()))
+        self.assertGreater(across, 2 * w.px(13),
+                           f"the dot is {across}px across, no wider than the old ring")
 
     def test_the_map_the_pins_are_fractions_of_is_actually_there(self):
         png = Path(__file__).resolve().parent.parent / "assets" / "children" / "qibla-quest.png"

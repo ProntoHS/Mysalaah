@@ -347,7 +347,20 @@ def remember(settings, main_screen, side_screen) -> None:
 
 
 def report_windows(win, main_screen, side_screen) -> None:
-    """Says which screen each window actually ended up on."""
+    """Says which screen each window actually ended up on.
+
+    EVERY TOUCH OF A SCREEN IN HERE CAN RAISE, for the reason set out in fill_screen: a
+    display that has gone leaves a QScreen wrapper that looks fine until it is used. This
+    function only reports and tidies, so there is nothing in it worth taking a mat down for.
+    """
+    try:
+        _report_windows(win, main_screen, side_screen)
+    except RuntimeError as gone:
+        print(f"report_windows: a screen went away while the windows were being checked "
+              f"({gone})", file=sys.stderr)
+
+
+def _report_windows(win, main_screen, side_screen) -> None:
     def where(widget):
         handle = widget.windowHandle()
         screen = handle.screen() if handle is not None else None
@@ -372,6 +385,19 @@ def report_windows(win, main_screen, side_screen) -> None:
             cover(widget, screen)
 
 
+def still_connected(app, screen) -> bool:
+    """Is this QScreen still a screen, or has Qt thrown it away underneath us?
+
+    A QScreen is a handle on a C++ object the toolkit owns. Unplug a display, or let the
+    compositor re-enumerate its outputs, and Qt deletes that object -- while Python goes on
+    holding a wrapper that looks perfectly fine until it is touched, and then raises.
+    """
+    try:
+        return screen is not None and screen in app.screens()
+    except RuntimeError:
+        return False
+
+
 def fill_screen(app, widget, screen, by_hand: bool = False) -> None:
     """Fills one particular screen with a window.
 
@@ -379,7 +405,58 @@ def fill_screen(app, widget, screen, by_hand: bool = False) -> None:
     choose the wrong one. So the window is first shown, small, at the corner of the screen it
     belongs to; the desktop then has only one screen to choose from when it is told to go full
     screen. If it still gets it wrong, [cover] takes the screen over without asking.
+
+    A SCREEN CAN DIE BETWEEN BEING CHOSEN AND BEING USED, and until 2.39 that took the mat
+    down on the way up. From Harry's startup-error.log:
+
+        2026-11-14 19:45:09  version 2.25
+          File ".../salaah/main.py", line 402, in cover
+            box = screen.geometry()
+        RuntimeError: wrapped C++ object of type QScreen has been deleted
+
+    The screen is picked near the top of main() and used here, a long way down -- the status
+    light, the fan and the cursor all happen in between. On a mat whose main display sometimes
+    does not come back, that gap is long enough for the display to go, and Qt to delete the
+    QScreen, while this function is still holding it.
+
+    What happened next is the whole reason it mattered: run.sh restarted the app two seconds
+    later, the restarted app found the prayer still inside its two-minute grace window and
+    called the azaan AGAIN, and the player belonging to the app that died was still sounding
+    with nothing able to stop it. That is the azaan playing twice, and the stop button only
+    reaching one of them.
+
+    So nothing here may raise on account of a screen. A mat that cannot work out which display
+    to use still has to start: it shows its window wherever the desktop will put it and says so
+    on stderr, which is a mat with its windows on the wrong screen rather than no mat at all.
     """
+    # THE CATCH BELOW IS WHAT HOLDS; this check is not load-bearing and it is worth saying so.
+    # Removing it as a sabotage did NOT make any test fail, and that is the correct answer
+    # rather than a hole: with only the catch, a screen that has already gone still ends with
+    # the window shown. What the check buys is a clearer line on stderr -- "it was gone before
+    # we started" reads differently from "it went while we were placing it" -- and not
+    # half-placing a window before the exception arrives. Both are worth having and neither is
+    # worth pretending a test guards.
+    if not still_connected(app, screen):
+        if screen is not None:
+            print("fill_screen: the screen this window was meant for is no longer there; "
+                  "showing it wherever the desktop puts it", file=sys.stderr)
+        widget.show()
+        return
+    try:
+        _fill_screen(app, widget, screen, by_hand)
+    except RuntimeError as gone:
+        # The check above is not enough on its own and is not meant to be: the display can go
+        # between being asked about and being used, which is a race no amount of asking first
+        # can close. This is the part that actually holds.
+        print(f"fill_screen: the screen went away while the window was being placed ({gone}); "
+              f"showing it wherever the desktop puts it", file=sys.stderr)
+        try:
+            widget.show()
+        except RuntimeError:
+            pass
+
+
+def _fill_screen(app, widget, screen, by_hand: bool = False) -> None:
     if screen is None:
         widget.show()
         return

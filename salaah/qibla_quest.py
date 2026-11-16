@@ -218,7 +218,15 @@ class DirectionBox(QtWidgets.QAbstractButton):
 
 
 class MapPanel(QtWidgets.QFrame):
-    """Harry's map artwork with the current city and Makkah picked out on top.
+    """Harry's map artwork with the current city picked out on top of it.
+
+    MAKKAH IS PART OF THE DRAWING, not something this paints. It said "the current city and
+    Makkah" here for a long while and only ever drew one of them -- there was no Makkah marker
+    anywhere in this file -- which is a docstring describing a thing that was never written.
+    Harry found it from the other end: "the qibla quest has this picture but no kaaba on it".
+    He has drawn the Kaaba into the map itself at 2.39, which is the better answer: the one
+    fixed point in a game about which way to face should not blink in and out with the round.
+    So exactly one thing is painted here, and it is the city being asked about.
 
     THE MAP TURNS OVER AFTER DARK, like every other drawing on this mat. Harry: "the qibla
     quest map is currently white background and black continents on dark theme but i want
@@ -272,9 +280,17 @@ class MapPanel(QtWidgets.QFrame):
             p.drawPixmap(left, top, shown)
             x = left + int(shown.width() * self.point[0])
             y = top + int(shown.height() * self.point[1])
-            radius = self.win.px(13)
-            p.setPen(QtGui.QPen(QtGui.QColor(c.highlight), self.win.px(5)))
-            p.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+            # A FILLED DOT, not a ring, and bigger. Harry: "make it slightly bigger and fill it
+            # in, so its a red dot rather than a circle." A ring on a map of coastlines is one
+            # more outline among thousands; a solid disc is the only thing on the screen that
+            # is neither black nor white, so the eye finds it without being told where to look.
+            #
+            # The ring was 13 across the radius with a 5-wide stroke, so it covered 36 pixels
+            # of width and left the middle of it showing whatever was underneath -- which for
+            # a city is the very pixel being pointed at.
+            radius = self.win.px(16)
+            p.setPen(QtCore.Qt.PenStyle.NoPen)
+            p.setBrush(QtGui.QColor(c.highlight))
             p.drawEllipse(QtCore.QPoint(x, y), radius, radius)
         else:
             p.setPen(QtGui.QPen(QtGui.QColor(c.line), self.win.px(3)))

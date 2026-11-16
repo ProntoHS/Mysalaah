@@ -6141,6 +6141,68 @@ class ItSaysWhyItWouldNotStartTest(unittest.TestCase):
         return subprocess.run([sys.executable, "-m", "salaah", "--quit-after", "1"],
                               cwd=root, env=env, capture_output=True, text=True, timeout=180)
 
+    def test_a_second_copy_will_not_start_while_one_is_already_running(self):
+        """THE AZAAN PLAYING TWICE, from the other end.
+
+        Two copies of this app run side by side without either knowing. They do not share a
+        window, so you see one; they do not share a clock, so each calls the azaan on its own;
+        they do not share a stop button, so stopping one leaves the other sounding. Harry: "i
+        press stop and there is another azaan playing i press stop again". His crash log has
+        pairs of identical lines -- same second, same exit code, same uptime -- which one
+        process cannot write and two can.
+
+        THE GUARD IS IN THE APP, NOT IN run.sh, and this test is why that distinction is worth
+        a test rather than a comment. Asked what it was running, his mat said
+        `/usr/bin/python3 -m salaah` with no run.sh in it at all. A lock in run.sh is a lock
+        that way of starting walks past.
+
+        So: two real processes, started the way he starts them. The second has to leave
+        quietly and WITH EXIT 0 -- a second copy is somebody opening the app on a mat that is
+        already up, not a fault, and a non-zero exit would write a false line into
+        crash-log.txt and set run.sh's restart guard chasing it.
+        """
+        import subprocess
+        import tempfile
+        root = self.mat()
+        # The lock lives under the temp folder, so the test gets one of its own rather than
+        # fighting whatever else is on this machine.
+        elsewhere = tempfile.mkdtemp(prefix="matlock-")
+        self.addCleanup(__import__("shutil").rmtree, elsewhere, True)
+        # HOME as well as TMPDIR, and that is not tidiness. These are REAL copies of the app,
+        # started the way the mat starts it, so they run with save_settings on and write to
+        # ~/.salaah like a real mat does. Pointed at the true home they left a called.json
+        # behind in it -- which the next suite run would read back as "these prayers have been
+        # called today". A test that writes into the machine it is testing on is a test that
+        # hands its own state to the next one.
+        env = dict(os.environ, QT_QPA_PLATFORM="offscreen", TMPDIR=elsewhere, HOME=elsewhere)
+        first = subprocess.Popen([sys.executable, "-m", "salaah", "--quit-after", "20"],
+                                 cwd=root, env=env, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, text=True)
+        self.addCleanup(first.kill)
+        import time
+        for _ in range(100):                       # wait for it to have taken the lock
+            if (Path(elsewhere) / f"salaah-{os.getuid()}.lock").exists():
+                break
+            if first.poll() is not None:
+                self.fail(f"the first copy exited at once: {first.communicate()[1][-2000:]}")
+            time.sleep(0.1)
+        time.sleep(1.0)
+
+        second = subprocess.run([sys.executable, "-m", "salaah", "--quit-after", "20"],
+                                cwd=root, env=env, capture_output=True, text=True, timeout=180)
+        self.assertEqual(0, second.returncode,
+                         f"a second copy exited {second.returncode}, which run.sh would treat "
+                         f"as a crash:\n{second.stderr[-2000:]}")
+        self.assertIn("already running", second.stderr)
+        self.assertIsNone(first.poll(), "the first copy was taken down by the second")
+
+        # And the hatch, for somebody who genuinely wants two.
+        allowed = subprocess.run([sys.executable, "-m", "salaah", "--quit-after", "1"],
+                                 cwd=root, env=dict(env, SALAAH_ALLOW_TWO="1"),
+                                 capture_output=True, text=True, timeout=180)
+        self.assertNotIn("already running", allowed.stderr,
+                         "SALAAH_ALLOW_TWO did not let a second copy through")
+
     def test_a_release_that_will_not_import_writes_the_reason_down(self):
         """A module that will not import is the likeliest way a release fails, and it happens
         while __main__'s own imports are running -- which is why the net has to be round the
@@ -6837,6 +6899,90 @@ class CrashesEndTheAppTest(unittest.TestCase):
         self.addCleanup(lambda: setattr(sys, "excepthook", was))
         code, _ = self.through_the_entry_point(lambda argv=None: 0)
         self.assertEqual(0, code, "a run that went fine did not come out cleanly")
+
+
+class AScreenGoingAwayDoesNotTakeTheMatDownTest(unittest.TestCase):
+    """THE CRASH BEHIND THE AZAAN PLAYING TWICE. From Harry's startup-error.log:
+
+        2026-11-14 19:45:09  version 2.25
+          File ".../salaah/main.py", line 402, in cover
+            box = screen.geometry()
+        RuntimeError: wrapped C++ object of type QScreen has been deleted
+
+    A QScreen is a handle on an object the toolkit owns. The screen is chosen near the top of
+    main() and used a long way further down, with the status light, the fan and the cursor in
+    between. If the display goes in that gap -- and his main display sometimes does not come
+    back -- Qt deletes the object while Python goes on holding a wrapper that looks perfectly
+    fine until it is touched.
+
+    What followed is why it mattered: run.sh restarted the app two seconds later, the
+    restarted app found the prayer still inside its two-minute grace window and called the
+    azaan again, and the player belonging to the app that died was still sounding with nothing
+    able to stop it. Two azaans, and a stop button that only reached one.
+
+    BOTH FAILURES ARE CHECKED, because they are different faults. One is a screen that has
+    already gone when it is asked about. The other is a screen that is alive when asked about
+    and gone when used -- a race that no amount of checking first can close, and the one that
+    decides whether the guard is real or just well-meant.
+    """
+
+    class Gone:
+        """What Qt hands back after a display has left: fine to hold, raises on use."""
+        BANG = "wrapped C++ object of type QScreen has been deleted"
+
+        def geometry(self):
+            raise RuntimeError(self.BANG)
+
+        def name(self):
+            raise RuntimeError(self.BANG)
+
+        def __eq__(self, other):
+            raise RuntimeError(self.BANG)
+
+        __hash__ = None
+
+    class DiesWhenUsed(Gone):
+        """Answers "am I still there?" and then dies anyway."""
+
+        def __eq__(self, other):
+            return True
+
+    def app(self):
+        from salaah.qt import QtWidgets
+        return QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    def test_a_screen_that_has_already_gone_does_not_stop_the_window_appearing(self):
+        from salaah.main import fill_screen, still_connected
+        from salaah.qt import QtWidgets
+        app = self.app()
+        self.assertFalse(still_connected(app, self.Gone()))
+        widget = QtWidgets.QWidget()
+        self.addCleanup(widget.deleteLater)
+        fill_screen(app, widget, self.Gone())
+        self.assertTrue(widget.isVisible(),
+                        "the mat came up with no window because a display had gone")
+
+    def test_a_screen_that_dies_while_the_window_is_being_placed_does_not_either(self):
+        """The race, and the half that actually holds. Ask this screen whether it is there and
+        it says yes; use it and it is gone -- which is exactly what happened on the mat."""
+        from salaah.main import fill_screen
+        from salaah.qt import QtWidgets
+        app = self.app()
+        widget = QtWidgets.QWidget()
+        self.addCleanup(widget.deleteLater)
+        fill_screen(app, widget, self.DiesWhenUsed())
+        self.assertTrue(widget.isVisible(),
+                        "a screen that died mid-placement took the window with it")
+
+    def test_reporting_which_screen_a_window_landed_on_cannot_take_the_mat_down(self):
+        """It only reports and tidies. There is nothing in it worth a crash."""
+        from salaah.main import report_windows
+        from salaah.qt import QtWidgets
+        self.app()
+        window = QtWidgets.QWidget()
+        self.addCleanup(window.deleteLater)
+        window.side = None
+        report_windows(window, self.Gone(), self.Gone())
 
 
 class AutostartSurvivesACopyTest(unittest.TestCase):

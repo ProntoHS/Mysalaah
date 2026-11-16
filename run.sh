@@ -15,6 +15,19 @@ cd "$(dirname "$0")"
 if [ -x .venv/bin/python ]; then PY=.venv/bin/python; else PY=python3; fi
 
 # ---------------------------------------------------------------------------
+# ONE MAT AT A TIME -- and NOT HERE. The lock is taken by the app itself, in
+# salaah/__main__.py, and this note is left behind so nobody puts a second one here.
+#
+# It was written here first, and that was wrong. Harry's mat, asked what it was running:
+#
+#     25770  Mon Nov 16 18:41:55 2026  00:51  /usr/bin/python3 -m salaah
+#
+# No run.sh anywhere in it. He starts the app by hand, which is the ordinary thing to do while
+# working on it, and a guard in this file is a guard that way of starting walks straight past.
+# A lock inside the app holds however it was started -- here, by hand, from the menu entry, or
+# by autostart -- and it travels inside a release, which this file does not.
+
+# ---------------------------------------------------------------------------
 # The status light on GPIO 27 (header pin 13).
 #
 # The app drives this itself -- on while awake, off before it sleeps, off before a halt -- and

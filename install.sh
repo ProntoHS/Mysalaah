@@ -44,7 +44,13 @@ python3 tools/map_touch.py || echo "!! Touch mapping skipped; run tools/map_touc
 # but run.sh is still something people run by hand.
 chmod +x run.sh
 mkdir -p ~/.config/autostart ~/.local/share/applications
+# THE MENU ENTRY IS A COPY OF THE AUTOSTART ENTRY, not a second thing built from the same
+# template. Built separately they drift, and on Harry's mat they had: the autostart one carried
+# "--main-output HDMI-A-1 --side-output HDMI-A-2" added by hand two days after install and the
+# menu one did not, so pressing Salaah in the menu started a second copy that did not even know
+# which screen was which. run.sh now refuses to start a second copy, so that is no longer the
+# disaster it was -- but two files that are meant to be the same should be the same.
 sed "s#@DIR@#$DIR#g" salaah.desktop > ~/.config/autostart/salaah.desktop
-sed "s#@DIR@#$DIR#g" salaah.desktop > ~/.local/share/applications/salaah.desktop
+cp ~/.config/autostart/salaah.desktop ~/.local/share/applications/salaah.desktop
 
 echo "== Done. Start it now with ./run.sh, or reboot and it starts by itself."

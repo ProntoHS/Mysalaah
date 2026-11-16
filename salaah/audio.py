@@ -18,7 +18,9 @@ keeps every player interchangeable.
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import signal
 import subprocess
 import time
 from dataclasses import dataclass
@@ -244,11 +246,16 @@ class Call:
     apart means the call cannot be cut short by the prayer machinery, or cut it short.
     """
 
-    def __init__(self, player: str | None = None, volume: int = 80):
+    #: Where the running call's player is written down, so that a copy of the app which did
+    #: not get to stop it can be stopped by the next one. See `left_behind` below.
+    NOTE = Path.home() / ".salaah" / "calling.json"
+
+    def __init__(self, player: str | None = None, volume: int = 80, note: Path | None = None):
         self.player = player or find_player()
         self.volume = clamp_volume(volume)
         self._process: subprocess.Popen | None = None
         self._started: float | None = None
+        self.note = Path(note) if note is not None else self.NOTE
 
     @property
     def available(self) -> bool:
@@ -274,7 +281,38 @@ class Call:
             self._process = None
             return False
         self._started = time.monotonic()
+        self._write_the_note(command)
         return True
+
+    # ------------------------------------------------------------------ the note ------------
+    #
+    # THE CALL OUTLIVES THE APP THAT STARTED IT. The player is a separate process: stop() is
+    # what ends it, and stop() only runs while there is an app alive to run it. An app that
+    # goes down in the middle of the azaan -- crash, kill, pulled plug -- leaves mpg123 playing
+    # to the end of the file with nothing on the mat able to touch it. Harry: "i press stop and
+    # there is another azaan playing i press stop again".
+    #
+    # So the running player is written down, and the next app to start stops it. The note lives
+    # in ~/.salaah because an update replaces the app folder and this has to survive that.
+    #
+    # PID NUMBERS GET REUSED, so the pid alone is not enough -- killing whatever happens to
+    # hold that number later would be far worse than the fault being fixed. The command line is
+    # written down with it and checked before anything is signalled: same player, same file.
+
+    def _write_the_note(self, command) -> None:
+        try:
+            self.note.parent.mkdir(parents=True, exist_ok=True)
+            self.note.write_text(json.dumps({"pid": self._process.pid,
+                                             "command": [str(part) for part in command]}),
+                                 encoding="utf-8")
+        except OSError:
+            pass            # a mat with a full or read-only disk still gets to call the prayer
+
+    def _tear_up_the_note(self) -> None:
+        try:
+            self.note.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     def position(self) -> float | None:
         """How far into the call we are, in seconds, or None when nothing is sounding.
@@ -297,6 +335,36 @@ class Call:
                 self._process.kill()
         self._process = None
         self._started = None
+        self._tear_up_the_note()
+
+    def left_behind(self) -> str | None:
+        """Stop a call this mat was playing when its app went down. Says what it stopped.
+
+        Called once at startup. In the ordinary case it does nothing, because stop() tears the
+        note up as it goes.
+
+        It refuses to signal anything it cannot identify. The process has to still be alive AND
+        its command line has to be the one that was written down -- same player, same file.
+        /proc is how that is read, which is fine on a Raspberry Pi; anywhere without /proc this
+        does nothing at all rather than guessing at a pid.
+        """
+        try:
+            said = json.loads(self.note.read_text(encoding="utf-8"))
+            pid, command = int(said["pid"]), [str(part) for part in said["command"]]
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
+        self._tear_up_the_note()
+        try:
+            running = Path(f"/proc/{pid}/cmdline").read_bytes()
+        except OSError:
+            return None                 # finished on its own, or there is no /proc to ask
+        if [p for p in running.decode("utf-8", "replace").split("\0") if p] != command:
+            return None                 # the number has been handed on to something else
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            return None
+        return command[0]
 
 
 class Stream:

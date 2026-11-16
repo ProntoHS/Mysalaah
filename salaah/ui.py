@@ -1,10 +1,11 @@
 """Touchscreen interface for the mat display prototype. Runs full screen on the Pi's monitor."""
 from __future__ import annotations
 
+import json
 import sys
 import time
 from collections import OrderedDict
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from . import __version__
@@ -1036,6 +1037,15 @@ class MainWindow(QtWidgets.QWidget):
         self.wudu = Steps(self.assets)
         self.stations = Stations(self.assets)
         self.call = Call(volume=settings.volume)   # the call to prayer
+        # AND STOP ONE THE LAST RUN LEFT PLAYING. The player is a separate process, so an app
+        # that went down mid-azaan left mpg123 sounding with nothing able to reach it -- which
+        # is the half of Harry's "i press stop ... i press stop again" that the stop button
+        # could never have fixed. It identifies the process before signalling it; see
+        # Call.left_behind.
+        was_still_calling = self.call.left_behind()
+        if was_still_calling:
+            print(f"start: stopped a call the last run left playing ({was_still_calling})",
+                  file=sys.stderr)
         self.adhan = Adhan(self.assets)           # and the words of it, for the screen
         self.call_box = None                       # the TIME TO PRAY notice, while it is up
         #: A player of its own for the praise phrase on a finished game, so that it cannot cut
@@ -1050,7 +1060,9 @@ class MainWindow(QtWidgets.QWidget):
         #: to disk every time a child finished a puzzle, to remember something nobody can
         #: notice having forgotten.
         self.praise_at = 0
-        self.called: dict[str, object] = {}        # prayer -> the day it was last called
+        #: prayer -> the day it was last called. READ BACK FROM DISK, and that is the whole
+        #: point of it; see remember_the_call and CALLED_AT.
+        self.called: dict[str, object] = self.calls_already_made()
 
         self.setWindowTitle("Salaah")
         # No layout: the stack is placed by hand in resizeEvent, so the drawing area keeps its
@@ -2874,6 +2886,19 @@ class MainWindow(QtWidgets.QWidget):
         if self.playing or self.asleep:
             return
         self.stir()
+        # LEAVING THE BOOK STOPS THE RECITATION, and the side menu is leaving the book.
+        #
+        # Harry: "i was playing the qu'ran and i clicked on another menu option on the side
+        # menu, the app carried on as normal but the qu'ran carried on playing, it shouldn't
+        # do". He is right, and the rule was already written down -- put_it_all_down says
+        # "leaving the book stops the recitation" -- it was just never applied to this door.
+        # Menu in the banner went through it and the 7in tiles did not, so the same act of
+        # leaving behaved differently depending on which way you left.
+        #
+        # Not put_it_all_down itself: that also drops the session, stops the veil, closes the
+        # compass and hands the 7in back, and the 7in is the very thing being pressed. Only
+        # the voices are put down here, which is what "it shouldn't do" asks for.
+        self.quieten()
         # Not a section: the way to the five prayers, where the six kalima used to sit. Straight
         # to the arches rather than out to the front door -- a tile with a prayer mat on it and
         # the word Salaah should land on the prayers, not on the screen you came in by.
@@ -2937,6 +2962,18 @@ class MainWindow(QtWidgets.QWidget):
         self.surah_list.to_the_top()
         self.corner_screen.setCurrentWidget(self.surah_list)
         self.stack.setCurrentWidget(self.corner_page)
+
+    def quieten(self) -> None:
+        """Stop every voice, and nothing else.
+
+        The two lines that open put_it_all_down, lifted out so that leaving by the 7in can use
+        them without also dropping the session and handing the small screen back. Both callers
+        are "the listener has gone somewhere else", which is the only thing that matters to a
+        voice.
+        """
+        if hasattr(self, "reader") and self.reader.reciting:
+            self.reader.stop_reciting()
+        self.hush_passages()
 
     def hush_passages(self) -> None:
         """Stop a kalima part way through. Leaving the screen, the call to prayer and shutting
@@ -3279,6 +3316,68 @@ class MainWindow(QtWidgets.QWidget):
         except Exception as problem:       # a fan may never cost the mat its clock
             print(f"fan: {problem}", file=sys.stderr)
 
+    #: Which prayers have already been called today, kept outside the app folder because an
+    #: update replaces the app folder and this has to live through one.
+    CALLED_AT = Path.home() / ".salaah" / "called.json"
+
+    def calls_already_made(self) -> dict[str, object]:        # noqa: D401 -- see below
+        """What this mat has already called today, from whichever run of the app did it.
+
+        THIS IS THE FIX FOR THE AZAAN PLAYING TWICE, so the reasoning is written out.
+
+        A prayer is worth calling for GRACE seconds -- two minutes -- after it falls due, so
+        that a mat which was busy, or whose clock jumped after an update, does not miss the
+        prayer altogether. That is right and it stays.
+
+        The guard against calling the same prayer twice was a dict built empty in __init__. It
+        therefore guarded one RUN of the app, not one day. Anything that restarted the app
+        inside those two minutes -- and run.sh restarts it after `sleep 2` whenever it exits
+        non-zero -- came back with an empty dict, found the prayer still inside its window, and
+        called it again. Harry heard it twice two seconds apart one day and a minute apart
+        another, which is the restart taking different lengths of time, and most often around
+        waking, which is when the display code runs and his main display sometimes does not
+        come back.
+
+        Written down, the rule becomes what it always claimed to be: once a day, whatever
+        happens to the app in between. It does NOT stop the app restarting, and it is not meant
+        to -- crash-log.txt is where that is chased.
+
+        Kept deliberately small and dumb: a date per prayer, today's only, and any trouble
+        reading it means an empty answer rather than an error. The worst a lost file can do is
+        call a prayer twice, which is where this started; the worst a crash here could do is
+        stop the mat, which is far worse.
+
+        IT GOES THROUGH save_settings, like the settings file does. A mat built with
+        save_settings=False is a mat that is not supposed to touch the disk -- which is every
+        mat in the test suite. Without that, this wrote into the real ~/.salaah while the
+        suite ran and handed one test's prayers to the next one, which is exactly what it did
+        on the first run after it was written: two tests that had nothing to do with it went
+        red because a window built in one of them had already called dhuhr in another.
+        """
+        if not self.save_settings:
+            return {}
+        try:
+            said = json.loads(self.CALLED_AT.read_text(encoding="utf-8"))
+            today = date.today()
+            return {prayer: today for prayer, when in said.items()
+                    if prayer in PRAYERS and when == today.isoformat()}
+        except (OSError, ValueError, AttributeError):
+            return {}
+
+    def remember_the_call(self, prayer: str, day) -> None:
+        """Write down that this prayer has been called, before making the call."""
+        self.called[prayer] = day
+        if not self.save_settings:
+            return
+        try:
+            self.CALLED_AT.parent.mkdir(parents=True, exist_ok=True)
+            self.CALLED_AT.write_text(
+                json.dumps({p: d.isoformat() for p, d in self.called.items()
+                            if hasattr(d, "isoformat")}),
+                encoding="utf-8")
+        except OSError:
+            pass        # a read-only or full disk must not stop the call being made
+
     def check_the_hour(self) -> None:
         """Has a prayer just fallen due? Runs every fifteen seconds, asleep or awake.
 
@@ -3297,8 +3396,11 @@ class MainWindow(QtWidgets.QWidget):
                 continue
             late = (now - datetime.combine(now.date(), due)).total_seconds()
             if 0 <= late < self.GRACE:
-                self.called[prayer] = now.date()      # marked before calling: once a day, even
-                self.call_to_prayer(prayer)           # if something below goes wrong
+                # Marked before calling, and written to disk in the same breath: once a day
+                # even if something below goes wrong, AND once a day even if the app does not
+                # live to see the end of the call. See calls_already_made.
+                self.remember_the_call(prayer, now.date())
+                self.call_to_prayer(prayer)
                 return
 
     def call_to_prayer(self, prayer: str) -> None:
@@ -3766,10 +3868,9 @@ class MainWindow(QtWidgets.QWidget):
         that happened to be checkable, which is the kind of bug that takes an evening.
         """
         # Leaving the book stops the recitation. This is also what silences it when a prayer
-        # falls due, because the call comes home first before it speaks.
-        if hasattr(self, "reader") and self.reader.reciting:
-            self.reader.stop_reciting()
-        self.hush_passages()
+        # falls due, because the call comes home first before it speaks. Shared with the 7in
+        # menu since 2.39, which was leaving the book without stopping anything.
+        self.quieten()
         self.session = None
         if self.veil.running:
             self.veil.stop()        # don't walk into an arch we have just walked back out of
@@ -5742,15 +5843,43 @@ class MainWindow(QtWidgets.QWidget):
 
     def show_volume(self) -> None:
         """The bar reads silent whenever the recitation is switched off, so it never shows a
-        level with nothing playing."""
+        level with nothing playing.
+
+        AND IT DROPS THE SLIDERS WHOSE PAGE HAS GONE, which is the second most common way this
+        mat has fallen over. Sixteen times in Harry's startup-error.log, from 1.66 through to
+        2.05, every one of them here:
+
+            File ".../salaah/ui.py", line 5000, in show_volume
+            RuntimeError: wrapped C/C++ object of type QSlider has been deleted
+
+        A strip is built fresh every time a page is, and the old page is thrown away with its
+        slider on it -- while this list goes on holding a Python wrapper around a widget that
+        Qt has already deleted. Touching one does not quietly do nothing: both bindings raise,
+        and this is called from a timer and from touching a prayer's units, so it takes the
+        app down from somewhere that looks nothing like the cause.
+
+        It is the same fault, with the same cure, as forget_the_strips_that_have_gone a few
+        hundred lines up -- which was written for the banner labels and never applied to the
+        sliders beside them. There is no asking a dead wrapper whether it is dead, so it is
+        asked to do its job and the ones that object are dropped.
+        """
         loud = self.settings.volume if self.settings.recitation else 0
-        self.volume.set_volume(loud)
+        try:
+            self.volume.set_volume(loud)
+        except RuntimeError:
+            pass                                 # the strip that owned it has been taken down
+        alive = []
         for bar, read in getattr(self, "volume_bars", []):
-            if bar.value() != loud:
-                was = bar.blockSignals(True)     # moving it must not look like being dragged
-                bar.setValue(loud)
-                bar.blockSignals(was)
-            read.setText(f"{loud}%")
+            try:
+                if bar.value() != loud:
+                    was = bar.blockSignals(True)  # moving it must not look like being dragged
+                    bar.setValue(loud)
+                    bar.blockSignals(was)
+                read.setText(f"{loud}%")
+            except RuntimeError:
+                continue                          # its page has gone; let it go with it
+            alive.append((bar, read))
+        self.volume_bars = alive
 
     def set_font(self, key: str) -> None:
         self.settings.arabic_font = key
