@@ -89,6 +89,13 @@ LIST_BAR = 84
 #: are only how the type is given room.
 COLUMN_TEXT = {3: 1.0, 2: 1.35, 1: 1.75}
 
+#: How tall the three column icons stand, at 1080p. They went in at 2.33 the same height as
+#: the three A's on the reading bar, 64, on the reasoning that they are the same sort of
+#: control. Harry asked for them "slightly bigger" after using them -- which is the second
+#: time a control of his has come back from the glass wanting more size than it looked to
+#: need on a screen, the slider being the first, and both times he was right. 64 -> 80.
+COLUMN_ICON_PX = 80
+
 
 class SurahList(QtWidgets.QWidget):
     """All 114, in Arabic and in English, as a grid of touchable rows.
@@ -122,25 +129,19 @@ class SurahList(QtWidgets.QWidget):
         self.title = QtWidgets.QLabel("")
         self.title.setObjectName("readerTitle")
         bar.addWidget(self.title)
-        # The three icons, in the middle of that empty strip. A stretch on each side rather
-        # than one on the right: the title is an empty label holding the space open, so
-        # centring on the layout centres on the page, which is where Harry asked for them --
-        # "the three icons could sit centre top just under the top banner".
-        bar.addStretch(1)
-        # As tall as the three A's on the reading bar, which is the control this one is a
-        # cousin of: a row of three that makes the words bigger. Touched with a fingertip, not
-        # pointed at, so the box matters more than the drawing in it.
+        # LEFT, over the first column of surahs, not centred. They were centred at 2.33 and
+        # Harry moved them: "move to the left side of screen instead". A control that changes
+        # what is under it reads better standing at the start of it than floating over the
+        # middle, and the left is where a hand already is on the way to the first row.
+        #
+        # A stretch after them and none before. They end up over the left-hand column because
+        # the empty heading beside them takes no width -- the same fact that made the
+        # balancing label this row used to carry do nothing at all.
         self.columns_choice = ColumnChoice(self.win, columns=self.columns,
-                                           tall=READING_TEXT_SIZE_PX)
+                                           tall=COLUMN_ICON_PX)
         self.columns_choice.chose.connect(self.set_columns)
         bar.addWidget(self.columns_choice)
         bar.addStretch(1)
-        # A matching empty label went here at first, to balance the heading on the left so the
-        # icons sat on the middle of the page rather than the middle of what was left over.
-        # It is not here because it did nothing: the heading has been EMPTY since 1.93 -- it
-        # holds the gap open and takes no width at all -- so the two stretches already centre
-        # on the page. Taking the balancer out moved nothing by a single pixel, which is how
-        # it was found. If a heading ever goes back above this list, it will need one.
         outer.addLayout(bar)
 
         self.scroll = QtWidgets.QScrollArea()

@@ -14209,8 +14209,12 @@ class TwoNewTilesTest(unittest.TestCase):
         w.open_corner("local")
         self.assertIs(w.local_screen, w.corner_screen.currentWidget())
         self.assertIsNot(w.corner_soon, w.corner_screen.currentWidget())
-        self.assertEqual(w.t("corner.local"), w.local_screen.title.text())
-        self.assertTrue(w.local_screen.title.text().strip(), "the page is not named")
+        # It is NOT named on the page. The plate saying "Local" above a page you reached by
+        # pressing a tile saying Local went at 2.34 -- Harry: "remove the header text 'Local'
+        # in local page, this should move everything else up" -- the same caption-above-what-
+        # you-are-looking-at that left the surah list at 1.93.
+        said = [x.text() for x in w.local_screen.findChildren(QtWidgets.QLabel) if x.text()]
+        self.assertNotIn(w.t("corner.local"), said, "the page is still captioned")
 
     def test_the_two_of_them_are_named_in_every_language_the_mat_speaks(self):
         for lang, pack in full_packs(available_packs(ASSETS)).items():
@@ -14290,19 +14294,39 @@ class HowWideTheSurahListIsTest(unittest.TestCase):
         self.assertEqual([3, 2, 1], [shape[0] for shape in choice.SHAPES],
                          "the icons are not in the order fewest words per line to most")
 
-    def test_they_sit_in_the_middle_of_the_page(self):
-        """Harry: "the three icons could sit centre top just under the top banner".
+    def test_they_stand_over_the_first_column_of_surahs(self):
+        """They were centred at 2.33 and Harry moved them: "move to the left side of screen
+        instead". A control that changes what is under it reads better at the start of it than
+        floating over the middle, and the left is where a hand already is.
 
-        The middle of the PAGE, which is not the middle of what is left over after the empty
-        heading label on the left -- that is what a single stretch would have given, and it
-        would have sat them visibly off to one side.
-        """
+        Measured against the first surah's row rather than against a number of pixels, so the
+        claim is that they line up with the list -- which is the thing you would notice if
+        they stopped doing it."""
         w = self.window()
         choice = w.surah_list.columns_choice
-        middle = choice.mapTo(w.surah_list, choice.rect().center()).x()
-        self.assertAlmostEqual(middle, w.surah_list.width() // 2,
-                               delta=max(8, w.surah_list.width() // 60),
-                               msg="the icons are not centred on the page")
+        first = w.surah_list.grid.itemAtPosition(0, 0).widget()
+        icons = choice.mapTo(w.surah_list, choice.rect().topLeft()).x()
+        column = first.mapTo(w.surah_list, first.rect().topLeft()).x()
+        self.assertLess(icons, w.surah_list.width() // 3,
+                        "the icons are not on the left of the page")
+        self.assertAlmostEqual(icons, column, delta=w.px(40),
+                               msg="the icons do not stand over the first column of surahs")
+
+    def test_they_are_big_enough_to_hit_and_bigger_than_they_were(self):
+        """Harry, after using them: "make the column icons slightly bigger".
+
+        The second time a control of his has come back from the glass wanting more size than
+        it looked to need on a screen -- the slider being the first -- and both times he was
+        right. This holds the floor rather than the exact number: a fingertip is about 45px on
+        this screen, and each icon has to be at least that in both directions.
+        """
+        from salaah.reading import COLUMN_ICON_PX, READING_TEXT_SIZE_PX
+        self.assertGreater(COLUMN_ICON_PX, READING_TEXT_SIZE_PX,
+                           "the icons are no bigger than the three A's they started out as")
+        w = self.window()
+        for box in w.surah_list.columns_choice.boxes():
+            self.assertGreaterEqual(box.width(), w.px(45))
+            self.assertGreaterEqual(box.height(), w.px(45))
 
     def test_fewer_columns_means_bigger_words(self):
         """THE ONE THAT MATTERS, and it is measured in painted pixels.
@@ -14417,6 +14441,46 @@ class TheSlidersAreAllTheSameTest(unittest.TestCase):
         self.assertEqual(quran, found[0].verticalScrollBar().width(),
                          "the sources list's slider is not the one the lists share")
 
+    def test_every_slider_sits_against_the_right_hand_edge_of_the_screen(self):
+        """Harry: "make sure scroll bar is on far right of screen like the others".
+
+        The Local page's was 64px in from the edge, because the page's padding was on the
+        scroll area, which insets the slider along with everything else. The padding is on the
+        cards now and the scroll area reaches the edge. Same edge for all three, checked
+        against each other rather than against a number.
+        """
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=True, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+
+        def right_edge(scroll):
+            bar = scroll.verticalScrollBar()
+            return bar.mapTo(w, bar.rect().topRight()).x()
+
+        w.open_corner_list()
+        settle()
+        quran = right_edge(w.surah_list.scroll)
+        self.assertGreaterEqual(quran, w.width() - w.px(4),
+                                "the Qur'an list's slider is not against the screen edge")
+        w.open_corner("local")
+        settle()
+        self.assertEqual(quran, right_edge(w.local_screen.scroll),
+                         "the Local page's slider is not at the same edge as the others")
+        w.open_sources()
+        settle()
+        found = [s for s in w.findChildren(QtWidgets.QScrollArea)
+                 if s.objectName() == "sourcesScroll"]
+        self.assertTrue(found, "no sources list to look at")
+        self.assertEqual(quran, right_edge(found[0]),
+                         "the sources list's slider is not at the same edge as the others")
+
     def test_a_list_that_forgets_to_join_the_rule_is_caught(self):
         """The fault itself, reproduced: a scroll area with no name gets the mouse-sized bar.
 
@@ -14434,6 +14498,95 @@ class TheSlidersAreAllTheSameTest(unittest.TestCase):
         settle()
         self.assertLess(unnamed.verticalScrollBar().width(), 40,
                         "an unnamed list already has a wide slider, so the rule proves nothing")
+
+
+class TheVolumeControlOnTheStripTest(unittest.TestCase):
+    """Bigger, and still centred between its two speakers.
+
+    Harry: "increase volume slider control size slightly & keep centred from either of its
+    boxes on left & right hand side."
+
+    The width is the expensive half of that. The strip carries a pin, a place name, five
+    prayer times, this, a Main screen button and sometimes a cog, and it has overrun before --
+    at 2.09, in Spanish, which is why the slider went DOWN to 240 then. So the test that
+    matters is not that the number went up; it is that the strip still fits in every language
+    the mat speaks.
+    """
+
+    def window(self, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=True, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_corner_list()            # the strip with the slider on it
+        settle()
+        return w
+
+    @staticmethod
+    def parts(w):
+        bar = [b for b, _ in w.volume_bars if b.isVisible()][0]
+        row = bar.parentWidget()
+        speakers = sorted([s for s in w.speaker_icons
+                           if s.isVisible() and s.parentWidget() is row],
+                          key=lambda s: s.x())
+        return bar, row, speakers
+
+    def test_it_sits_the_same_distance_from_each_speaker(self):
+        for lang in ("en", "ar", "ru"):
+            with self.subTest(lang):
+                w = self.window(lang)
+                bar, _, speakers = self.parts(w)
+                self.assertEqual(2, len(speakers), "there are not two speakers to sit between")
+                left = bar.x() - (speakers[0].x() + speakers[0].width())
+                right = speakers[-1].x() - (bar.x() + bar.width())
+                self.assertEqual(left, right,
+                                 f"the slider is {left}px from one speaker and {right} from "
+                                 "the other")
+
+    def test_it_is_larger_than_it_was(self):
+        from salaah.ui import VOLUME_KNOB, VOLUME_LINE, VOLUME_WIDTH
+        self.assertGreater(VOLUME_WIDTH, 240, "no wider than it was at 2.33")
+        self.assertGreater(VOLUME_LINE, 10, "the line is no thicker than it was")
+        self.assertGreater(VOLUME_KNOB, 30, "the knob is no bigger than it was")
+        # And it is actually drawn at that size, not merely named it.
+        w = self.window()
+        bar, _, _ = self.parts(w)
+        self.assertEqual(w.px(VOLUME_WIDTH), bar.width())
+
+    def test_the_knob_still_rides_on_the_line_rather_than_beside_it(self):
+        """The negative margin is half the difference between the knob and the line, so it
+        has to follow BOTH of them. Written as two numbers that have to be kept in step by
+        hand, this is where it goes wrong, and it goes wrong by the knob drifting off the
+        groove -- which looks like a bug in the drawing rather than in the arithmetic."""
+        from salaah.ui import VOLUME_KNOB, VOLUME_LINE
+        self.assertEqual(0, (VOLUME_KNOB - VOLUME_LINE) % 2,
+                         "the knob and the line differ by an odd number, so half of it is not "
+                         "a whole pixel and the knob sits a pixel off the line")
+
+    def test_the_strip_still_fits_in_every_language_the_mat_speaks(self):
+        """THE ONE THAT MATTERS. It has overrun before, and the first anybody knew was Harry
+        reading it on the glass: "looks like one long sentence"."""
+        tightest = None
+        for lang in sorted(available_packs(ASSETS)):
+            with self.subTest(lang):
+                w = self.window(lang)
+                _, row, _ = self.parts(w)
+                needs = row.layout().minimumSize().width()
+                slack = row.width() - needs
+                self.assertGreater(slack, 0,
+                                   f"the strip needs {needs}px and has {row.width()}px in "
+                                   f"{lang}: something on it is being squeezed")
+                tightest = slack if tightest is None else min(tightest, slack)
+        # Not merely fitting: with room to spare, because a language pack is one edit away
+        # from a longer word and the next person should not have to measure this again.
+        self.assertGreater(tightest, 40,
+                           f"the tightest language has only {tightest}px of slack left")
 
 
 class LocalPlacesTest(unittest.TestCase):
@@ -14567,44 +14720,46 @@ class LocalPlacesTest(unittest.TestCase):
         self.assertTrue(w.local_screen.nothing.isVisibleTo(w.local_screen))
         self.assertEqual(w.t("corner.not_yet"), w.local_screen.nothing.text())
 
-    def test_the_name_plate_stays_a_plate_on_the_empty_screen(self):
-        """The plate is white and filled, so any height it is given, it takes up.
+    def test_the_empty_message_still_sits_in_the_middle_of_the_page(self):
+        """REPLACES test_the_name_plate_stays_a_plate_on_the_empty_screen.
 
-        With the list hidden there was nothing else in the page wanting room, and the plate
-        grew into a tall white slab down the left of the screen with the word Local adrift in
-        the middle of it. Every other test here passed: the right rows were on screen, which
-        was none of them, and they were named correctly. I found it by looking at the screen
-        from Birmingham, which is the state a mat is in anywhere this file does not reach --
-        so it is the state most mats will be in, not an edge case.
+        That test existed because the white plate above this page, with nothing else claiming
+        the room on an empty screen, grew into a tall white slab down the left of it. The plate
+        went at 2.34, so the slab cannot happen; what is still worth holding is where the
+        message goes, which is the middle of the page, where this mat has put "nothing here
+        yet" since 1.89.
         """
-        # A WINDOW IS BUILT AND THROWN AWAY FIRST, and that is not superstition. The slab only
-        # appears on a window that is not the first one this process has made: measured on a
-        # lone window the plate reports its proper 91 whether the fix is in or out, and a test
-        # that gives the same answer either way is not measuring the thing it names. Run as
-        # part of the whole suite this would pass by luck, since hundreds of windows have been
-        # made by then. Run on its own -- which is how anybody debugging it would run it -- it
-        # would not. So the first window is made here, deliberately, rather than relied upon.
-        self.window([])                 # thrown away; cleanup shuts it with the rest
+        self.window([])                 # see the note in the class above; not the first window
         w = self.window([])
         w.open_corner("local")          # opened, not merely built: an unshown page is unlaid
         settle()
-        plate = w.local_screen.title
-        self.assertGreater(plate.height(), 0, "the plate is not drawn at all")
-        self.assertLessEqual(plate.height(), plate.sizeHint().height() + 4,
-                             "the plate has stretched beyond the size of the word on it")
-        self.assertLess(plate.height(), w.local_screen.height() // 4,
-                        "the plate is taking a quarter of the screen")
-
-        # And the message sits in the middle of the room the list would have had, which is
-        # where this mat has put "nothing here yet" since 1.89. Two assertions because there
-        # are two separate things holding the shape up -- the plate's fixed height and the
-        # message's claim on the space -- and either one alone is enough to keep the plate
-        # small. Checked one way only, whichever of the two was deleted, nothing complained.
         said = w.local_screen.nothing
+        self.assertTrue(said.isVisibleTo(w.local_screen))
         middle = said.mapTo(w.local_screen, said.rect().center()).y()
         self.assertAlmostEqual(middle, w.local_screen.height() // 2,
                                delta=w.local_screen.height() // 8,
                                msg="the empty message is not in the middle of the page")
+
+    def test_the_first_place_starts_at_the_top_of_the_page(self):
+        """Harry, of the heading that has gone: "this should move everything else up".
+
+        Measured against the surah list, which is the page this one should look like a sibling
+        of: both are a list under the banner with nothing between. Measuring it against a
+        number of pixels instead would be measuring the margin I happened to type.
+        """
+        w = self.window(self.SEVEN)
+        w.open_corner("local")
+        settle()
+        first = w.local_screen.rows()[0]
+        top = first.mapTo(w, first.rect().topLeft()).y()
+        w.open_corner_list()
+        settle()
+        surah = w.surah_list.grid.itemAtPosition(0, 0).widget()
+        theirs = surah.mapTo(w, surah.rect().topLeft()).y()
+        self.assertLess(top, theirs,
+                        "the first place starts lower down the page than the first surah")
+        self.assertLess(top, w.banner_height() + w.px(60),
+                        "there is still something taking a strip above the first place")
 
     def test_a_file_that_is_missing_or_broken_is_an_empty_screen_not_a_crash(self):
         """A mat whose assets were half copied is a real mat; so is one whose card is going."""

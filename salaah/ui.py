@@ -73,6 +73,22 @@ BANNER_TEXT_PX = 31          # was 28
 #: be false -- so neither subtraction happens on its own. Both are counted in pixels by tests.
 BANNER_RULE = 2
 
+#: The volume control on the banner, at 1080p: the line and the knob that rides it.
+#:
+#: Larger since 2.34. Harry, after using it: "increase volume slider control size slightly".
+#: The knob grew more than the line did, because the knob is what the thumb is aiming at and
+#: the line is only where it has got to.
+#:
+#: THE WIDTH IS THE EXPENSIVE ONE and it is measured, not chosen. The strip has to hold a pin,
+#: a place name, five prayer times, this, a Main screen button and sometimes a cog, and in 2.09
+#: that overran at 1920 in Spanish -- which is why this went DOWN to 240 then. Measured again
+#: at 2.34 across all ten languages, the slack on the strip was 155px in Arabic, the tightest,
+#: and 498 in Hindi; 300 leaves Arabic 95px of air. Anything much past that and the times
+#: start to give instead, which is what people actually read.
+VOLUME_WIDTH = 300
+VOLUME_LINE = 12
+VOLUME_KNOB = 36
+
 #: The gap on the strip between the volume slider and what comes after it -- the cog, or the
 #: Main screen button where there is no cog. At Harry's asking: the slider's right-hand end sat
 #: hard against the next thing along, and on a bar where everything else has air around it that
@@ -2131,28 +2147,36 @@ class MainWindow(QtWidgets.QWidget):
                On the black banner that showed as a white rectangle with a bar across it rather
                than a slider -- invisible in the layout, obvious the moment it was rendered. */
             QSlider#volume, QSlider#volumeOnDark {{ background:transparent; }}
-            QSlider#volume::groove:horizontal {{ height:{px(10)}px; background:{c.line};
-                                                 border-radius:{px(5)}px; }}
+            /* The groove and the knob are both a little larger since 2.34 -- Harry, after
+               using it: "increase volume slider control size slightly". The knob is what the
+               thumb is actually aiming at, so it grew by more than the line did. The negative
+               margin is half the difference between them and has to follow both: get it wrong
+               and the knob sits off the line rather than on it. */
+            QSlider#volume::groove:horizontal {{ height:{px(VOLUME_LINE)}px; background:{c.line};
+                                                 border-radius:{px(VOLUME_LINE // 2)}px; }}
             QSlider#volume::sub-page:horizontal {{ background:{c.lapis};
-                                                   border-radius:{px(5)}px; }}
+                                                   border-radius:{px(VOLUME_LINE // 2)}px; }}
             QSlider#volume::handle:horizontal {{ background:{c.strong};
                                                  border:{px(2)}px solid {c.paper};
-                                                 width:{px(30)}px; height:{px(30)}px;
-                                                 margin:{-px(11)}px 0;
-                                                 border-radius:{px(15)}px; }}
+                                                 width:{px(VOLUME_KNOB)}px;
+                                                 height:{px(VOLUME_KNOB)}px;
+                                                 margin:{-px((VOLUME_KNOB - VOLUME_LINE) // 2)}px 0;
+                                                 border-radius:{px(VOLUME_KNOB // 2)}px; }}
             /* On the banner, which is the OTHER theme -- so this follows the strip's ink, not
                the mat's. It used to be hardcoded white on #555555, which was right while the
                strip was a dark chip in both themes and invisible the moment the strip went
                white: a white handle on a white background. The name is now the only thing
                about it that still says "dark". */
-            QSlider#volumeOnDark::groove:horizontal {{ height:{px(10)}px; background:{strip.faint};
-                                                       border-radius:{px(5)}px; }}
+            QSlider#volumeOnDark::groove:horizontal {{ height:{px(VOLUME_LINE)}px;
+                                                       background:{strip.faint};
+                                                       border-radius:{px(VOLUME_LINE // 2)}px; }}
             QSlider#volumeOnDark::sub-page:horizontal {{ background:{strip.ink};
-                                                         border-radius:{px(5)}px; }}
+                                                         border-radius:{px(VOLUME_LINE // 2)}px; }}
             QSlider#volumeOnDark::handle:horizontal {{ background:{strip.ink}; border:none;
-                                                       width:{px(30)}px; height:{px(30)}px;
-                                                       margin:{-px(11)}px 0;
-                                                       border-radius:{px(15)}px; }}
+                                                       width:{px(VOLUME_KNOB)}px;
+                                                       height:{px(VOLUME_KNOB)}px;
+                                                       margin:{-px((VOLUME_KNOB - VOLUME_LINE) // 2)}px 0;
+                                                       border-radius:{px(VOLUME_KNOB // 2)}px; }}
             QLabel#volumeRead {{ font-size:{px(22)}px; color:{c.stone}; }}
             QLabel#volumeReadOnDark {{ background:{strip.paper}; color:{strip.ink};
                                        font-size:{px(22)}px; }}
@@ -5461,7 +5485,7 @@ class MainWindow(QtWidgets.QWidget):
         # between the times, which Harry saw at once: "looks like one long sentence". The
         # slider is a control and still an easy one to hit at 240; the times are the thing
         # people read, so the slider is what gives.
-        bar.setFixedWidth(self.px(240))
+        bar.setFixedWidth(self.px(VOLUME_WIDTH))
         bar.setMinimumHeight(self.px(52))       # a finger, not a mouse
         # The figure beside it has gone: where the handle sits says how loud it is, and the
         # number was the only thing on the strip nobody was reading. It is still built, hidden,

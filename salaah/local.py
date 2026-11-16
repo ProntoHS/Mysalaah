@@ -122,18 +122,19 @@ class LocalScreen(QtWidgets.QWidget):
         self.window_ = window
         self.nearby = nearby
 
+        # NOTHING AROUND THE OUTSIDE. The padding has moved inside the scroll area, onto the
+        # column of cards, so that the scroll area itself reaches both edges of the screen and
+        # its slider sits hard against the right-hand one -- where the slider on every other
+        # list already was. Margins out here inset the whole scroll area, slider and all, and
+        # left this one floating 64px in from the edge while the rest were against it.
         lay = QtWidgets.QVBoxLayout(self)
-        lay.setContentsMargins(window.px(64), window.px(36), window.px(64), window.px(36))
-        lay.setSpacing(window.px(12))
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
 
-        plate = QtWidgets.QHBoxLayout()
-        self.title = QtWidgets.QLabel("")
-        self.title.setObjectName("namePlate")
-        self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        plate.addWidget(self.title)
-        plate.addStretch(1)
-        lay.addLayout(plate)
-
+        # The name plate said "Local" above a page reached by pressing a tile with Local
+        # written on it. Harry: "remove the header text 'Local' in local page, this should
+        # move everything else up." It was the same caption-above-what-you-are-looking-at that
+        # went from the surah list at 1.93, and the room it took is given to the list.
         self.nothing = QtWidgets.QLabel("")
         self.nothing.setObjectName("settingHead")
         self.nothing.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -151,20 +152,18 @@ class LocalScreen(QtWidgets.QWidget):
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.holder = QtWidgets.QWidget()
         self.column = QtWidgets.QVBoxLayout(self.holder)
-        self.column.setContentsMargins(0, 0, 0, 0)
+        # The page's margins live here now, on the cards, not on the scroll area. See above.
+        self.column.setContentsMargins(window.px(64), window.px(24), window.px(64),
+                                       window.px(24))
         self.column.setSpacing(window.px(10))
         self.column.addStretch(1)
         self.scroll.setWidget(self.holder)
 
-        # THE 1 IS LOAD-BEARING, and it is not about the message. It is the only thing in the
-        # page claiming the room when the list is hidden, and without it the white name plate
-        # takes that room instead: on the empty screen the plate grew into a tall white slab
-        # down the left of the page with the word Local adrift in the middle of it.
-        #
-        # Found by looking at the screen as a mat in Birmingham sees it -- which is the state
-        # every mat outside the seven streets this file covers is in, so it is the common case
-        # and not an edge one. Every test passed while it was broken: the right rows were on
-        # screen, which was none of them, and they were named correctly.
+        # The 1 was load-bearing while there was a name plate above this: it was the only thing
+        # claiming the room when the list was hidden, and without it the white plate took that
+        # room and grew into a tall white slab down the left of the empty screen. The plate has
+        # gone, so there is nothing left to stretch -- but the message is still the thing that
+        # should have the page when there is no list, and it still says so here.
         lay.addWidget(self.nothing, 1)
         lay.addWidget(self.scroll, 1)
         self.retell()
@@ -176,7 +175,6 @@ class LocalScreen(QtWidgets.QWidget):
     def retell(self) -> None:
         """Fill the list for wherever the mat is now, in whatever language it now speaks."""
         w = self.window_
-        self.title.setText(w.t("corner.local"))
         for row in self.rows():
             row.setParent(None)
             row.deleteLater()
