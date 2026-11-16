@@ -20229,15 +20229,20 @@ class PillarMatchTest(unittest.TestCase):
         None of these has been read by anyone qualified. The Kaaba against hajj is the pairing
         worth a reviewer's eye first: it is also the direction of every prayer, so a child
         might reasonably put it with salaah.
+
+        Three changed at 2.36 when Harry drew new artwork -- prayer beads for the mosque,
+        giving hands for the coins, the road to the Kaaba for the pilgrimage bag. The mosque
+        going is a small mercy: a mosque is where zakat is collected and where people break
+        their fast, so it belonged to three of the five.
         """
         from salaah.pillar_match import ITEMS
         self.assertEqual(
             tuple((i.key, i.pillar) for i in ITEMS),
             (("testimony", "faith"), ("one_finger", "faith"),
-             ("prayer_rug", "prayer"), ("mosque", "prayer"),
-             ("charity_box", "charity"), ("coins", "charity"),
+             ("prayer_rug", "prayer"), ("prayer_beads", "prayer"),
+             ("charity_box", "charity"), ("giving_hands", "charity"),
              ("dates", "fasting"), ("iftar", "fasting"),
-             ("kaaba", "hajj"), ("pilgrimage_bag", "hajj")))
+             ("kaaba", "hajj"), ("path_to_kaaba", "hajj")))
 
     def test_a_wrong_drop_can_be_tried_again_and_costs_the_first_try_credit(self):
         g = self.game()
@@ -20256,16 +20261,243 @@ class PillarMatchTest(unittest.TestCase):
         self.assertEqual(1, g.at)
         self.assertFalse(g.locked)
 
-    def test_the_ring_reaches_every_pillar_and_plays_by_the_same_rules(self):
-        """The accessible route: no touch at all. The highlighted pillar cycles and a press
-        drops onto it."""
+    def test_a_press_cannot_answer_any_more_only_a_drag_can(self):
+        """REPLACES test_the_ring_reaches_every_pillar_and_plays_by_the_same_rules.
+
+        That test guarded the accessible route: no touch at all, a highlight cycling through
+        the five pillars and a press dropping onto the lit one. Harry took it out at 2.36 --
+        "remove the ring control for the game. purely drag & drop" -- and it was the only way
+        to play this without dragging.
+
+        The test is replaced rather than deleted, because the thing worth holding now is the
+        other half of that decision: a press must not answer. If it could, a mat with a ring
+        or a keyboard attached would still be able to choose a pillar without dragging, and
+        the removal would be half-done -- which is worse than either choice made properly.
+        """
         g = self.game()
-        g.step()
-        self.assertEqual(1, g.active)
-        self.assertEqual("wrong", g.press())
-        while g.active != g.correct:
-            g.step()
-        self.assertEqual("correct", g.press())
+        before = g.at, g.locked, g.first_try
+        self.assertEqual("nothing", g.press(), "a press is still choosing a pillar")
+        self.assertEqual(before, (g.at, g.locked, g.first_try),
+                         "a press moved the game on without a drag")
+        # It still carries the game along once a drag HAS placed something.
+        self.assertEqual("correct", g.answer(g.correct))
+        self.assertEqual("next", g.press())
+        self.assertEqual(1, g.at)
+
+    def board(self, theme="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(600, 1024)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_a_game("pillars")
+        settle()
+        return w, w.games["pillars"]
+
+    def test_the_thing_you_drag_can_actually_be_seen(self):
+        """THE ONE THAT MATTERS, and it is here because it shipped broken for six releases.
+
+        The item was painted in the palette's `paper` colour, which is white by day and BLACK
+        AT NIGHT, onto a board that is a black picture in both themes. On the mat's own theme
+        -- the dark one -- the object a child is meant to pick up and drag was drawn black on
+        black. The game could be played only by reading its name off the 7in and dragging
+        something invisible from the middle of the screen.
+
+        Every test passed throughout. They all asked the rules questions: does a wrong drop
+        score, does the round lock, does the ring reach every pillar. Not one of them looked
+        at the screen.
+
+        So this one looks. It paints the board into an image and counts how much of the item's
+        own rectangle is not the background -- in BOTH themes, because getting one right while
+        the other is invisible is exactly what happened.
+        """
+        for theme in ("dark", "light"):
+            with self.subTest(theme):
+                w, screen = self.board(theme)
+                picture = screen.board.grab().toImage()
+                where = screen.board._item_rect()
+                lit = 0
+                for y in range(int(where.top()) + 8, int(where.bottom()) - 8, 3):
+                    for x in range(int(where.left()) + 8, int(where.right()) - 8, 3):
+                        colour = picture.pixelColor(x, y)
+                        if colour.lightness() > 90:
+                            lit += 1
+                self.assertGreater(lit, 40,
+                                   f"nothing is drawn where the item should be ({theme}): the "
+                                   "child has nothing to take hold of")
+
+    def test_the_five_catching_areas_sit_on_the_five_pillars(self):
+        """Each zone's middle must land on the pillar it belongs to, not beside it.
+
+        Harry redrew the board at 2.36 with the pillars further apart, and the five numbers
+        that had been typed into the file by hand would have put the outer two zones 66px off
+        their pillars -- a child hitting Shahadah squarely and being told they had missed.
+        This asks the PICTURE where the ink is rather than trusting either set of numbers.
+        """
+        w, screen = self.board()
+        picture = screen.board.board.toImage()
+        wide, tall = picture.width(), picture.height()
+
+        def ink_in(left, right, zone):
+            """How much pillar lies between these two fractions of the zone's width."""
+            count = 0
+            for across in range(12):
+                x = zone.left() + zone.width() * (left + (right - left) * across / 12)
+                for down in range(16):
+                    y = zone.top() + zone.height() * (down / 16)
+                    px = int(x / screen.board.width() * wide)
+                    py = int(y / screen.board.height() * tall)
+                    if picture.pixelColor(min(px, wide - 1),
+                                          min(py, tall - 1)).lightness() > 60:
+                        count += 1
+            return count
+
+        for index, zone in enumerate(screen.board._zones()):
+            with self.subTest(index):
+                left, right = ink_in(0, .5, zone), ink_in(.5, 1, zone)
+                self.assertGreater(left + right, 20,
+                                   f"the catching area for pillar {index + 1} is over empty "
+                                   "board, not over a pillar")
+                # BALANCED, not merely overlapping. Asked only whether a pillar is somewhere
+                # under the zone, this passed with the old hand-typed numbers on Harry's new
+                # board -- the zones were 66px off but the pillars are 137px wide, so the
+                # centre still landed on one. Off-centre is the fault: half the catching area
+                # hangs over empty board and the far edge of the pillar is outside it.
+                self.assertAlmostEqual(
+                    left, right, delta=max(6, (left + right) * 0.18),
+                    msg=f"pillar {index + 1} sits off to one side of its catching area: "
+                        f"{left} of ink on the left against {right} on the right")
+
+    def test_the_zones_read_the_old_board_the_way_it_was_measured_by_hand(self):
+        """How I know the measuring reads pictures rather than producing plausible numbers.
+
+        The old board's five centres were worked out by hand and typed into this game as
+        .125, .3125, .5, .6875, .875. Handed that same picture, the measuring returns them to
+        three decimals. It reproduces a known answer from a known input -- which is the only
+        way to tell a measurement from a coincidence -- and gives different, correct numbers
+        for the board Harry drew.
+        """
+        from salaah.pillar_match import measure_the_board
+        old = QtGui.QPixmap(1920, 1080)
+        old.fill(QtGui.QColor("black"))
+        painter = QtGui.QPainter(old)
+        painter.setBrush(QtGui.QColor("white"))
+        painter.setPen(Qt.PenStyle.NoPen)
+        for centre in (.125, .3125, .5, .6875, .875):
+            painter.drawRect(int(1920 * (centre - .075)), 535, int(1920 * .15), 380)
+        painter.end()
+        top, bottom, centres = measure_the_board(old)
+        self.assertAlmostEqual(top, 0.495, delta=0.01)
+        for got, want in zip(centres, (.125, .3125, .5, .6875, .875)):
+            self.assertAlmostEqual(got, want, delta=0.004)
+
+    def test_a_board_it_cannot_read_still_gives_a_playable_game(self):
+        from salaah.pillar_match import FALLBACK, measure_the_board
+        self.assertEqual(FALLBACK, measure_the_board(QtGui.QPixmap()))
+        blank = QtGui.QPixmap(1920, 1080)
+        blank.fill(QtGui.QColor("black"))
+        self.assertEqual(FALLBACK, measure_the_board(blank))
+        self.assertEqual(5, len(FALLBACK[2]), "the fallback does not offer five pillars")
+
+    def test_every_item_has_a_picture_on_the_mat(self):
+        from salaah.pillar_match import ITEMS
+        folder = ASSETS / "children" / "pillars"
+        for item in ITEMS:
+            with self.subTest(item.key):
+                picture = folder / f"{item.art}.png"
+                self.assertTrue(picture.is_file(), f"{picture.name} is not on the mat")
+                self.assertGreater(picture.stat().st_size, 200)
+        # And nothing in that folder is left over from an item that has gone: three were
+        # replaced at 2.36 and a dead picture is a thing nobody will ever notice is wrong.
+        self.assertEqual({f"{i.art}.png" for i in ITEMS},
+                         {p.name for p in folder.glob("*.png")})
+
+    def test_every_item_is_named_in_every_language_the_mat_speaks(self):
+        from salaah.pillar_match import ITEMS, PILLARS
+        for lang in sorted(available_packs(ASSETS)):
+            pack = json.loads((ASSETS / "content" / "packs" / lang / "pack.json")
+                              .read_text(encoding="utf-8"))["ui"]
+            for item in ITEMS:
+                with self.subTest(lang=lang, item=item.key):
+                    self.assertTrue(pack.get(f"pillar_match.item.{item.key}", "").strip(),
+                                    f"{lang} cannot name {item.key}")
+            for pillar in PILLARS:
+                with self.subTest(lang=lang, pillar=pillar):
+                    self.assertTrue(pack.get(f"pillar_match.pillar.{pillar}", "").strip())
+
+    def test_the_answer_is_not_on_the_small_screen_before_the_drop(self):
+        """THE ONE THE LANGUAGES BROKE, and it was broken in six of the ten.
+
+        An item's name contains its pillar's name in Spanish, Portuguese, French, Hindi, Urdu
+        and Arabic: the rug is "Alfombra de oracion" beside a pillar called "Oracion", and
+        "jaa-e namaz" beside one called "namaz". That is not poor translation, it is what the
+        object is called -- so it could not be written around without inventing names nobody
+        uses. The 7in had been printing the answer beside the question on six mats out of ten
+        since the game went in, and in English, where the name is "Prayer rug" and the pillar
+        is "Salaah", there was nothing to see.
+
+        It is fixed by WHEN rather than by WHAT: the name waits until the item has been
+        placed. So this test plays a round in every language and reads the whole 7in.
+        """
+        for lang in sorted(available_packs(ASSETS)):
+            with self.subTest(lang):
+                w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                               Settings(theme="dark", recitation=False, place="Bury",
+                                        lang=lang),
+                               scale=1.0, save_settings=False, aspect=None, side=True)
+                w.resize(1920, 1080)
+                w.show()
+                w.side.resize(600, 1024)
+                w.side.show()
+                w.tick()
+                settle()
+                self.addCleanup(lambda win=w: shut(win))
+                w.open_a_game("pillars")
+                settle()
+                screen = w.games["pillars"]
+                answer = w.t("pillar_match.pillar." + screen.game.item.pillar).strip()
+                self.assertTrue(answer, f"{lang} cannot name the pillar at all")
+
+                # THE LABELS THAT CHANGE WITH THE ITEM, which are the only ones that can give
+                # it away. The title, the question and the instruction say the same thing
+                # whichever item is up, so they cannot point at a pillar -- and reading them
+                # too cost a false alarm that was worth the lesson: Russian calls the fast
+                # "Пост", and "сопоставь" -- the word in this game's own title -- contains it.
+                # A test that reads the whole screen is matching letters, not meaning.
+                said = f"{screen.item_name.text()} {screen.feedback.text()}"
+                self.assertNotIn(answer.lower(), said.lower(),
+                                 f"{lang} is showing the answer before the child has chosen")
+
+                screen._drop(screen.game.correct)
+                settle()
+                after = f"{screen.item_name.text()} {screen.feedback.text()}"
+                self.assertIn(answer.lower(), after.lower(),
+                              f"{lang} never tells the child which pillar it was")
+
+    def test_the_small_screen_keeps_the_score_as_you_go(self):
+        """Harry: "the hint screen can keep score." Counted in rounds FINISHED, not rounds
+        reached -- the one being played has not been scored yet."""
+        w, screen = self.board()
+        self.assertFalse(screen.score.isVisibleTo(screen.companion),
+                         "a score is shown before a single round has been finished")
+        screen._drop(screen.game.correct)           # right first time
+        screen._next()
+        settle()
+        self.assertTrue(screen.score.isVisibleTo(screen.companion))
+        first = screen.score.text()
+        self.assertIn("1", first)
+        screen._drop((screen.game.correct + 1) % 5)  # wrong, then right: no credit
+        screen._drop(screen.game.correct)
+        screen._next()
+        settle()
+        self.assertEqual(1, screen.game.first_try,
+                         "a round got to the second guess and still scored")
+        self.assertNotEqual(first, screen.score.text(), "the score did not move on")
 
     def test_all_ten_rounds_can_be_played_and_a_press_starts_again(self):
         g = self.game()
@@ -21345,6 +21577,16 @@ class EightMoreGamesTest(unittest.TestCase):
                 if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
                     continue
                 if not node.value.lower().endswith((".png", ".gif", ".jpg", ".svg")):
+                    continue
+                # An f-string is a string with holes in it, and ast.walk steps into the
+                # holes: f"{kind}.png" offers up ".png" on its own. That is an extension,
+                # not a name, and no file is ever called it. 2.36 built the pillar icons
+                # that way and this test went off. Skip a fragment with no stem -- and
+                # only that: "postures/standing.png" still gets looked for, whether it was
+                # written whole or glued together. The computed names it can no longer see
+                # are covered where they are built: every ITEM in Pillar Match must have a
+                # picture, and no picture may sit in that folder without an item.
+                if not Path(node.value).name.rsplit(".", 1)[0]:
                     continue
                 # A module usually assembles its path, so the literal may be only the last
                 # part of it: look for the file by name anywhere under assets/.

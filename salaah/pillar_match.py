@@ -15,6 +15,70 @@ from .winning import announce_if_won
 
 PILLARS = ("faith", "prayer", "charity", "fasting", "hajj")
 
+#: How wide a pillar's catching area is, as a fraction of the board. The pillars Harry drew
+#: are .143 wide; this is a little more, so the gaps between them belong to somebody rather
+#: than to nobody. Five zones of .19 side by side still leave a seam between each pair, so a
+#: finger that lands squarely between two pillars is still told it missed rather than being
+#: given the nearer one -- which is the right answer in a game about knowing which is which.
+WIDE = 0.19
+
+
+def measure_the_board(board) -> tuple[float, float, tuple[float, ...]]:
+    """Find the five pillars in the board picture: (top, bottom, centres), as fractions.
+
+    Reading the artwork rather than trusting numbers typed beside it. See PillarBoard._zones
+    for why, and for the check that says this works.
+
+    A board it cannot read -- missing, blank, not five pillars -- falls back to five even
+    columns rather than raising. The game is reachable only when the board file is on the mat
+    (see Screen.playable), so this is the odd case of a file that is present and not what we
+    thought; a playable board with slightly wrong zones beats a game that will not open.
+    """
+    if board is None or board.isNull():
+        return FALLBACK
+    picture = board.toImage().convertToFormat(QtGui.QImage.Format.Format_Grayscale8)
+    wide, tall = picture.width(), picture.height()
+    if wide < 10 or tall < 10:
+        return FALLBACK
+    lit = []
+    for y in range(tall):
+        line = picture.constScanLine(y)
+        line.setsize(wide)
+        lit.append(sum(1 for value in bytes(line) if value > 60))
+    solid = [y for y, count in enumerate(lit) if count > wide * 0.15]
+    if not solid:
+        return FALLBACK
+    top, bottom = solid[0], solid[-1]
+    # The shafts only: the name plates below them run into one another, and a band that
+    # included them would read as one pillar five columns wide.
+    shaft = (top, top + int((bottom - top) * 0.55))
+    columns = [0] * wide
+    for y in range(*shaft):
+        line = picture.constScanLine(y)
+        line.setsize(wide)
+        for x, value in enumerate(bytes(line)):
+            if value > 60:
+                columns[x] += 1
+    deep = (shaft[1] - shaft[0]) * 0.05
+    runs, start = [], None
+    for x in range(wide):
+        if columns[x] > deep and start is None:
+            start = x
+        elif columns[x] <= deep and start is not None:
+            runs.append((start, x))
+            start = None
+    if start is not None:
+        runs.append((start, wide))
+    runs = [r for r in runs if (r[1] - r[0]) > wide * 0.04]
+    if len(runs) != len(PILLARS):
+        return FALLBACK
+    centers = tuple(((a + b) / 2) / wide for a, b in runs)
+    return (top / tall, min(1.0, (bottom + 1) / tall), centers)
+
+
+#: Five even columns over the lower half, which is what a board nobody can read gets.
+FALLBACK = (0.48, 0.85, (0.125, 0.3125, 0.5, 0.6875, 0.875))
+
 
 @dataclass(frozen=True)
 class Item:
@@ -23,17 +87,23 @@ class Item:
     art: str
 
 
+#: The ten things to sort, two to each pillar. The `art` is the file in assets/children/pillars
+#: and it is the same word as the key, because two names for one thing is two things to keep in
+#: step; they were different until 2.36 and three of them had already drifted.
+#:
+#: Harry drew these at 2.36 and three of them replaced what was here: prayer beads for the
+#: mosque, giving hands for the coins, the path to the Kaaba for the pilgrimage bag.
 ITEMS = (
-    Item("testimony", "faith", "scroll"),
-    Item("one_finger", "faith", "finger"),
-    Item("prayer_rug", "prayer", "rug"),
-    Item("mosque", "prayer", "mosque"),
+    Item("testimony", "faith", "testimony"),
+    Item("one_finger", "faith", "one_finger"),
+    Item("prayer_rug", "prayer", "prayer_rug"),
+    Item("prayer_beads", "prayer", "prayer_beads"),
     Item("charity_box", "charity", "charity_box"),
-    Item("coins", "charity", "coins"),
+    Item("giving_hands", "charity", "giving_hands"),
     Item("dates", "fasting", "dates"),
-    Item("iftar", "fasting", "plate"),
+    Item("iftar", "fasting", "iftar"),
     Item("kaaba", "hajj", "kaaba"),
-    Item("pilgrimage_bag", "hajj", "bag"),
+    Item("path_to_kaaba", "hajj", "path_to_kaaba"),
 )
 
 
@@ -48,6 +118,10 @@ class Rules:
         self.sequence = list(ITEMS)
         self._shuffle(self.sequence)
         self.at = 0
+        #: Which pillar the drop landed on, for the "not that one" flash. There is no
+        #: travelling highlight any more: the ring stepped through the five and pressed to
+        #: choose, and Harry took it out at 2.36 -- "remove the ring control for the game.
+        #: purely drag & drop." Nothing moves on the board now until a finger moves it.
         self.active = 0
         self.locked = False
         self.done = False
@@ -66,10 +140,6 @@ class Rules:
     @property
     def correct(self) -> int:
         return PILLARS.index(self.item.pillar)
-
-    def step(self) -> None:
-        if not self.done and not self.locked:
-            self.active = (self.active + 1) % len(PILLARS)
 
     def answer(self, which: int) -> str:
         if self.done or self.locked or not 0 <= which < len(PILLARS):
@@ -101,146 +171,77 @@ class Rules:
         return "next"
 
     def press(self) -> str:
+        """What a button press does, now that it cannot choose a pillar.
+
+        It carries the game on: start again when the round is over, move to the next item when
+        one has just been placed. It can no longer ANSWER -- answering is a drag and nothing
+        else. The ring used to step a highlight along the five and press to pick one; that is
+        gone, and with it the only way to play this without dragging. Written down because it
+        was a decision rather than a tidy-up: if that ever matters for somebody's hands, it
+        was taken out on purpose and can be put back.
+        """
         if self.done:
             self.restart()
             return "again"
         if self.locked:
             return self.next_round()
-        return self.answer(self.active)
+        return "nothing"
 
 
 class ItemArt:
-    """Simple face-free monochrome pictograms drawn in the live palette."""
+    """The ten pictures, loaded from assets/children/pillars once and kept.
+
+    THESE WERE DRAWN IN CODE until 2.36 -- a hundred and thirty lines of arcs and polygons
+    making a scroll, a hand, a rug, a dome. Harry drew ten proper icons, so the code went.
+
+    They are kept WHITE ON NOTHING, one file per item rather than one per item per language.
+    His pack had a hundred pictures in it and the icon is byte-identical in all ten -- only
+    the word underneath changes, and that word is the answer to the question the game is
+    asking, so it has no business on the board anyway. Ten files, 173 KB, against 100 and
+    3.0 MB.
+
+    White, because THE BOARD IS BLACK IN BOTH THEMES. The board is a photograph of a drawing;
+    it does not invert when the mat goes from night to day, so what sits on top of it cannot
+    either. That is exactly what was wrong before: the item was painted in the palette's paper
+    colour, which is white by day and BLACK AT NIGHT, on a board that is black at both. On the
+    mat's own theme the thing the child is meant to drag was drawn black on black. The game
+    could only be played by reading the 7in and dragging an object nobody could see.
+    """
+
+    CACHE: dict[str, QtGui.QPixmap] = {}
+
+    @classmethod
+    def picture(cls, window, kind) -> QtGui.QPixmap:
+        if kind not in cls.CACHE:
+            path = window.assets / "children" / "pillars" / f"{kind}.png"
+            cls.CACHE[kind] = QtGui.QPixmap(str(path))
+        return cls.CACHE[kind]
+
+    @classmethod
+    def draw(cls, p, kind, rect, window, ink=None, paper=None) -> None:
+        """Draw item `kind` to fit `rect`. `ink`, when given, tints it -- for the 7in, whose
+        panel IS the theme's paper and where a white picture would be white on white."""
+        picture = cls.picture(window, kind)
+        if picture.isNull():
+            return
+        side = min(rect.width(), rect.height())
+        box = QtCore.QRectF(rect.center().x() - side / 2, rect.center().y() - side / 2,
+                            side, side)
+        if ink is None:
+            p.drawPixmap(box, picture, QtCore.QRectF(picture.rect()))
+            return
+        tinted = QtGui.QPixmap(picture.size())
+        tinted.fill(Qt.GlobalColor.transparent)
+        brush = QtGui.QPainter(tinted)
+        brush.drawPixmap(0, 0, picture)
+        brush.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_SourceIn)
+        brush.fillRect(tinted.rect(), QtGui.QColor(ink))
+        brush.end()
+        p.drawPixmap(box, tinted, QtCore.QRectF(tinted.rect()))
 
     @staticmethod
-    def draw(p, kind, rect, window, ink, paper) -> None:
-        p.save()
-        p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
-        line = max(2, window.px(4))
-        pen = QtGui.QPen(QtGui.QColor(ink), line, Qt.PenStyle.SolidLine,
-                         Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
-        p.setPen(pen)
-        p.setBrush(QtGui.QColor(ink))
-        cx, cy, w, h = rect.center().x(), rect.center().y(), rect.width(), rect.height()
-
-        if kind == "scroll":
-            card = QtCore.QRectF(cx - w * .31, cy - h * .30, w * .62, h * .55)
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawRoundedRect(card, w * .04, w * .04)
-            for y in (-.14, -.02, .10):
-                p.drawLine(QtCore.QPointF(cx - w * .19, cy + h * y),
-                           QtCore.QPointF(cx + w * .19, cy + h * y))
-            p.drawArc(QtCore.QRectF(cx - w * .39, cy - h * .34, w * .18, h * .18),
-                      90 * 16, 180 * 16)
-            p.drawArc(QtCore.QRectF(cx + w * .21, cy + h * .15, w * .18, h * .18),
-                      -90 * 16, 180 * 16)
-        elif kind == "finger":
-            hand = QtGui.QPainterPath()
-            hand.moveTo(cx - w * .20, cy + h * .30)
-            hand.lineTo(cx - w * .20, cy - h * .02)
-            hand.quadTo(cx - w * .20, cy - h * .13, cx - w * .10, cy - h * .13)
-            hand.lineTo(cx - w * .10, cy + h * .02)
-            hand.lineTo(cx - w * .04, cy - h * .34)
-            hand.quadTo(cx, cy - h * .46, cx + w * .07, cy - h * .34)
-            hand.lineTo(cx + w * .08, cy + h * .02)
-            hand.lineTo(cx + w * .15, cy - h * .10)
-            hand.quadTo(cx + w * .24, cy - h * .12, cx + w * .24, cy)
-            hand.lineTo(cx + w * .20, cy + h * .25)
-            hand.closeSubpath()
-            p.drawPath(hand)
-        elif kind == "rug":
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawRoundedRect(QtCore.QRectF(cx - w * .28, cy - h * .36,
-                                            w * .56, h * .68), w * .03, w * .03)
-            arch = QtGui.QPainterPath()
-            arch.moveTo(cx - w * .16, cy + h * .18)
-            arch.lineTo(cx - w * .16, cy - h * .08)
-            arch.quadTo(cx, cy - h * .31, cx + w * .16, cy - h * .08)
-            arch.lineTo(cx + w * .16, cy + h * .18)
-            p.drawPath(arch)
-            for dx in (-.22, -.11, 0, .11, .22):
-                p.drawLine(QtCore.QPointF(cx + w * dx, cy + h * .32),
-                           QtCore.QPointF(cx + w * dx, cy + h * .41))
-        elif kind == "mosque":
-            p.drawRect(QtCore.QRectF(cx - w * .32, cy, w * .64, h * .26))
-            p.drawEllipse(QtCore.QRectF(cx - w * .25, cy - h * .24, w * .50, h * .40))
-            for x in (-.34, .26):
-                p.drawRect(QtCore.QRectF(cx + w * x, cy - h * .22, w * .08, h * .48))
-                p.drawPolygon(QtGui.QPolygonF([
-                    QtCore.QPointF(cx + w * (x - .02), cy - h * .22),
-                    QtCore.QPointF(cx + w * (x + .04), cy - h * .38),
-                    QtCore.QPointF(cx + w * (x + .10), cy - h * .22)]))
-            p.setBrush(QtGui.QColor(paper))
-            p.setPen(Qt.PenStyle.NoPen)
-            p.drawRoundedRect(QtCore.QRectF(cx - w * .06, cy + h * .08,
-                                            w * .12, h * .18), w * .05, w * .05)
-        elif kind == "charity_box":
-            p.drawRoundedRect(QtCore.QRectF(cx - w * .31, cy - h * .10,
-                                            w * .62, h * .39), w * .04, w * .04)
-            p.drawRect(QtCore.QRectF(cx - w * .25, cy - h * .22, w * .50, h * .13))
-            p.setPen(QtGui.QPen(QtGui.QColor(paper), line))
-            p.drawLine(QtCore.QPointF(cx - w * .10, cy - h * .15),
-                       QtCore.QPointF(cx + w * .10, cy - h * .15))
-            heart = QtGui.QPainterPath()
-            heart.moveTo(cx, cy + h * .19)
-            heart.cubicTo(cx - w * .17, cy + h * .07,
-                          cx - w * .12, cy - h * .03, cx, cy + h * .04)
-            heart.cubicTo(cx + w * .12, cy - h * .03,
-                          cx + w * .17, cy + h * .07, cx, cy + h * .19)
-            p.drawPath(heart)
-        elif kind == "coins":
-            for x, y in ((-.22, .06), (0, .14), (.22, .02), (-.08, -.13), (.14, -.22)):
-                p.setPen(pen)
-                p.setBrush(Qt.BrushStyle.NoBrush)
-                p.drawEllipse(QtCore.QRectF(cx + w * x - w * .10,
-                                             cy + h * y - w * .10, w * .20, w * .20))
-                p.drawLine(QtCore.QPointF(cx + w * x, cy + h * y - w * .055),
-                           QtCore.QPointF(cx + w * x, cy + h * y + w * .055))
-        elif kind == "dates":
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawLine(QtCore.QPointF(cx, cy - h * .34), QtCore.QPointF(cx, cy - h * .14))
-            p.drawLine(QtCore.QPointF(cx, cy - h * .22), QtCore.QPointF(cx - w * .22, cy - h * .10))
-            p.drawLine(QtCore.QPointF(cx, cy - h * .18), QtCore.QPointF(cx + w * .22, cy - h * .06))
-            p.setBrush(QtGui.QColor(ink))
-            for x, y in ((-.24, .02), (-.08, .13), (.10, .03), (.25, .15), (0, .29)):
-                p.drawEllipse(QtCore.QRectF(cx + w * x - w * .075,
-                                             cy + h * y - h * .10, w * .15, h * .20))
-        elif kind == "plate":
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawEllipse(QtCore.QRectF(cx - w * .27, cy - h * .10, w * .54, h * .36))
-            p.drawEllipse(QtCore.QRectF(cx - w * .17, cy - h * .04, w * .34, h * .22))
-            p.drawLine(QtCore.QPointF(cx - w * .35, cy - h * .27),
-                       QtCore.QPointF(cx - w * .35, cy + h * .27))
-            p.drawLine(QtCore.QPointF(cx + w * .35, cy - h * .27),
-                       QtCore.QPointF(cx + w * .35, cy + h * .27))
-            for dx in (-.08, .08):
-                p.drawArc(QtCore.QRectF(cx + w * dx - w * .06, cy - h * .36,
-                                        w * .12, h * .21), 20 * 16, 140 * 16)
-        elif kind == "kaaba":
-            top = QtGui.QPolygonF([QtCore.QPointF(cx - w * .29, cy - h * .22),
-                                   QtCore.QPointF(cx, cy - h * .36),
-                                   QtCore.QPointF(cx + w * .29, cy - h * .22),
-                                   QtCore.QPointF(cx, cy - h * .08)])
-            left = QtGui.QPolygonF([top[0], top[3], QtCore.QPointF(cx, cy + h * .34),
-                                    QtCore.QPointF(cx - w * .29, cy + h * .17)])
-            right = QtGui.QPolygonF([top[3], top[2], QtCore.QPointF(cx + w * .29, cy + h * .17),
-                                     QtCore.QPointF(cx, cy + h * .34)])
-            p.drawPolygon(top); p.drawPolygon(left); p.drawPolygon(right)
-            p.setPen(QtGui.QPen(QtGui.QColor(paper), line))
-            p.drawLine(QtCore.QPointF(cx - w * .28, cy - h * .08),
-                       QtCore.QPointF(cx, cy + h * .07))
-            p.drawLine(QtCore.QPointF(cx, cy + h * .07),
-                       QtCore.QPointF(cx + w * .28, cy - h * .08))
-        else:
-            p.drawRoundedRect(QtCore.QRectF(cx - w * .29, cy - h * .16,
-                                            w * .58, h * .45), w * .04, w * .04)
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawArc(QtCore.QRectF(cx - w * .16, cy - h * .36,
-                                    w * .32, h * .36), 0, 180 * 16)
-            p.drawLine(QtCore.QPointF(cx - w * .29, cy + h * .02),
-                       QtCore.QPointF(cx + w * .29, cy + h * .02))
-            p.drawLine(QtCore.QPointF(cx, cy - h * .16), QtCore.QPointF(cx, cy + h * .29))
-        p.restore()
+    def every_one(assets) -> list[str]:
+        return [item.art for item in ITEMS]
 
 
 class ItemPreview(QtWidgets.QFrame):
@@ -286,13 +287,36 @@ class PillarBoard(QtWidgets.QFrame):
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
     def _zones(self):
-        centers = (.125, .3125, .5, .6875, .875)
-        return [QtCore.QRectF(self.width() * (center - .075), self.height() * .48,
-                              self.width() * .15, self.height() * .37)
+        """Where the five pillars are, READ OFF THE PICTURE rather than typed in here.
+
+        These were five numbers in this file -- .125, .3125, .5, .6875, .875 -- measured once
+        by hand against the board of the day. Harry redrew the board at 2.36 with the pillars
+        further down and further apart, and those numbers would have put the catching areas
+        for the two outside pillars SIXTY-SIX PIXELS off the pillars they belong to: a child
+        aiming at Shahadah, hitting it, and being told they were wrong.
+
+        So the board is measured when it loads. How I know it reads pictures rather than
+        produces plausible numbers: run it on the OLD board and it gives .125, .313, .500,
+        .688, .875 -- the five numbers that were typed in here by hand, to three decimals. It
+        reproduces the old answer from the old picture and a different, correct one from the
+        new. Redraw the board again and the zones follow it on their own.
+        """
+        found = measure_the_board(self.board)
+        top, bottom, centers = found
+        return [QtCore.QRectF(self.width() * (center - WIDE / 2), self.height() * top,
+                              self.width() * WIDE, self.height() * (bottom - top))
                 for center in centers]
 
     def _home(self):
-        return QtCore.QPointF(self.width() * .5, self.height() * .22)
+        """Centre top, in the room Harry's board freed up by sitting the pillars lower.
+
+        His pillars start at 57.8% of the height where the old ones started at 49.5%, which
+        turns the clear strip above them from 26% of the screen into 36% -- about 110 pixels
+        more, and a drag of 393 rather than 262. His reason, and it is the right one: "as my
+        pillars sit further down, dragging them is easier as you have more space to move
+        finger on screen".
+        """
+        return QtCore.QPointF(self.width() * .5, self.height() * .20)
 
     def _item_rect(self, center=None, small=False):
         center = center or self._home()
@@ -329,10 +353,6 @@ class PillarBoard(QtWidgets.QFrame):
                          QtCore.QRectF(self.board.rect()))
         zones = self._zones()
         if not self.game.done:
-            if not self.dragging and not self.game.locked:
-                p.setPen(QtGui.QPen(QtGui.QColor(c.lapis), self.win.px(6)))
-                p.setBrush(Qt.BrushStyle.NoBrush)
-                p.drawRoundedRect(zones[self.game.active], self.win.px(12), self.win.px(12))
             if self.wrong_zone is not None:
                 p.setPen(QtGui.QPen(QtGui.QColor(c.highlight), self.win.px(7)))
                 p.setBrush(Qt.BrushStyle.NoBrush)
@@ -342,8 +362,7 @@ class PillarBoard(QtWidgets.QFrame):
             if self.game.locked:
                 center = zones[self.game.correct].center()
                 small = True
-            ItemArt.draw(p, self.game.item.art, self._item_rect(center, small),
-                         self.win, c.paper, c.ink)
+            ItemArt.draw(p, self.game.item.art, self._item_rect(center, small), self.win)
 
     def _start_drag(self, point):
         if self.game.done or self.game.locked:
@@ -446,9 +465,6 @@ class Screen(QtWidgets.QWidget):
         self.board = PillarBoard(window, self.game, self.board_image)
         self.board.dropped.connect(self._drop)
         layout.addWidget(self.board)
-        self._scan = QtCore.QTimer(self)
-        self._scan.setInterval(self.CYCLE)
-        self._scan.timeout.connect(self._scan_step)
         self._advance = QtCore.QTimer(self)
         self._advance.setSingleShot(True)
         self._advance.timeout.connect(self._next)
@@ -499,6 +515,14 @@ class Screen(QtWidgets.QWidget):
         self.progress = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
         self.progress.setObjectName("gameStatus")
         layout.addWidget(self.progress)
+        # The running score, which Harry asked the 7in to keep: "the hint screen can keep
+        # score." It borrows the sentence the end of the game already uses rather than
+        # inventing one, so a whole new line arrives on this screen in ten languages without a
+        # word of it being new. It stays hidden until a round has actually been finished --
+        # "First try: 0 / 0" is not a score, it is an arithmetic accident.
+        self.score = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.score.setObjectName("gameStatus")
+        layout.addWidget(self.score)
         self.preview = ItemPreview(self.win)
         layout.addWidget(self.preview, 1)
         self.item_name = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
@@ -550,14 +574,35 @@ class Screen(QtWidgets.QWidget):
             self.question.setText(t("pillar_match.complete"))
             self.feedback.setText(t("pillar_match.complete_score",
                                     score=str(game.first_try), of=str(game.rounds)))
+            self.score.clear()
+            self.score.setVisible(False)
             self.preview.hide()
         else:
             self.preview.show()
             self.preview.show_kind(game.item.art)
             self.progress.setText(t("pillar_match.progress", at=str(game.at + 1),
                                     of=str(game.rounds)))
-            self.item_name.setText(t("pillar_match.item." + game.item.key))
+            # THE NAME WAITS UNTIL IT HAS BEEN PLACED, and this is not tidiness.
+            #
+            # In six of the ten languages an item's name contains its pillar's name. Spanish
+            # calls the rug "Alfombra de oracion" and the pillar "Oracion"; Urdu calls it
+            # "jaa-e namaz" and the pillar "namaz"; Arabic cannot say prayer rug without
+            # saying prayer. That is not bad translation -- it is what those objects are
+            # called -- so it cannot be written around without inventing names nobody uses.
+            #
+            # Shown before the drop, the 7in was printing the answer beside the question on
+            # six of the ten mats, and had been since the game went in. Shown after, every
+            # language is sound and nothing needed rewording. It is also the better teaching
+            # moment: the name and the pillar arrive together, once the child has committed.
+            self.item_name.setText(t("pillar_match.item." + game.item.key)
+                                   if game.locked else "")
             self.question.setText(t("pillar_match.question"))
+            # Rounds FINISHED, which is `at` -- not at + 1, which is the one being played and
+            # has not been scored yet. Shown from the second item onwards.
+            done = game.at + (1 if game.locked else 0)
+            self.score.setVisible(done > 0)
+            self.score.setText(t("pillar_match.complete_score",
+                                 score=str(game.first_try), of=str(done)) if done else "")
             if game.last == "correct":
                 self.feedback.setText(t("pillar_match.correct",
                                         pillar=self._pillar_name(game.item.pillar)))
@@ -567,6 +612,7 @@ class Screen(QtWidgets.QWidget):
                 self.feedback.setText(t("pillar_match.instruction"))
         self.title.setFont(self._font(self.title.text(), 31, True))
         self.progress.setFont(self._font(self.progress.text(), 20, True))
+        self.score.setFont(self._font(self.score.text(), 20, True))
         self.item_name.setFont(self._font(self.item_name.text(), 25, True))
         self.question.setFont(self._font(self.question.text(), 23, True))
         self.feedback.setFont(self._font(self.feedback.text(), 19, True))
@@ -609,16 +655,13 @@ class Screen(QtWidgets.QWidget):
 
     def start_again(self) -> None:
         self._advance.stop()
-        self._scan.stop()
         self.game.restart()
         self.board.reset_item()
-        self._scan.start()
         self.changed.emit()
 
     def _drop(self, which) -> None:
         result = self.game.answer(which)
         if result == "correct":
-            self._scan.stop()
             self.board.drag_position = None
             self.changed.emit()
             self._advance.start(self.SHOWN)
@@ -627,51 +670,31 @@ class Screen(QtWidgets.QWidget):
             self.changed.emit()
 
     def _next(self) -> None:
-        result = self.game.next_round()
+        self.game.next_round()
         self.board.reset_item()
-        if result == "next":
-            self._scan.start()
-        else:
-            self._scan.stop()
-        self.changed.emit()
-
-    def _scan_step(self) -> None:
-        self.game.step()
         self.changed.emit()
 
     def press(self, action="") -> None:
         from .buttons import BACK
         if action == BACK or str(action).lower() in ("back", "exit", "escape"):
-            self._scan.stop()
             self._advance.stop()
             self.leave.emit()
             return
+        # A press cannot answer any more -- answering is a drag. All this carries on with:
+        # the next item once one has been placed, or a fresh round once they are all done.
         result = self.game.press()
-        if result == "correct":
-            self._scan.stop()
-            self._advance.start(self.SHOWN)
-        elif result == "wrong":
-            self.board.reject(self.game.active)
-        elif result in ("next", "complete"):
+        if result in ("next", "complete"):
             self._advance.stop()
             self.board.reset_item()
-            if result == "next":
-                self._scan.start()
-            else:
-                self._scan.stop()
         elif result == "again":
             self.board.reset_item()
-            self._scan.start()
         self.changed.emit()
 
     def showEvent(self, event):
         self.follow_theme()
-        if not self.game.done and not self.game.locked:
-            self._scan.start()
         super().showEvent(event)
 
     def hideEvent(self, event):
-        self._scan.stop()
         self._advance.stop()
         super().hideEvent(event)
 
