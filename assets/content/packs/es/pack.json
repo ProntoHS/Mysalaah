@@ -118,6 +118,7 @@
   "kind.nafl": "Nafl",
   "kind.sunnah": "Sunnah",
   "kind.witr": "Witr",
+  "local.source": "Del UK Mosque Directory. No lo hemos comprobado: llame antes de ir.",
   "mat.cached": "Todas las páginas ya están en la alfombrilla",
   "mat.connecting": "Conectando con la alfombrilla",
   "mat.error": "Problema con la alfombrilla: {message}",

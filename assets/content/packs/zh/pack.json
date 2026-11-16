@@ -118,6 +118,7 @@
   "kind.nafl": "副功",
   "kind.sunnah": "圣行",
   "kind.witr": "威特尔",
+  "local.source": "来自 UK Mosque Directory。我们未经核实——前往前请先致电。",
   "mat.cached": "所有页面已在拜垫上",
   "mat.connecting": "正在连接拜垫",
   "mat.error": "拜垫故障：{message}",

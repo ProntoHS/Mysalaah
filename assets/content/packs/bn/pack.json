@@ -118,6 +118,7 @@
   "kind.nafl": "নফল",
   "kind.sunnah": "সুন্নত",
   "kind.witr": "বিতর",
+  "local.source": "UK Mosque Directory থেকে। আমরা যাচাই করিনি — যাওয়ার আগে ফোন করুন।",
   "mat.cached": "সব পাতা আগে থেকেই মাদুরে আছে",
   "mat.connecting": "মাদুরের সাথে যুক্ত হচ্ছে",
   "mat.error": "মাদুরের সমস্যা: {message}",

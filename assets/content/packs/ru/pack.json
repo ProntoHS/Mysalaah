@@ -118,6 +118,7 @@
   "kind.nafl": "Нафль",
   "kind.sunnah": "Сунна",
   "kind.witr": "Витр",
+  "local.source": "Из UK Mosque Directory. Мы это не проверяли — позвоните перед поездкой.",
   "mat.cached": "Все страницы уже на коврике",
   "mat.connecting": "Подключение к коврику",
   "mat.error": "Проблема с ковриком: {message}",

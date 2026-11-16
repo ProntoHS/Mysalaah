@@ -14604,13 +14604,16 @@ class LocalPlacesTest(unittest.TestCase):
          "phone": "0161 111 1111", "lat": 53.5940, "lon": -2.2970, "checked": True},
         {"name": "Middle", "street": "2 Two Street", "town": "Bury", "postcode": "BL9 2BB",
          "phone": "", "lat": 53.6100, "lon": -2.3100, "checked": True},
+        # Inside five kilometres, which it was not until 2.35: NEAR came down from 25 to 5
+        # when the country went into the file, and this row sat at 7km and silently stopped
+        # being drawn. Two tests went green by agreeing with each other about two places.
         {"name": "Furthest", "street": "3 Three Street", "town": "Bury", "postcode": "BL9 3CC",
-         "phone": "0161 333 3333", "lat": 53.6500, "lon": -2.3500, "checked": True},
+         "phone": "0161 333 3333", "lat": 53.6300, "lon": -2.3200, "checked": True},
     ]
 
-    def window(self, places=None):
+    def window(self, places=None, lang="en"):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme="dark", recitation=False, place="Bury",
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang,
                                 latitude=53.5933, longitude=-2.2966),
                        scale=1.0, save_settings=False, aspect=None, side=True)
         w.resize(1920, 1080)
@@ -14630,17 +14633,21 @@ class LocalPlacesTest(unittest.TestCase):
         return " \n".join(label.text() for label in
                           w.local_screen.findChildren(QtWidgets.QLabel))
 
-    def test_a_place_nobody_has_ticked_is_not_drawn(self):
-        """THE ONE THAT MATTERS. `checked` is not a label, it is a gate.
+    def test_a_place_nobody_has_rung_is_drawn_and_the_screen_says_so(self):
+        """REPLACES test_a_place_nobody_has_ticked_is_not_drawn, and the change is the point.
 
-        The draft that feeds this file comes out of a directory that is candid about its own
-        reliability -- phone numbers it says may be very old, rows it marks as possibly gone.
-        A row nobody has rung is not shown at all: not greyed, not marked provisional, not
-        shown. The failure being guarded against is a child walking to a mosque that shut years
-        ago, and there is no wording that makes that acceptable.
+        At 2.32 a row nobody had rung was not drawn at all. That rule held for seven places in
+        Bury. It could not hold for 1,836 -- Harry: "there are thousands of mosques and i wont
+        be ringing every single one" -- and setting the flag on every row to get round it
+        would have made it a field that is always true, which is worse than no field.
 
-        Tested through Nearby, which is what the screen is handed, so that a file edited by
-        hand cannot get round the gate either.
+        So everything is drawn, and the screen carries the warning instead. The thing being
+        guarded has not changed: nobody may be left thinking these have been checked. What
+        changed is that the screen says so out loud rather than saying it by omission.
+
+        BOTH HALVES ARE CHECKED HERE because either alone is a trap: drawn-without-the-warning
+        is the mat quietly vouching for 1,836 strangers' addresses, and the warning without the
+        places is a screen that frightens and does not help.
         """
         from salaah.local import Nearby
         import json, tempfile, pathlib
@@ -14649,12 +14656,67 @@ class LocalPlacesTest(unittest.TestCase):
             folder.mkdir()
             no_key = {k: v for k, v in self.SEVEN[2].items() if k != "checked"}
             mixed = [dict(self.SEVEN[0], checked=True),
-                     dict(self.SEVEN[1], name="Not ticked", checked=False),
-                     dict(no_key, name="Also not ticked")]       # the key is absent entirely
+                     dict(self.SEVEN[1], name="Not rung", checked=False),
+                     dict(no_key, name="No flag at all")]        # the key is absent entirely
             (folder / "places.json").write_text(json.dumps({"places": mixed}),
                                                 encoding="utf-8")
             nearby = Nearby(pathlib.Path(tmp))
-        self.assertEqual(["Nearest"], [p["name"] for p in nearby.places])
+        self.assertEqual(["Nearest", "Not rung", "No flag at all"],
+                         [p["name"] for p in nearby.places],
+                         "a place is being held back for not having been rung")
+
+        w = self.window(mixed)
+        self.assertEqual(3, len(w.local_screen.rows()))
+        self.assertEqual(w.t("local.source"), w.local_screen.where_from.text(),
+                         "the places are drawn with nothing saying nobody checked them")
+
+    def test_the_warning_is_in_the_language_the_mat_speaks(self):
+        """A warning a reader cannot read is decoration.
+
+        This is the one string on this screen, and it is the reason the screen has any words
+        at all -- Local was built wordless on purpose so that a whole section could arrive
+        with nothing unreviewed in nine languages. It was worth breaking that for this.
+        """
+        for lang in sorted(available_packs(ASSETS)):
+            with self.subTest(lang):
+                w = self.window(self.SEVEN, lang=lang)
+                said = w.local_screen.where_from.text()
+                self.assertTrue(said.strip(), f"{lang} has no warning under the list")
+                self.assertIn("UK Mosque Directory", said,
+                              "the warning does not name where the places came from, which is "
+                              "both the useful part and the acknowledgement the source asks for")
+                if lang != "en":
+                    english = "Not checked by us"
+                    self.assertNotIn(english, said, f"{lang} has fallen back to English")
+
+    def test_nothing_listed_means_nothing_to_disclaim(self):
+        """Kendal's nearest mosque is 31km away, so that mat shows an empty screen. A warning
+        under an empty screen warns about nothing, and a reader who meets warnings about
+        nothing learns to skip them."""
+        w = self.window([])
+        self.assertEqual(0, len(w.local_screen.rows()))
+        self.assertEqual("", w.local_screen.where_from.text())
+        self.assertFalse(w.local_screen.where_from.isVisibleTo(w.local_screen))
+
+    def test_five_places_do_not_need_scrolling(self):
+        """Harry asked whether the slider could go. It goes by itself: at five cards there is
+        nothing to scroll, so Qt draws no slider. Measured on the real cards rather than
+        assumed, because it depends on the card height, which depends on the type size."""
+        from salaah.local import MOST
+        many = [dict(self.SEVEN[0], name=f"Masjid {n}",
+                     lat=53.5933 + n / 4000, lon=-2.2966) for n in range(MOST + 6)]
+        w = self.window(many)
+        w.open_corner("local")
+        settle()
+        self.assertEqual(MOST, len(w.local_screen.rows()))
+        tall = sum(r.height() for r in w.local_screen.rows())
+        gaps = w.local_screen.column.spacing() * (MOST - 1)
+        edges = (w.local_screen.column.contentsMargins().top()
+                 + w.local_screen.column.contentsMargins().bottom())
+        self.assertLessEqual(tall + gaps + edges, w.local_screen.scroll.viewport().height(),
+                             "the full list does not fit on the page, so it will scroll")
+        self.assertFalse(w.local_screen.scroll.verticalScrollBar().isVisible(),
+                         "there is a slider on a list that fits")
 
     def test_the_nearest_is_at_the_top(self):
         """Handed to the screen BACKWARDS on purpose.
@@ -14675,6 +14737,33 @@ class LocalPlacesTest(unittest.TestCase):
         w = self.window(self.SEVEN + far_off)
         self.assertNotIn("London", self.words_on_screen(w))
         self.assertEqual(3, len(w.local_screen.rows()))
+
+    def test_nothing_on_the_list_is_far_enough_away_to_want_a_distance_beside_it(self):
+        """What NEAR is actually for, which a London-sized test does not pin down at all.
+
+        This list has no distances on it. It is sorted nearest first, which is what a distance
+        column would tell you, and it costs no word in any language. That omission is clean
+        only while everything on the list is genuinely near: at the 25km this used to be, the
+        screen could put a mosque 400 metres away directly above one twenty kilometres off,
+        with nothing to say which was which.
+
+        So the claim is not "London is excluded" -- London is excluded at any sane radius, and
+        a test that only says that passed happily while the radius was five times too big. The
+        claim is that the furthest thing the screen will draw is close enough that not saying
+        how far is honest. Eight kilometres is the ceiling: an hour's walk.
+        """
+        from salaah.local import NEAR, apart
+        self.assertLessEqual(NEAR, 8.0,
+                             "the list reaches far enough that leaving the distances off it "
+                             "misleads")
+        here = (53.5933, -2.2966)
+        just_too_far = dict(self.SEVEN[0], name="Nine kilometres off",
+                            lat=here[0] + 9 / 111.0, lon=here[1])
+        w = self.window(self.SEVEN + [just_too_far])
+        self.assertNotIn("Nine kilometres off", self.words_on_screen(w))
+        for place in w.nearby.near(*here):
+            with self.subTest(place["name"]):
+                self.assertLessEqual(apart(here[0], here[1], place["lat"], place["lon"]), NEAR)
 
     def test_a_long_list_is_cut_to_a_length_somebody_can_read(self):
         """Bury has seven. Birmingham, when the country goes in, has over a hundred inside the
@@ -14796,11 +14885,32 @@ class LocalPlacesTest(unittest.TestCase):
         ticked = [p for p in book["places"] if p.get("checked")]
         self.assertEqual(book["checked_by_hand"], len(ticked))
         self.assertEqual(book["not_checked_yet"], len(book["places"]) - len(ticked))
+        # The whole country, not one town. 1,836 at 2.35; the floor is here so that a build
+        # that quietly produced a handful -- a changed source file, a filter gone wrong -- is
+        # a failure rather than a Local screen that works in Bury and nowhere else.
+        self.assertGreater(len(book["places"]), 1500,
+                           "the file has far fewer places in it than the country has mosques")
+        self.assertEqual("the United Kingdom, Jersey and the Isle of Man", book["covers"])
+
+        import re
+        postcode = re.compile(r"^[A-Z]{1,2}[0-9][0-9A-Z]? ?[0-9][A-Z]{2}$")
         for place in book["places"]:
             with self.subTest(place.get("name")):
-                for field in ("name", "street", "town", "postcode", "lat", "lon"):
+                for field in ("name", "street", "town", "postcode", "lat", "lon", "checked"):
                     self.assertIn(field, place)
                 self.assertNotIn("flags", place, "the source's sect codes are in the file")
+                # Every row is in the UK, which is what the postcode is here to prove. It is
+                # also how the Republic of Ireland's two dozen were told apart from ours:
+                # they carry "Dublin", a bare "D8", an Eircode, or the source's own note
+                # "Not until 2015", and not one of those can be read as a UK postcode.
+                self.assertRegex(place["postcode"], postcode)
+                # The box reaches down to Jersey at 49.19. It was drawn at 49.8 first, and
+                # the test threw out Jersey Mussalla -- which is the right answer to a
+                # constitutional question nobody asked and the wrong one for a mat sitting in
+                # St Helier. Jersey and the Isle of Man are not in the United Kingdom; their
+                # mosques are the nearest mosque to somebody, which is all this screen is for.
+                self.assertTrue(-8.3 < place["lon"] < 2.1 and 49.1 < place["lat"] < 61.0,
+                                f"{place['name']} is not in Britain or its islands")
 
 
 class TheTrialEndsTest(unittest.TestCase):

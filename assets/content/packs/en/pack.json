@@ -246,6 +246,7 @@
   "kind.nafl": "Nafl",
   "kind.sunnah": "Sunnah",
   "kind.witr": "Witr",
+  "local.source": "From the UK Mosque Directory. Not checked by us — ring before you go.",
   "mat.cached": "All pages already on the mat",
   "mat.connecting": "Connecting to the mat",
   "mat.error": "Mat problem: {message}",

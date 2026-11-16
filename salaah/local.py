@@ -47,15 +47,34 @@ from pathlib import Path
 
 from .qt import QtWidgets, Qt
 
-#: How far away a place may be and still count as local, in kilometres. Generous on purpose:
-#: the file is meant to grow to the whole country, and then this -- not the file -- is what
-#: decides what a mat in Bury shows. Twenty-five kilometres is Bury to the far side of
-#: Manchester, which is about as far as "local" stretches before it stops meaning anything.
-NEAR = 25.0
+#: How far away a place may be and still count as local, in kilometres.
+#:
+#: Was 25 while the file held one town. Five since the country went in, and the reason is not
+#: that it shortens the list -- MOST does that. It is that THIS LIST CARRIES NO DISTANCES.
+#: Sorted nearest first, which is what a distance column would tell you, and no words in ten
+#: languages. That omission is clean only while everything on the list is genuinely near: at
+#: 25km the screen can put a mosque 400 metres away above one twenty kilometres off with
+#: nothing to say which is which, and a reader cannot tell. Five kilometres is what makes a
+#: list with no distances on it honest.
+#:
+#: It costs almost nothing where people live. The fifth-nearest mosque is inside 1.7km in
+#: Bury, Birmingham, London, Cardiff and Glasgow. Across fourteen towns measured, dropping 25
+#: to 5 changed two: Norwich from five to four, Belfast from three to two.
+#:
+#: Where it does change things is the sparse end, and there it tells the truth. The nearest
+#: mosque to Kendal is 31km away, to Hereford 37, to Aberystwyth 62. Those mats say nothing
+#: here yet, which is better than a list implying a forty-minute drive is round the corner.
+NEAR = 5.0
 
-#: The most to draw. Bury has seven; Birmingham, when the country goes in, has well over a
-#: hundred inside the same radius, and a list that long is not a list, it is a phone book.
-MOST = 12
+#: The most to draw, and it is the height of the screen rather than a judgement. The page has
+#: 1,008 pixels; six cards need 1,058 and five need 888, which leaves room for the line at the
+#: foot. Six could be made to fit by shrinking the cards, which would mean smaller words on a
+#: mat whose other list grew its words this week so that eyesight need not be perfect.
+#:
+#: At five there is nothing to scroll and Qt draws no slider, which is what Harry was after.
+#: The scroll area is left able to show one all the same: if a card ever grows -- a longer
+#: name, a bigger type size -- a slider is a far better failure than a card cut in half.
+MOST = 5
 
 
 def apart(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -85,10 +104,16 @@ class Nearby:
             return
         self.source = book.get("source") or {}
         for place in book.get("places") or []:
-            # `checked` is the gate, and it is checked here rather than at build time so that a
-            # hand-edited file cannot get round it either. Anything without a name or a point
-            # on the earth is no use on a screen whose only job is to say where to go.
-            if not isinstance(place, dict) or not place.get("checked"):
+            # `checked` WAS the gate here, and is not any more. It held while the file was
+            # seven streets in Bury; at 1,836 it would have had to be set on every row to let
+            # anything be drawn, and a field that is always true is not a gate. Harry: "there
+            # are thousands of mosques and i wont be ringing every single one."
+            #
+            # What replaced it is the line at the foot of the screen, which says where these
+            # came from and that nobody has checked them. The field stays, and goes back to
+            # meaning what it says -- somebody rang this one -- which is a record rather than
+            # a filter, and the thing a correction sent back to the directory is drawn from.
+            if not isinstance(place, dict):
                 continue
             if not str(place.get("name", "")).strip():
                 continue
@@ -164,8 +189,35 @@ class LocalScreen(QtWidgets.QWidget):
         # room and grew into a tall white slab down the left of the empty screen. The plate has
         # gone, so there is nothing left to stretch -- but the message is still the thing that
         # should have the page when there is no list, and it still says so here.
+        # WHERE THESE CAME FROM, AND THAT NOBODY HAS CHECKED THEM.
+        #
+        # This is the one piece of writing on the page, and it is here because the drawing
+        # rule went: at 1,836 places nobody can ring them all, so the screen has to say so
+        # rather than imply otherwise by silence. Harry asked for it -- "maybe a disclaimer on
+        # the local screen...along the lines the information has been obtained from a 3rd
+        # party and may not be accurate" -- and it names the directory rather than saying "a
+        # third party", because a name is something a parent can go and check, and because
+        # naming them is the acknowledgement their notice asks for. It does both jobs at once.
+        #
+        # It is translated, which is a cost I spent the whole of 2.32 avoiding on this screen.
+        # A warning a reader cannot read is not a warning, it is decoration, so this one gets
+        # the ten languages and joins the list of wording nobody qualified has checked. Unlike
+        # most of that list it wants a translator rather than a scholar, which is an easier
+        # thing to arrange and worth arranging before anybody else's mat carries it.
+        #
+        # Below the list rather than above it, and outside the scroll area, so it is always on
+        # the screen without pushing the mosques down -- Harry had the heading taken off this
+        # page the day before to move them up, and this does not give that back.
+        self.where_from = QtWidgets.QLabel("")
+        self.where_from.setObjectName("settingVersion")   # the quiet grey of the version line
+        self.where_from.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.where_from.setWordWrap(True)
+        self.where_from.setContentsMargins(window.px(64), window.px(4),
+                                           window.px(64), window.px(14))
+
         lay.addWidget(self.nothing, 1)
         lay.addWidget(self.scroll, 1)
+        lay.addWidget(self.where_from)
         self.retell()
 
     def rows(self) -> list[QtWidgets.QWidget]:
@@ -185,6 +237,11 @@ class LocalScreen(QtWidgets.QWidget):
         self.scroll.setVisible(bool(found))
         for place in found:
             self.column.insertWidget(self.column.count() - 1, self.one(place))
+
+        # Nothing listed, nothing to disclaim. A warning under an empty screen is a warning
+        # about nothing, and a child who reads warnings about nothing stops reading warnings.
+        self.where_from.setText(w.t("local.source") if found else "")
+        self.where_from.setVisible(bool(found))
 
     def one(self, place: dict) -> QtWidgets.QWidget:
         w = self.window_
