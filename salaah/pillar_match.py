@@ -83,27 +83,53 @@ FALLBACK = (0.48, 0.85, (0.125, 0.3125, 0.5, 0.6875, 0.875))
 @dataclass(frozen=True)
 class Item:
     key: str
-    pillar: str
+    #: EVERY PILLAR THIS THING BELONGS TO, and a drop on any of them is right.
+    #:
+    #: It was a single pillar until 2.37. Harry: "some objects can & should fall into
+    #: multiple categories." He is right, and the single field was quietly teaching
+    #: otherwise -- a mosque is where zakat is collected, where taraweeh is prayed and
+    #: where people break their fast, and making a child pick one of those and calling
+    #: the other two mistakes teaches something false about what a mosque is.
+    #:
+    #: Order matters for one thing only: the first is the one the game names back when
+    #: the child drops on a pillar that was not the one they chose. Nothing else reads it.
+    pillars: tuple[str, ...]
     art: str
 
 
-#: The ten things to sort, two to each pillar. The `art` is the file in assets/children/pillars
-#: and it is the same word as the key, because two names for one thing is two things to keep in
-#: step; they were different until 2.36 and three of them had already drifted.
+#: The seventeen things to sort. The `art` is the file in assets/children/pillars and it is
+#: the same word as the key, because two names for one thing is two things to keep in step;
+#: they were different until 2.36 and three of them had already drifted.
 #:
-#: Harry drew these at 2.36 and three of them replaced what was here: prayer beads for the
-#: mosque, giving hands for the coins, the path to the Kaaba for the pilgrimage bag.
+#: Harry drew all seventeen for 2.37 and they replace the ten that were here. The old set was
+#: drawn too loosely to tell apart -- his words: "i cant distinguish what i am looking at
+#: which actually makes it difficult."
+#:
+#: WHICH THING BELONGS TO WHICH PILLAR IS NOT MINE TO DECIDE and none of it has been read by
+#: anybody qualified. Fifteen of the seventeen are the plain reading of the picture. The two
+#: that are not -- the mosque and the Qur'an -- are Harry's own words, and they are the reason
+#: an item can now hold more than one pillar at all.
 ITEMS = (
-    Item("testimony", "faith", "testimony"),
-    Item("one_finger", "faith", "one_finger"),
-    Item("prayer_rug", "prayer", "prayer_rug"),
-    Item("prayer_beads", "prayer", "prayer_beads"),
-    Item("charity_box", "charity", "charity_box"),
-    Item("giving_hands", "charity", "giving_hands"),
-    Item("dates", "fasting", "dates"),
-    Item("iftar", "fasting", "iftar"),
-    Item("kaaba", "hajj", "kaaba"),
-    Item("path_to_kaaba", "hajj", "path_to_kaaba"),
+    Item("one_god", ("faith",), "one_god"),
+    Item("declaration", ("faith",), "declaration"),
+    Item("prayer_rug", ("prayer",), "prayer_rug"),
+    Item("prayer_beads", ("prayer",), "prayer_beads"),
+    Item("call_to_prayer", ("prayer",), "call_to_prayer"),
+    Item("child_praying", ("prayer",), "child_praying"),
+    Item("prayer_times", ("prayer",), "prayer_times"),
+    Item("zakat_share", ("charity",), "zakat_share"),
+    Item("cash_and_coins", ("charity",), "cash_and_coins"),
+    Item("ramadan_days", ("fasting",), "ramadan_days"),
+    Item("water_at_sunset", ("fasting",), "water_at_sunset"),
+    Item("hajj_days", ("hajj",), "hajj_days"),
+    Item("kaaba", ("hajj",), "kaaba"),
+    Item("ihram", ("hajj",), "ihram"),
+    Item("suitcase", ("hajj",), "suitcase"),
+    # Harry's two, and his reasons: a mosque is "where zakat is collected, where taraweeh is
+    # prayed and where people break their fast"; the Qur'an is "recited in prayer but was
+    # revealed in Ramadan". Unreviewed, like everything else here.
+    Item("mosque", ("charity", "prayer", "fasting"), "mosque"),
+    Item("quran", ("prayer", "fasting"), "quran"),
 )
 
 
@@ -138,14 +164,26 @@ class Rules:
         return self.sequence[self.at]
 
     @property
+    def correct_pillars(self) -> frozenset[int]:
+        """EVERY pillar this item may be dropped on. More than one since 2.37."""
+        return frozenset(PILLARS.index(p) for p in self.item.pillars)
+
+    @property
     def correct(self) -> int:
-        return PILLARS.index(self.item.pillar)
+        """One pillar that is right -- the first, which is the one the game names back.
+
+        Kept alongside correct_pillars because a caller asking "where does this go?" wants
+        somewhere to put it, not a set to choose from. Anything DECIDING whether a drop was
+        right must use correct_pillars: on the mosque, `which == correct` is false for two
+        of the three pillars it belongs to.
+        """
+        return PILLARS.index(self.item.pillars[0])
 
     def answer(self, which: int) -> str:
         if self.done or self.locked or not 0 <= which < len(PILLARS):
             return "nothing"
         self.active = which
-        if which != self.correct:
+        if which not in self.correct_pillars:
             self.attempted = True
             self.last = "wrong"
             return "wrong"
@@ -189,16 +227,17 @@ class Rules:
 
 
 class ItemArt:
-    """The ten pictures, loaded from assets/children/pillars once and kept.
+    """The seventeen pictures, loaded from assets/children/pillars once and kept.
 
     THESE WERE DRAWN IN CODE until 2.36 -- a hundred and thirty lines of arcs and polygons
-    making a scroll, a hand, a rug, a dome. Harry drew ten proper icons, so the code went.
+    making a scroll, a hand, a rug, a dome. Harry drew proper icons, so the code went, and
+    at 2.37 he redrew the lot because the first set could not be told apart on the mat.
 
     They are kept WHITE ON NOTHING, one file per item rather than one per item per language.
-    His pack had a hundred pictures in it and the icon is byte-identical in all ten -- only
-    the word underneath changes, and that word is the answer to the question the game is
-    asking, so it has no business on the board anyway. Ten files, 173 KB, against 100 and
-    3.0 MB.
+    His pack ships 170 cards and the picture is byte-identical in all ten -- checked pixel by
+    pixel by tools/pillars/extract_cards.py before a single one is written, because keeping
+    one copy of something that is not actually the same would throw nine away in silence.
+    Seventeen files against 170, and 91 MB down to 1.2.
 
     White, because THE BOARD IS BLACK IN BOTH THEMES. The board is a photograph of a drawing;
     it does not invert when the mat goes from night to day, so what sits on top of it cannot
@@ -239,9 +278,86 @@ class ItemArt:
         brush.end()
         p.drawPixmap(box, tinted, QtCore.QRectF(tinted.rect()))
 
-    @staticmethod
-    def every_one(assets) -> list[str]:
-        return [item.art for item in ITEMS]
+class WordArt:
+    """What the thing is called, in the mat's own language, as a picture of Harry's lettering.
+
+    THESE ARE NOT TYPED OUT, AND THAT IS DELIBERATE. They are cropped from the cards Harry
+    drew, one per item per language, by tools/pillars/extract_cards.py. The alternative was
+    to read 170 words off his artwork and re-type them into the ten pack files, and in at
+    least three of these scripts -- Bengali, Hindi, Urdu -- I cannot proof-read my own typing
+    closely enough to swear a letter has not gone astray. These are religious terms. A
+    crop has no transcription step in it to get wrong, and it carries the right shaping and
+    joining for free, which hand-typed Arabic and Urdu very often do not.
+
+    The cost is that they are pictures: they do not resize with the text-size setting and
+    they are not in the pack, so Fonts.for_text never sees them and no font has to cover
+    them. For a word that is always the same words, that is a fair trade.
+
+    WHAT THE WORD DOES AND DOES NOT SAY. Harry: "i dont want them to know what pillar it
+    belongs just the name of the item ... the word will say what the object is, thats all."
+    In seven of the ten languages that is exactly what happens. In Arabic, Urdu and Hindi it
+    cannot: a prayer mat in Arabic is sajjadat AL-SALAH and the pillar is AL-SALAH, so naming
+    the object names the pillar. That is the language, not the translation. Two cards name
+    their pillar in every language including English -- the 2.5% card says Zakat and the five
+    days card says Hajj. Harry was told and chose consistency: "add it anyway, makes it
+    consistent, and its a teaching aid not aiming for high scores".
+    """
+
+    CACHE: dict[tuple[str, str], QtGui.QPixmap] = {}
+
+    @classmethod
+    def picture(cls, window, lang, key) -> QtGui.QPixmap:
+        at = (lang, key)
+        if at not in cls.CACHE:
+            path = window.assets / "children" / "pillars" / "words" / lang / f"{key}.png"
+            cls.CACHE[at] = QtGui.QPixmap(str(path))
+        return cls.CACHE[at]
+
+    @classmethod
+    def draw(cls, p, window, lang, key, rect, ink) -> None:
+        """Draw the word inside `rect`, tinted `ink`, as large as it goes without overflowing.
+
+        Fitted by WIDTH as well as height, smaller wins: these strips are five or six times
+        wider than they are tall, and the long ones -- Bengali's prayer mat, Spanish's --
+        would run off the side of a 7in panel if only the height were honoured.
+        """
+        picture = cls.picture(window, lang, key)
+        if picture.isNull():
+            return
+        scale = min(rect.width() / picture.width(), rect.height() / picture.height())
+        wide, tall = picture.width() * scale, picture.height() * scale
+        box = QtCore.QRectF(rect.center().x() - wide / 2, rect.center().y() - tall / 2,
+                            wide, tall)
+        tinted = QtGui.QPixmap(picture.size())
+        tinted.fill(Qt.GlobalColor.transparent)
+        brush = QtGui.QPainter(tinted)
+        brush.drawPixmap(0, 0, picture)
+        brush.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_SourceIn)
+        brush.fillRect(tinted.rect(), QtGui.QColor(ink))
+        brush.end()
+        p.drawPixmap(box, tinted, QtCore.QRectF(tinted.rect()))
+
+class WordStrip(QtWidgets.QWidget):
+    """The line on the 7in that says what the thing is. A picture, not a label -- see WordArt."""
+
+    def __init__(self, window):
+        super().__init__()
+        self.win = window
+        self.key = ""
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setFixedHeight(window.side_px(52))
+
+    def show_key(self, key) -> None:
+        self.key = key
+        self.update()
+
+    def paintEvent(self, _):
+        if not self.key:
+            return
+        p = QtGui.QPainter(self)
+        p.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
+        WordArt.draw(p, self.win, self.win.pack.lang, self.key,
+                     QtCore.QRectF(self.rect()), palette().ink)
 
 
 class ItemPreview(QtWidgets.QFrame):
@@ -303,9 +419,21 @@ class PillarBoard(QtWidgets.QFrame):
         """
         found = measure_the_board(self.board)
         top, bottom, centers = found
-        return [QtCore.QRectF(self.width() * (center - WIDE / 2), self.height() * top,
-                              self.width() * WIDE, self.height() * (bottom - top))
-                for center in centers]
+        zones = []
+        for center in centers:
+            left = self.width() * (center - WIDE / 2)
+            right = self.width() * (center + WIDE / 2)
+            # KEPT ON THE BOARD. Harry's pillars sit nearer the edges than the old board's --
+            # the outer centres are at .091 and .902 against .125 and .875 -- and half of
+            # WIDE is .095, so the left-hand zone began eight pixels off the side of the
+            # screen. Nothing could be dropped out there, so Shahadah was quietly the hardest
+            # of the five to hit, and the "not that one" flash was drawn with its left edge
+            # cut off. Found because a test reading ink across the zone asked the picture for
+            # a pixel at x = -8 and was handed black.
+            left, right = max(0.0, left), min(float(self.width()), right)
+            zones.append(QtCore.QRectF(left, self.height() * top, right - left,
+                                       self.height() * (bottom - top)))
+        return zones
 
     def _home(self):
         """Centre top, in the room Harry's board freed up by sitting the pillars lower.
@@ -360,7 +488,22 @@ class PillarBoard(QtWidgets.QFrame):
             center = self.drag_position or self._home()
             small = False
             if self.game.locked:
-                center = zones[self.game.correct].center()
+                # The pillar the child actually chose, not the item's first one. They are the
+                # same for fifteen of the seventeen; for the mosque and the Qur'an they are
+                # not, and settling the picture onto a pillar the child did not pick would
+                # tell them they had been wrong when they had not.
+                #
+                # JUST ABOVE THE PILLAR, NOT ON IT. On it, the item was drawn white on the
+                # pillar's white shaft and about a seventh of it survived -- a faint outline
+                # where it happened to cross the dark arch. The same fault as the one that
+                # made this game unplayable for six releases, in the one place the 2.36 test
+                # was not looking: that test checks the item where it WAITS, on black, and
+                # never where it LANDS. The band above the capitals is black in both themes
+                # and empty on Harry's board, so the picture is whole there, it still sits
+                # over the pillar it was given to, and his artwork is not drawn on.
+                zone = zones[self.game.active]
+                side = min(self.width() * .082, self.height() * .20)
+                center = QtCore.QPointF(zone.center().x(), zone.top() - side * .60)
                 small = True
             ItemArt.draw(p, self.game.item.art, self._item_rect(center, small), self.win)
 
@@ -525,9 +668,10 @@ class Screen(QtWidgets.QWidget):
         layout.addWidget(self.score)
         self.preview = ItemPreview(self.win)
         layout.addWidget(self.preview, 1)
-        self.item_name = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        self.item_name.setObjectName("gameStatus")
-        self.item_name.setWordWrap(True)
+        # What the thing is called, in the mat's language. A picture of Harry's own lettering
+        # rather than a label -- WordArt says why. It sits directly under the picture of the
+        # thing, which is where it sat on the card he drew it on.
+        self.item_name = WordStrip(self.win)
         layout.addWidget(self.item_name)
         self.question = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
         self.question.setObjectName("gameStatus")
@@ -570,7 +714,7 @@ class Screen(QtWidgets.QWidget):
         if game.done:
             self.progress.setText(t("pillar_match.progress", at=str(game.rounds),
                                     of=str(game.rounds)))
-            self.item_name.clear()
+            self.item_name.show_key("")
             self.question.setText(t("pillar_match.complete"))
             self.feedback.setText(t("pillar_match.complete_score",
                                     score=str(game.first_try), of=str(game.rounds)))
@@ -582,20 +726,25 @@ class Screen(QtWidgets.QWidget):
             self.preview.show_kind(game.item.art)
             self.progress.setText(t("pillar_match.progress", at=str(game.at + 1),
                                     of=str(game.rounds)))
-            # THE NAME WAITS UNTIL IT HAS BEEN PLACED, and this is not tidiness.
+            # THE NAME IS THERE FROM THE START, and that is a decision taken with its cost
+            # known rather than by accident.
             #
-            # In six of the ten languages an item's name contains its pillar's name. Spanish
-            # calls the rug "Alfombra de oracion" and the pillar "Oracion"; Urdu calls it
-            # "jaa-e namaz" and the pillar "namaz"; Arabic cannot say prayer rug without
-            # saying prayer. That is not bad translation -- it is what those objects are
-            # called -- so it cannot be written around without inventing names nobody uses.
+            # It waited until after the drop for exactly one release. 2.36 found that in six
+            # of the ten languages an item's name contains its pillar's name -- Spanish calls
+            # the rug "Alfombra de oracion" beside a pillar called "Oracion", Arabic cannot
+            # say prayer rug without saying prayer -- so showing it early printed the answer
+            # beside the question on six of the ten mats.
             #
-            # Shown before the drop, the 7in was printing the answer beside the question on
-            # six of the ten mats, and had been since the game went in. Shown after, every
-            # language is sound and nothing needed rewording. It is also the better teaching
-            # moment: the name and the pillar arrive together, once the child has committed.
-            self.item_name.setText(t("pillar_match.item." + game.item.key)
-                                   if game.locked else "")
+            # Harry asked for it back at 2.37 and gave the reason: the pictures are what tell
+            # a child what they are holding, and a picture they cannot name is a picture they
+            # cannot think about. He was told plainly which languages leak and that two cards
+            # -- the 2.5% one and the five days one -- name their pillar in every language
+            # including English. His answer: "add it anyway, makes it consistent, and its a
+            # teaching aid not aiming for high scores".
+            #
+            # So the leak is real, it is known, and it is the price of the thing being
+            # teachable. Do not quietly "fix" this by hiding the word again.
+            self.item_name.show_key(game.item.key)
             self.question.setText(t("pillar_match.question"))
             # Rounds FINISHED, which is `at` -- not at + 1, which is the one being played and
             # has not been scored yet. Shown from the second item onwards.
@@ -604,8 +753,11 @@ class Screen(QtWidgets.QWidget):
             self.score.setText(t("pillar_match.complete_score",
                                  score=str(game.first_try), of=str(done)) if done else "")
             if game.last == "correct":
+                # The pillar they CHOSE, not the item's first one. The mosque belongs to
+                # three; telling a child who put it on Zakah that it belongs to Salaah would
+                # be correcting an answer that was right.
                 self.feedback.setText(t("pillar_match.correct",
-                                        pillar=self._pillar_name(game.item.pillar)))
+                                        pillar=self._pillar_name(PILLARS[game.active])))
             elif game.last == "wrong":
                 self.feedback.setText(t("pillar_match.wrong"))
             else:
@@ -613,7 +765,6 @@ class Screen(QtWidgets.QWidget):
         self.title.setFont(self._font(self.title.text(), 31, True))
         self.progress.setFont(self._font(self.progress.text(), 20, True))
         self.score.setFont(self._font(self.score.text(), 20, True))
-        self.item_name.setFont(self._font(self.item_name.text(), 25, True))
         self.question.setFont(self._font(self.question.text(), 23, True))
         self.feedback.setFont(self._font(self.feedback.text(), 19, True))
         self.new_button.setFont(self._font(self.new_button.text(), 20, True))

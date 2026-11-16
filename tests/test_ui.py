@@ -20214,11 +20214,15 @@ class PillarMatchTest(unittest.TestCase):
         from salaah.pillar_match import Rules
         return Rules(lambda values: None)          # pinned order, so a test can play it
 
-    def test_each_pillar_has_exactly_two_things_that_belong_to_it(self):
+    def test_every_pillar_has_something_that_belongs_to_it(self):
+        """No pillar may be unreachable. It is no longer two each -- Harry's 2.37 set is
+        seventeen and they do not divide by five -- but a pillar with nothing that belongs
+        to it is a pillar a child can only ever be wrong about."""
         from salaah.pillar_match import ITEMS, PILLARS
-        self.assertEqual(10, len(ITEMS))
-        self.assertEqual({p: 2 for p in PILLARS},
-                         {p: sum(i.pillar == p for i in ITEMS) for p in PILLARS})
+        self.assertEqual(17, len(ITEMS))
+        reachable = {p: sum(p in i.pillars for i in ITEMS) for p in PILLARS}
+        self.assertEqual([], [p for p, n in reachable.items() if n == 0],
+                         f"a pillar nothing belongs to: {reachable}")
 
     def test_the_things_and_the_pillars_they_belong_to_are_the_ones_agreed(self):
         """WRITTEN OUT, not read from ITEMS. This is the one thing in the game that a qualified
@@ -20226,23 +20230,61 @@ class PillarMatchTest(unittest.TestCase):
         and a test that reads the answer out of the same tuple it is checking would agree with
         whatever that tuple said. The maze's pickup names taught this the hard way.
 
-        None of these has been read by anyone qualified. The Kaaba against hajj is the pairing
-        worth a reviewer's eye first: it is also the direction of every prayer, so a child
-        might reasonably put it with salaah.
+        None of these has been read by anyone qualified.
 
-        Three changed at 2.36 when Harry drew new artwork -- prayer beads for the mosque,
-        giving hands for the coins, the road to the Kaaba for the pilgrimage bag. The mosque
-        going is a small mercy: a mosque is where zakat is collected and where people break
-        their fast, so it belonged to three of the five.
+        AN ITEM MAY BELONG TO MORE THAN ONE PILLAR since 2.37. Harry: "some objects can &
+        should fall into multiple categories." The two that do are his, with his reasons: a
+        mosque is where zakat is collected, where taraweeh is prayed and where people break
+        their fast; the Qur'an is recited in prayer and was revealed in Ramadan.
+
+        The Kaaba is the pairing worth a reviewer's eye first, and Harry's own principle is
+        now the argument for changing it: it is the direction of every prayer as well as the
+        destination of the pilgrimage. It is left at hajj alone until he says otherwise.
         """
         from salaah.pillar_match import ITEMS
         self.assertEqual(
-            tuple((i.key, i.pillar) for i in ITEMS),
-            (("testimony", "faith"), ("one_finger", "faith"),
-             ("prayer_rug", "prayer"), ("prayer_beads", "prayer"),
-             ("charity_box", "charity"), ("giving_hands", "charity"),
-             ("dates", "fasting"), ("iftar", "fasting"),
-             ("kaaba", "hajj"), ("path_to_kaaba", "hajj")))
+            tuple((i.key, i.pillars) for i in ITEMS),
+            (("one_god", ("faith",)), ("declaration", ("faith",)),
+             ("prayer_rug", ("prayer",)), ("prayer_beads", ("prayer",)),
+             ("call_to_prayer", ("prayer",)), ("child_praying", ("prayer",)),
+             ("prayer_times", ("prayer",)),
+             ("zakat_share", ("charity",)), ("cash_and_coins", ("charity",)),
+             ("ramadan_days", ("fasting",)), ("water_at_sunset", ("fasting",)),
+             ("hajj_days", ("hajj",)), ("kaaba", ("hajj",)),
+             ("ihram", ("hajj",)), ("suitcase", ("hajj",)),
+             ("mosque", ("charity", "prayer", "fasting")),
+             ("quran", ("prayer", "fasting"))))
+
+    def test_a_thing_that_belongs_to_several_pillars_is_right_on_any_of_them(self):
+        """The whole of what multi-pillar means, asked of the rules rather than the table.
+
+        Written as "every pillar it belongs to is accepted AND every pillar it does not is
+        refused", because half of that passes on its own: a game that accepted every drop
+        would satisfy the first half and teach nothing at all.
+        """
+        from salaah.pillar_match import ITEMS, PILLARS, Rules
+        many = [i for i in ITEMS if len(i.pillars) > 1]
+        self.assertTrue(many, "nothing belongs to more than one pillar any more")
+        for item in many:
+            belongs = {PILLARS.index(p) for p in item.pillars}
+            for which in range(len(PILLARS)):
+                g = Rules(lambda values: None)
+                g.sequence = [item]
+                g.at = 0
+                got = g.answer(which)
+                self.assertEqual("correct" if which in belongs else "wrong", got,
+                                 f"{item.key} dropped on {PILLARS[which]} gave {got}")
+
+    @staticmethod
+    def a_pillar_it_does_not_belong_to(game):
+        """Somewhere the item in play is genuinely wrong. There is always one: nothing
+        belongs to all five, and test_every_pillar_has_something_that_belongs_to_it would
+        have to pass for something that did."""
+        from salaah.pillar_match import PILLARS
+        for which in range(len(PILLARS)):
+            if which not in game.correct_pillars:
+                return which
+        raise AssertionError(f"{game.item.key} belongs to every pillar; nothing is wrong")
 
     def test_a_wrong_drop_can_be_tried_again_and_costs_the_first_try_credit(self):
         g = self.game()
@@ -20331,6 +20373,51 @@ class PillarMatchTest(unittest.TestCase):
                                    f"nothing is drawn where the item should be ({theme}): the "
                                    "child has nothing to take hold of")
 
+    def test_the_thing_can_still_be_seen_once_it_has_been_put_down(self):
+        """THE HALF THE TEST ABOVE WAS NOT LOOKING AT, and it was wrong for the same reason.
+
+        That test checks the item where it WAITS -- centre top, on black. It never looked at
+        where the item LANDS. Once a drop was right, the picture settled onto the middle of
+        the pillar, which on Harry's board is a white shaft, and a white picture on a white
+        shaft left about a seventh of itself showing: a faint outline where it happened to
+        cross the dark arch. The confirmation that a child got it right was the thing hardest
+        to see on the screen.
+
+        Measured as "how much of the item's box is different from the same board with nothing
+        on it", which is a question about the SCREEN rather than about the code that drew it.
+        Both themes, both a one-pillar item and a many-pillar one.
+        """
+        from salaah.pillar_match import ITEMS, PILLARS
+        for theme in ("dark", "light"):
+            _, screen = self.board(theme)
+            board = screen.board
+            for key in ("suitcase", "mosque"):
+                with self.subTest(theme=theme, item=key):
+                    item = next(i for i in ITEMS if i.key == key)
+                    which = PILLARS.index(item.pillars[-1])
+                    screen.game.restart()
+                    screen.game.sequence = [item]
+                    screen.game.at = 0
+                    board.reset_item()
+                    settle()
+                    bare = board.grab().toImage()
+                    screen._drop(which)
+                    settle()
+                    placed = board.grab().toImage()
+                    # Asked of the whole pillar's column, not of the rectangle the code
+                    # chose: a test that looks only where the code says it drew would move
+                    # with the mistake. Anywhere in that column is fine, as long as it shows.
+                    zone = board._zones()[which]
+                    changed = sum(
+                        1
+                        for x in range(int(zone.left()), int(zone.right()), 3)
+                        for y in range(0, int(zone.bottom()), 3)
+                        if bare.pixel(x, y) != placed.pixel(x, y))
+                    self.assertGreater(
+                        changed, 600,
+                        f"{key} on {PILLARS[which]} ({theme}): almost nothing changed when "
+                        "it was put down -- the child's right answer is invisible")
+
     def test_the_five_catching_areas_sit_on_the_five_pillars(self):
         """Each zone's middle must land on the pillar it belongs to, not beside it.
 
@@ -20418,31 +20505,75 @@ class PillarMatchTest(unittest.TestCase):
                          {p.name for p in folder.glob("*.png")})
 
     def test_every_item_is_named_in_every_language_the_mat_speaks(self):
-        from salaah.pillar_match import ITEMS, PILLARS
-        for lang in sorted(available_packs(ASSETS)):
-            pack = json.loads((ASSETS / "content" / "packs" / lang / "pack.json")
-                              .read_text(encoding="utf-8"))["ui"]
-            for item in ITEMS:
-                with self.subTest(lang=lang, item=item.key):
-                    self.assertTrue(pack.get(f"pillar_match.item.{item.key}", "").strip(),
-                                    f"{lang} cannot name {item.key}")
-            for pillar in PILLARS:
-                with self.subTest(lang=lang, pillar=pillar):
-                    self.assertTrue(pack.get(f"pillar_match.pillar.{pillar}", "").strip())
+        """The names are PICTURES since 2.37, cropped from Harry's own cards -- see WordArt
+        for why they are not typed out. So this asks the folder, not the pack.
 
-    def test_the_answer_is_not_on_the_small_screen_before_the_drop(self):
-        """THE ONE THE LANGUAGES BROKE, and it was broken in six of the ten.
+        Both directions, as with the item pictures: every item has a word in every language,
+        and no language carries a word for something that is not in the game.
+        """
+        from salaah.pillar_match import ITEMS
+        words = ASSETS / "children" / "pillars" / "words"
+        wanted = {f"{i.key}.png" for i in ITEMS}
+        langs = sorted(p.name for p in words.iterdir() if p.is_dir())
+        self.assertEqual(sorted(available_packs(ASSETS)), langs,
+                         "a language the mat speaks has no words for this game")
+        for lang in langs:
+            with self.subTest(lang):
+                self.assertEqual(wanted, {p.name for p in (words / lang).glob("*.png")})
+                for p in (words / lang).glob("*.png"):
+                    self.assertGreater(p.stat().st_size, 200, f"{lang}/{p.name} is empty")
 
-        An item's name contains its pillar's name in Spanish, Portuguese, French, Hindi, Urdu
-        and Arabic: the rug is "Alfombra de oracion" beside a pillar called "Oracion", and
-        "jaa-e namaz" beside one called "namaz". That is not poor translation, it is what the
-        object is called -- so it could not be written around without inventing names nobody
-        uses. The 7in had been printing the answer beside the question on six mats out of ten
-        since the game went in, and in English, where the name is "Prayer rug" and the pillar
-        is "Salaah", there was nothing to see.
+    def test_the_arabic_pack_has_not_had_interface_strings_invented_for_it(self):
+        """A GUARD ON ME, added at 2.37 after I broke this at 2.36 and called it a fix.
 
-        It is fixed by WHEN rather than by WHAT: the name waits until the item has been
-        placed. So this test plays a round in every language and reads the whole 7in.
+        The Arabic pack says in its own translationSource field that its interface falls back
+        to English on purpose: Arabic goes in only where it is transcribed from Harry's own
+        drawings, because putting unreviewed Arabic on screen is worse than English. At 2.36
+        I typed the five pillar names into it and reported it as a gap I had found. It was
+        not a gap, it was a decision, written down, that I had not read.
+
+        The five pillars are lettered into the board artwork anyway -- Shahadah, Salah, Zakat,
+        Sawm, Hajj -- the same picture on every mat, so with the pack entries gone the 7in now
+        says what the board says instead of answering in a different script.
+
+        This does not forbid Arabic in that pack. It requires that adding any makes a test
+        fail, so it is a decision somebody takes rather than a thing that creeps in.
+        """
+        pack = json.loads((ASSETS / "content" / "packs" / "ar" / "pack.json")
+                          .read_text(encoding="utf-8"))
+        self.assertIn("falls back to English on purpose",
+                      pack.get("translationSource", ""),
+                      "the Arabic pack's reason for being thin has gone missing")
+        english = set(json.loads((ASSETS / "content" / "packs" / "en" / "pack.json")
+                                 .read_text(encoding="utf-8"))["ui"])
+        self.assertEqual(49, len(pack["ui"]),
+                         "the Arabic interface has grown or shrunk; if that was deliberate, "
+                         "say so here and change the number")
+        self.assertLess(len(pack["ui"]), len(english) // 4)
+
+    def test_the_name_of_the_thing_is_on_the_small_screen_from_the_start(self):
+        """THE ONE I GOT BACKWARDS, so the reasoning is written out rather than the rule.
+
+        2.36 held this name back until after the drop, on the finding that in six of ten
+        languages an item's name contains its pillar's name -- the rug is "Alfombra de
+        oracion" beside a pillar called "Oracion". That finding was measured against the
+        pillar names in the PACKS. The packs are not what a child reads. The five pillars
+        are lettered into Harry's board artwork, in Latin, in the same picture on every mat:
+        Shahadah, Salah, Zakat, Sawm, Hajj. The pack's names appear in exactly one place, the
+        sentence after a correct drop, where naming the pillar is the point.
+
+        So "Alfombra de oracion" sits under a pillar labelled "Salah" and gives nothing away.
+        Measured against what is actually on screen, the collisions are two cards in four
+        languages: the 2.5% card says Zakat in English, Spanish, French and Portuguese, and
+        the five days card says Hajj in English, French and Portuguese.
+
+        Harry was told and chose to show the name anyway -- "its a teaching aid not aiming
+        for high scores" -- so this test holds the name BEING there, which is what he asked
+        for and what 2.36 took away.
+
+        Neither side of that collision is text any more: the caption is a picture of Harry's
+        lettering and the board labels are painted into his artwork. A suite cannot read
+        either. That is why the seven combinations are written down above instead.
         """
         for lang in sorted(available_packs(ASSETS)):
             with self.subTest(lang):
@@ -20460,24 +20591,104 @@ class PillarMatchTest(unittest.TestCase):
                 w.open_a_game("pillars")
                 settle()
                 screen = w.games["pillars"]
-                answer = w.t("pillar_match.pillar." + screen.game.item.pillar).strip()
-                self.assertTrue(answer, f"{lang} cannot name the pillar at all")
+                self.assertEqual(screen.game.item.key, screen.item_name.key,
+                                 f"{lang} is not saying what the thing is")
 
-                # THE LABELS THAT CHANGE WITH THE ITEM, which are the only ones that can give
-                # it away. The title, the question and the instruction say the same thing
-                # whichever item is up, so they cannot point at a pillar -- and reading them
-                # too cost a false alarm that was worth the lesson: Russian calls the fast
-                # "Пост", and "сопоставь" -- the word in this game's own title -- contains it.
-                # A test that reads the whole screen is matching letters, not meaning.
-                said = f"{screen.item_name.text()} {screen.feedback.text()}"
-                self.assertNotIn(answer.lower(), said.lower(),
-                                 f"{lang} is showing the answer before the child has chosen")
+                # Drawn, not merely addressed. The strip is tinted with the theme's ink, so
+                # it can fail exactly the way the dragged item did for six releases -- told
+                # to paint, painting nothing anybody can see.
+                strip = screen.item_name.grab().toImage()
+                self.assertGreater(strip.width(), 10)
+                lit = sum(QtGui.QColor(strip.pixel(x, y)).lightness() > 60
+                          for x in range(0, strip.width(), 3)
+                          for y in range(0, strip.height(), 3))
+                self.assertGreater(lit, 20, f"{lang}: the name is addressed but not drawn")
 
-                screen._drop(screen.game.correct)
+    def test_the_picture_settles_on_the_pillar_the_child_chose(self):
+        """Added because a sabotage went unnoticed: nothing was looking at WHERE the item
+        comes to rest once a drop is right.
+
+        It only matters now that an item can belong to more than one pillar. Drop the mosque
+        on Zakah and it must settle on Zakah; settling on Salaah instead would tell a child
+        their right answer had been moved somewhere else.
+
+        Asked of the PICTURE, by playing the same round twice onto two different pillars it
+        belongs to and seeing what moved between the two renders. Reading the rectangle out
+        of the code would only re-state the line the sabotage changed.
+        """
+        from salaah.pillar_match import ITEMS, PILLARS
+        _, screen = self.board()
+        many = next(i for i in ITEMS if len(i.pillars) > 1)
+        first, second = PILLARS.index(many.pillars[0]), PILLARS.index(many.pillars[-1])
+
+        def settled_on(which):
+            screen.game.restart()
+            screen.game.sequence = [many]
+            screen.game.at = 0
+            screen.board.reset_item()
+            screen._drop(which)
+            settle()
+            return screen.board.grab().toImage()
+
+        here, there = settled_on(first), settled_on(second)
+        zones = screen.board._zones()
+        # The COLUMN above and including each pillar, not the pillar band alone: the picture
+        # comes to rest just above the capitals, where the board is black and it can be seen,
+        # so a window the height of the pillars only would find nothing moving anywhere.
+        moved = []
+        for zone in zones:
+            count = 0
+            for x in range(int(zone.left()) + 2, int(zone.right()) - 2, 4):
+                for y in range(0, int(zone.bottom()), 4):
+                    if here.pixel(x, y) != there.pixel(x, y):
+                        count += 1
+            moved.append(count)
+        busiest = sorted(range(len(zones)), key=lambda i: moved[i], reverse=True)[:2]
+        self.assertEqual({first, second}, set(busiest),
+                         f"the picture did not move between the two pillars: {moved}")
+        quiet = [n for i, n in enumerate(moved) if i not in (first, second)]
+        self.assertGreater(min(moved[first], moved[second]), max(quiet or [0]) * 3 + 20,
+                           f"the picture barely moved where it should have: {moved}")
+
+    def test_no_catching_area_hangs_off_the_edge_of_the_board(self):
+        """A zone that runs off the screen is a zone a finger cannot use all of.
+
+        Harry's 2.36 board put the outer pillars nearer the edges than the one before, and
+        half a zone's width is more than the left-hand centre's distance from the side: the
+        Shahadah zone started eight pixels off the screen. A drop can never land there, so
+        that pillar was the hardest of the five to hit, by about two per cent of its width,
+        and the wrong-drop flash was drawn with its left edge cut off.
+
+        Measured in screen pixels rather than in the fractions, because the fractions are
+        where the mistake was.
+        """
+        _, screen = self.board()
+        board = screen.board
+        self.assertGreater(board.width(), 100)
+        for index, zone in enumerate(board._zones()):
+            with self.subTest(index):
+                self.assertGreaterEqual(zone.left(), 0, "a zone starts off the left edge")
+                self.assertLessEqual(zone.right(), board.width(),
+                                     "a zone runs past the right edge")
+                self.assertGreater(zone.width(), board.width() * 0.12,
+                                   "clamping has eaten most of a zone")
+
+    def test_the_pillar_it_names_back_is_the_one_the_child_chose(self):
+        """A mosque belongs to three pillars. A child who puts it on Zakah and is told it
+        belongs to Salaah has been corrected for an answer that was right."""
+        from salaah.pillar_match import ITEMS, PILLARS
+        w, screen = self.board()
+        mosque = next(i for i in ITEMS if len(i.pillars) > 1)
+        for pillar in mosque.pillars:
+            with self.subTest(pillar):
+                screen.game.restart()
+                screen.game.sequence = [mosque]
+                screen.game.at = 0
+                screen._drop(PILLARS.index(pillar))
                 settle()
-                after = f"{screen.item_name.text()} {screen.feedback.text()}"
-                self.assertIn(answer.lower(), after.lower(),
-                              f"{lang} never tells the child which pillar it was")
+                said = screen.feedback.text()
+                self.assertIn(w.t("pillar_match.pillar." + pillar).lower(), said.lower(),
+                              f"dropped on {pillar} and told something else")
 
     def test_the_small_screen_keeps_the_score_as_you_go(self):
         """Harry: "the hint screen can keep score." Counted in rounds FINISHED, not rounds
@@ -20491,7 +20702,11 @@ class PillarMatchTest(unittest.TestCase):
         self.assertTrue(screen.score.isVisibleTo(screen.companion))
         first = screen.score.text()
         self.assertIn("1", first)
-        screen._drop((screen.game.correct + 1) % 5)  # wrong, then right: no credit
+        # A pillar this item does NOT belong to. "correct + 1" was enough until 2.37, when
+        # items gained more than one right answer: the mosque belongs to three of the five,
+        # and the pillar next door to its first one is another of them, so the "wrong" drop
+        # would have been right and the test would have been measuring nothing.
+        screen._drop(self.a_pillar_it_does_not_belong_to(screen.game))
         screen._drop(screen.game.correct)
         screen._next()
         settle()
@@ -20499,7 +20714,7 @@ class PillarMatchTest(unittest.TestCase):
                          "a round got to the second guess and still scored")
         self.assertNotEqual(first, screen.score.text(), "the score did not move on")
 
-    def test_all_ten_rounds_can_be_played_and_a_press_starts_again(self):
+    def test_all_seventeen_rounds_can_be_played_and_a_press_starts_again(self):
         g = self.game()
         for index in range(g.rounds):
             self.assertEqual("correct", g.answer(g.correct))
@@ -20926,7 +21141,10 @@ class EveryGameStringIsInEveryPackTest(unittest.TestCase):
         # Was built from ROUNDS and their wrong answers until 2.12, when Build the Salaah
         # stopped having rounds. The same six keys, from the tray the puzzle deals.
         want |= {f"builder.action.{a}" for a in RAKAH}
-        want |= {f"pillar_match.item.{i.key}" for i in ITEMS}
+        # Pillar Match's item names left the packs at 2.37: they are pictures of Harry's own
+        # lettering now, cropped from his cards, because three of these ten scripts I cannot
+        # proof-read my own typing in. What they must have instead -- a word file per item
+        # per language, and no orphans -- is checked in PillarMatchTest against the folder.
         want |= {f"pillar_match.pillar.{p}" for p in PILLARS}
         return want
 
