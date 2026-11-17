@@ -965,44 +965,49 @@ class UiTest(unittest.TestCase):
         if w.mosque.lit:
             self.assertIn(w.mosque.lit, {a.prayer for a in w.mosque.arches})
 
-    def test_the_time_is_sized_off_the_dome_and_then_trimmed(self):
-        """Two steps, kept apart on purpose: the dome curves out either side of the numbers so
-        the time is set larger than a flat fit, and then trimmed because it read too big."""
-        from salaah.mosque import CLOCK_BOOST, CLOCK_TRIM
+    def test_the_time_is_sized_off_the_dome(self):
+        """GONE AT 2.42: a boost and a trim. Those were two steps kept apart on purpose -- the
+        time set larger than a flat fit because the dome curves out either side of the numbers,
+        then trimmed because it read too big -- and both were corrections to a fit made against
+        the font's advance rather than against the lettering. The ink is measured now, so there
+        is one step and nothing to correct.
+
+        What survives is the claim underneath: the time is as large as the room on the dome,
+        and no larger.
+        """
         w = self.win
         w.tick()
         APP.processEvents()
         box = w.mosque.clock_box
         self.assertGreater(box.width(), 10, "the dome was found in the picture")
         font = w.mosque.clock_type(box, "21:45")
-        plain = QtGui.QFont(font)
-        plain.setPixelSize(max(8, int(font.pixelSize() / (CLOCK_BOOST * CLOCK_TRIM))))
-        self.assertAlmostEqual(CLOCK_BOOST * CLOCK_TRIM,
-                               font.pixelSize() / plain.pixelSize(), delta=0.03)
-        # the plain size is the one that fits the dome's flat middle
-        self.assertLessEqual(QtGui.QFontMetrics(plain).horizontalAdvance("21:45"),
-                             box.width() * 0.95)
+        _, ink = w.mosque.lettering(font, "21:45")
+        self.assertLessEqual(round(ink.width()), box.width() + 1)
+        self.assertLessEqual(round(ink.height()), box.height() + 1)
+        self.assertGreater(max(ink.width() / box.width(), ink.height() / box.height()), 0.92,
+                           "the time does not fill the room on the dome")
 
-    def test_the_trim_is_the_one_the_app_says_it_is(self):
-        """That the trim is really applied, measured against the untrimmed size.
+    def test_a_short_word_does_not_outgrow_the_dome(self):
+        """The fault the rewrite was for. Up to 2.40 the size came from the box's HEIGHT and
+        was only ever shrunk to fit its width, so a word too short to need shrinking kept a
+        size the box had never agreed to: the Urdu ظہر and the Chinese 昏礼 came out half as
+        tall again as the dome had room for and hung off the bottom of it into the black.
 
-        It asked for 0.85 until 1.67 -- "fifteen percent smaller than it was", which is what
-        Harry wanted at the time. He has since asked for the time on the dome to be slightly
-        bigger again, so the number is read from the app rather than written down here; what
-        this holds is that the step exists and does what it says. How big the time ends up
-        against a plain fit is TimeOnTheDomeTest's business.
+        English never showed it -- "Maghrib" is long enough to be shrunk -- which is why it
+        went six releases unseen.
         """
-        from salaah import mosque
         w = self.win
         box = w.mosque.clock_box
-        trimmed = w.mosque.clock_type(box, "21:45").pixelSize()
-        was = mosque.CLOCK_TRIM
-        mosque.CLOCK_TRIM = 1.0
-        self.addCleanup(lambda: setattr(mosque, "CLOCK_TRIM", was))
-        before = w.mosque.clock_type(box, "21:45").pixelSize()
-        self.assertAlmostEqual(was, trimmed / before, delta=0.02,
-                               msg=f"{before}px became {trimmed}px, which is not a trim "
-                                   f"of {was}")
+        for word in ("ظہر", "昏礼", "عصر", "1", "21:45", "Maghrib"):
+            with self.subTest(word):
+                font = w.mosque.clock_type(box, word)
+                _, ink = w.mosque.lettering(font, word)
+                self.assertLessEqual(round(ink.height()), box.height() + 1,
+                                     f"{word} is drawn {ink.height():.0f}px tall where the "
+                                     f"dome has room for {box.height()}")
+                self.assertLessEqual(round(ink.width()), box.width() + 1,
+                                     f"{word} is drawn {ink.width():.0f}px wide where the "
+                                     f"dome has room for {box.width()}")
 
     def test_settings_is_two_columns_of_settings(self):
         from salaah.mosque import GearButton
@@ -2191,21 +2196,21 @@ class SkyAndPolishTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         return w
 
-    def test_the_clock_has_room_and_sits_higher(self):
-        from salaah import mosque
+    def test_the_clock_fills_the_room_it_is_given_and_no_more(self):
+        """CHANGED AT 2.42. It used to ask for room either side of the box and a lift above it
+        -- two nudges that existed because the time was fitted to the font's advance and then
+        made 15% bigger, so it needed somewhere to overflow to. The lettering is scaled by its
+        own ink now, so the box is simply the rectangle it fills: nothing to lift, nothing to
+        spill into, and the box in the drawing's description means what it says.
+        """
         w = self.window()
         screen = w.mosque
         box = QtCore.QRect(100, 100, 200, 60)
-        where = screen.clock_rect(box)
-        self.assertGreater(where.width(), box.width(), "room either side, so nothing is clipped")
-        self.assertLess(where.y(), box.y(), "lifted towards the middle of the dome")
-        self.assertEqual(box.center().x(), where.center().x(), "still centred on the dome")
-        # The room is what stops the lettering being clipped at whatever size it ends up.
-        # It used to be wider than the box itself; since the time was trimmed it need not be,
-        # so what is checked is the thing that still has to hold -- that it fits in the room.
         font = screen.clock_type(box, "23:59")
-        self.assertLessEqual(QtGui.QFontMetrics(font).horizontalAdvance("23:59"), where.width())
-        self.assertGreater(QtGui.QFontMetrics(font).horizontalAdvance("23:59"), box.width() * 0.6,
+        _, ink = screen.lettering(font, "23:59")
+        self.assertLessEqual(round(ink.width()), box.width() + 1, "wider than the room given")
+        self.assertLessEqual(round(ink.height()), box.height() + 1, "taller than the room given")
+        self.assertGreater(max(ink.width() / box.width(), ink.height() / box.height()), 0.92,
                            "the time has shrunk to nothing on the dome")
 
     def test_the_line_between_the_columns_is_the_colour_of_the_words(self):
@@ -16308,7 +16313,9 @@ class MainPageNamesTest(unittest.TestCase):
     would notice is five blank arches on the first screen of the mat.
     """
 
-    def window(self, lang="en", mode="dark"):
+    def window(self, lang="en", mode="dark", lit="asr"):
+        """[lit] is set rather than left to the clock, so which arch is green -- and therefore
+        which one is read a different colour -- cannot depend on what time the suite is run."""
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme=mode, lang=lang, recitation=False, place="Bury"),
                        scale=1.0, save_settings=False, aspect=None)
@@ -16316,6 +16323,7 @@ class MainPageNamesTest(unittest.TestCase):
         w.show()
         w.tick()
         w.stack.setCurrentWidget(w.home)
+        w.mosque.set_lit(lit)
         settle()
         self.addCleanup(lambda: shut(w))
         return w
@@ -16328,7 +16336,18 @@ class MainPageNamesTest(unittest.TestCase):
         screen.flutter.stop()
 
     def arch_ink(self, w):
-        """How much lettering is on the screen inside each arch, read off the rendered page."""
+        """How much lettering is on the screen inside each arch, read off the rendered page.
+
+        Ink is whatever is NOT the panel, found as the colour most of the band is. It asked for
+        lightness over 128 until 2.42 and that was wrong in a way that only showed at certain
+        times of day: the prayer whose time it is has its word turned green by MULTIPLYING, and
+        the green that comes out is #1e9e57 -- lightness 94. So the lit arch read as empty, and
+        which arch that is depends on the clock. It passed every run until one happened to go
+        round at ten past six.
+
+        Asking "not the panel" instead also works in either theme, where lightness has to be
+        read the opposite way round.
+        """
         screen = w.mosque
         shot = screen.grab().toImage()
         _, origin, scale = screen.placement()
@@ -16340,12 +16359,15 @@ class MainPageNamesTest(unittest.TestCase):
                 origin.y() + int((arch.box.y() + arch.box.height() * top) * scale),
                 int(arch.box.width() * (right - left) * scale),
                 int(arch.box.height() * (bottom - top) * scale))
-            marks = set()
+            seen = {}
             for y in range(box.top(), box.bottom(), 2):
                 for x in range(box.left(), box.right(), 2):
-                    if QtGui.QColor(shot.pixel(x, y)).lightness() > 128:
-                        marks.add((x - box.left(), y - box.top()))
-            out[arch.prayer] = marks
+                    here = QtGui.QColor(shot.pixel(x, y)).lightness()
+                    seen.setdefault(here, []).append((x - box.left(), y - box.top()))
+            self.assertTrue(seen, f"the {arch.prayer} arch is off the screen")
+            panel = max(seen, key=lambda k: len(seen[k]))
+            out[arch.prayer] = {spot for shade, spots in seen.items() if abs(shade - panel) > 40
+                                for spot in spots}
         return out
 
     def test_a_word_is_drawn_in_every_arch_and_it_changes_with_the_language(self):
@@ -16636,13 +16658,22 @@ class TheSkyBehindTheMosqueTest(unittest.TestCase):
                                    f"no sun on a {theme} mat: the sky is not see-through")
 
     def test_the_sun_moves_across_the_sky(self):
+        """FIXED AT 2.42, in the test rather than the mat. It looked for "red and not blue",
+        which was the sun alone until the time on the dome turned red: #C0392B is red 192, blue
+        43, so the clock was being averaged in with the sun and held the middle of the screen
+        while the sun crossed it. It uses the same amber as the test above now -- a colour the
+        drawing, the two themes and the clock all leave alone.
+        """
         w = self.window()
 
         def where():
             shot = w.mosque.grab().toImage()
-            xs = [x for y in range(0, shot.height(), 4) for x in range(0, shot.width(), 4)
-                  if QtGui.QColor(shot.pixel(x, y)).red() > 180
-                  and QtGui.QColor(shot.pixel(x, y)).blue() < 90]
+            xs = []
+            for y in range(0, shot.height(), 4):
+                for x in range(0, shot.width(), 4):
+                    c = QtGui.QColor(shot.pixel(x, y))
+                    if c.red() > 180 and 120 < c.green() < 220 and c.blue() < 90:
+                        xs.append(x)
             return sum(xs) / len(xs) if xs else None
 
         w.mosque.set_sky(True, 0.15)
@@ -16656,7 +16687,127 @@ class TheSkyBehindTheMosqueTest(unittest.TestCase):
         self.assertGreater(late, early + 400, "the sun does not cross the sky")
 
 
-class ScreensTheMatHasTest(unittest.TestCase):
+class LetteringOnTheDomeTest(unittest.TestCase):
+    """Every word the mat can write on a dome, drawn and measured against the dome it is on.
+
+    This is the check the whole 2.42 change rests on, and the one nothing in the repo had.
+    What goes up there is the time on two screens and a prayer's name on five, in ten
+    languages -- fifty-three words, in six scripts, at whatever size the box allows. The box
+    was measured in English and the fault was invisible in English.
+
+    What it caught, in what was already shipped: the Urdu ظہر and the Chinese 昏礼 hanging off
+    the bottom of the dome into the black, and every non-Latin name sitting low on it. What it
+    decides, now: how big the lettering can be, which is where 0.84 of the dome's width in
+    tools/build_mosque_pack.py comes from -- the most that leaves all fifty-three wholly on the
+    dome. Twice the old size would be 0.92, and at 0.92 the Arabic المغرب is over the edge.
+
+    Measured on the PICTURE, not on the screen: the dome is a shape in the drawing, the box is
+    in the drawing's own pixels, and putting the two together on screen only adds the scaling
+    to the argument.
+    """
+
+    FOLDERS = ("mosque", "kalima", "welcome") + tuple(f"prayers/{p}" for p in PRAYERS)
+
+    @classmethod
+    def setUpClass(cls):
+        import json
+        cls.words = ["17:46", "08:05", "23:59", "1", "6"]
+        for lang in ("en", "fr", "es", "ur", "hi", "zh", "ar", "bn", "ru", "pt"):
+            said = json.loads((ASSETS / "content" / "packs" / lang / "pack.json")
+                              .read_text(encoding="utf-8"))["ui"]
+            cls.words += [said[f"prayer.{p}"] for p in PRAYERS]
+        cls.words = list(dict.fromkeys(cls.words))
+
+    @staticmethod
+    def dome_of(folder):
+        """The building, as a mask: everything the drawing is solid in. A word on the dome is
+        a word on the building; a word off it is over the sky."""
+        import numpy as np
+        from PIL import Image
+        from scipy import ndimage
+        picture = Image.open(ASSETS / folder / "mosque.png").convert("RGBA")
+        solid = np.asarray(picture.getchannel("A")) > 40
+        white = (np.asarray(picture.convert("L")) > 128) & solid
+        shut = ndimage.binary_closing(white, structure=np.ones((9, 9), bool))
+        return ndimage.binary_fill_holes(shut) & solid
+
+    def drawn(self, screen, box, text, shape):
+        """The word, where the mat would put it, as pixels on a sheet the size of the drawing."""
+        import numpy as np
+        from salaah.mosque import CLOCK_WEIGHT
+        tall, wide = shape
+        font = screen.clock_type(box, text)
+        path, ink = screen.lettering(font, text)
+        path.translate(box.center().x() - ink.center().x(),
+                       box.center().y() - ink.center().y())
+        sheet = QtGui.QImage(wide, tall, QtGui.QImage.Format.Format_Grayscale8)
+        sheet.fill(0)
+        pen = QtGui.QPainter(sheet)
+        pen.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        stroke = QtGui.QPen(QtGui.QColor("white"))
+        stroke.setWidthF(max(1.0, font.pixelSize() * CLOCK_WEIGHT))
+        stroke.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        pen.setPen(stroke)
+        pen.setBrush(QtGui.QColor("white"))
+        pen.drawPath(path)
+        pen.end()
+        bits = sheet.constBits()
+        bits.setsize(sheet.sizeInBytes())
+        return np.frombuffer(bits, np.uint8).reshape(tall, sheet.bytesPerLine())[:, :wide] > 128
+
+    def test_every_word_lands_wholly_on_the_dome(self):
+        """Two things, because one without the other leaves half the dome open to it: no part
+        of the word over the SKY, and the ground under it pale rather than the patterned band
+        at the dome's foot. A word may be entirely on the building and still be written across
+        a band of dark ornament, which is where the Urdu one was sitting."""
+        import numpy as np
+        from PIL import Image
+        from salaah.mosque import MosqueScreen
+        for folder in self.FOLDERS:
+            dome = self.dome_of(folder)
+            picture = np.asarray(Image.open(ASSETS / folder / "mosque.png").convert("RGBA"))
+            pale = (picture[:, :, :3].min(axis=2) > 170) & (picture[:, :, 3] > 40)
+            screen = MosqueScreen(ASSETS, folder=folder)
+            box = screen.clock_box
+            self.assertGreater(box.width(), 10, f"{folder}: no clock box")
+            for text in self.words:
+                ink = self.drawn(screen, box, text, dome.shape)
+                total = int(ink.sum())
+                self.assertGreater(total, 100, f"{folder}: nothing drawn for {text}")
+                with self.subTest(folder=folder, word=text):
+                    off = int((ink & ~dome).sum())
+                    self.assertEqual(0, off,
+                                     f"{off} pixels of {text} ({off/total:.1%}) fall off the "
+                                     f"dome in {folder}")
+                    under = int((ink & pale).sum()) / total
+                    self.assertGreater(under, 0.80,
+                                       f"{text} is written on ground that is only {under:.0%} "
+                                       f"pale dome in {folder} -- the ornament under the dome "
+                                       f"is about half that")
+
+    def test_the_lettering_is_most_of_the_dome_across(self):
+        """The other half of what Harry asked for, and the reason the first half is not simply
+        satisfied by writing everything very small."""
+        import numpy as np
+        from salaah.mosque import MosqueScreen
+        dome = self.dome_of("mosque")
+        screen = MosqueScreen(ASSETS, folder="mosque")
+        box = screen.clock_box
+        # the dome where the time crosses it: the run of building through the middle of the
+        # box, which is the dome and not the roof or the minarets
+        row = dome[box.center().y()]
+        middle = dome.shape[1] // 2
+        left = right = middle
+        while left > 0 and row[left - 1]:
+            left -= 1
+        while right < dome.shape[1] - 1 and row[right + 1]:
+            right += 1
+        widest = right - left
+        ink = self.drawn(screen, box, "17:46", dome.shape)
+        xs = np.where(ink.any(axis=0))[0]
+        across = int(xs.max() - xs.min())
+        self.assertGreater(across / widest, 0.75,
+                           f"the time is {across}px across a dome {widest}px wide")
     """How much room a full-screen drawing actually gets, on each screen the mat has.
 
     test_core's RecutArtworkTest decides whether a drawing's shape leaves a visible gutter, and
@@ -17407,10 +17558,10 @@ class TimeOnTheDomeTest(unittest.TestCase):
         return w, w.mosque
 
     @staticmethod
-    def plain_fit(box, text, font):
-        """The largest the time can be drawn and still fit across the dome's flat middle:
-        the size the mat used before any boost or trim, worked out here so the test does not
-        have to know what those are."""
+    def advance_fit(box, text, font):
+        """The size the mat used UP TO 2.41: started from the box's height and shrunk until the
+        font's advance fitted its width, with nothing ever asked about how tall the lettering
+        came out. Kept here because the tests below are about the difference."""
         font = QtGui.QFont(font)
         size = max(8, int(box.height() * 1.10))
         font.setPixelSize(size)
@@ -17419,24 +17570,37 @@ class TimeOnTheDomeTest(unittest.TestCase):
             font.setPixelSize(size)
         return size
 
-    def test_the_time_is_larger_than_a_plain_fit(self):
-        """It was 0.9775 of one -- boosted by 1.15 for the dome's curve and then trimmed by
-        0.85, which between them came out slightly SMALLER than simply fitting it."""
+    def test_the_time_fills_the_room_in_one_direction_or_the_other(self):
+        """As large as it goes, which is the honest version of "larger than a plain fit": one
+        of the two sides of the box is reached, or there was room left that nothing used."""
         w, m = self.screen()
         box = QtCore.QRect(0, 0, 420, 120)
-        chosen = m.clock_type(box, "20:16").pixelSize()
-        plain = self.plain_fit(box, "20:16", QtGui.QFont(m.clock_font) if m.clock_font
-                               else QtGui.QFont())
-        self.assertGreater(chosen, plain,
-                           f"the time is drawn at {chosen}px where a plain fit is {plain}px")
-
-    def test_it_still_has_room_either_side(self):
-        w, m = self.screen()
-        box = QtCore.QRect(100, 100, 420, 120)
         font = m.clock_type(box, "20:16")
-        self.assertLessEqual(QtGui.QFontMetrics(font).horizontalAdvance("20:16"),
-                             m.clock_rect(box).width(),
-                             "the bigger time runs off the end of the room it is given")
+        _, ink = m.lettering(font, "20:16")
+        filled = max(ink.width() / box.width(), ink.height() / box.height())
+        self.assertGreater(filled, 0.92, f"the time fills only {filled:.0%} of the room")
+        self.assertLessEqual(round(ink.width()), box.width() + 1)
+        self.assertLessEqual(round(ink.height()), box.height() + 1)
+
+    def test_the_old_way_of_fitting_would_have_overflowed_and_this_one_does_not(self):
+        """Side by side on the same box, so the fix is shown rather than asserted. A word
+        short enough never to be shrunk kept the height-derived size under the old rule; here
+        it is, drawn both ways.
+        """
+        w, m = self.screen()
+        box = QtCore.QRect(0, 0, 420, 120)
+        plain = QtGui.QFont(m.clock_font) if m.clock_font else QtGui.QFont()
+        for word in ("ظہر", "昏礼"):
+            with self.subTest(word):
+                was = QtGui.QFont(plain)
+                was.setWeight(QtGui.QFont.Weight(700))
+                was.setPixelSize(self.advance_fit(box, word, plain))
+                _, then = m.lettering(was, word)
+                _, now = m.lettering(m.clock_type(box, word), word)
+                self.assertGreater(then.height(), box.height() * 1.1,
+                                   f"{word} did not overflow under the old rule, so this test "
+                                   f"is no longer showing anything")
+                self.assertLessEqual(round(now.height()), box.height() + 1)
 
     def test_the_strokes_are_thicker_than_the_face_draws_them(self):
         """The "bolder" half, and the reason it is not done by asking for a heavier weight:
@@ -17472,36 +17636,71 @@ class TimeOnTheDomeTest(unittest.TestCase):
                            f"{thick} dark pixels against {thin} drawn plainly -- the time is "
                            f"no bolder than the face makes it")
 
-    def test_it_is_still_centred_where_the_plain_one_was(self):
-        """Drawn as a path now, which is placed by its baseline and not by an alignment flag.
-        Get that wrong and the time slides off the middle of the dome, or hangs low by the
-        depth of a descender it has not got."""
+    def test_the_time_is_red_on_the_dome_in_both_themes(self):
+        """Asked for at 2.42: "change font colour to red". Black and white until then.
+
+        The two reds are the app's own, out of theme.py, and they go on the OTHER way round
+        from everything else that wears them, because the dome is the other way round: after
+        dark the mat is black and the dome white, so the time takes the daytime red; in
+        daylight the drawing is turned over and the dome is black, so it takes the night one.
+        Read off the rendered dome rather than from the constant, since a constant can be
+        right while the painter reaches for the other one.
+        """
+        from salaah.mosque import CLOCK_INK, CLOCK_INK_ON_PALE
+        for mode, want in (("dark", CLOCK_INK_ON_PALE), ("light", CLOCK_INK)):
+            with self.subTest(mode):
+                w, m = self.screen(mode)
+                settle()
+                shot = m.grab().toImage()
+                _, origin, scale = m.placement()
+                box = m.clock_box
+                found = {}
+                for y in range(origin.y() + int(box.y() * scale),
+                               origin.y() + int((box.y() + box.height()) * scale), 2):
+                    for x in range(origin.x() + int(box.x() * scale),
+                                   origin.x() + int((box.x() + box.width()) * scale), 2):
+                        c = QtGui.QColor(shot.pixel(x, y))
+                        if c.red() > 100 and c.red() > c.green() + 50 and c.red() > c.blue() + 50:
+                            found[c.name()] = found.get(c.name(), 0) + 1
+                self.assertTrue(found, f"nothing red on the {mode} dome")
+                most = max(found, key=found.get)
+                self.assertEqual(want.name().lower(), most.lower(),
+                                 f"the {mode} time is {most}, not {want.name()}")
+
+    def test_the_lettering_is_centred_by_its_own_middle_in_any_script(self):
+        """The other half of the 2.42 rewrite. A path is laid down from its baseline, so where
+        it ends up has to be worked out; it used to be worked out from the FONT -- ascent less
+        descent -- which is a fact about the face and not about the word. On the scripts whose
+        ink does not sit where a digit's does, the word came out low on the dome.
+
+        Asked of the drawn pixels, in six scripts, against the middle of the box it was given.
+        """
         w, m = self.screen()
         box = QtCore.QRect(0, 0, 420, 120)
-        font = m.clock_type(box, "20:16")
         where = QtCore.QRect(0, 0, 700, 300)
 
-        def middle_of(painted):
+        def middle_of(text):
+            m.set_time(text)
+            font = m.clock_type(box, text)
             shot = QtGui.QImage(where.size(), QtGui.QImage.Format.Format_ARGB32)
             shot.fill(QtGui.QColor("white"))
             p = QtGui.QPainter(shot)
             p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-            painted(p)
+            m.draw_the_time(p, font, where, QtGui.QColor("black"))
             p.end()
             dark = [(x, y) for y in range(shot.height()) for x in range(shot.width())
                     if QtGui.QColor(shot.pixel(x, y)).lightness() < 100]
-            self.assertTrue(dark, "nothing was drawn")
-            return (sum(x for x, _ in dark) / len(dark), sum(y for _, y in dark) / len(dark))
+            self.assertTrue(dark, f"nothing was drawn for {text}")
+            return (min(x for x, _ in dark) + max(x for x, _ in dark)) / 2, \
+                   (min(y for _, y in dark) + max(y for _, y in dark)) / 2
 
-        def plain(p):
-            p.setFont(font)
-            p.setPen(QtGui.QColor("black"))
-            p.drawText(where, int(Qt.AlignmentFlag.AlignCenter), "20:16")
-
-        was = middle_of(plain)
-        now = middle_of(lambda p: m.draw_the_time(p, font, where, QtGui.QColor("black")))
-        self.assertLess(abs(now[0] - was[0]), 6, f"it has moved sideways: {was} to {now}")
-        self.assertLess(abs(now[1] - was[1]), 6, f"it has moved up or down: {was} to {now}")
+        for text in ("20:16", "ظہر", "昏礼", "Maghrib", "मग़रिब", "মাগরিব"):
+            with self.subTest(text):
+                x, y = middle_of(text)
+                self.assertLess(abs(x - where.center().x()), 6,
+                                f"{text} is off centre sideways by {x - where.center().x():.0f}px")
+                self.assertLess(abs(y - where.center().y()), 6,
+                                f"{text} sits {y - where.center().y():.0f}px off the middle")
 
 
 class WalkingTheBoardsTest(unittest.TestCase):

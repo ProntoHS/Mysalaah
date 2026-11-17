@@ -49,13 +49,26 @@ OPEN = 4             # and the same again to break the arches apart from one ano
 SMALLEST = 8000      # pixels; below this an opening is a slot or a vent, not an arch
 WHITE = 128          # these drawings are strictly black and white, so anything parts them
 
-# The clock box, as ratios of the dome it sits on, measured off the 1.84 drawing: its box was
-# 272 x 132 on a dome 618 wide. Stated this way rather than as a share of the picture because
-# the new canvas carries far more sky, so the same share of the picture would be a different
-# size on the dome -- and the dome is what the time is written on.
-CLOCK_OF_DOME = 272 / 618
-CLOCK_SHAPE = 272 / 132
-CLOCK_CLEAR = 0.03   # of the dome's width, kept between the time and the band under the dome
+# The clock box: the rectangle the lettering FILLS, as ratios of the dome it sits on. Stated
+# against the dome rather than the picture because the canvas carries a lot of sky and the
+# dome is what the time is written on.
+#
+# 0.46 of the dome until 2.42, when Harry asked for the time "at least twice as big and
+# slightly higher". Twice is 0.92 and the dome will not take it. The limit is not the time --
+# "17:46" fits at 0.92 with nothing over the edge -- it is the longest of the names written in
+# the same place: the Arabic المغرب reaches further up the dome, where it has begun to curve
+# in, and puts half a percent of itself into the sky at 0.87.
+#
+# 0.84 is the most that leaves EVERY word the mat can write up there -- the time, and the five
+# prayers in all ten languages -- wholly on the dome, with nothing over the edge at all. That
+# is eighty-three percent bigger rather than a hundred, and the seventeen points it gives up
+# are not worth a prayer's name hanging off the dome in one language. Found by measuring, and
+# held by test_ui's LetteringOnTheDomeTest, which measures the same thing on every build.
+CLOCK_OF_DOME = 0.84
+CLOCK_SHAPE = 3.27   # the shape of a five-figure time, so the time fills the box both ways.
+                     # A Pi with a different face only makes the time a little smaller than
+                     # the box; it cannot make it overflow, because the fit measures the ink.
+CLOCK_CLEAR = 0.01   # of the dome's width, kept between the lettering and the band below it
 
 PLAIN = 0.70         # a dome row is plain tiling above this much white; the patterned band
                      # under the dome is 0.36 to 0.61 and this is the gap between the two
@@ -139,23 +152,51 @@ class Drawing:
     def dome_body(self, rows: dict[int, tuple[int, int]]) -> tuple[int, int, int, int]:
         """The plain tiled part of the dome: its foot, its widest row, how wide, and its centre.
 
-        The foot is where the patterned band under the dome starts, found as the point below the
-        widest row where the tiling stops being mostly white. Nothing is assumed about there
-        being a band: a dome without one simply runs to the bottom of the tower.
+        THE FOOT IS FOUND FIRST, and that is the whole of the 2.42 fix. It used to look for the
+        band BELOW THE WIDEST ROW of the tower -- and the widest row of the tower is not on the
+        dome at all. The patterned band flares out past it, so the widest row was the band's
+        own base, the search for the band started below the band, found nothing, and the dome's
+        foot came out as the bottom of the tower: 696 where the dome ends at 648. The time was
+        then hung from a line forty-eight pixels inside the pattern.
+
+        It is found by SHAPE instead, which needs nothing to be assumed about how dark a
+        pattern is or how white a tile: an onion dome gets WIDER down to its belly and then
+        NARROWER to its foot, and the band under it flares out again. So the foot is the waist
+        -- the narrowest row between the dome's belly and the widest row of the whole tower --
+        and the dome's widest row is whatever is widest above that.
+
+        A first attempt read the tiling's darkness and started looking a fixed way down the
+        tower; it tripped on the first dark course it met near the shoulder, and put the foot
+        at 281 where the dome ends at 636. A shape has no such threshold in it.
+
+        Nothing is assumed about there being a band either: on a dome that runs straight into
+        the roof the width never turns back up, there is no waist, and the foot is the bottom
+        of the tower, as it was.
         """
         order = sorted(rows)
-        widths = {y: rows[y][1] - rows[y][0] for y in order}
-        widest = max(widths, key=lambda y: widths[y])
+        wide = {y: rows[y][1] - rows[y][0] for y in order}
+        # smoothed, because a course of tiles can take a pixel off a row's width and a waist
+        # found on raw widths would be whichever row that happened to be
+        smooth = {}
+        for i, y in enumerate(order):
+            near = order[max(0, i - 4):i + 5]
+            smooth[y] = sum(wide[z] for z in near) / len(near)
+        # The waist is the LOWEST row that is narrower than everything within reach of it. Reach
+        # matters: the band's own edge wobbles by twenty pixels from row to row, so a waist
+        # found by looking one row each way is whichever row of the band happened to dip.
+        reach = max(4, int((order[-1] - order[0]) * 0.05))
+        fat = max(smooth.values())
         foot = order[-1]
-        for y in order:
-            if y <= widest:
+        for i, y in enumerate(order):
+            if smooth[y] < fat * 0.5:          # the finial and the stem narrow too, up top
                 continue
-            left, right = rows[y]
-            if self.white[y, left:right].mean() < PLAIN:
+            near = [smooth[z] for z in order[max(0, i - reach):i + reach + 1]]
+            if smooth[y] <= min(near):
                 foot = y
-                break
+        body = [y for y in order if y <= foot]
+        widest = max(body, key=lambda y: wide[y])
         middle = (rows[widest][0] + rows[widest][1]) // 2
-        return foot, widest, widths[widest], middle
+        return foot, widest, wide[widest], middle
 
     def clock(self) -> tuple[int, int, int, int]:
         """Where the time is written: on the dome, the size the 1.84 dome wore it, with its

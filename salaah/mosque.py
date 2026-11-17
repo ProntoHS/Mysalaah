@@ -35,11 +35,32 @@ NAME_BAND = (0.0, 0.58, 1.0, 0.98)         # where a drawn-in name sits in its a
                                            # at 0.533-0.817 of a taller arch, and the old band
                                            # would have tinted the bottom fifth of an empty
                                            # panel and cut the top off the Bengali.
-CLOCK_INK = QtGui.QColor("white")          # on the black dome; black on the white one after dark
-CLOCK_BOOST = 1.15                         # the time, this much larger than a plain fit
-CLOCK_TRIM = 0.95                          # and then this much smaller again, as asked for.
-                                           # 0.85 until 1.67, when Harry asked for the time
-                                           # on the dome "slightly bigger" again.
+CLOCK_INK = QtGui.QColor("#FF5A47")        # the time, on a dome the colour of night
+CLOCK_INK_ON_PALE = QtGui.QColor("#C0392B")   # and on a dome the colour of day
+                                           # Red since 2.42, asked for; black and white until
+                                           # then. The two are the app's own reds out of
+                                           # theme.py, and they are used the OTHER way round
+                                           # from everything else that wears them, because the
+                                           # dome is the other way round: after dark the mat is
+                                           # black and the dome is white, so the time takes the
+                                           # daytime red, and in daylight the drawing is turned
+                                           # over and the dome is black, so it takes the
+                                           # night-time one. Named rather than taken from
+                                           # palette() at paint time because this screen is
+                                           # drawn into a scaled pixmap and knows the theme
+                                           # only as `flipped`.
+CLOCK_PROBE = 200                          # any size at all: the lettering is drawn at it once
+                                           # to see what shape it is, and then scaled. Big
+                                           # enough that the shape is not coarse, small enough
+                                           # to cost nothing.
+                                           #
+                                           # GONE AT 2.42: CLOCK_BOOST 1.15, CLOCK_TRIM 0.95,
+                                           # CLOCK_ROOM 0.35 and CLOCK_LIFT 0.07. All four were
+                                           # nudges applied to a fit made against the wrong
+                                           # rectangle -- room either side so a boosted digit
+                                           # was not clipped, a lift because the lettering hung
+                                           # low. Fitting the ink itself removes the thing they
+                                           # were correcting for. See clock_type.
 CLOCK_WEIGHT = 0.05                        # the time's strokes thickened by this much of its
                                            # own height, which is how it is made bolder.
                                            # Not by asking for a heavier weight: the face the
@@ -49,8 +70,6 @@ CLOCK_WEIGHT = 0.05                        # the time's strokes thickened by thi
                                            # all three. Stroking the lettering works in any
                                            # face, including whichever one a Pi happens to
                                            # have, and is the same thickening at every size.
-CLOCK_LIFT = 0.07                          # and this much of the box's height higher up
-CLOCK_ROOM = 0.35                          # room either side, so a boosted digit is never clipped
 SUN = QtGui.QColor(255, 193, 7)
 MOON = QtGui.QColor(232, 233, 228)
 MOON_EDGE = QtGui.QColor(120, 124, 130)
@@ -693,40 +712,61 @@ class MosqueScreen(QtWidgets.QWidget):
                                (self.height() - self._scaled.height()) // 2)
         return self._scaled, origin, scale
 
+    def lettering(self, font: QtGui.QFont, text: str) -> QtGui.QPainterPath:
+        """The words as a shape, with the thickening counted in. Drawn from the origin; where
+        it goes is decided afterwards, from the shape itself."""
+        path = QtGui.QPainterPath()
+        path.addText(0, 0, font, text)
+        edge = max(1.0, font.pixelSize() * CLOCK_WEIGHT) / 2
+        return path, path.boundingRect().adjusted(-edge, -edge, edge, edge)
+
     def clock_type(self, box: QtCore.QRect, text: str,
                    fallback: QtGui.QFont | None = None) -> QtGui.QFont:
-        """The time, as large as the dome allows: fitted to the flat middle of the dome, then
-        CLOCK_BOOST larger again, since the dome curves out wider either side of the numbers,
-        and CLOCK_TRIM smaller after that. The two are kept apart rather than multiplied into
-        one number so the reason for each is still readable: the first is about the shape of a
-        dome, the second is somebody looking at it and wanting the time a little smaller."""
+        """As large as it can be and still fill the box: scaled by the size of its OWN INK,
+        across and down, rather than by what the font says about itself.
+
+        REWRITTEN AT 2.42, and what it replaces is worth keeping in view. It used to set the
+        size from the box's height, shrink until the font's horizontalAdvance fitted the box's
+        width, and leave the height alone -- two assumptions that hold for "17:46" in a Latin
+        face and for almost nothing else:
+
+        - A SHORT WORD NEVER SHRANK, so it kept the full height-derived size and its ink came
+          out far taller than the box. The Urdu ظہر and the Chinese 昏礼 are three and two
+          characters, and they hung off the bottom of the dome into the black.
+        - A FONT'S ADVANCE IS NOT ITS INK. Scripts with marks above and below -- Arabic,
+          Devanagari, Bengali -- fill a line box quite differently from digits, so fitting the
+          advance fitted the wrong rectangle.
+
+        Measuring the ink answers both at once, in any script, with no list of exceptions. It
+        also makes the box in the drawing's description mean something it did not mean before:
+        the rectangle the lettering fills, which is a thing that can be measured on the dome
+        and tested. CLOCK_BOOST, CLOCK_TRIM, CLOCK_ROOM and CLOCK_LIFT are gone with it -- four
+        numbers that existed to nudge a fit that was being made against the wrong shape.
+        """
         font = QtGui.QFont(self.clock_font) if self.clock_font else QtGui.QFont(fallback or QtGui.QFont())
         font.setWeight(QtGui.QFont.Weight(700))
-        size = max(8, int(box.height() * 1.10))
-        font.setPixelSize(size)
-        while size > 8 and QtGui.QFontMetrics(font).horizontalAdvance(text) > box.width() * 0.94:
-            size -= 2
-            font.setPixelSize(size)
-        font.setPixelSize(max(8, int(size * CLOCK_BOOST * CLOCK_TRIM)))
+        font.setPixelSize(CLOCK_PROBE)
+        _, ink = self.lettering(font, text)
+        if ink.width() <= 0 or ink.height() <= 0:
+            return font
+        fit = min(box.width() / ink.width(), box.height() / ink.height())
+        font.setPixelSize(max(8, int(CLOCK_PROBE * fit)))
         return font
 
     def draw_the_time(self, painter: QtGui.QPainter, font: QtGui.QFont,
                       where: QtCore.QRect, ink: QtGui.QColor) -> None:
-        """The time across the dome, drawn as a shape and then thickened.
+        """The words across the dome, drawn as a shape and then thickened.
 
-        Centred in [where] by hand rather than by AlignCenter, because a letter drawn as a
-        path is placed by its baseline and there is no alignment flag for a path. The centre
-        of the lettering, not of the line: ascent less descent puts the digits' own middle on
-        the middle of the box, where a plain half-the-line-height would hang them low by the
-        depth of a descender the time has not got.
+        Placed by the middle of the INK, for the same reason it is sized by it. A path is laid
+        down from its baseline and there is no alignment flag for one, and the old sum --
+        ascent less descent -- is a fact about the font rather than about the word, so a script
+        that sits low in its line box came out low on the dome.
 
-        Then stroked as well as filled, which is what makes it bolder -- see CLOCK_WEIGHT.
+        Stroked as well as filled, which is what makes it bolder -- see CLOCK_WEIGHT.
         """
-        metrics = QtGui.QFontMetricsF(font)
-        path = QtGui.QPainterPath()
-        path.addText(where.center().x() - metrics.horizontalAdvance(self.time_text) / 2,
-                     where.center().y() + (metrics.ascent() - metrics.descent()) / 2,
-                     font, self.time_text)
+        path, box = self.lettering(font, self.time_text)
+        path.translate(where.center().x() - box.center().x(),
+                       where.center().y() - box.center().y())
         pen = QtGui.QPen(ink)
         pen.setWidthF(max(1.0, font.pixelSize() * CLOCK_WEIGHT))
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
@@ -735,13 +775,6 @@ class MosqueScreen(QtWidgets.QWidget):
         painter.drawPath(path)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-
-    def clock_rect(self, box: QtCore.QRect) -> QtCore.QRect:
-        """Where the time is drawn: the dome's flat middle, lifted a little towards the centre
-        of the dome, and given room either side so the boosted lettering is not clipped."""
-        room = int(box.width() * CLOCK_ROOM)
-        lift = int(box.height() * CLOCK_LIFT)
-        return QtCore.QRect(box.x() - room, box.y() - lift, box.width() + 2 * room, box.height())
 
     # GONE IN 1.63: name_in_green, _stencil and glow_for.
     #
@@ -1027,8 +1060,8 @@ class MosqueScreen(QtWidgets.QWidget):
                                int(self.clock_box.height() * scale))
             font = self.clock_type(box, self.time_text, painter.font())
             dark = self.clock_dark != self.flipped
-            self.draw_the_time(painter, font, self.clock_rect(box),
-                               QtGui.QColor("black") if dark else CLOCK_INK)
+            self.draw_the_time(painter, font, box,
+                               CLOCK_INK_ON_PALE if dark else CLOCK_INK)
 
     # Choosing
 

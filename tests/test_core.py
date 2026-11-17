@@ -6637,34 +6637,38 @@ class TheNewFrontDoorTest(unittest.TestCase):
 
 
 def a_digit_would_read_on_the_dome(case, folder, described):
-    """Whether the time can be seen where it is written.
+    """Whether the lettering can be seen where it is written.
 
-    IT USED TO ASK FOR A BLANK DOME -- not one pixel under 170 anywhere in the clock box. That
-    was true of a dome drawn as one flat white shape and is not true of a tiled one: the 2.41
-    dome is brickwork, about a sixth of the box is mortar line, and a rule that calls that
-    illegible would call the drawing illegible for having any detail at all.
+    It asked for a blank dome until 2.42 -- not one pixel under 170 anywhere in the clock box.
+    That held for a dome drawn as one flat white shape and not for a tiled one: the 2.41 dome
+    is brickwork, a sixth of the box is mortar line, and a rule that calls that illegible calls
+    the drawing illegible for having any detail.
 
-    What a digit actually needs is that no PART of it lands in a dark patch. So the box is
-    swept in sixty-pixel windows -- a quarter of a digit at this size -- and each one has to be
-    mostly the colour the time is not. A tiled dome passes at about seven tenths; the patterned
-    band under the dome, which is what the box must not reach into, comes out at four.
+    Nor can a box be asked to sit wholly on the dome any more. The lettering is half as big
+    again at 2.42, so the box reaches up to where the dome is curving away and its top corners
+    are sky -- twenty-one pixels of it, out of a hundred and thirty thousand, in corners where
+    no letter goes.
+
+    So this asks the two things that are still true of the BOX, which is all a box can answer:
+    the time is dark on a pale dome, and the band the lettering is centred in is dome rather
+    than pattern. Whether the lettering itself lands on the dome is a question about drawn
+    words in ten languages, and it is asked in test_ui's LetteringOnTheDomeTest, where there
+    is a Qt to draw them with. That test is the one that matters; this is the cheap half.
     """
     from PIL import Image
     import numpy as np
     picture = np.asarray(Image.open(folder / described["image"]).convert("RGBA"))
     x0, y0, x1, y1 = described["clock"]["box"]
     box = picture[y0:y1, x0:x1]
-    case.assertEqual(0, int((box[:, :, 3] == 0).sum()),
-                     "part of the clock box is sky: the time would be written on nothing")
     case.assertEqual("dark", described["clock"].get("ink"), "the time is not dark on a pale dome")
     pale = box[:, :, :3].min(axis=2) > 170
-    window, step, worst = 60, 10, 1.0
-    for top in range(0, max(1, pale.shape[0] - window + 1), step):
-        for left in range(0, max(1, pale.shape[1] - window + 1), step):
-            worst = min(worst, float(pale[top:top + window, left:left + window].mean()))
-    case.assertGreater(worst, 0.6,
-                       f"a sixty-pixel square of the clock box is only {worst:.0%} pale dome: "
+    tall = y1 - y0
+    middle = pale[int(tall * 0.2):int(tall * 0.8)]
+    case.assertGreater(float(middle.mean()), 0.8,
+                       f"the band the lettering sits in is only {middle.mean():.0%} pale dome: "
                        f"the time would be written over the pattern")
+    case.assertGreater(float(pale.mean()), 0.75,
+                       f"the clock box is only {pale.mean():.0%} pale dome")
 
 
 def no_lettering_inside_an_arch(case, folder, described):
