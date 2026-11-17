@@ -237,12 +237,48 @@ the folder trying to work out what the menu is made of.
 
 So the list, newest first. On the Pi, in the app folder:
 
-    rm salaah/game.py salaah/kaaba_jigsaw.py
+    rm assets/mosque/arch-fajr.png assets/mosque/arch-dhuhr.png assets/mosque/arch-asr.png
+    rm assets/mosque/arch-maghrib.png assets/mosque/arch-isha.png
+    rm assets/kalima/arch-[1-6].png
+    rm assets/prayers/*/arch-*.png
+    rm salaah/game.py salaah/kaaba_jigsaw.py salaah/five_pillars_sorter.py
     rm -rf salaah/__pycache__
+    rm assets/knowledge/learn.png
     rm assets/knowledge/wudu.png assets/knowledge/kalima.png assets/knowledge/nasheeds.png
     rm assets/children/wudu.png
 
-**1.97** retired two game modules, which is the first time this list has had code on it rather
+**2.41** takes out the eleven arch masks at the top of that list. `arch-<prayer>.png` and the
+kalima's `arch-1..6.png` are stencils of each arch's inside, used until 1.63 to lift the
+lettering off the artwork pixel by pixel so the current prayer could be shown in green. The
+stencil was deleted in 1.63 and **nothing has opened one since**; there is a test that says so.
+`assets/mosque/arch-outer.png` and `arch-inner.png` are NOT in this -- those two are the drawn
+arch the fall-back prayer page builds its buttons from, and they are still read.
+
+**2.31** took one out, and this one also has to come out of the repo by hand before the
+manifest is written -- a changes zip cannot delete, so on a Windows tree that still has it
+`write_release_manifest.py` counts 1794 files and refuses:
+
+- `assets/knowledge/learn.png` -- the Learn tile's still. Harry redrew the 7in sheet in all ten
+  languages at 2.31 and took Learn off it; Local has its square, Knowledge has Learn's old one.
+  Learn never had a screen behind it, so nothing was lost but the picture.
+
+`assets/knowledge/local.png` was cut from the new sheet to replace it. The other nine stills
+were **not** recut and did not need to be: a still belongs to a tile, not to a square, and
+Knowledge moving to a different square does not change the picture of a lightbulb with
+"Knowledge" under it. All ten were rendered and looked at before this went out, which is the
+only way to know that -- they are what a mat falls back to when the film will not play, and
+nothing exercises them otherwise.
+
+**1.99** retired a third:
+
+- `salaah/five_pillars_sorter.py` -- replaced by `salaah/pillar_match.py`, which asks the same
+  question by dragging ten things onto the five pillars rather than by offering a multiple
+  choice, and lends the 7in a panel of its own the way the other three dual-touch games do.
+
+Its twelve `pillars.*` strings came out of all nine language packs with it, and Pillar Match's
+twenty-five `pillar_match.*` strings went in.
+
+**1.97** retired two game modules, which was the first time this list had code on it rather
 than pictures:
 
 - `salaah/game.py` -- the Prayer-Time Sky. Its tile now opens Prayer Day Journey, which asks

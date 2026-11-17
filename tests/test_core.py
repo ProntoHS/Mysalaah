@@ -4144,15 +4144,31 @@ class RecutArtworkTest(unittest.TestCase):
     """Every mosque on the mat, cut to the shape of the screen it fills.
 
     A drawing of the wrong shape is not clipped or stretched -- MosqueScreen scales it to fit --
-    so it goes wrong quietly, as a bar of bare paper down each side. On these drawings that
+    so it goes wrong quietly, as a bar of bare paper down one side. On these drawings that
     reads as the white ground stopping short of the edges with the palm trees standing on the
     end of it, which is how it was noticed when Harry's new ones came in at 1227 by 733.
+
+    IT USED TO ASK FOR ONE SHAPE, 1920/1008, and that number went stale under it. The mat has
+    two screens and they leave different room: 1008 tall at 1080p, where the strip is 72, and
+    1080 on Harry's own 1920x1200, where banner_height takes the extra 120 precisely so that a
+    16:9 drawing fills what is left exactly. No drawing can be both shapes, so demanding one of
+    them was demanding that the artwork fit the bench rather than the mat -- which is the same
+    fault as the prayer strip that was forty pixels short at 2.40, and it would have failed the
+    2.41 mosque for being the RIGHT shape for the screen it is going on.
+
+    So this asks the thing that actually goes wrong instead. A gutter appears on whichever pair
+    of sides the drawing is short of; it is bare paper; and it is invisible where the drawing's
+    own edge there is sky, because the sky is bare paper too. What must not happen is a gutter
+    beside an edge the building reaches.
     """
 
     def setUp(self):
         self.assets = Path(__file__).resolve().parent.parent / "assets"
 
-    SHAPE = 1920 / 1008          # the screen under the strip, at 1080p
+    # The screens the mat has, as the picture area each leaves under its own strip. Checked
+    # against the real banner_height by test_ui's ScreensTheMatHasTest, so these two pairs are
+    # measured rather than remembered.
+    SCREENS = ((1920, 1008), (1920, 1080))
 
     @property
     def folders(self):
@@ -4164,11 +4180,30 @@ class RecutArtworkTest(unittest.TestCase):
         import json
         return json.loads((self.assets / folder / "mosque.json").read_text(encoding="utf-8"))
 
-    def test_each_drawing_is_the_shape_of_the_screen(self):
+    def test_no_gutter_falls_beside_an_edge_the_building_reaches(self):
+        import numpy as np
+        from PIL import Image
         for folder in self.folders:
             wide, tall = self.described(folder)["size"]
-            self.assertLess(abs(wide / tall - self.SHAPE), 0.02,
-                            f"{folder} is {wide/tall:.3f}, the screen is {self.SHAPE:.3f}")
+            alpha = np.asarray(Image.open(self.assets / folder / "mosque.png")
+                               .convert("RGBA"))[:, :, 3]
+            edges = {"left": alpha[:, 0], "right": alpha[:, -1],
+                     "top": alpha[0], "bottom": alpha[-1]}
+            for room_w, room_h in self.SCREENS:
+                # KeepAspectRatio: the drawing is scaled until one side fits, and the gutter is
+                # what is left over on the other.
+                scale = min(room_w / wide, room_h / tall)
+                spare = {"left": room_w - wide * scale, "right": room_w - wide * scale,
+                         "top": room_h - tall * scale, "bottom": room_h - tall * scale}
+                for side, gap in spare.items():
+                    if gap < 4:                      # under two pixels a side: nothing to see
+                        continue
+                    opaque = float((edges[side] > 40).mean())
+                    with self.subTest(folder=folder, screen=f"{room_w}x{room_h}", side=side):
+                        self.assertLess(opaque, 0.01,
+                                        f"{folder} on a {room_w}x{room_h} screen leaves "
+                                        f"{gap/2:.0f}px of bare paper at the {side}, and "
+                                        f"{opaque:.0%} of that edge is building")
 
     def test_what_the_file_says_is_the_size_of_the_picture(self):
         from salaah.qt import QtGui
@@ -6467,57 +6502,54 @@ class PrayerPagesMatchTheSchoolTest(unittest.TestCase):
                 self.assertEqual(sorted(order), order,
                                  f"{prayer}'s arches are not numbered across the page: {order}")
 
-    def test_the_arches_are_empty_and_the_dome_is_clear(self):
-        """The words are gone from the picture. An arch is a solid dark shape on these drawings,
-        so anything LIGHT inside one is lettering that survived; the dome is solid light, so
-        anything dark on it is the prayer's name still sitting there.
+    def test_the_arches_are_empty(self):
+        """The words are gone from the picture: nothing is drawn inside an opening.
 
-        Both looked at as the screen does -- what is inside the shape -- rather than as a
-        rectangle, because an arch's box has building in its corners.
+        IT USED TO ASK A DIFFERENT QUESTION, and the question is what went stale rather than
+        the answer. Up to 2.40 an arch was a flat black shape in a flat white wall, so "fill in
+        the dark part of the box and call any white inside it lettering" worked. The 2.41
+        mosque is brickwork: filling the dark part of the box closes a ring of mortar round
+        every brick in the corners of the box and calls each brick a word.
+
+        So the opening is found the way the builder finds it -- as a shape -- and then eaten in
+        from its edge before anything is counted, which keeps the arch's own white stonework
+        out of it. A word drawn in the middle of an opening survives that; the rim does not.
+        """
+        for prayer in PRAYERS:
+            with self.subTest(prayer):
+                no_lettering_inside_an_arch(self, self.FOLDER / prayer, self.described(prayer))
+
+
+    def test_nothing_is_written_on_the_dome(self):
+        """The five pages write the prayer's name on the dome from the pack, so the drawing
+        must not be carrying one. Proved by the dome being the SAME PICTURE in all five: a name
+        is the one thing that could differ there, and five drawings that agree cannot all be
+        carrying a different word.
+
+        WITHIN ONE PIXEL, which the old exact comparison could not be. Up to 2.40 the five came
+        off one render and were the same byte for byte above the arches. The 2.41 four were
+        rasterised separately, so every mortar line in the brickwork lands a pixel either way
+        and an exact comparison calls thirty thousand of those a leftover name. A letter is
+        thicker than one pixel; a line that has shifted by one is not.
+
+        Measured over the clock box -- where the name is written, and where it was written in
+        the drawings these replaced. Across all five it comes to nought.
         """
         from PIL import Image
         import numpy as np
         from scipy import ndimage
-        for prayer in PRAYERS:
-            with self.subTest(prayer):
-                described = self.described(prayer)
-                grey = np.asarray(Image.open(self.FOLDER / prayer / described["image"])
-                                  .convert("L"), dtype=np.uint8)
-                for name, arch in described["arches"].items():
-                    x0, y0, x1, y1 = arch["box"]
-                    window = grey[y0:y1, x0:x1]
-                    inside = ndimage.binary_fill_holes(window < 90)
-                    left = int(((window > 170) & inside).sum())
-                    self.assertEqual(0, left, f"{prayer} arch {name} still has {left} pixels of "
-                                              f"lettering in it")
-                x0, y0, x1, y1 = described["clock"]["box"]
-                dome = grey[y0:y1, x0:x1]
-                self.assertEqual(0, int((dome < 170).sum()),
-                                 f"{prayer} still has its name written on the dome")
-
-    def test_the_five_drawings_are_the_same_mosque(self):
-        """Above the arches the five are one picture, so once the names are off the dome they
-        should be the same to the pixel. This is the check that catches a name half wiped: a
-        dot on an i left behind shows up here as a difference from the pages that have none,
-        even though it is too small to be lettering anywhere else.
-
-        Allowed: a handful of pixels along the dome's curve, where a letter running right up to
-        the edge takes a little of the soft edge with it when it goes.
-        """
-        from PIL import Image
-        import numpy as np
-        above = min(min(a["box"][1] for a in self.described(p)["arches"].values())
-                    for p in PRAYERS)
-        first = np.asarray(Image.open(self.FOLDER / PRAYERS[0] / "mosque.png")
-                           .convert("RGBA"), dtype=np.int16)[:above]
+        ink = {p: np.asarray(Image.open(self.FOLDER / p / "mosque.png").convert("L")) > 128
+               for p in PRAYERS}
+        grown = {p: ndimage.binary_dilation(v, np.ones((3, 3), bool)) for p, v in ink.items()}
+        first = PRAYERS[0]
+        x0, y0, x1, y1 = self.described(first)["clock"]["box"]
         for prayer in PRAYERS[1:]:
             with self.subTest(prayer):
-                other = np.asarray(Image.open(self.FOLDER / prayer / "mosque.png")
-                                   .convert("RGBA"), dtype=np.int16)[:above]
-                apart = int((np.abs(other - first).sum(axis=2) > 20).sum())
-                self.assertLess(apart, 200,
-                                f"{prayer} differs from {PRAYERS[0]} above the arches in {apart} "
-                                f"pixels: something is left of its name")
+                apart = ((ink[prayer] & ~grown[first]) | (ink[first] & ~grown[prayer]))
+                here = int(apart[y0:y1, x0:x1].sum())
+                self.assertEqual(0, here,
+                                 f"{prayer}'s dome differs from {first}'s in {here} pixels that "
+                                 f"are not a line shifted by one: something is written on it")
 
     def test_the_sky_is_cut_out_of_all_of_them(self):
         """They say "sky": true, which means the app paints the sun, the moon, the stars and the
@@ -6604,14 +6636,76 @@ class TheNewFrontDoorTest(unittest.TestCase):
                          "light numbers on a white dome")
 
 
-class MainPageIsDrawnLikeTheOthersTest(unittest.TestCase):
-    """Harry's new main prayer page: five arches, no words in them, the clock on the dome.
+def a_digit_would_read_on_the_dome(case, folder, described):
+    """Whether the time can be seen where it is written.
 
-    It replaced a drawing that had Fajr, Dhuhr, Asr, Maghrib and Isha written into it -- right
-    in English and only in English -- and a piece of machinery that lifted those letters off
-    the artwork pixel by pixel so the current one could be shown in green. The names come from
-    the pack now and the green one is the word painted green, which is why the drawing has to
-    arrive empty.
+    IT USED TO ASK FOR A BLANK DOME -- not one pixel under 170 anywhere in the clock box. That
+    was true of a dome drawn as one flat white shape and is not true of a tiled one: the 2.41
+    dome is brickwork, about a sixth of the box is mortar line, and a rule that calls that
+    illegible would call the drawing illegible for having any detail at all.
+
+    What a digit actually needs is that no PART of it lands in a dark patch. So the box is
+    swept in sixty-pixel windows -- a quarter of a digit at this size -- and each one has to be
+    mostly the colour the time is not. A tiled dome passes at about seven tenths; the patterned
+    band under the dome, which is what the box must not reach into, comes out at four.
+    """
+    from PIL import Image
+    import numpy as np
+    picture = np.asarray(Image.open(folder / described["image"]).convert("RGBA"))
+    x0, y0, x1, y1 = described["clock"]["box"]
+    box = picture[y0:y1, x0:x1]
+    case.assertEqual(0, int((box[:, :, 3] == 0).sum()),
+                     "part of the clock box is sky: the time would be written on nothing")
+    case.assertEqual("dark", described["clock"].get("ink"), "the time is not dark on a pale dome")
+    pale = box[:, :, :3].min(axis=2) > 170
+    window, step, worst = 60, 10, 1.0
+    for top in range(0, max(1, pale.shape[0] - window + 1), step):
+        for left in range(0, max(1, pale.shape[1] - window + 1), step):
+            worst = min(worst, float(pale[top:top + window, left:left + window].mean()))
+    case.assertGreater(worst, 0.6,
+                       f"a sixty-pixel square of the clock box is only {worst:.0%} pale dome: "
+                       f"the time would be written over the pattern")
+
+
+def no_lettering_inside_an_arch(case, folder, described):
+    """Nothing is drawn inside these openings; the app writes what goes in them.
+
+    The opening is found as a shape and then eaten in from its edge, the way the builder finds
+    it. Filling the dark part of the box instead -- which is what this did until 2.41 -- closes
+    a ring of mortar round every brick in the box's corners and calls each brick a word.
+    """
+    from PIL import Image
+    import numpy as np
+    from scipy import ndimage
+    block = np.ones((9, 9), bool)
+    grey = np.asarray(Image.open(folder / described["image"]).convert("L"), dtype=np.uint8)
+    white = grey > 128
+    building = ndimage.binary_fill_holes(ndimage.binary_closing(white, structure=block))
+    openings = ndimage.binary_opening(building & ~white, structure=block)
+    for name, arch in described["arches"].items():
+        with case.subTest(name):
+            x0, y0, x1, y1 = arch["box"]
+            here = openings[y0:y1, x0:x1]
+            labels, count = ndimage.label(here)
+            case.assertTrue(count, f"{name}: no opening inside the box")
+            sizes = ndimage.sum(here, labels, range(1, count + 1))
+            opening = ndimage.binary_fill_holes(labels == int(np.argmax(sizes)) + 1)
+            inside = ndimage.binary_erosion(opening, structure=np.ones((21, 21), bool))
+            left = int((white[y0:y1, x0:x1] & inside).sum())
+            case.assertEqual(0, left, f"{name} has {left} pixels of lettering in it")
+
+
+class MainPageIsDrawnLikeTheOthersTest(unittest.TestCase):
+    """The Salaah menu: five arches with the five names drawn in them, the clock on the dome.
+
+    IT SAID THE OPPOSITE UNTIL 2.41, and had been failing for saying it since 1.84. 1.63
+    replaced a drawing that had the names written into it in English with one that arrived
+    empty, so the app could write them from the pack; 1.84 replaced THAT with ten drawings,
+    one per language, names printed in, and these were never caught up with. Six of the core
+    suite's standing failures were this class asking a 1.63 question about a 1.84 drawing.
+
+    So the claims turn round: every arch HAS a name in it, and the drawing says where that name
+    sits, because that band is the only part of an arch the app may turn green.
     """
 
     FOLDER = ASSETS / "mosque"
@@ -6626,43 +6720,43 @@ class MainPageIsDrawnLikeTheOthersTest(unittest.TestCase):
         self.assertEqual(sorted(across), across,
                          f"the arches are not in the order of the day across the page: {across}")
 
-    def test_the_arches_are_empty(self):
-        """Anything light inside an arch is lettering that survived the build. The arches are
-        solid dark shapes, so this is looked at inside the shape rather than inside its box --
-        an arch's box has building in its corners."""
+    def test_every_arch_has_a_name_drawn_in_it(self):
+        """Five blank arches is what a half-built drawing looks like, and the app would write
+        nothing over them because it has been told the drawing has its own."""
         from PIL import Image
         import numpy as np
         from scipy import ndimage
-        grey = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("L"),
-                          dtype=np.uint8)
+        self.assertEqual("drawn", self.described.get("names"),
+                         "the drawing does not say it carries its own names")
+        grey = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("L"))
+        white = grey > 128
+        building = ndimage.binary_fill_holes(
+            ndimage.binary_closing(white, structure=np.ones((9, 9), bool)))
+        openings = ndimage.binary_opening(building & ~white, structure=np.ones((9, 9), bool))
         for name, arch in self.described["arches"].items():
             with self.subTest(name):
                 x0, y0, x1, y1 = arch["box"]
-                window = grey[y0:y1, x0:x1]
-                inside = ndimage.binary_fill_holes(window < 90)
-                left = int(((window > 170) & inside).sum())
-                self.assertEqual(0, left, f"{name} still has {left} pixels of lettering in it")
+                here = ndimage.binary_fill_holes(openings[y0:y1, x0:x1])
+                inside = ndimage.binary_erosion(here, structure=np.ones((21, 21), bool))
+                ink = int((white[y0:y1, x0:x1] & inside).sum())
+                self.assertGreater(ink, 500, f"the {name} arch has nothing written in it")
 
-    def test_it_says_where_the_name_goes(self):
-        """The app needs somewhere to put the word it is writing back, and the builder measures
-        that off the drawing. Without it every name would be drawn at a guessed height."""
-        band = self.described.get("text", {}).get("label")
-        self.assertIsNotNone(band, "the drawing does not say where a name sits in an arch")
-        top, bottom = band
-        self.assertLess(top, bottom, "the name's band has no height")
-        self.assertGreater(top, 0.4, "the name is placed in the top half of the arch")
+    def test_it_says_which_part_of_an_arch_may_be_turned_green(self):
+        """The app turns the drawn name green by MULTIPLYING a rectangle of the picture, so
+        white inside that rectangle goes green whether it is a letter or the arch's own stone.
+        The drawing gives the rectangle, measured off all ten languages when it was built."""
+        band = self.described.get("text", {}).get("name")
+        self.assertIsNotNone(band, "the drawing does not say where its names sit")
+        left, top, right, bottom = band
+        self.assertLess(left, right, "the band has no width")
+        self.assertLess(top, bottom, "the band has no height")
+        self.assertGreater(left, 0, "the band reaches the side of the box, where the stone is")
+        self.assertLess(right, 1, "the band reaches the side of the box, where the stone is")
+        self.assertGreater(top, 0.3, "the band reaches up into the arch's curve")
         self.assertLessEqual(bottom, 1.0)
 
-    def test_the_clock_is_on_clear_dome(self):
-        from PIL import Image
-        import numpy as np
-        picture = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("RGBA"))
-        x0, y0, x1, y1 = self.described["clock"]["box"]
-        box = picture[y0:y1, x0:x1]
-        self.assertEqual(0, int((box[:, :, 3] == 0).sum()),
-                         "part of the clock box is sky: the time would be written on nothing")
-        self.assertGreater(int(box[:, :, :3].min()), 170, "the clock box is not on clear dome")
-        self.assertEqual("dark", self.described["clock"].get("ink"))
+    def test_the_clock_is_on_dome_a_digit_would_read_on(self):
+        a_digit_would_read_on_the_dome(self, self.FOLDER, self.described)
 
     def test_the_app_paints_the_sky_and_the_minarets_can_glow(self):
         from PIL import Image
@@ -6694,20 +6788,8 @@ class KalimaDrawingTest(unittest.TestCase):
         self.assertEqual(sorted(across), across, f"not in order across the page: {across}")
 
     def test_the_arches_are_empty(self):
-        """The numbers are the app's now. Anything light inside an arch is lettering that was
-        drawn in and not taken out."""
-        from PIL import Image
-        import numpy as np
-        from scipy import ndimage
-        grey = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("L"),
-                          dtype=np.uint8)
-        for name, arch in self.described["arches"].items():
-            with self.subTest(name):
-                x0, y0, x1, y1 = arch["box"]
-                window = grey[y0:y1, x0:x1]
-                inside = ndimage.binary_fill_holes(window < 90)
-                self.assertEqual(0, int(((window > 170) & inside).sum()),
-                                 f"arch {name} has something drawn in it")
+        """The numbers are the app's now, so nothing may be drawn inside an opening."""
+        no_lettering_inside_an_arch(self, self.FOLDER, self.described)
 
     @staticmethod
     def landmarks(path):
@@ -6751,10 +6833,7 @@ class KalimaDrawingTest(unittest.TestCase):
         self.assertTrue(self.described.get("sky"), "the kalima menu does not ask for a sky")
         picture = np.asarray(Image.open(self.FOLDER / self.described["image"]).convert("RGBA"))
         self.assertEqual(0, int(picture[2, 2, 3]), "the corner is not see-through")
-        x0, y0, x1, y1 = self.described["clock"]["box"]
-        box = picture[y0:y1, x0:x1]
-        self.assertEqual(0, int((box[:, :, 3] == 0).sum()), "part of the clock box is sky")
-        self.assertGreater(int(box[:, :, :3].min()), 170, "the clock box is not on clear dome")
+        a_digit_would_read_on_the_dome(self, self.FOLDER, self.described)
 
     def test_the_minarets_can_glow(self):
         self.assertEqual({"left", "right"}, set(self.described.get("minarets", {})))

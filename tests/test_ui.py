@@ -9454,15 +9454,26 @@ class CleanArtworkTest(unittest.TestCase):
         other, so they must be the same size.
 
         The kalima menu rejoined them in 1.64; it was the last of the old artwork, and for one
-        version it was left out of this with a note saying why.
+        version it was left out of this with a note saying why. It rejoined them a second time
+        at 2.41, when the Salaah menu was redrawn and left it behind again.
+
+        THE SHAPE IT ASKS FOR CHANGED AT 2.41, and the old one was the second place the bench's
+        shape had been written down as though it were the mat's. 1.85 was a floor under
+        1920/1008 -- a 1080p screen under a 72px strip. banner_height takes the slack on a
+        taller screen for exactly this reason, so on Harry's 1920x1200 the picture gets 1080
+        and sixteen by nine fills it with nothing left over. A drawing cut to the bench
+        letterboxes on the mat, and 1.85 failed the 2.41 artwork for being right.
         """
+        from tests.test_core import RecutArtworkTest
         # The front door was one of these until 1.76, when it stopped being a mosque.
         folders = ["mosque", "kalima"] + [f"prayers/{p}" for p in PRAYERS]
         sizes = {QtGui.QImage(str(ASSETS / f / "mosque.png")).size() for f in folders}
         self.assertEqual(1, len(sizes), f"the mosques are drawn at different sizes: {sizes}")
         shape = next(iter(sizes))
-        self.assertGreater(shape.width() / shape.height(), 1.85,
-                           "they should be cut to the shape of the screen")
+        room = RecutArtworkTest.SCREENS[-1]      # Harry's screen, less its own strip
+        self.assertAlmostEqual(shape.width() / shape.height(), room[0] / room[1], places=3,
+                               msg=f"the mosques are {shape.width()}x{shape.height()}, and the "
+                                   f"mat's screen leaves {room[0]}x{room[1]}")
 
 
 class ArchFinderTest(unittest.TestCase):
@@ -16267,27 +16278,34 @@ class PrayerPagesAreDrawnTest(unittest.TestCase):
         self.assertIsNone(w.prayer_mosque, "it should have fallen back to the drawn arches")
         self.assertIs(w.pick, w.stack.currentWidget(), "and still be on a usable screen")
 
-    def test_the_main_prayer_page_names_its_arches_too(self):
-        """CHANGED IN 1.63. In 1.62 Harry kept the old main page, and this said so: its arches
-        carried their own names out of the drawing and nothing was written over them.
+    def test_the_main_page_leaves_its_own_names_alone(self):
+        """CHANGED IN 1.63, AND BACK AGAIN IN 1.84 -- and this has been red since, saying the
+        1.63 thing, for twenty releases.
 
-        He replaced it in 1.63 with one of the same family -- empty arches, names from the
-        pack. So the claim turns round: the five arches are named here, in order, from the
-        same place the rest of the app takes its words from.
+        1.62 had a drawing with the names in it. 1.63 replaced it with empty arches and the app
+        wrote the names from the pack. 1.84 replaced THAT with ten drawings, one per language,
+        with the names printed in again -- so the app must write nothing, or there would be two
+        words in every arch, and this asking for the app's five has been asking for the bug.
+
+        What survives of it, and is asked for here: the arches are in order, and the page knows
+        the words are not its to write. Which word is in which arch is a fact about the picture
+        and is held by WhichArchIsWhichPrayerTest.
         """
         w = self.window()
         self.assertEqual([a.prayer for a in w.mosque.arches], list(PRAYERS))
-        for prayer in PRAYERS:
-            with self.subTest(prayer):
-                self.assertEqual(("", w.t(f"prayer.{prayer}")), w.mosque.labels[prayer])
+        self.assertTrue(w.mosque.own_names, "the main mosque should carry its own names")
+        self.assertEqual({}, w.mosque.labels,
+                         "the app is writing names over the ones in the drawing")
 
 
 class MainPageNamesTest(unittest.TestCase):
-    """The five prayers' names on the new main page, written by the app rather than drawn in.
+    """The five prayers' names on the main page, drawn into the picture rather than written by
+    the app -- ten drawings, one per language, since 1.84.
 
-    The drawing is empty now, so if this stops working the mat's first screen is five blank
-    arches -- which is why the words are looked for on the rendered screen and not only in
-    the labels dict.
+    These used to say the opposite, and had been failing since 1.84 for saying it. The claims
+    that still hold are made against the picture now: every arch has a word in it, and the word
+    changes with the language. Looked for on the RENDERED SCREEN, because the thing nobody
+    would notice is five blank arches on the first screen of the mat.
     """
 
     def window(self, lang="en", mode="dark"):
@@ -16309,47 +16327,62 @@ class MainPageNamesTest(unittest.TestCase):
         self.addCleanup(patch.stop)
         screen.flutter.stop()
 
-    def test_the_names_come_from_the_pack_and_change_with_the_language(self):
-        english = self.window("en").mosque.labels
-        urdu = self.window("ur").mosque.labels
-        self.assertEqual(("", "Fajr"), english["fajr"])
+    def arch_ink(self, w):
+        """How much lettering is on the screen inside each arch, read off the rendered page."""
+        screen = w.mosque
+        shot = screen.grab().toImage()
+        _, origin, scale = screen.placement()
+        left, top, right, bottom = screen.name_band
+        out = {}
+        for arch in screen.arches:
+            box = QtCore.QRect(
+                origin.x() + int((arch.box.x() + arch.box.width() * left) * scale),
+                origin.y() + int((arch.box.y() + arch.box.height() * top) * scale),
+                int(arch.box.width() * (right - left) * scale),
+                int(arch.box.height() * (bottom - top) * scale))
+            marks = set()
+            for y in range(box.top(), box.bottom(), 2):
+                for x in range(box.left(), box.right(), 2):
+                    if QtGui.QColor(shot.pixel(x, y)).lightness() > 128:
+                        marks.add((x - box.left(), y - box.top()))
+            out[arch.prayer] = marks
+        return out
+
+    def test_a_word_is_drawn_in_every_arch_and_it_changes_with_the_language(self):
+        """Two claims in one, because one without the other passes on a broken screen: five
+        blank arches would satisfy "they differ by language" if the pictures differed anywhere,
+        and five identical words would satisfy "something is written".
+
+        Read as the lettering actually on the screen, in the band the drawing says its names
+        sit in -- so a drawing whose words moved out of that band fails here rather than
+        showing the green tint on empty panel.
+        """
+        english = self.arch_ink(self.window("en"))
+        urdu = self.arch_ink(self.window("ur"))
         for prayer in PRAYERS:
             with self.subTest(prayer):
-                self.assertNotEqual(english[prayer], urdu[prayer],
-                                    f"{prayer} is still in English on an Urdu mat")
+                self.assertGreater(len(english[prayer]), 30,
+                                   f"nothing is drawn in the {prayer} arch")
+                self.assertGreater(len(urdu[prayer]), 30,
+                                   f"nothing is drawn in the {prayer} arch on an Urdu mat")
+                shared = len(english[prayer] & urdu[prayer])
+                both = len(english[prayer] | urdu[prayer])
+                self.assertLess(shared / both, 0.6,
+                                f"{prayer} is the same lettering in English and Urdu")
 
-    def test_the_names_are_really_painted_on_the_arches(self):
-        """Set and painted are not the same claim. Taken away, the inside of each arch has to
-        change -- and nothing outside the arches may."""
-        w = self.window()
-        screen = w.mosque
-        self.freeze(screen)
-        said = dict(screen.labels)
-        before = screen.grab().toImage()
-        screen.set_labels({})
-        settle()
-        after = screen.grab().toImage()
-        _, origin, scale = screen.placement()
-        boxes = {a.prayer: QtCore.QRect(origin.x() + int(a.box.x() * scale),
-                                        origin.y() + int(a.box.y() * scale),
-                                        int(a.box.width() * scale), int(a.box.height() * scale))
-                 for a in screen.arches}
-        changed = {p: 0 for p in boxes}
-        strayed = 0
-        for y in range(0, before.height(), 2):
-            for x in range(0, before.width(), 2):
-                if before.pixel(x, y) == after.pixel(x, y):
+    def test_the_five_words_are_five_different_words(self):
+        """The one a language check cannot make: five arches all saying Fajr would change with
+        the language perfectly well."""
+        ink = self.arch_ink(self.window("en"))
+        for one in PRAYERS:
+            for other in PRAYERS:
+                if one >= other:
                     continue
-                here = [p for p, b in boxes.items() if b.contains(x, y)]
-                if here:
-                    changed[here[0]] += 1
-                else:
-                    strayed += 1
-        screen.set_labels(said, w.pack_face())
-        for prayer, count in changed.items():
-            with self.subTest(prayer):
-                self.assertGreater(count, 30, f"nothing was written in the {prayer} arch")
-        self.assertEqual(0, strayed, "the names were painted outside the arches")
+                with self.subTest(f"{one} vs {other}"):
+                    shared = len(ink[one] & ink[other])
+                    both = len(ink[one] | ink[other])
+                    self.assertLess(shared / both, 0.7,
+                                    f"the {one} and {other} arches carry the same word")
 
     def test_the_prayer_whose_time_it_is_is_the_only_green_one(self):
         """It used to be a stencil cut out of the artwork; it is the same word in a different
@@ -16395,6 +16428,266 @@ class MainPageNamesTest(unittest.TestCase):
                          "the stencil is back; the names are the app's now")
         for arch in w.mosque.arches:
             self.assertFalse(hasattr(arch, "mask"), f"{arch.prayer} still carries a mask")
+
+
+class WhichArchIsWhichPrayerTest(unittest.TestCase):
+    """The drawing carries the five names, so which arch is which prayer is a fact about the
+    PICTURE, and nothing in the app can see it.
+
+    It got this wrong at 2.41 and the wrongness was invisible to every check in the repo. The
+    1.84 mosque was drawn with فجر in the RIGHTMOST arch on the Urdu and Arabic pages, so the
+    app turns the five names round when the mat reads right to left. Harry drew the 2.41 one
+    with Fajr on the left in all ten. Turning it round anyway put the green on Dhuhr when it
+    was Maghrib's time, and opened Isha when a finger landed on Fajr -- on the first screen of
+    the mat, in the two languages least likely to be the ones on the bench.
+
+    So the drawing says which way round it is, and these hold it. tools/mosque-names/ has a
+    sheet per language, each arch with the prayer it opens printed under it, because in the end
+    somebody who reads the script has to look.
+    """
+
+    LANGS = ("en", "fr", "es", "ur", "hi", "zh", "ar", "bn", "ru", "pt")
+
+    def window(self, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", lang=lang, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        w.stack.setCurrentWidget(w.home)
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_the_arches_run_fajr_first_across_the_page_in_every_language(self):
+        for lang in self.LANGS:
+            with self.subTest(lang):
+                w = self.window(lang)
+                across = [a.prayer for a in sorted(w.mosque.arches, key=lambda a: a.box.x())]
+                self.assertEqual(list(PRAYERS), across,
+                                 f"on a {lang} mat the arches run {across} across the page")
+
+    def test_the_leftmost_arch_opens_fajr_on_a_right_to_left_mat(self):
+        """Not the same claim as the one above: that one reads the list, this one puts a finger
+        on the picture. The fault reversed both together."""
+        for lang in ("ur", "ar"):
+            with self.subTest(lang):
+                w = self.window(lang)
+                self.assertTrue(w.pack.rtl, f"{lang} should read right to left")
+                leftmost = min(w.mosque.arches, key=lambda a: a.box.x())
+                _, origin, scale = w.mosque.placement()
+                middle = QtCore.QPoint(origin.x() + int(leftmost.box.center().x() * scale),
+                                       origin.y() + int(leftmost.box.center().y() * scale))
+                opened = []
+                w.mosque.chosen.connect(opened.append)
+                QtWidgets.QApplication.sendEvent(
+                    w.mosque, QtGui.QMouseEvent(
+                        QtCore.QEvent.Type.MouseButtonPress, QtCore.QPointF(middle),
+                        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                        Qt.KeyboardModifier.NoModifier))
+                settle()
+                self.assertEqual(["fajr"], opened,
+                                 f"the leftmost arch of the {lang} mosque opened {opened}")
+
+    # Reading the drawing
+
+    SHAPE = (48, 160)          # every word is squashed into this, so only its shape is compared
+
+    @staticmethod
+    def thin(ink):
+        """[ink] with anything under three pixels across rubbed out -- the specks of arch stone
+        that the name band catches in its corners, which would otherwise BE the bounding box."""
+        import numpy as np
+        out = ink.copy()
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                out &= np.roll(np.roll(ink, dy, axis=0), dx, axis=1)
+        return out
+
+    def squash(self, ink):
+        """A word reduced to its shape: cropped to itself and squeezed into one fixed box, so
+        two renderings of the same word in different faces still land on top of one another."""
+        import numpy as np
+        from PIL import Image
+        ys, xs = np.where(self.thin(ink))
+        if not len(ys):
+            return np.zeros(self.SHAPE)
+        tight = ink[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+        return np.asarray(Image.fromarray((tight * 255).astype("uint8")).resize(
+            (self.SHAPE[1], self.SHAPE[0]), Image.BILINEAR)) / 255.0
+
+    @staticmethod
+    def alike(a, b):
+        import numpy as np
+        a, b = a - a.mean(), b - b.mean()
+        return float((a * b).sum() / (np.sqrt((a * a).sum() * (b * b).sum()) + 1e-9))
+
+    def drawn(self, described, lang):
+        """The five words out of the drawing, in the order the app has the arches."""
+        import numpy as np
+        from PIL import Image
+        picture = Image.open(ASSETS / "mosque" / described["images"][lang]).convert("RGBA")
+        grey = np.asarray(picture.convert("L")) > 128
+        solid = np.asarray(picture.getchannel("A")) > 128
+        band = described["text"]["name"]
+        out = []
+        for prayer in PRAYERS:
+            x0, y0, x1, y1 = described["arches"][prayer]["box"]
+            wide, tall = x1 - x0, y1 - y0
+            piece = (slice(y0 + int(tall * band[1]), y0 + int(tall * band[3])),
+                     slice(x0 + int(wide * band[0]), x0 + int(wide * band[2])))
+            out.append(self.squash(grey[piece] & solid[piece]))
+        return out
+
+    def typed(self, lang):
+        """The same five words as the PACK has them, drawn by Qt."""
+        import json
+        import numpy as np
+        pack = json.loads((ASSETS / "content" / "packs" / lang / "pack.json")
+                          .read_text(encoding="utf-8"))["ui"]
+        out = []
+        for prayer in PRAYERS:
+            word = pack[f"prayer.{prayer}"]
+            font = QtGui.QFont()
+            font.setPixelSize(120)
+            font.setWeight(QtGui.QFont.Weight(700))
+            wide = QtGui.QFontMetrics(font).boundingRect(word).width() + 80
+            sheet = QtGui.QImage(wide, 260, QtGui.QImage.Format.Format_Grayscale8)
+            sheet.fill(0)
+            pen = QtGui.QPainter(sheet)
+            pen.setFont(font)
+            pen.setPen(QtGui.QColor("white"))
+            pen.drawText(QtCore.QRect(0, 0, wide, 260),
+                         int(Qt.AlignmentFlag.AlignCenter), word)
+            pen.end()
+            bits = sheet.constBits()
+            bits.setsize(sheet.sizeInBytes())
+            rows = np.frombuffer(bits, np.uint8).reshape(sheet.height(),
+                                                         sheet.bytesPerLine())[:, :wide]
+            out.append(self.squash(rows > 128))
+        return out
+
+    def test_the_word_in_each_arch_is_the_pack_s_word_for_that_prayer(self):
+        """The one check here a machine can make, and it is the one that would have caught the
+        fault: compare the SHAPE of the word Harry drew with the shape of the word the pack
+        uses, for every pairing, and the way the app has them must beat the way round it had
+        them before.
+
+        Not arch by arch -- the faces differ and Bengali in particular does not match itself
+        well enough to decide a single arch. Summed over the five it is not close, in any of
+        the ten, and it is the summed claim that the fault broke.
+        """
+        import json
+        described = json.loads((ASSETS / "mosque" / "mosque.json").read_text(encoding="utf-8"))
+        for lang in self.LANGS:
+            with self.subTest(lang):
+                drawn, typed = self.drawn(described, lang), self.typed(lang)
+                as_drawn = sum(self.alike(drawn[i], typed[i]) for i in range(5))
+                turned = sum(self.alike(drawn[i], typed[4 - i]) for i in range(5))
+                self.assertGreater(as_drawn, turned + 0.4,
+                                   f"{lang}: the five arches match the pack's words {as_drawn:.2f} "
+                                   f"as the app has them and {turned:.2f} the other way round; "
+                                   f"the drawing may be the other way round from what it says")
+
+
+class TheSkyBehindTheMosqueTest(unittest.TestCase):
+    """The sun, the moon and the stars are painted BEHIND the drawing and seen through its sky.
+
+    Which means the sky has to be a hole. Harry's 2.41 drawings arrived as solid black with no
+    transparency at all, and solid is exactly as valid a picture -- it just buries everything
+    the app paints, silently, on a screen nobody is watching at three in the morning. The
+    builder cuts the hole; this is what notices if it ever stops.
+
+    Looked for on the rendered screen rather than in the file, because a see-through file drawn
+    over an unpainted sky looks the same as a solid one.
+    """
+
+    def window(self, theme="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        w.stack.setCurrentWidget(w.home)
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def amber(self, screen):
+        """How much of the screen is sun -- a colour neither the drawing nor either theme has."""
+        shot = screen.grab().toImage()
+        count = 0
+        for y in range(0, shot.height(), 3):
+            for x in range(0, shot.width(), 3):
+                c = QtGui.QColor(shot.pixel(x, y))
+                if c.red() > 180 and 120 < c.green() < 220 and c.blue() < 90:
+                    count += 1
+        return count
+
+    def test_the_sun_is_seen_through_the_sky(self):
+        for theme in ("dark", "light"):
+            with self.subTest(theme):
+                w = self.window(theme)
+                w.mosque.set_sky(True, 0.30)
+                settle()
+                self.assertGreater(self.amber(w.mosque), 40,
+                                   f"no sun on a {theme} mat: the sky is not see-through")
+
+    def test_the_sun_moves_across_the_sky(self):
+        w = self.window()
+
+        def where():
+            shot = w.mosque.grab().toImage()
+            xs = [x for y in range(0, shot.height(), 4) for x in range(0, shot.width(), 4)
+                  if QtGui.QColor(shot.pixel(x, y)).red() > 180
+                  and QtGui.QColor(shot.pixel(x, y)).blue() < 90]
+            return sum(xs) / len(xs) if xs else None
+
+        w.mosque.set_sky(True, 0.15)
+        settle()
+        early = where()
+        w.mosque.set_sky(True, 0.85)
+        settle()
+        late = where()
+        self.assertIsNotNone(early, "no sun early in the day")
+        self.assertIsNotNone(late, "no sun late in the day")
+        self.assertGreater(late, early + 400, "the sun does not cross the sky")
+
+
+class ScreensTheMatHasTest(unittest.TestCase):
+    """How much room a full-screen drawing actually gets, on each screen the mat has.
+
+    test_core's RecutArtworkTest decides whether a drawing's shape leaves a visible gutter, and
+    it needs these two numbers to do it. They were a single constant until 2.41 -- 1920 by
+    1008, the bench -- and that is how a correctly shaped drawing came to be failed for not
+    being the shape of the wrong screen. So the numbers are asked of the real banner rather
+    than remembered, here, where there is a window to ask.
+    """
+
+    def room(self, wide, tall):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(wide, tall)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return wide, tall - w.banner_height()
+
+    def test_the_two_screens_leave_what_the_artwork_test_says_they_do(self):
+        from tests.test_core import RecutArtworkTest
+        got = (self.room(1920, 1080), self.room(1920, 1200))
+        self.assertEqual(RecutArtworkTest.SCREENS, got,
+                         "the shapes the artwork is judged against are not the mat's")
+
+    def test_harrys_screen_leaves_exactly_sixteen_by_nine(self):
+        """Which is the whole point of banner_height taking the slack, and the reason the 2.41
+        drawings are 1920x1080 rather than the 1.905 the ones before them were."""
+        wide, tall = self.room(1920, 1200)
+        self.assertEqual((1920, 1080), (wide, tall))
 
 
 class ReadingBarTest(unittest.TestCase):

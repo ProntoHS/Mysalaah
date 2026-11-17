@@ -20,13 +20,21 @@ from .theme import palette
 
 GREEN = QtGui.QColor("#1E9E57")            # the name of the prayer whose time it is
 GREEN_DARK = QtGui.QColor("#4CD187")       # the same, on a dark screen
-NAME_BAND = (0.58, 0.98)                   # where a drawn-in name sits in its arch, as
-                                           # fractions of the panel's height. Measured across
-                                           # all ten of Harry's drawings: the lettering runs
-                                           # from 0.610 (Hindi) to 0.971 (Urdu and Arabic), and
-                                           # the panel is solid black right across the box from
-                                           # 0.58 down to 0.98. Above that the box takes in the
-                                           # white wall beside the arch's curve.
+NAME_BAND = (0.0, 0.58, 1.0, 0.98)         # where a drawn-in name sits in its arch, as
+                                           # fractions of the arch box: left, top, right,
+                                           # bottom. This is only the fall-back for a drawing
+                                           # that does not say -- the 1.84 mosque, whose
+                                           # lettering ran from 0.610 (Hindi) to 0.971 (Urdu
+                                           # and Arabic) in a box that was solid panel right
+                                           # across from 0.58 down to 0.98.
+                                           #
+                                           # A drawing says for itself in its "text": "name",
+                                           # measured off all ten languages at build time. It
+                                           # has to, now there are two mosques a release apart
+                                           # with the words in different places: 2.41 puts them
+                                           # at 0.533-0.817 of a taller arch, and the old band
+                                           # would have tinted the bottom fifth of an empty
+                                           # panel and cut the top off the Bengali.
 CLOCK_INK = QtGui.QColor("white")          # on the black dome; black on the white one after dark
 CLOCK_BOOST = 1.15                         # the time, this much larger than a plain fit
 CLOCK_TRIM = 0.95                          # and then this much smaller again, as asked for.
@@ -460,10 +468,21 @@ class MosqueScreen(QtWidgets.QWidget):
         # too, and the prayer whose time it is is shown by tinting the word he drew rather than
         # by writing a green one. The drawing says which it is.
         self.own_names = False
+        # And, when it does, whether the artist put them in the other order in the languages
+        # that read right to left. The 1.84 mosque did: فجر was in the RIGHTMOST arch on the
+        # Urdu one. The 2.41 mosque does not -- Harry drew all ten the same way round, Fajr on
+        # the left -- and a mat that reversed them anyway showed the green on Dhuhr when it was
+        # Maghrib and opened Isha when Fajr was pressed. Neither way is wrong; what is wrong is
+        # the app deciding for itself, so the drawing says. Seen rendered, both ways.
+        self.mirror_names = False
         self.label_face = ""
         # Where in an arch those two lines sit, as fractions of its height, measured off the
         # drawing by the builder so the app puts the words back where they were drawn.
         self.bands = {"number": (0.32, 0.59), "label": (0.70, 0.88)}
+        # And where a name the DRAWING carries sits, which is the only part of an arch the app
+        # may turn green. Four numbers rather than two: the stone either side of the opening
+        # has to be kept out of it as well as the stone above. See NAME_BAND.
+        self.name_band = NAME_BAND
         # Whether the app paints a sky behind this drawing. The first two mosques are outlines
         # with a see-through sky, so the app supplies the sun, the moon, the stars and the
         # birds. The front door brings its own, all of them moving, and painting a second moon
@@ -498,12 +517,15 @@ class MosqueScreen(QtWidgets.QWidget):
             return
         self.picture = _load_once(folder / self.drawing_for(described, self.lang))
         self.own_names = described.get("names") == "drawn"
+        self.mirror_names = described.get("names_in_rtl") == "mirrored"
         self.drawn_dark = described.get("drawn", "light") == "dark"
         self.own_sky = bool(described.get("sky", True))
         self.load_film(folder / "mosque.gif")      # after own_sky: the film is checked against it
         for which, band in described.get("text", {}).items():
             if which in self.bands and len(band) == 2:
                 self.bands[which] = (float(band[0]), float(band[1]))
+            elif which == "name" and len(band) == 4:
+                self.name_band = tuple(float(v) for v in band)
         box = described["clock"]["box"]
         self.clock_dark = described["clock"].get("ink", "light") == "dark"
         self.clock_box = QtCore.QRect(box[0], box[1], box[2] - box[0], box[3] - box[1])
@@ -531,18 +553,23 @@ class MosqueScreen(QtWidgets.QWidget):
         return drawings.get(lang) or drawings.get("en") or described["image"]
 
     def face_the_other_way(self) -> None:
-        """In Urdu and Arabic the arches run right to left, so the names belong to other boxes.
+        """Where the artist put the names in the other order in Urdu and Arabic, the names
+        belong to other boxes.
 
-        Harry drew it that way: on his Urdu mosque فجر is in the RIGHTMOST arch and عشاء in the
-        leftmost, which is how the five would be read. The boxes do not move -- they are where
-        the panels are -- so the prayer each box belongs to is what turns round, and with it
-        which arch lights up and which prayer a finger on it opens. Leaving this out would have
-        shown Fajr's name on the right and opened Isha when it was pressed.
+        The 1.84 mosque was drawn that way: فجر in the RIGHTMOST arch and عشاء in the leftmost,
+        which is how the five would be read. The boxes do not move -- they are where the panels
+        are -- so the prayer each box belongs to is what turns round, and with it which arch
+        lights up and which prayer a finger on it opens. Leaving it out would have shown Fajr's
+        name on the right and opened Isha when it was pressed.
 
-        Only where the drawing carries its own names: the five prayer pages number rakats in
-        arches of their own, and 1, 2, 3, 4 is not a thing to reverse.
+        It is NOT done unless the drawing asks for it. The 2.41 mosque has Fajr on the left in
+        all ten languages, and reversing that one did exactly the harm this was written to
+        prevent -- the mirror image of it, which is the same bug.
+
+        Only where the drawing carries its own names either way: the five prayer pages number
+        rakats in arches of their own, and 1, 2, 3, 4 is not a thing to reverse.
         """
-        if not (self.rtl and self.own_names) or len(self.arches) < 2:
+        if not (self.rtl and self.own_names and self.mirror_names) or len(self.arches) < 2:
             return
         names = [arch.prayer for arch in self.arches]
         boxes = sorted((arch.box for arch in self.arches), key=lambda b: b.x())
@@ -923,20 +950,20 @@ class MosqueScreen(QtWidgets.QWidget):
         -- and the same job is done by lightening, which keeps white white and lifts black to
         green. Either way nothing is drawn that was not already there; one colour is changed.
 
-        Only the band the words sit in, measured off the ten drawings: the lettering runs from
-        0.61 to 0.97 of the panel's height in the worst case (Hindi at the top, Urdu and Arabic
-        at the bottom), and everything from 0.58 down to 0.98 is solid panel across the full
-        width of the box. Outside that band the box's top corners take in the white wall beside
-        the arch, which would come out green.
+        Only the band the words sit in, which the DRAWING gives -- measured off all ten of its
+        languages when it was built, because the tall scripts decide where the top of it is and
+        the Latin ones would put it a fifth of an arch too low. Outside that band the box takes
+        in the white stone beside the arch's curve and along its sides, and white is exactly
+        what this turns green.
         """
         arch = next((a for a in self.arches if a.prayer == self.lit), None)
         if arch is None or drawn.isNull():
             return
         flip = self.flipped
-        low, high = NAME_BAND
-        here = QtCore.QRect(int(arch.box.x() * scale),
+        left, low, right, high = self.name_band
+        here = QtCore.QRect(int((arch.box.x() + arch.box.width() * left) * scale),
                             int((arch.box.y() + arch.box.height() * low) * scale),
-                            int(arch.box.width() * scale),
+                            int(arch.box.width() * (right - left) * scale),
                             int(arch.box.height() * (high - low) * scale))
         here = here.intersected(QtCore.QRect(QtCore.QPoint(0, 0), drawn.size()))
         if here.isEmpty():
