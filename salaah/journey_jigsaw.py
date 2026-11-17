@@ -9,7 +9,7 @@ from __future__ import annotations
 import random
 
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
-from .render import Fonts
+from .render import Fonts, invert
 from .theme import palette
 from .winning import announce_if_won
 
@@ -113,6 +113,16 @@ class Screen(QtWidgets.QWidget):
         # they are.
         base = window.assets / "children"
         self.images = tuple(QtGui.QPixmap(str(base / name)) for name in self.PICTURES)
+        # THE DARK HALF OF EACH, WORKED OUT ONCE. A hand-drawn one if Harry has drawn it,
+        # otherwise the light one inverted -- see _image for which and why.
+        #
+        # Done here and not in _image, which is called on every repaint and a jigsaw repaints
+        # on every frame of a drag. Inverting a 1600x900 pixmap thirty times a second while a
+        # child is sliding a piece about is the kind of thing that makes a Pi feel broken.
+        self.dark_images = tuple(
+            QtGui.QPixmap(str(base / dark)) if (base / dark).is_file() else invert(light)
+            for dark, light in ((name.replace(".png", "-dark.png"), picture)
+                                for name, picture in zip(self.PICTURES, self.images)))
 
         self._down_slot: int | None = None
         self._down_at = QtCore.QPointF()
@@ -131,25 +141,38 @@ class Screen(QtWidgets.QWidget):
     def _image(self):
         """The picture, as drawn, in both themes.
 
-        IT USED TO BE TURNED OVER AFTER DARK and that was wrong, which is worth setting out
-        because the convention it was following is right everywhere else on this mat.
+        A HAND-DRAWN DARK VERSION WINS; WHERE THERE IS NONE, THE LIGHT ONE IS INVERTED.
 
-        "Ship the light half and invert it for the dark screen" works for LINE ART -- black ink
-        on white paper, where the inverse genuinely is the night version of the same drawing,
-        and where one file does the work of two. The menus, the wu'du sheets, the postures and
-        the front door are all that, and all still invert.
+        That rule is the whole of this method, and it replaces a flat refusal to turn these
+        over at all. The refusal was right about the OLD five, which were pictures of real
+        places with grey tones and silhouettes: inverting those made a photographic negative
+        rather than a dark rendering.
 
-        These five are not. They are pictures of real places, with grey tones and silhouettes,
-        and inverting them produces a photographic negative rather than a dark rendering. The
-        Kaaba's kiswah came out WHITE, which is the one thing about it a child is most certain
-        of; in three of the other four the people are drawn as dark silhouettes and came out as
-        glowing white figures.
+        Harry's 2.38 set is flat line art, which is the kind that does invert -- and he asked
+        for it at 2.40: "i want this in place just for dark theme only - it fits the colour
+        scheme much better". He is right about four of them, and two are better than right:
+        the family meal and the Qur'an interior are drawn as NIGHT SCENES, with stars, a
+        crescent and lanterns, so the light version is a white night sky with black stars.
+        Inverted, those two are correct for the first time.
 
-        So the artwork is shown as it was drawn and the chrome around it -- the banner, the
-        panel, the lettering, the piece outlines -- still follows the theme, which is what
-        makes the screen read as dark without lying about the picture.
+        BUT THE KAABA IS NOT A COLOUR, IT IS THE KISWAH. Inverted, the one thing a child is
+        most certain of came out as a white box: measured, 81% paper where the drawing is 82%
+        ink. So he drew a proper dark version of that one -- black Kaaba, white courtyard line
+        work -- and it is not a negative of anything. It sits beside the light one as
+        `<name>-dark.png` and this picks it up.
+
+        Hence the rule rather than a list of exceptions. Drop a dark drawing in beside any of
+        the five and it takes over with no code change; leave it out and the inversion does a
+        perfectly good job. The files that would be exact negatives are not shipped at all,
+        because they are 580 KB to arrive at a picture the mat can make for nothing.
+
+        The chrome around the picture -- the banner, the panel, the lettering, the piece
+        outlines -- follows the theme as it always did.
         """
-        return self.images[self.game.picture]
+        at = self.game.picture
+        if palette().dark and not self.dark_images[at].isNull():
+            return self.dark_images[at]
+        return self.images[at]
 
     @property
     def ready(self) -> bool:

@@ -162,6 +162,90 @@ class UiTest(unittest.TestCase):
         self.assertEqual(1, fatiha[0].rakat)
         self.assertEqual(len(w.session.pages), len(w.text_pages))
 
+    def test_the_prayer_strip_is_the_same_height_as_every_other_strip(self):
+        """Harry: "during the prayer steps, the top banner height is shorter to the standard
+        top banner height, make it the same."
+
+        It was `switch height + px(24)` -- a number of its own that answered to nothing. At
+        1920x1080 that comes to 80 against the standard 72, so on a 16:9 bench they look alike
+        and nothing shows. On his main display, which is 1920x1200, banner_height takes the
+        slack a taller screen leaves and returns 120 while this stayed at 80: FORTY PIXELS
+        SHORT, on the one screen he actually uses.
+
+        So this asks at both shapes. Checking only 16:9 is what let it through.
+        """
+        w = self.win
+        for wide, tall in ((1920, 1080), (1920, 1200)):
+            with self.subTest(f"{wide}x{tall}"):
+                w.resize(wide, tall)
+                APP.processEvents()
+                w.start("dhuhr", w.school.prayers["dhuhr"][0])
+                APP.processEvents()
+                self.assertEqual(w.banner_height(), w.bar.height(),
+                                 "the prayer strip is not the height of an ordinary banner")
+
+    def test_the_way_home_is_the_same_button_in_the_same_corner_everywhere(self):
+        """Harry: "there is also a menu button, remove it and replace it with the home button
+        instead ... the home button should now stay in the same place on all the screens."
+
+        The prayer screen had a red "Menu" button at the LEFT end that went to exactly the
+        same place as the house on every other strip -- so the way out of a prayer was a
+        different shape, a different colour and at the other end of the strip from the way out
+        of anywhere else.
+
+        Asked of POSITION, not of existence: a test that only looked for a button named
+        mainScreen would pass with it sitting wherever the Menu button used to be.
+        """
+        w = self.win
+        w.start("dhuhr", w.school.prayers["dhuhr"][0])
+        APP.processEvents()
+
+        houses = [c for c in w.bar.findChildren(QtWidgets.QPushButton)
+                  if c.objectName() == "mainScreen"]
+        self.assertEqual(1, len(houses), "the prayer strip has no house, or more than one")
+        house = houses[0]
+        self.assertEqual([], [c for c in w.bar.findChildren(QtWidgets.QPushButton)
+                              if c.objectName() == "stop"], "the Menu button is still there")
+
+        # Hard against the far end of the strip, like the one on an ordinary banner.
+        gap = w.bar.width() - (house.x() + house.width())
+        self.assertLess(gap, w.px(8), f"the house sits {gap}px from the end of the strip")
+        # And square, which is what set_banner_heights makes it.
+        self.assertEqual(house.width(), house.height(), "the house is not square")
+
+        # The ring took the corner the Menu button left -- the opposite end from the house.
+        self.assertLess(w.dot.x(), house.x(),
+                        "the ring and the house have not swapped ends")
+
+    def test_the_prayer_strip_carries_the_same_volume_slider_as_the_rest(self):
+        """Harry: "swap the volume slider with our other volume slide from main top banner,
+        same exact location."
+
+        It was a VolumeBar of its own -- a different control, with its own look and its own
+        way of being dragged, on the one screen where somebody is least able to stop and work
+        out which kind of slider they are looking at.
+
+        What proves it is the shared one is that it MOVES WITH THE OTHERS: volume_slider()
+        registers itself in volume_bars, and show_volume drives every slider in that list. A
+        test that only counted widgets would pass on a lookalike.
+        """
+        w = self.win
+        w.start("dhuhr", w.school.prayers["dhuhr"][0])
+        APP.processEvents()
+        on_the_strip = [b for b in w.bar.findChildren(QtWidgets.QSlider)
+                        if b.objectName() in ("volume", "volumeOnDark")]
+        self.assertEqual(1, len(on_the_strip), "the prayer strip has no shared volume slider")
+        shared = [b for b, _ in w.volume_bars]
+        self.assertIn(on_the_strip[0], shared,
+                      "the strip's slider is a lookalike, not one of the family")
+        w.settings.volume = 35
+        w.settings.recitation = True
+        w.show_volume()
+        APP.processEvents()
+        for bar, _ in w.volume_bars:
+            self.assertEqual(35, bar.value(),
+                             "a slider did not follow the volume: it is not in the family")
+
     def test_leaving_mid_prayer(self):
         w = self.win
         w.start("dhuhr", w.school.prayers["dhuhr"][0])
@@ -493,42 +577,55 @@ class UiTest(unittest.TestCase):
         self.assertLess(spot.center().y(), frame.center().y(), "at the top")
         self.shot("11-repeat-badge")
 
-    def test_volume_bar_sits_in_the_top_bar_and_saves_what_it_is_set_to(self):
+    def test_the_volume_on_the_prayer_strip_sits_right_and_saves_what_it_is_set_to(self):
+        """REPLACES test_volume_bar_sits_in_the_top_bar_and_saves_what_it_is_set_to, whose
+        control is gone. Harry at 2.40: "swap the volume slider with our other volume slide
+        from main top banner, same exact location."
+
+        The strip had a VolumeBar all of its own -- a second kind of volume control, with its
+        own look and its own way of being dragged, on the one screen where somebody is least
+        able to stop and work out which kind they are looking at.
+
+        Every claim the old test made is made again here against the shared slider, because
+        none of them were about the old control: it is in the strip, it is a rectangle lying
+        down, it is on the right and clear of the rakat, silence means the recitation is off,
+        and what it is dragged to is kept.
+        """
         w = self.win
         w.start("maghrib", w.school.prayers["maghrib"][0])
         APP.processEvents()
-        bar = w.slide.volume
+        bar = next(b for b in w.bar.findChildren(QtWidgets.QSlider)
+                   if b.objectName() in ("volume", "volumeOnDark"))
+        self.assertIn((bar, next(r for b2, r in w.volume_bars if b2 is bar)), w.volume_bars,
+                      "the strip's slider is not one of the shared family")
         self.assertTrue(bar.isVisible(), "the volume is there as soon as the prayer starts")
-        self.assertEqual(0, bar.volume, "silent while the recitation is switched off")
+        self.assertEqual(0, bar.value(), "silent while the recitation is switched off")
         w.set_recitation("1")
-        self.assertEqual(w.settings.volume, bar.volume, "and shows the level once it is on")
+        APP.processEvents()
+        self.assertEqual(w.settings.volume, bar.value(), "and shows the level once it is on")
 
-        # a rectangle lying down, in the top bar, over on the right. The rakat used to sit
-        # beside it and has moved to the left, next to the prayer it belongs to.
-        self.assertIs(w.bar, bar.parentWidget(), "the volume sits in the top bar")
         self.assertGreater(bar.width(), bar.height() * 2, "a rectangle, lying down")
         in_window = bar.mapTo(w, bar.rect().center())
         self.assertLess(in_window.y(), w.slide.mapTo(w, QtCore.QPoint(0, 0)).y(),
                         "above the prayer screen, not on it")
-        self.assertGreater(in_window.x(), w.width() / 2, "on the right of the banner")
+        self.assertGreater(in_window.x(), w.width() / 2, "on the right of the strip")
         self.assertGreater(bar.mapTo(w, bar.rect().topLeft()).x(),
                            w.rakat_label.mapTo(w, w.rakat_label.rect().topRight()).x(),
-                           "and clear of the rakat, which is now on the left")
+                           "and clear of the rakat, which is on the left")
 
-        # dragging it sets the volume, keeps it, and tells the player
-        track = bar.track()
-        bar._set_from_x(track.x() + track.width() * 0.5)
-        self.assertEqual(50, bar.volume)
+        bar.setValue(50)
+        APP.processEvents()
         self.assertEqual(50, w.settings.volume)
         self.assertEqual(50, w.recitation.volume)
         self.assertTrue(w.settings.recitation)
 
-        bar.set_volume(0, tell=True)
+        bar.setValue(0)
+        APP.processEvents()
         self.assertFalse(w.settings.recitation, "all the way down switches it off")
         self.assertEqual(50, w.settings.volume, "and keeps the level to come back to")
 
-        bar._set_from_x(track.right() + 50)
-        self.assertEqual(100, bar.volume, "past the end is full volume")
+        bar.setValue(100)
+        APP.processEvents()
         self.assertTrue(w.settings.recitation, "turning it up switches it back on")
         self.shot("12-volume-bar")
 
@@ -705,16 +802,25 @@ class UiTest(unittest.TestCase):
         self.assertTrue(w.slide.tasbih.isVisible(), "the dhikr counter should be here")
         self.shot("12-prayer-complete")
 
-    def test_the_stop_button_is_now_the_menu(self):
+    def test_the_house_is_the_way_out_of_a_prayer(self):
+        """REPLACES test_the_stop_button_is_now_the_menu, whose button is gone.
+
+        Rewritten rather than kept passing. The rule this mat works to -- written out in
+        JourneyJigsawTest -- is that when a design is replaced its tests go with it, because
+        keeping the old ones green means keeping the old rules alive underneath.
+
+        What survives the rewrite is the thing that actually mattered: there is one press that
+        leaves a prayer. It used to be a red "Menu" button at the left end; it is the same
+        house that leaves every other screen, at the right end, since 2.40.
+        """
         w = self.win
         w.start("fajr", w.school.prayers["fajr"][0])
         APP.processEvents()
-        button = next(b for b in w.player.findChildren(QtWidgets.QPushButton)
-                      if b.objectName() == "stop")
-        self.assertEqual(w.t("player.menu"), button.text())
-        button.click()
+        house = next(b for b in w.player.findChildren(QtWidgets.QPushButton)
+                     if b.objectName() == "mainScreen")
+        house.click()
         APP.processEvents()
-        self.assertFalse(w.playing, "it leaves the prayer")
+        self.assertFalse(w.playing, "the house does not leave the prayer")
 
     def test_prayer_menu_header(self):
         """The plate, which since 1.62 belongs to the fallback screen: Harry's drawings carry
@@ -758,17 +864,34 @@ class UiTest(unittest.TestCase):
         self.assertTrue(w.playing)
         self.assertEqual(3, w.session.total_rakats, "Maghrib starts with the 3 Fardh")
 
-    def test_banner_has_a_red_stop_and_a_large_dot(self):
-        from salaah.ui import BRICK
+    def test_the_strip_has_a_red_house_and_a_larger_ring(self):
+        """REPLACES test_banner_has_a_red_stop_and_a_large_dot. The red Stop is gone; the red
+        is now the house, which is red on every strip on this mat because red is what
+        everything pressable on it is.
+
+        THE HOUSE IS CHECKED BY ITS PIXELS, not by the stylesheet carrying the colour
+        somewhere. It came out as a bare white outline the first time it was put on this strip
+        -- the strip's own catch-all, `QWidget#bar QPushButton`, is one id and two types and
+        beats `QPushButton#mainScreen`, so every button on the bar was transparent. The
+        stylesheet contained BRICK the whole time and a test that only looked for the string
+        would have said yes.
+        """
+        from salaah.ui import BRICK, DOT_PX
         w = self.win
         w.start("fajr", w.school.prayers["fajr"][0])
         APP.processEvents()
-        self.assertFalse(hasattr(w, "draft_label"), "the draft notice is gone from the prayer screen")
-        stop = next(b for b in w.player.findChildren(QtWidgets.QPushButton)
-                    if b.objectName() == "stop")
-        self.assertIn(BRICK.lower(), w.styleSheet().lower())
-        self.assertGreater(stop.width(), w.px(80), "Stop is a proper button, not a word")
-        self.assertGreaterEqual(w.dot.width(), w.px(64), "the signal dot is large")
+        self.assertFalse(hasattr(w, "draft_label"),
+                         "the draft notice is gone from the prayer screen")
+        house = next(b for b in w.player.findChildren(QtWidgets.QPushButton)
+                     if b.objectName() == "mainScreen")
+        painted = house.grab().toImage()
+        want = QtGui.QColor(BRICK)
+        middle = QtGui.QColor(painted.pixel(painted.width() // 4, painted.height() // 2))
+        self.assertEqual((want.red(), want.green(), want.blue()),
+                         (middle.red(), middle.green(), middle.blue()),
+                         "the house is not drawn red on the prayer strip")
+        self.assertGreaterEqual(w.dot.width(), w.px(DOT_PX), "the ring is large")
+        self.assertGreater(w.px(DOT_PX), w.px(68), "the ring did not grow with the strip")
 
     def test_minarets_light_when_no_prayer_is_due(self):
         from datetime import date, datetime, time as clock
@@ -806,13 +929,21 @@ class UiTest(unittest.TestCase):
                         w.mosque.mapTo(w.home, w.mosque.rect().center()).y(),
                         "the banner is above the mosque")
 
-    def test_menu_button_and_prayer_name_are_the_same_height(self):
+    def test_the_two_boxes_on_the_prayer_strip_are_the_same_height_as_each_other(self):
+        """REPLACES test_menu_button_and_prayer_name_are_the_same_height, which measured the
+        prayer name against the Menu button that is gone.
+
+        The pair that has to line up now is the two boxes sitting side by side -- the prayer
+        and the rakat. They grew together at 2.40 to use the height the strip got back, and
+        the way a change like that goes wrong is one of them growing and the other not.
+        """
         w = self.win
         w.start("maghrib", w.school.prayers["maghrib"][0])
         APP.processEvents()
-        menu = next(b for b in w.player.findChildren(QtWidgets.QPushButton)
-                    if b.objectName() == "stop")
-        self.assertEqual(menu.height(), w.title_label.height())
+        self.assertEqual(w.title_label.height(), w.rakat_label.height(),
+                         "the prayer and the rakat are no longer the same height")
+        self.assertGreater(w.title_label.height(), w.px(56),
+                           "the boxes did not grow with the strip")
 
     def test_screens_are_white(self):
         w = self.win
@@ -1478,8 +1609,13 @@ class SideScreenTest(unittest.TestCase):
         self.fardh(w)
         self.assertFalse(w.side.showing_compass)
         self.assertIs(w.side.posture, w.slide.posture)
-        self.assertIs(w.volume, w.slide.volume, "the volume is in the main screen's bar")
-        self.assertFalse(hasattr(w.side, "volume"), "and not on the 7-inch screen")
+        # The volume lives in the main screen's strip and not on the 7in, which is kept for
+        # the posture. It was a VolumeBar of the prayer screen's own until 2.40 and is the
+        # shared slider now -- the claim is about WHERE it is, so it is asked of the strip.
+        self.assertTrue([b for b in w.bar.findChildren(QtWidgets.QSlider)
+                         if b.objectName() in ("volume", "volumeOnDark")],
+                        "the volume is not in the main screen's bar")
+        self.assertFalse(w.side.findChildren(QtWidgets.QSlider), "and not on the 7-inch screen")
         self.assertIs(w.side, w.slide.posture.window(), "the picture is on the 7-inch screen")
         self.assertIsNotNone(w.slide.posture.path)
         # the words have the main screen's whole width
@@ -1500,11 +1636,18 @@ class SideScreenTest(unittest.TestCase):
         self.assertTrue(w.slide.repeat_badge.isVisible())
 
     def test_the_volume_bar_in_the_bar_sets_the_volume(self):
+        """The strip's own VolumeBar went at 2.40 for the slider every other strip carries.
+        What it was asked to prove is unchanged: dragging it sets the level, and all the way
+        down switches the recitation off rather than leaving it playing in silence."""
         w = self.window(recitation=True, volume=80)
         self.fardh(w)
-        w.volume.set_volume(30, tell=True)
+        bar = next(b for b in w.bar.findChildren(QtWidgets.QSlider)
+                   if b.objectName() in ("volume", "volumeOnDark"))
+        bar.setValue(30)
+        APP.processEvents()
         self.assertEqual(30, w.settings.volume)
-        w.volume.set_volume(0, tell=True)
+        bar.setValue(0)
+        APP.processEvents()
         self.assertFalse(w.settings.recitation)
 
     def test_lining_up_on_the_side_is_remembered_and_the_compass_stays(self):
@@ -7614,10 +7757,22 @@ class VolumeEverywhereTest(unittest.TestCase):
 
     def test_there_is_one_slider_in_each_banner_and_none_below(self):
         """There were briefly two within a centimetre of each other in the Qur'an: one in the
-        banner and one in the row under it. The banner's is the one that stayed."""
+        banner and one in the row under it. The banner's is the one that stayed.
+
+        FOUR SINCE 2.40, not three. The prayer screen's strip had a VolumeBar all of its own
+        -- a second kind of volume control, on the one screen where somebody is least able to
+        stop and work out which kind they are looking at. Harry: "swap the volume slider with
+        our other volume slide from main top banner, same exact location." So that strip now
+        carries one of these, and joining the family is the whole point of the swap: it moves
+        when the others move, which a control of its own never did.
+        """
         w = self.window()
-        self.assertEqual(3, len(w.volume_bars),
-                         "the mosque, the corner and Settings -- the front door carries no strip")
+        self.assertEqual(4, len(w.volume_bars),
+                         "the mosque, the corner, Settings and the prayer strip -- "
+                         "the front door carries no strip")
+        strips = {bar.window().objectName() or bar.parentWidget().objectName()
+                  for bar, _ in w.volume_bars}
+        self.assertTrue(strips, "the sliders are not in anything")
         w.open_surah(2)
         settle()
         from salaah.qt import QtWidgets as Q
@@ -17830,6 +17985,124 @@ class JourneyJigsawTest(unittest.TestCase):
     source text.
     """
 
+    def screen(self, theme="dark"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_a_game("jigsaw")
+        settle()
+        return w, w.games["jigsaw"]
+
+    def test_the_picture_is_drawn_as_it_is_by_day_and_turned_over_after_dark(self):
+        """Harry at 2.40: "i want this in place just for dark theme only - it fits the colour
+        scheme much better. keep the others for light theme only."
+
+        This reverses a flat refusal, and the refusal was right about the pictures it was
+        written for: the old five were photographic, and inverting those made negatives. His
+        2.38 set is flat line art, which is the kind that does invert -- and two of them are
+        drawn as NIGHT SCENES, so the light version is a white night sky with black stars and
+        the inverted one is correct for the first time.
+
+        Asked of the pixmap the screen would actually draw, in both themes, for all five.
+        """
+        for theme, wants_light in (("light", True), ("dark", False)):
+            _, screen = self.screen(theme)
+            for at in range(len(screen.PICTURES)):
+                with self.subTest(theme=theme, picture=screen.PICTURES[at]):
+                    screen.game.picture = at
+                    shown = screen._image().toImage()
+                    paper = sum(QtGui.qGray(shown.pixel(x, y)) > 200
+                                for x in range(0, shown.width(), 29)
+                                for y in range(0, shown.height(), 29))
+                    seen = len(range(0, shown.width(), 29)) * len(range(0, shown.height(), 29))
+                    mostly_paper = paper > seen * 0.5
+                    self.assertEqual(wants_light, mostly_paper,
+                                     f"{theme}: this picture is "
+                                     f"{'mostly white' if mostly_paper else 'mostly black'}")
+
+    def test_a_hand_drawn_dark_picture_is_used_instead_of_turning_the_light_one_over(self):
+        """THE WHOLE REASON THE RULE IS A RULE AND NOT A LIST.
+
+        The Kaaba is not a colour, it is the kiswah. Inverted, the one thing a child is most
+        certain of came out as a white box -- measured on Harry's own inverted set, 81% paper
+        where his drawing is 82% ink. So he drew a proper dark version of that one, and it is
+        not a negative of anything.
+
+        What this holds is the CONTENT, not the mechanism: on a dark mat the Kaaba has to
+        still be dark. A test that only checked "a -dark.png file was loaded" would pass just
+        as happily on a file containing the negative.
+        """
+        from salaah.journey_jigsaw import Screen
+        root = Path(__file__).resolve().parent.parent / "assets" / "children"
+        at = Screen.PICTURES.index("kaaba-jigsaw.png")
+        self.assertTrue((root / "kaaba-jigsaw-dark.png").is_file(),
+                        "the hand-drawn dark Kaaba is not on the mat")
+        _, screen = self.screen("dark")
+        screen.game.picture = at
+        shown = screen._image().toImage()
+        # The Kaaba itself: the middle of the picture, where the cube is.
+        wide, tall = shown.width(), shown.height()
+        ink = sum(QtGui.qGray(shown.pixel(x, y)) < 60
+                  for x in range(int(wide * .30), int(wide * .72), 7)
+                  for y in range(int(tall * .22), int(tall * .72), 7))
+        seen = len(range(int(wide * .30), int(wide * .72), 7)) * \
+            len(range(int(tall * .22), int(tall * .72), 7))
+        self.assertGreater(ink / seen, 0.55,
+                           f"the Kaaba is only {100 * ink / seen:.0f}% ink on a dark mat: "
+                           "the kiswah has come out white")
+
+    def test_a_picture_with_no_dark_drawing_is_turned_over_instead(self):
+        """THE OTHER HALF OF THE RULE, and the half that makes the dark drawings optional.
+
+        Harry has drawn two of the five and said plainly he is not drawing the rest. So the
+        absence of a dark file is not a gap, it is the ordinary case -- and because it is, the
+        test that checks every picture a game names is on the mat has to let "-dark.png" past.
+        That exemption is only honest if absence is a defined behaviour rather than an
+        untested hope, so this is where it is paid for.
+
+        Done by hiding a file that IS there and rebuilding, rather than trusting one of the
+        three that happen to be missing: that way the test still means something on the day
+        Harry draws the other three.
+        """
+        from salaah.journey_jigsaw import Screen
+        root = Path(__file__).resolve().parent.parent / "assets" / "children"
+        at = Screen.PICTURES.index("kaaba-jigsaw.png")
+        drawn = root / "kaaba-jigsaw-dark.png"
+        self.assertTrue(drawn.is_file(), "there is no dark Kaaba to hide")
+        hidden = drawn.with_suffix(".png.hidden-by-a-test")
+        drawn.rename(hidden)
+        self.addCleanup(lambda: hidden.exists() and hidden.rename(drawn))
+
+        _, screen = self.screen("dark")
+        screen.game.picture = at
+        shown = screen._image().toImage()
+        light = screen.images[at].toImage()
+        self.assertNotEqual(shown.pixel(10, 10), light.pixel(10, 10),
+                            "with no dark drawing the light one was used unchanged")
+        paper = sum(QtGui.qGray(shown.pixel(x, y)) > 200
+                    for x in range(0, shown.width(), 29)
+                    for y in range(0, shown.height(), 29))
+        seen = len(range(0, shown.width(), 29)) * len(range(0, shown.height(), 29))
+        self.assertLess(paper, seen * 0.5,
+                        "with no dark drawing the picture was not turned over")
+
+    def test_inverting_is_done_once_and_not_on_every_repaint(self):
+        """A jigsaw repaints on every frame of a drag. Inverting a 1600x900 pixmap thirty
+        times a second while a child slides a piece about is what makes a Pi feel broken.
+
+        Asked by identity: the same object has to come back each time, which it cannot if it
+        is being made fresh.
+        """
+        _, screen = self.screen("dark")
+        screen.game.picture = 0
+        first = screen._image()
+        self.assertIs(first, screen._image(), "the dark picture is being made again each call")
+
     def game(self, shuffle=None):
         from salaah.journey_jigsaw import Rules
         return Rules(shuffle=shuffle if shuffle is not None else (lambda cards: None))
@@ -21315,9 +21588,12 @@ class EveryGamePanelCanBeReadTest(unittest.TestCase):
 
 
 class ArtworkIsNotTurnedOverTest(unittest.TestCase):
-    """The ten photographic game pictures are drawn as they are, in both themes.
+    """The prayer-day scenes are drawn as they are, in both themes; the jigsaw by day only.
 
-    THE EXCEPTION TO THE MAT'S OWN CONVENTION, and the only one. Everything drawn as black ink
+    THE EXCEPTION TO THE MAT'S OWN CONVENTION. It covered ten pictures until 2.40 and covers
+    five now: Harry redrew the jigsaw's five as flat line art, which is the kind that does
+    invert, and asked for them to turn over after dark. The five prayer-day scenes are
+    unchanged and still must not. Everything drawn as black ink
     on white paper -- the menus, the wu'du sheets, the postures, the front door -- ships light
     and is inverted for the dark screen, and all of that still happens and is tested elsewhere.
 
@@ -21345,18 +21621,35 @@ class ArtworkIsNotTurnedOverTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         return w
 
-    def test_the_jigsaw_draws_the_same_picture_light_or_dark(self):
+    def test_the_jigsaw_draws_the_picture_as_it_is_by_day(self):
+        """THE DARK HALF OF THIS TEST IS GONE, and that is a decision rather than a repair.
+
+        It read "the same picture light or dark" and held for the OLD jigsaw, whose five were
+        photographic. Harry replaced them at 2.38 with flat line art and asked at 2.40 for the
+        dark theme to turn them over: "it fits the colour scheme much better". He is right --
+        two of them are drawn as night scenes, so the light version is a white night sky with
+        black stars and the inversion is correct for the first time.
+
+        What was true underneath is still true, and it is why this class exists: INVERTING A
+        PICTURE IS NOT THE SAME AS DRAWING A DARK ONE. The Kaaba proved it again -- inverted,
+        the kiswah came out 81% paper where the drawing is 82% ink. So Harry drew proper dark
+        versions of the two that contain one, and JourneyJigsawTest holds that the Kaaba is
+        still dark on a dark mat.
+
+        The prayer-day scenes below are untouched and still must not be turned over: that game
+        asks which prayer a sky belongs to, and a negative argues for the wrong answer.
+
+        So what is left here is the daylight half, which has not changed: by day the screen
+        hands back the pixmap it loaded, not a copy that happens to match today.
+        """
         from salaah.journey_jigsaw import Rules
-        for theme in ("light", "dark"):
-            with self.subTest(theme):
-                win = self.window(theme)
-                win.open_a_game("jigsaw")
-                screen = win.games["jigsaw"]
-                for picture in range(Rules.PICTURE_COUNT):
-                    screen.game.picture = picture
-                    self.assertEqual(screen._image().cacheKey(),
-                                     screen.images[picture].cacheKey(),
-                                     f"picture {picture} is not the one that was loaded")
+        win = self.window("light")
+        win.open_a_game("jigsaw")
+        screen = win.games["jigsaw"]
+        for picture in range(Rules.PICTURE_COUNT):
+            screen.game.picture = picture
+            self.assertEqual(screen._image().cacheKey(), screen.images[picture].cacheKey(),
+                             f"picture {picture} is not the one that was loaded")
 
     def test_the_prayer_day_scenes_are_the_same_sky_light_or_dark(self):
         from salaah.prayer_day_journey import SCENES
@@ -22142,6 +22435,17 @@ class EightMoreGamesTest(unittest.TestCase):
                 # are covered where they are built: every ITEM in Pillar Match must have a
                 # picture, and no picture may sit in that folder without an item.
                 if not Path(node.value).name.rsplit(".", 1)[0]:
+                    continue
+                # A SECOND FRAGMENT, and for a second kind of reason. The jigsaw's dark
+                # pictures are built as name.replace(".png", "-dark.png"), so the literal
+                # "-dark.png" turns up here. It has a stem, so the rule above does not catch
+                # it -- and more to the point, these pictures are OPTIONAL BY DESIGN: Harry
+                # has drawn two of the five and the other three are inverted instead. "Asks
+                # for a picture that is not there" is the wrong question about a picture whose
+                # absence is a defined, tested answer. That one is held where it belongs, in
+                # JourneyJigsawTest: with the file there it is used, with it gone the light
+                # one is turned over, and on a dark mat the Kaaba is still dark either way.
+                if Path(node.value).name.startswith("-"):
                     continue
                 # A module usually assembles its path, so the literal may be only the last
                 # part of it: look for the file by name anywhere under assets/.

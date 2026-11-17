@@ -106,6 +106,17 @@ PIN_GAP = 0
 # margins, so the strip is as tall as the tallest thing that HAS to fit in it, and anything
 # added later has to fit rather than push it about.
 BANNER_TALL = 52 + 10 + 10
+#: The red/green ring on the prayer strip, at 1080p. Was 68, and it moved from the right-hand
+#: end to the left at 2.40 when the house took its place. Up by a sixth with everything else
+#: on that strip, for the reason BIGGER_ON_THE_PRAYER_STRIP gives.
+DOT_PX = 80
+#: How much the prayer strip's own controls grew when the strip did. It was forty pixels short
+#: of every other strip on Harry's 1920x1200 screen; given that back, the boxes and the switch
+#: on it were still sized for the old height and sat in it looking lost. Harry: "make slightly
+#: bigger to take advantage of extra height". A sixth is what fills the new height while
+#: keeping the same air above and below -- the type sizes beside it in stylesheet() are the
+#: same step, applied by hand so each one lands on a whole pixel.
+BIGGER_ON_THE_PRAYER_STRIP = 7 / 6
 # The pair of chevrons that walks a board's cards, at 1080p. Bigger than the reading bar's
 # 64, which is what Harry asked for -- a board is read standing in front of it, where the
 # reading bar is a bar on a screen you are already close to.
@@ -1220,8 +1231,12 @@ class MainWindow(QtWidgets.QWidget):
         self.setStyleSheet(self.stylesheet())
         if self.side is not None:
             self.side.setStyleSheet(self.stylesheet())
-        if hasattr(self, "volume"):
-            self.volume.scale = self.s
+        if hasattr(self, "meaning_switch") and not sip_deleted(self.meaning_switch):
+            # The switch is DRAWN, so its size comes from its scale and not from the
+            # stylesheet: a text-scale change that misses it leaves it the size it was built
+            # at while everything around it moves. It grew at 2.40 with the rest of that
+            # strip, so the growth has to be applied again here and not just at build time.
+            self.meaning_switch.scale = self.s * BIGGER_ON_THE_PRAYER_STRIP
         if hasattr(self, "slide"):
             self.slide.arabic.scale = self.s
             self.slide.parallel.scale = self.s
@@ -2004,6 +2019,17 @@ class MainWindow(QtWidgets.QWidget):
             QPushButton#mainScreen {{ background:{BRICK}; color:white; border:none;
                                       border-radius:{px(8)}px; padding:0; }}
             QPushButton#mainScreen:pressed {{ background:#8E342C; }}
+            /* AND AGAIN, SCOPED TO THE PRAYER STRIP, because the rule above loses to it.
+               Qt follows CSS specificity: `QWidget#bar QPushButton` is one id and two types,
+               `QPushButton#mainScreen` is one id and one type, so the strip's own catch-all
+               -- which makes every button on it transparent -- wins. The house arrived on
+               that strip at 2.40 and came out as a bare white outline on black while the
+               same button on every other strip was a red square. Written out rather than
+               folded into the rule above: the catch-all is doing a real job for the other
+               buttons on that bar, and the fix is to say this one is not one of them. */
+            QWidget#bar QPushButton#mainScreen {{ background:{BRICK}; color:white; border:none;
+                                                  border-radius:{px(8)}px; padding:0; }}
+            QWidget#bar QPushButton#mainScreen:pressed {{ background:#8E342C; }}
             QPushButton#backButton {{ background:{BRICK}; color:white; border:none;
                                       border-radius:{px(8)}px; font-size:{px(28)}px;
                                       font-weight:bold; padding:{px(12)}px {px(30)}px; }}
@@ -2220,24 +2246,24 @@ class MainWindow(QtWidgets.QWidget):
             QWidget#bar, QWidget#bar QLabel {{ background:{c.paper}; color:{c.strong}; }}
             QWidget#bar QPushButton {{ background:transparent; color:{c.strong}; border:none;
                                        font-size:{px(28)}px; padding:{px(10)}px {px(18)}px; }}
-            QWidget#bar QLabel#rakat {{ background:{c.chip}; color:white; font-size:{px(36)}px;
-                                        font-weight:bold; padding:0 {px(20)}px;
-                                        border-radius:{px(8)}px; min-height:{px(56)}px; }}
+            /* THE EXTRA HEIGHT IS SPENT HERE. The strip went from 80px to the standard
+               banner's 120 on Harry's 1920x1200 screen, and he asked for the boxes to take
+               advantage of it: "the other boxes prayer & rakaat make slightly bigger ...
+               same with centre translation text and button". Each of these is up by about a
+               sixth, which is what fits the new height with the same air around it. */
+            QWidget#bar QLabel#rakat {{ background:{c.chip}; color:white; font-size:{px(42)}px;
+                                        font-weight:bold; padding:0 {px(24)}px;
+                                        border-radius:{px(10)}px; min-height:{px(66)}px; }}
             QLabel#prayerName {{ font-family:'{Fonts.arabic(self.settings.arabic_font)}';
                                  font-size:{px(54)}px; font-weight:bold; }}
             /* The word beside the switch in the middle of the prayer bar. Smaller than the
                Arabic name that used to sit there: it is a label on a control, not a heading,
                and the control is the thing the eye should land on. */
-            QWidget#bar QLabel#meaningWord {{ font-size:{px(30)}px; font-weight:bold; }}
+            QWidget#bar QLabel#meaningWord {{ font-size:{px(35)}px; font-weight:bold; }}
             QWidget#bar QLabel#meaningWord:disabled {{ color:{c.stone}; }}
-            QWidget#bar QLabel#title {{ background:{c.chip}; color:white; font-size:{px(26)}px;
-                                        font-weight:bold; padding:0 {px(20)}px;
-                                        border-radius:{px(8)}px; min-height:{px(56)}px; }}
-            QWidget#bar QPushButton#stop {{ background:{BRICK}; color:white; border:none;
-                                            border-radius:{px(8)}px; font-size:{px(30)}px;
-                                            font-weight:bold; padding:0 {px(34)}px;
-                                            min-height:{px(56)}px; }}
-            QWidget#bar QPushButton#stop:pressed {{ background:#8E342C; }}
+            QWidget#bar QLabel#title {{ background:{c.chip}; color:white; font-size:{px(31)}px;
+                                        font-weight:bold; padding:0 {px(24)}px;
+                                        border-radius:{px(10)}px; min-height:{px(66)}px; }}
             QWidget#done {{ background:{c.paper}; }}
             QWidget#done QLabel {{ background:transparent; color:{c.strong}; font-size:{px(56)}px; font-weight:bold; }}
             QWidget#tasbih {{ background:{c.paper}; }}
@@ -2442,6 +2468,44 @@ class MainWindow(QtWidgets.QWidget):
                 taken += item.spacerItem().sizeHint().width()
         return max(0, strip.width() - taken)
 
+    def way_home_button(self) -> QtWidgets.QPushButton:
+        """The house. Last in the row, square, hard against the right edge of the strip.
+
+        ONE BUILDER SINCE 2.40, because there are two strips that carry it now. The prayer
+        screen's bar had a red "Menu" button at the LEFT end that went to exactly the same
+        place -- so the way out of a prayer was a different shape, a different colour and at
+        the other end of the strip from the way out of everywhere else. Harry: "the home
+        button should now stay in the same place on all the screens."
+
+        Built in one place so the two cannot drift. That is not a hypothetical: the Sources
+        page builds its strip fresh every time it opens, missed the squaring that runs on a
+        resize, and carried a 97x72 button where every other page had 118x118. Harry saw it
+        as "the top banner is different to the rest of the app".
+
+        A HOUSE RATHER THAN WORDS SINCE 2.26, because the words never fitted the square. They
+        were broken over two lines and balanced by letter count, as well as anything could --
+        and it was not enough: "Main screen" overran a 70px square by 27px, and the Russian by
+        57, in eight of the ten languages this mat speaks. The words stay on the button where
+        they cost nothing and still help: as its accessible name and its tooltip, so a screen
+        reader and a long press both still say where it goes.
+        """
+        back = QtWidgets.QPushButton()
+        back.setObjectName("mainScreen")
+        back.setAccessibleName(self.t("settings.main_screen"))
+        back.setToolTip(self.t("settings.main_screen"))
+        back.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        back.clicked.connect(self.go_home)
+        # KEPT, AND RE-SIZED ON EVERY RESIZE, for the reason the banners themselves are. Its
+        # side comes from banner_height(), and at the moment a strip is built the window has
+        # not been given its real shape yet -- so sizing it once here made a 52px button where
+        # 100 was wanted. Exactly the fault the strip itself had in 2.00, one widget along.
+        self.banner_homes = getattr(self, "banner_homes", [])
+        self.banner_homes.append(back)
+        # AND SIZED NOW AS WELL AS ON THE NEXT RESIZE, which is the half that was missing:
+        # set_banner_heights runs on a resize, which is no use at all to a strip built later.
+        self.set_banner_heights()
+        return back
+
     def make_banner(self, gear: bool = True, home: bool = False) -> QtWidgets.QWidget:
         """The black strip across the top: where you are, the five prayer times with the
         current one in green, what is next -- and how loud the recitation is.
@@ -2550,30 +2614,7 @@ class MainWindow(QtWidgets.QWidget):
             # The words stay on the button where they cost nothing and still help: as its
             # accessible name and its tooltip, so a screen reader and a long press both still
             # say where it goes, in the language the mat is set to.
-            back = QtWidgets.QPushButton()
-            back.setObjectName("mainScreen")
-            back.setAccessibleName(self.t("settings.main_screen"))
-            back.setToolTip(self.t("settings.main_screen"))
-            back.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            back.clicked.connect(self.go_home)
-            # KEPT, AND RE-SIZED ON EVERY RESIZE, for the reason the banners themselves are.
-            # Its side comes from banner_height(), and at the moment a banner is built the
-            # window has not been given its real shape yet -- so sizing it once here made a
-            # 52px button where 100 was wanted. Exactly the fault the strip itself had in 2.00,
-            # one widget along.
-            self.banner_homes = getattr(self, "banner_homes", [])
-            self.banner_homes.append(back)
-            # AND SIZED NOW AS WELL AS ON THE NEXT RESIZE, which is the half that was
-            # missing. set_banner_heights() squares these buttons, and it runs on a resize --
-            # fine for every banner built while the window is being laid out, and no use at
-            # all to a banner built later. The Sources page builds itself fresh every time it
-            # is opened, so its button was never squared: 97x72 against the 118x118 on every
-            # other page. Harry spotted it as "the top banner is different to the rest of the
-            # app", and when asked which part, "the only difference is the size of the Main
-            # screen button". He was right, and I had measured the banner itself twice and
-            # called them identical, because I compared the strip and not what was in it.
-            self.set_banner_heights()
-            row.addWidget(back, 0, Qt.AlignmentFlag.AlignVCenter)
+            row.addWidget(self.way_home_button(), 0, Qt.AlignmentFlag.AlignVCenter)
         # Filled in now rather than at the next tick: see write_the_times. A strip built
         # between ticks -- which is every strip but the mosque's -- would otherwise come up
         # blank, and on a prayer's units that is a new one every time an arch is touched.
@@ -3956,18 +3997,34 @@ class MainWindow(QtWidgets.QWidget):
         bar = TopBar()
         bar.setObjectName("bar")
         grid = QtWidgets.QGridLayout(bar)
-        # Equal margins left and right, so the centre column really is the centre of the screen.
-        grid.setContentsMargins(self.px(16), self.px(6), self.px(16), self.px(6))
+        # NO MARGIN ON THE RIGHT, AND NONE TOP OR BOTTOM, which is what make_banner does and
+        # for the same reason: the house goes hard against the edge of the strip and fills it
+        # top to bottom, and a layout will not let a widget grow past the content rect -- so a
+        # margin here is the same thing as a shorter button. That is what made it 20px short
+        # on the ordinary banner back in 2.06.
+        #
+        # The centre column is still dead centre: TopBar places it by hand against the widget,
+        # not against the layout's content rect, so an uneven margin cannot pull it off centre.
+        grid.setContentsMargins(self.px(16), 0, 0, 0)
         grid.setHorizontalSpacing(self.px(12))
         for column in range(3):
             grid.setColumnStretch(column, 1)
 
         left = QtWidgets.QHBoxLayout()
         left.setSpacing(self.px(12))
-        stop = no_focus(QtWidgets.QPushButton(self.t("player.menu")))
-        stop.setObjectName("stop")
-        stop.clicked.connect(self.stop)
-        left.addWidget(stop)
+        # THE RING, WHERE THE MENU BUTTON USED TO BE. Harry, 16 November 2026: "there is also
+        # a menu button, remove it and replace it with the home button instead and swap its
+        # location with the red/green ring circle. the home button should now stay in the same
+        # place on all the screens."
+        #
+        # The Menu button went to the same place the house does, so two buttons said the same
+        # thing in two different shapes depending on which screen you were on. The house is
+        # the one every other screen already has, hard against the right edge -- so putting it
+        # there here is what makes "the same place on all the screens" true, and the ring
+        # takes the corner the Menu button has left.
+        self.dot = Dot(self.px(DOT_PX))
+        left.addWidget(self.dot, 0, Qt.AlignmentFlag.AlignVCenter)
+        left.addSpacing(self.px(4))
         self.title_label = QtWidgets.QLabel()
         self.title_label.setObjectName("title")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -4006,26 +4063,52 @@ class MainWindow(QtWidgets.QWidget):
         self.meaning_word.setObjectName("meaningWord")
         self.meaning_word.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         middle.addWidget(self.meaning_word, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.meaning_switch = Switch(self.settings.meaning, scale=self.s)
+        self.meaning_switch = Switch(self.settings.meaning,
+                                     scale=self.s * BIGGER_ON_THE_PRAYER_STRIP)
         self.meaning_switch.setObjectName("meaningSwitch")
         self.meaning_switch.toggled.connect(self.set_meaning)
         middle.addWidget(self.meaning_switch, 0, Qt.AlignmentFlag.AlignVCenter)
         bar.centre = centre
-        bar.setMinimumHeight(self.meaning_switch.sizeHint().height() + self.px(24))
+        # THE SAME HEIGHT AS EVERY OTHER STRIP, and this is measured rather than eyeballed.
+        #
+        # It was `switch height + px(24)`, a number of its own that answered to nothing. On a
+        # 16:9 screen that comes to 80 against the standard 72, so on the bench they look
+        # alike and nothing shows. On Harry's main display, which is 1920x1200, banner_height
+        # takes the slack a taller screen leaves and returns 120 -- while this stayed at 80.
+        # FORTY PIXELS SHORT, on the one screen he actually uses. "during the prayer steps,
+        # the top banner height is shorter to the standard top banner height, make it the
+        # same."
+        #
+        # TWO LINES, AND THE SECOND IS THE ONE THAT HOLDS. Registering it in self.banners is
+        # what makes it follow a resize; set_banner_heights then owns its height for the rest
+        # of the window's life. Sabotaging the setFixedHeight below -- putting the old
+        # `switch + px(24)` back -- made no test fail, because the first resize corrects it.
+        #
+        # It stays because it is not quite redundant: it covers the moment between the player
+        # being built and the first resize arriving. That moment is real and it is too short
+        # to write an honest test around, so it is said here instead of being dressed up as a
+        # guarantee.
+        bar.setFixedHeight(self.banner_height())
+        self.banners = getattr(self, "banners", [])
+        self.banners.append(bar)
 
         right = QtWidgets.QHBoxLayout()
         right.setSpacing(self.px(16))
         right.addStretch(1)
-        # The volume sits in the bar, beside the rakat: one place for it whether or not there
-        # is a second screen, and it leaves the 7" to the posture picture alone.
-        self.volume = VolumeBar(self.px(54), self.settings.volume, Fonts.english_family)
-        self.volume.scale = self.s
-        self.volume.setFixedWidth(self.px(300))
-        self.volume.changed.connect(self.set_volume)
-        right.addWidget(self.volume, 0, Qt.AlignmentFlag.AlignVCenter)
-        right.addSpacing(self.px(12))
-        self.dot = Dot(self.px(68))
-        right.addWidget(self.dot)
+        # THE SAME SLIDER AS EVERY OTHER STRIP, in the place this bar already kept for it.
+        # Harry: "swap the volume slider with our other volume slide from main top banner,
+        # same exact location."
+        #
+        # It was a VolumeBar of its own -- a different control, with its own look and its own
+        # way of being dragged, on the one screen where somebody is least able to stop and
+        # work out which kind of slider they are looking at. volume_slider() is the one the
+        # front door, the Qur'an and the rest carry, and it registers itself in volume_bars so
+        # this one now moves with the others instead of only with itself.
+        right.addLayout(self.volume_slider(dark=True))
+        right.addSpacing(self.px(16))
+        # The house, last in the row and hard against the right edge -- the same place, and
+        # the same button, as every other strip on the mat. See way_home_button.
+        right.addWidget(self.way_home_button(), 0, Qt.AlignmentFlag.AlignVCenter)
         grid.addLayout(right, 0, 2)
 
         self.bar = bar
@@ -5864,10 +5947,17 @@ class MainWindow(QtWidgets.QWidget):
         asked to do its job and the ones that object are dropped.
         """
         loud = self.settings.volume if self.settings.recitation else 0
-        try:
-            self.volume.set_volume(loud)
-        except RuntimeError:
-            pass                                 # the strip that owned it has been taken down
+        # `self.volume` was the prayer strip's own VolumeBar -- a second kind of volume
+        # control, on the one screen where somebody is least able to work out which kind they
+        # are looking at. It went at 2.40 for the slider every other strip carries, and that
+        # one keeps itself in volume_bars below. Guarded rather than assumed absent: a window
+        # built before the swap, or a future screen that wants a bar of its own, still works.
+        own = getattr(self, "volume", None)
+        if own is not None:
+            try:
+                own.set_volume(loud)
+            except RuntimeError:
+                pass                             # the strip that owned it has been taken down
         alive = []
         for bar, read in getattr(self, "volume_bars", []):
             try:
