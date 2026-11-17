@@ -16787,7 +16787,16 @@ class LetteringOnTheDomeTest(unittest.TestCase):
 
     def test_the_lettering_is_most_of_the_dome_across(self):
         """The other half of what Harry asked for, and the reason the first half is not simply
-        satisfied by writing everything very small."""
+        satisfied by writing everything very small.
+
+        THE FLOOR IS A FLOOR, NOT THE SIZE. It was 0.75 for the one release the time spent at
+        0.84 of the dome; Harry asked for a fifth off at 2.43 and the time now crosses two
+        thirds of the dome rather than six sevenths. What this holds is that the time has not
+        quietly vanished -- that it is still most of the way across a dome -- and the size
+        itself is his to choose and is written down in tools/build_mosque_pack.py. A floor set
+        just under the current value is a test that fails the next time he changes his mind by
+        a hair, which is not a fault.
+        """
         import numpy as np
         from salaah.mosque import MosqueScreen
         dome = self.dome_of("mosque")
@@ -16806,7 +16815,7 @@ class LetteringOnTheDomeTest(unittest.TestCase):
         ink = self.drawn(screen, box, "17:46", dome.shape)
         xs = np.where(ink.any(axis=0))[0]
         across = int(xs.max() - xs.min())
-        self.assertGreater(across / widest, 0.75,
+        self.assertGreater(across / widest, 0.5,
                            f"the time is {across}px across a dome {widest}px wide")
     """How much room a full-screen drawing actually gets, on each screen the mat has.
 
@@ -18490,50 +18499,49 @@ class JourneyJigsawTest(unittest.TestCase):
         settle()
         return w, w.games["jigsaw"]
 
-    def test_the_picture_is_drawn_as_it_is_by_day_and_turned_over_after_dark(self):
-        """Harry at 2.40: "i want this in place just for dark theme only - it fits the colour
-        scheme much better. keep the others for light theme only."
+    def test_a_painting_is_the_same_picture_by_day_and_after_dark(self):
+        """Harry at 2.43: "we need colour ... which will stay the same on both light/dark
+        theme."
 
-        This reverses a flat refusal, and the refusal was right about the pictures it was
-        written for: the old five were photographic, and inverting those made negatives. His
-        2.38 set is flat line art, which is the kind that does invert -- and two of them are
-        drawn as NIGHT SCENES, so the light version is a white night sky with black stars and
-        the inverted one is correct for the first time.
+        THIS HAS NOW BEEN BOTH WAYS ROUND IN THREE RELEASES, which is the argument for a rule
+        that reads the picture instead of a list of names. 2.38 put flat line art in and
+        refused to turn it over; 2.40 turned it over, rightly, because line art inverts to the
+        same drawing at night; 2.43 replaces it with watercolour, which does not.
 
-        Asked of the pixmap the screen would actually draw, in both themes, for all five.
+        A painting has no inverse. Inverting the Kaaba's kiswah makes a white box; inverting a
+        blue sky makes an orange one. So the five are drawn as they are, in both themes, and
+        this asks for the same pixmap rather than for a picture that merely looks similar.
         """
-        for theme, wants_light in (("light", True), ("dark", False)):
+        from salaah.render import has_colour
+        for theme in ("light", "dark"):
             _, screen = self.screen(theme)
             for at in range(len(screen.PICTURES)):
+                screen.game.picture = at
                 with self.subTest(theme=theme, picture=screen.PICTURES[at]):
-                    screen.game.picture = at
-                    shown = screen._image().toImage()
-                    paper = sum(QtGui.qGray(shown.pixel(x, y)) > 200
-                                for x in range(0, shown.width(), 29)
-                                for y in range(0, shown.height(), 29))
-                    seen = len(range(0, shown.width(), 29)) * len(range(0, shown.height(), 29))
-                    mostly_paper = paper > seen * 0.5
-                    self.assertEqual(wants_light, mostly_paper,
-                                     f"{theme}: this picture is "
-                                     f"{'mostly white' if mostly_paper else 'mostly black'}")
+                    # the pixmap it loaded, not a copy that happens to match today
+                    self.assertEqual(screen.images[at].cacheKey(), screen._image().cacheKey(),
+                                     "the picture has been turned over or copied")
+                    self.assertTrue(has_colour(screen.images[at]),
+                                    f"{screen.PICTURES[at]} is not in colour, so the mat "
+                                    f"would turn it over after dark")
+                    self.assertTrue(screen.dark_images[at].isNull(),
+                                    f"{screen.PICTURES[at]} is in colour and a dark copy of "
+                                    f"it is being held anyway")
 
-    def test_a_hand_drawn_dark_picture_is_used_instead_of_turning_the_light_one_over(self):
-        """THE WHOLE REASON THE RULE IS A RULE AND NOT A LIST.
+    def test_the_kaaba_is_the_kiswah_on_a_dark_mat(self):
+        """THE CONTENT, not the mechanism, and the reason this class keeps asking it.
 
-        The Kaaba is not a colour, it is the kiswah. Inverted, the one thing a child is most
-        certain of came out as a white box -- measured on Harry's own inverted set, 81% paper
-        where his drawing is 82% ink. So he drew a proper dark version of that one, and it is
-        not a negative of anything.
+        The Kaaba is not a colour, it is the kiswah. Every arrangement the mat has tried has
+        had to be checked against this one picture: the 2.38 line art inverted to a white box
+        (81% paper where the drawing was 82% ink), so Harry hand-drew a dark version at 2.40,
+        and at 2.43 the painting simply is not turned over. Three mechanisms, one claim -- on a
+        dark mat the Kaaba has to still be black.
 
-        What this holds is the CONTENT, not the mechanism: on a dark mat the Kaaba has to
-        still be dark. A test that only checked "a -dark.png file was loaded" would pass just
-        as happily on a file containing the negative.
+        A test that checked which FILE was loaded would have passed on all three, including the
+        one that was wrong.
         """
         from salaah.journey_jigsaw import Screen
-        root = Path(__file__).resolve().parent.parent / "assets" / "children"
         at = Screen.PICTURES.index("kaaba-jigsaw.png")
-        self.assertTrue((root / "kaaba-jigsaw-dark.png").is_file(),
-                        "the hand-drawn dark Kaaba is not on the mat")
         _, screen = self.screen("dark")
         screen.game.picture = at
         shown = screen._image().toImage()
@@ -18548,40 +18556,43 @@ class JourneyJigsawTest(unittest.TestCase):
                            f"the Kaaba is only {100 * ink / seen:.0f}% ink on a dark mat: "
                            "the kiswah has come out white")
 
-    def test_a_picture_with_no_dark_drawing_is_turned_over_instead(self):
-        """THE OTHER HALF OF THE RULE, and the half that makes the dark drawings optional.
+    def test_a_picture_without_colour_is_still_turned_over(self):
+        """THE OTHER HALF OF THE RULE, and the half nothing on the mat exercises any more.
 
-        Harry has drawn two of the five and said plainly he is not drawing the rest. So the
-        absence of a dark file is not a gap, it is the ordinary case -- and because it is, the
-        test that checks every picture a game names is on the mat has to let "-dark.png" past.
-        That exemption is only honest if absence is a defined behaviour rather than an
-        untested hope, so this is where it is paid for.
+        All five are paintings now, so every shipped picture takes the same branch and the
+        inversion -- which is still there, and still right for a line drawing -- would go
+        untested. That matters for two reasons: the mat has swung between the two behaviours
+        three times in five releases, and the test that checks every picture a game names is
+        on the mat has an exemption for "-dark.png" that is only honest while the dark path
+        means something.
 
-        Done by hiding a file that IS there and rebuilding, rather than trusting one of the
-        three that happen to be missing: that way the test still means something on the day
-        Harry draws the other three.
+        So this makes a picture that is not in colour and checks the mat turns it over. A grey
+        copy of one of the five, written beside them under a name of its own and taken away
+        again: a stray file the manifest would notice beats editing a shipped one, which it
+        would not.
         """
         from salaah.journey_jigsaw import Screen
         root = Path(__file__).resolve().parent.parent / "assets" / "children"
-        at = Screen.PICTURES.index("kaaba-jigsaw.png")
-        drawn = root / "kaaba-jigsaw-dark.png"
-        self.assertTrue(drawn.is_file(), "there is no dark Kaaba to hide")
-        hidden = drawn.with_suffix(".png.hidden-by-a-test")
-        drawn.rename(hidden)
-        self.addCleanup(lambda: hidden.exists() and hidden.rename(drawn))
+        spare = root / "turned-over-by-a-test.png"
+        grey = QtGui.QPixmap(str(root / "eid-prayer-jigsaw.png")).toImage().convertToFormat(
+            QtGui.QImage.Format.Format_Grayscale8)
+        self.assertTrue(grey.save(str(spare)), "could not write the grey picture")
+        self.addCleanup(lambda: spare.exists() and spare.unlink())
 
-        _, screen = self.screen("dark")
-        screen.game.picture = at
-        shown = screen._image().toImage()
-        light = screen.images[at].toImage()
-        self.assertNotEqual(shown.pixel(10, 10), light.pixel(10, 10),
-                            "with no dark drawing the light one was used unchanged")
-        paper = sum(QtGui.qGray(shown.pixel(x, y)) > 200
-                    for x in range(0, shown.width(), 29)
-                    for y in range(0, shown.height(), 29))
-        seen = len(range(0, shown.width(), 29)) * len(range(0, shown.height(), 29))
-        self.assertLess(paper, seen * 0.5,
-                        "with no dark drawing the picture was not turned over")
+        names = (spare.name,) + Screen.PICTURES[1:]
+        with mock.patch.object(Screen, "PICTURES", names):
+            _, screen = self.screen("dark")
+            self.assertFalse(screen.coloured[0], "the grey copy was taken for a painting")
+            screen.game.picture = 0
+            shown = screen._image().toImage()
+            light = screen.images[0].toImage()
+            self.assertNotEqual(shown.pixel(10, 10), light.pixel(10, 10),
+                                "a picture with no colour in it was not turned over")
+            paper = sum(QtGui.qGray(shown.pixel(x, y)) > 200
+                        for x in range(0, shown.width(), 29)
+                        for y in range(0, shown.height(), 29))
+            seen = len(range(0, shown.width(), 29)) * len(range(0, shown.height(), 29))
+            self.assertLess(paper, seen * 0.5, "it came out light side up")
 
     def test_inverting_is_done_once_and_not_on_every_repaint(self):
         """A jigsaw repaints on every frame of a drag. Inverting a 1600x900 pixmap thirty
@@ -18949,34 +18960,49 @@ class PrayerDayJourneyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as empty:
             self.assertFalse(Screen.playable(Path(empty)))
 
-    def test_the_skies_are_full_size_and_carry_no_colour(self):
-        """REDRAWN after 1.97. The first set were 1280x720, which is soft on a 1920 screen,
-        and three of the five carried real colour -- Maghrib had a strong orange sky, with
-        nearly 40% of its pixels coloured -- on a mat whose every other drawing is monochrome.
+    def test_the_skies_are_full_size_and_tell_each_other_apart(self):
+        """REDRAWN after 1.97, and again at 2.43.
 
-        Both pinned here because both are easy to lose on a redraw and neither fails loudly:
-        a colour picture looks fine on a developer screen and only reads as odd beside the
-        rest of the mat, and a half-size one is simply a bit blurry.
+        THE COLOUR CLAUSE IS NOW THE OPPOSITE OF WHAT IT WAS. Up to 2.42 this asked for no
+        colour at all: the mat's every other drawing was monochrome and three of the 1.97 set
+        carried real colour, so a redraw that quietly arrived in colour read as odd beside the
+        rest. Harry replaced them with watercolours at 2.43 and the rest of the mat with them,
+        so the odd one out would now be a grey sky.
+
+        What the GAME needs was never the monochrome -- it is that the five can be told apart,
+        because the question is which prayer a sky belongs to and the sky is the whole of the
+        answer. That was true of the greys and it is what is asked for here, which is a claim
+        worth making about either set: it would have caught two skies drawn the same long
+        before anybody noticed a child could not answer.
+
+        Measured on the top third, which is sky in all five, as the distance between their
+        average colours. Isha's night and Zuhr's noon are 497 apart; the closest pair, Zuhr and
+        Asr -- both blue daylight -- are 55, and that is the number with the least room in it.
+
+        The full size is pinned for the same reason it always was: a half-size picture does not
+        fail loudly, it is simply a bit blurry.
         """
-        from PIL import Image, ImageChops
+        from PIL import Image
         from salaah.prayer_day_journey import ASSETS as SCENE_FILES, SCENES
         root = Path(__file__).resolve().parent.parent / "assets" / "children"
+        average = {}
         for scene in SCENES:
             with Image.open(root / SCENE_FILES[scene]) as picture:
-                size, mode = picture.size, picture.mode
-                red, green, blue = picture.convert("RGB").split()
+                size = picture.size
+                sky = picture.convert("RGB").crop((0, 0, size[0], size[1] // 3))
             with self.subTest(scene):
                 self.assertEqual((1920, 1080), size, f"{scene} is {size}")
-                self.assertEqual("L", mode, f"{scene} is saved as {mode}, not greyscale")
-                # Grey by its own PIXELS, not by the mode letter. A colour PNG that happens to
-                # look grey is a different file with the same appearance, and a redraw that
-                # arrives as RGB would pass a mode check the moment somebody "helpfully"
-                # converted it on the way in. The widest gap between any pixel's channels is
-                # what the question actually is.
-                worst = max(ImageChops.difference(red, green).getextrema()[1],
-                            ImageChops.difference(green, blue).getextrema()[1])
-                self.assertEqual(0, worst,
-                                 f"{scene} carries colour: channels differ by up to {worst}")
+            pixels = sky.resize((96, 54), Image.LANCZOS).tobytes()
+            bands = [pixels[i::3] for i in range(3)]
+            average[scene] = [sum(band) / len(band) for band in bands]
+        order = list(SCENES)
+        for i, one in enumerate(order):
+            for other in order[i + 1:]:
+                apart = sum(abs(a - b) for a, b in zip(average[one], average[other]))
+                with self.subTest(f"{one} vs {other}"):
+                    self.assertGreater(apart, 30,
+                                       f"{one} and {other} are the same sky to within "
+                                       f"{apart:.0f}: the game's question has two answers")
 
 
 class MosqueMazeTest(unittest.TestCase):

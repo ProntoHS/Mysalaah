@@ -9,7 +9,7 @@ from __future__ import annotations
 import random
 
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
-from .render import Fonts, invert
+from .render import Fonts, has_colour, invert
 from .theme import palette
 from .winning import announce_if_won
 
@@ -113,16 +113,23 @@ class Screen(QtWidgets.QWidget):
         # they are.
         base = window.assets / "children"
         self.images = tuple(QtGui.QPixmap(str(base / name)) for name in self.PICTURES)
-        # THE DARK HALF OF EACH, WORKED OUT ONCE. A hand-drawn one if Harry has drawn it,
-        # otherwise the light one inverted -- see _image for which and why.
+        # WHICH OF THEM ARE IN COLOUR, asked of the pictures rather than written down, because
+        # a list of names goes stale the next time Harry redraws one. See _image.
+        self.coloured = tuple(has_colour(picture) for picture in self.images)
+        # THE DARK HALF OF EACH, WORKED OUT ONCE, for any that are not. A hand-drawn one if
+        # Harry has drawn it, otherwise the light one inverted -- see _image for which and why.
         #
         # Done here and not in _image, which is called on every repaint and a jigsaw repaints
         # on every frame of a drag. Inverting a 1600x900 pixmap thirty times a second while a
         # child is sliding a piece about is the kind of thing that makes a Pi feel broken.
+        # A coloured picture gets no dark half at all: it would be a megabyte of RAM held for
+        # something that is never drawn.
         self.dark_images = tuple(
-            QtGui.QPixmap(str(base / dark)) if (base / dark).is_file() else invert(light)
-            for dark, light in ((name.replace(".png", "-dark.png"), picture)
-                                for name, picture in zip(self.PICTURES, self.images)))
+            QtGui.QPixmap() if colour else
+            (QtGui.QPixmap(str(base / dark)) if (base / dark).is_file() else invert(light))
+            for colour, dark, light in
+            ((is_colour, name.replace(".png", "-dark.png"), picture)
+             for is_colour, name, picture in zip(self.coloured, self.PICTURES, self.images)))
 
         self._down_slot: int | None = None
         self._down_at = QtCore.QPointF()
@@ -141,7 +148,21 @@ class Screen(QtWidgets.QWidget):
     def _image(self):
         """The picture, as drawn, in both themes.
 
-        A HAND-DRAWN DARK VERSION WINS; WHERE THERE IS NONE, THE LIGHT ONE IS INVERTED.
+        A PICTURE WITH COLOUR IN IT IS NEVER TURNED OVER. Otherwise a hand-drawn dark version
+        wins, and where there is none the light one is inverted.
+
+        The colour clause is 2.43, and it is the whole of what Harry asked for: "i dont like
+        the jigsaw's i had you swap before, they are too b&w which actually makes it difficult
+        for a jigsaw, we need colour ... which will stay the same on both light/dark theme."
+        He is right about the jigsaw as a game, too -- a piece of flat white is a piece of flat
+        white wherever it came from, and colour is what lets a child place one at all.
+
+        ASKED OF THE PICTURE, NOT OF A LIST OF NAMES. A list is a thing to forget to update,
+        and this one has been rewritten three times in five releases. What is measured is how
+        far the pixels stray from grey, and the margin is not close: these watercolours sit
+        between 23 and 76 on a 0-255 scale and a flat black-and-white drawing sits at 0. So the
+        rule maintains itself -- drop a drawing in and it turns over after dark, drop a
+        painting in and it does not.
 
         That rule is the whole of this method, and it replaces a flat refusal to turn these
         over at all. The refusal was right about the OLD five, which were pictures of real

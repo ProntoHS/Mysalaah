@@ -1349,6 +1349,43 @@ def invert(pix: QtGui.QPixmap) -> QtGui.QPixmap:
     return QtGui.QPixmap.fromImage(image)
 
 
+#: How far from grey a picture's pixels have to stray, on average, before it counts as being
+#: in colour. Nowhere near either answer: a flat black-and-white drawing sits at 0.0, and the
+#: least colourful of Harry's 2.43 watercolours -- the Kaaba, which is mostly stone and sky --
+#: sits at 22.8. Anything between the two would be a wash of one faint tint, which is the one
+#: case where either answer is defensible.
+COLOUR_ENOUGH = 8.0
+
+
+def has_colour(pix: QtGui.QPixmap, enough: float = COLOUR_ENOUGH) -> bool:
+    """Whether a picture is in colour, rather than black, white and greys.
+
+    The mat turns line art over after dark and must not do that to a painting, so something has
+    to decide which it is holding. Asking the picture beats keeping a list of which files are
+    which: the list is what gets forgotten when the artwork is redrawn, and this artwork has
+    been redrawn three times in five releases.
+
+    Measured as how far each pixel's strongest channel is from its weakest -- nought for any
+    grey, whatever its lightness -- averaged over the picture. Sampled on a grid rather than
+    read whole: this runs once per picture at startup on a Pi, and a 1600x900 picture is 1.4
+    million pixels to answer a question that four thousand of them settle.
+    """
+    image = pix.toImage()
+    if image.isNull():
+        return False
+    step = max(1, min(image.width(), image.height()) // 64)
+    total = seen = 0
+    for y in range(0, image.height(), step):
+        for x in range(0, image.width(), step):
+            colour = image.pixelColor(x, y)
+            if colour.alpha() < 8:
+                continue
+            total += max(colour.red(), colour.green(), colour.blue()) - \
+                min(colour.red(), colour.green(), colour.blue())
+            seen += 1
+    return seen > 0 and total / seen >= enough
+
+
 def paint_house(p: QtGui.QPainter, w: float, h: float, colour: QtGui.QColor) -> None:
     """One house, drawn into a w by h box at the painter's current origin.
 
