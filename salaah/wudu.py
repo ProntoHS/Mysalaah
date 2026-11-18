@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .filmsheet import draw_themed
+from .filmsheet import STAMP, draw_themed, how_it_turns
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import ArrowButton, TextSize
 from .theme import palette
@@ -127,11 +127,13 @@ class Film(QtWidgets.QWidget):
     """One animation, drawn as large as its box allows and turned inside out on a dark screen.
 
     Painted here rather than handed to a QLabel with setMovie. Two reasons, and the second is
-    the one that matters. A QLabel cannot invert what it is given, and Harry's drawings are
-    black lines on white paper: on the night screen they were a slab of white light beside
-    words in the opposite colours. Everything else on the mat -- the tiles, the posture figures,
-    the mosques -- inverts for the dark screen, and these should too, from the one set of files
-    rather than a second set shipped alongside.
+    the one that matters. A QLabel cannot decide what a dark screen does to what it is given,
+    and these drawings need deciding about. Until 2.44 they were black lines on white paper and
+    the night screen showed a slab of white light beside words in the opposite colours, so they
+    were inverted whole, like the tiles and the posture figures and the mosques. Harry's 2.44
+    films are in colour with their paper cut away instead, so the page shows through where the
+    paper was and nothing is inverted at all. Which of those happens is how_it_turns' answer,
+    not this widget's: drop either kind in and it is drawn right.
 
     And the old way needed a trick. setScaledSize is only read when a film is STARTED, so a
     resize meant stopping and restarting it to make the new size take. Painting the frame
@@ -144,12 +146,18 @@ class Film(QtWidgets.QWidget):
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                            QtWidgets.QSizePolicy.Policy.Expanding)
         self.shape = QtCore.QSize(512, 768)
+        #: What the dark screen does to this drawing, settled once off the first frame. Harry's
+        #: 2.44 films are in colour with their paper cut away, so the answer for them is KEEP
+        #: and the boy is the same pixels on both screens; the line drawings they replaced
+        #: filled their box and were inverted whole.
+        self.turns = STAMP
         self.film = QtGui.QMovie(str(path))
         if self.film.isValid():
             self.film.setParent(self)        # so Qt takes it down with the widget
             self.film.jumpToFrame(0)
             if not self.film.currentPixmap().isNull():
                 self.shape = self.film.currentPixmap().size()
+                self.turns = how_it_turns(self.film.currentPixmap())
             # A bound method, not a lambda: a lambda holds the widget through the connection
             # and neither is ever collected. See the note in filmsheet.py.
             self.film.frameChanged.connect(self.next_frame)
@@ -182,7 +190,7 @@ class Film(QtWidgets.QWidget):
             return
         where = QtCore.QRect(QtCore.QPoint(0, 0), want)
         where.moveCenter(self.rect().center())
-        draw_themed(p, self.film, where)
+        draw_themed(p, self.film, where, self.turns)
 
     def follow_theme(self) -> None:
         self.update()

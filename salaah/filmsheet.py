@@ -40,6 +40,45 @@ def turn_inside_out(painter, where: QtCore.QRect) -> None:
     painter.setCompositionMode(was)
 
 
+#: The three things that can be done to a drawing when the screen goes dark, and which one is
+#: right is a property of the drawing rather than of the screen it is on.
+#:
+#: STAMP   -- white over the top of the rectangle in Difference mode. Costs nothing and is
+#:            exactly inversion, and it is right for a line drawing that fills its box.
+#: LIFT    -- the frame itself inverted, which leaves transparency alone. For a line drawing on
+#:            a see-through ground, where stamping the box would invert the page showing through
+#:            it: Harry's 1.84 menus came up as a white sheet before this existed.
+#: KEEP    -- nothing at all. For a drawing in colour, which must not be turned over whatever
+#:            the screen is doing, because turning it over is not a change of theme, it is a
+#:            different picture: Harry, 17 November 2026, "i dont want you to invert the the
+#:            actual child and wash basin etc, just the background only if possible".
+#:
+#: The 2.44 wu'du films are the first KEEP: they are in colour and their paper has been cut
+#: away, so the page shows through where the paper was and the boy is the same pixels on both
+#: screens. That is the whole of what Harry asked for, and it costs the mat nothing at all --
+#: no inversion, no second set of files, no pass over the pixels.
+STAMP, LIFT, KEEP = "stamp", "lift", "keep"
+
+
+def how_it_turns(pix: "QtGui.QPixmap") -> str:
+    """Which of the three a drawing wants, asked of the drawing.
+
+    ASKED, NOT LISTED. The list of which pictures invert and which do not has been rewritten
+    three times in five releases and been wrong after two of them, because a list is the thing
+    nobody remembers to update when the artwork is redrawn. Both questions here are measured:
+    whether the drawing is in colour, and whether it lets the page through.
+
+    Answered once per film, off its first frame. Both are a pass over the pixels, which is
+    nothing at load and would be everything at twelve frames a second.
+    """
+    from .render import has_colour
+    if pix.isNull():
+        return STAMP
+    if has_colour(pix):
+        return KEEP
+    return LIFT if see_through(pix) else STAMP
+
+
 def see_through(pix: "QtGui.QPixmap") -> bool:
     """Whether this drawing lets the page show through it anywhere.
 
@@ -56,8 +95,8 @@ def see_through(pix: "QtGui.QPixmap") -> bool:
     return False
 
 
-def draw_themed(painter, film, where: QtCore.QRect, clear: bool = False) -> None:
-    """Draw this frame of [film] into [where], turned inside out if the screen is dark.
+def draw_themed(painter, film, where: QtCore.QRect, turns: str = STAMP) -> None:
+    """Draw this frame of [film] into [where], turned over or not as [turns] says.
 
     Nothing is kept. The first version of this cached each frame scaled and inverted, which
     looked like good sense and was not: a menu sheet is 1980x1080 and thirty-six frames, so a
@@ -70,26 +109,31 @@ def draw_themed(painter, film, where: QtCore.QRect, clear: bool = False) -> None
     blit: white over the top in Difference mode gives |255 - pixel|, which is exactly inversion
     and costs no memory at all.
 
-    Two ways of inverting, then, and which one is right depends on the drawing. The white-over-the-top
-    trick inverts the RECTANGLE, which is exactly the drawing when the drawing fills it -- and
-    is wrong the moment it does not. Harry's 1.84 menus are drawn on a see-through ground, so
+    Three ways of handling a dark screen, then -- see STAMP, LIFT and KEEP above -- and which
+    one is right depends on the drawing, not on this function. The white-over-the-top trick
+    inverts the RECTANGLE, which is exactly the drawing when the drawing fills it -- and is
+    wrong the moment it does not. Harry's 1.84 menus are drawn on a see-through ground, so
     after dark the trick was inverting the page showing through them and the 7in menu came up as
     a white sheet: caught by a test that samples the bottom corner, which is clear in his
     drawing and was reading 255 where it wanted under 30. For those, the frame itself is
     inverted instead -- render.invert leaves transparency alone -- which costs a pass over the
     pixels and is why it is not done for the big opaque sheets.
+
+    And a drawing in colour is simply drawn, on both screens, which costs less than either.
     """
     source = film.currentPixmap()
     if source.isNull() or where.isEmpty():
         return
     painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
-    if palette().dark and clear:
+    if not palette().dark or turns == KEEP:
+        painter.drawPixmap(where, source)
+        return
+    if turns == LIFT:
         from .render import invert
         painter.drawPixmap(where, invert(source))
         return
     painter.drawPixmap(where, source)
-    if palette().dark:
-        turn_inside_out(painter, where)
+    turn_inside_out(painter, where)
 
 
 class FilmSheet(QtWidgets.QWidget):
@@ -140,11 +184,11 @@ class FilmSheet(QtWidgets.QWidget):
         film.setParent(self)
         film.frameChanged.connect(self.next_frame)
         self.film = film
-        # Whether this sheet lets the page show through it, settled once here off the first
-        # frame -- see draw_themed for why the answer changes how it is turned inside out after
-        # dark. Harry's 1.84 menus are drawn on a clear ground; everything before them is not.
+        # What this sheet wants done to it after dark, settled once here off the first frame --
+        # see how_it_turns. Harry's 1.84 menus are drawn on a clear ground; everything before
+        # them is not; and from 2.44 a sheet may be in colour, in which case nothing is done.
         film.jumpToFrame(0)
-        self.clear = see_through(film.currentPixmap())
+        self.turns = how_it_turns(film.currentPixmap())
 
         for name in names:
             tile = Tile(window.images, where / f"{name}.png", name, quiet=True)
@@ -211,7 +255,7 @@ class FilmSheet(QtWidgets.QWidget):
         p = QtGui.QPainter(self)
         p.fillRect(self.rect(), QtGui.QColor(palette().paper))
         if self.film is not None:
-            draw_themed(p, self.film, self.placement()[0], self.clear)
+            draw_themed(p, self.film, self.placement()[0], self.turns)
 
     def follow_theme(self) -> None:
         self.update()

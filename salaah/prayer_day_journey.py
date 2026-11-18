@@ -4,6 +4,14 @@ The 16-inch display presents the approved prayer-time scenes. The 7-inch
 companion carries translated questions, feedback and controls. A second mode
 lets children put the scenes in chronological order on the main touchscreen.
 All progress is held in memory and artwork is loaded through ``window.assets``.
+
+TOUCH ONLY, SINCE 2.44. The ring used to play this: a timer walked a highlight round the
+answers every 1.35 seconds and one button took whatever it had reached. Harry, 17 November
+2026: "the prayer day journey is still enabled for ring control, disable it, touch only and
+space answers apart slightly." The timer, the highlight and the one-button press have all gone
+-- BACK still leaves, as it does from every other game -- and everything they did is a thing
+on one of the two touchscreens. Both of this game's screens are touchscreens; the ring's job
+on this mat is the prayer steps.
 """
 from __future__ import annotations
 
@@ -22,7 +30,15 @@ SCENES = ("fajr", "dhuhr", "asr", "maghrib", "isha")
 #: his 1080x1920 panel against the Mosque Maze's 120-135, so this brings the one game whose
 #: panel looked wrong into line with the ones that look right.
 ANSWER_TALL = 81
-ANSWER_GAP = 14
+#: And the air between them, which Harry asked for in the same breath as the ring: "touch only
+#: and space answers apart slightly". Fourteen becomes twenty-two -- 26px becomes 41px on his
+#: panel. It is a gap rather than a stretch: the five answers are a group, and the spare height
+#: still falls below them in the layout's one stretch, so this only ever takes room from the
+#: empty part of the panel. At the hardest level, which is the only one that shows all five,
+#: they finish at worst 250px above the controls on his panel -- Russian and Spanish, whose
+#: question wraps to a third line -- against 341px in English and 411 in Urdu. Measured in all
+#: ten, at the hardest level, rather than looked at in one.
+ANSWER_GAP = 22
 #: And the lettering on them, likewise half again -- 30 lands on the same 56px every other
 #: panel's buttons use, so the number is both what was asked for and what already works.
 ANSWER_FONT = 30
@@ -111,11 +127,12 @@ class Rules:
         self.difficulty = (self.difficulty + 1) % len(self.LEVEL_COUNTS)
         self.restart()
 
-    def step(self) -> None:
-        if self.done or self.locked:
-            return
-        count = len(self.choices) if self.mode == self.NAME else len(self.order)
-        self.active = (self.active + 1) % count
+    # THERE IS NO step() ANY MORE. It moved the highlight on by one, and a timer called it
+    # every 1.35 seconds so that a one-button ring could be pressed when the highlight arrived
+    # at the right answer. Harry, 17 November 2026: "the prayer day journey is still enabled
+    # for ring control, disable it, touch only". Both screens this game uses are touch, the
+    # ring's job on this mat is the prayer steps, and a highlight crawling round five answers
+    # on its own is a thing to wait for rather than a thing to use.
 
     def answer(self, which: int) -> str:
         if (self.mode != self.NAME or self.done or self.locked
@@ -157,15 +174,11 @@ class Rules:
             return "complete"
         return "moved"
 
-    def press(self, which=None) -> str:
-        if self.done:
-            self.restart()
-            return "again"
-        if self.mode == self.NAME:
-            if self.locked:
-                return self.next_round()
-            return self.answer(self.active if which is None else which)
-        return self.tap_order(self.active if which is None else which)
+    # AND THERE IS NO press() EITHER, for the same reason. It was the ring's one button: with
+    # no index to go on it acted on whatever the highlight had crawled to -- answering,
+    # advancing a round, or starting the game again, depending on where the game had got to.
+    # Every one of those is a thing on the panel to touch. What is left is `active`, which is
+    # no longer a resting place but simply the last thing a finger touched.
 
 
 class SceneCanvas(QtWidgets.QFrame):
@@ -261,7 +274,10 @@ class SceneCanvas(QtWidgets.QFrame):
             painter.drawPixmap(slot, pixmap, source)
             edge = c.green if self.game.done else c.line
             thick = self.win.px(8) if self.game.selected == index else self.win.px(4)
-            if self.game.selected == index or self.game.active == index:
+            # Only what a finger has picked up, not where a highlight was resting: `active`
+            # used to be moved on by a timer and is now only ever set by a touch, so the two
+            # would draw the same edge round two different scenes.
+            if self.game.selected == index:
                 edge = c.lapis
             painter.setPen(QtGui.QPen(QtGui.QColor(edge), thick))
             painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -320,7 +336,6 @@ class SceneCanvas(QtWidgets.QFrame):
 class Screen(QtWidgets.QWidget):
     """Host screen with an attached widget for the 7-inch companion display."""
 
-    CYCLE = 1350
     leave = Signal()
     changed = Signal()
     won = Signal()
@@ -343,9 +358,6 @@ class Screen(QtWidgets.QWidget):
         self.canvas.chosen.connect(self._order_choice)
         main_layout.addWidget(self.canvas)
 
-        self._scan = QtCore.QTimer(self)
-        self._scan.setInterval(self.CYCLE)
-        self._scan.timeout.connect(self._scan_step)
         self.companion = self._build_companion()
         self.changed.connect(self.canvas.update)
         self.changed.connect(self._look_for_a_win)
@@ -544,8 +556,10 @@ class Screen(QtWidgets.QWidget):
                             state = "right"
                         elif index == self.game.chosen:
                             state = "chosen"
-                    elif index == self.game.active:
-                        state = "active"
+                    # NO "active" STATE. That lapis border marked where the ring's highlight
+                    # was resting, and with the ring gone it marked the first answer from the
+                    # moment the round opened -- a child reading an edge the game draws round
+                    # one of five answers before anybody has touched anything.
                     button.setProperty("answerState", state)
                     button.style().unpolish(button)
                     button.style().polish(button)
@@ -600,7 +614,7 @@ class Screen(QtWidgets.QWidget):
         title = self.win.side_px(40)
         body = self.win.side_px(28)
         label = self.win.side_px(30)
-        active = self.win.side_px(6)
+        marked = self.win.side_px(6)      # the thicker edge the two answered states get
         self.companion.setStyleSheet(
             # THE PANEL IS PAPER, not ink. This arrived inverted against the rest of the mat --
             # a white panel at night and a black one by day -- so the 7in beside the Islamic
@@ -612,16 +626,15 @@ class Screen(QtWidgets.QWidget):
             # THE EDGE IS INK. It was paper -- the same colour as the button's own fill and as
             # the box the five of them sit in -- so an answer had no visible edge at all and
             # the five choices read as bare words floating on the panel. Only the one the ring
-            # was resting on could be seen, because its lapis border came from the rule below.
-            # The three state borders still override this one, which is the whole point of
-            # having an ordinary edge to begin with: before, "active" was the only state that
-            # looked like anything.
+            # was resting on could be seen, because its lapis border came from the rule that
+            # used to sit below this one. That rule has gone with the ring, which leaves this
+            # as the edge every answer has until one is pressed, and makes the two state
+            # borders below the only thing that ever overrides it.
             f"QPushButton#answerButton {{ background: {c.paper}; color: {c.ink}; "
             f"border: {edge}px solid {c.ink}; }}"
-            f"QPushButton#answerButton[answerState='active'] {{ border: {active}px solid {c.lapis}; }}"
-            f"QPushButton#answerButton[answerState='right'] {{ border: {active}px solid {c.green}; "
+            f"QPushButton#answerButton[answerState='right'] {{ border: {marked}px solid {c.green}; "
             f"color: {c.green}; }}"
-            f"QPushButton#answerButton[answerState='chosen'] {{ border: {active}px solid {c.highlight}; "
+            f"QPushButton#answerButton[answerState='chosen'] {{ border: {marked}px solid {c.highlight}; "
             f"color: {c.highlight}; }}"
             f"QPushButton#controlButton {{ background: {c.paper}; color: {c.ink}; "
             f"border: {edge}px solid {c.ink}; }}"
@@ -644,69 +657,44 @@ class Screen(QtWidgets.QWidget):
         return all((base / ASSETS[key]).is_file() for key in SCENES)
 
     def start_again(self) -> None:
-        self._scan.stop()
         self.game.restart()
-        self._scan.start()
         self.changed.emit()
 
     def cycle_mode(self) -> None:
-        self._scan.stop()
         self.game.cycle_mode()
-        self._scan.start()
         self.changed.emit()
 
     def cycle_difficulty(self) -> None:
-        self._scan.stop()
         self.game.cycle_difficulty()
-        self._scan.start()
         self.changed.emit()
 
     def _choose(self, which) -> None:
         if self.game.answer(which) == "answered":
-            self._scan.stop()
             self.changed.emit()
 
     def _next(self) -> None:
-        result = self.game.next_round()
-        if result != "nothing":
-            if not self.game.done:
-                self._scan.start()
+        if self.game.next_round() != "nothing":
             self.changed.emit()
 
     def _order_choice(self, which) -> None:
-        result = self.game.tap_order(which)
-        if result != "nothing":
-            if self.game.done:
-                self._scan.stop()
+        if self.game.tap_order(which) != "nothing":
             self.changed.emit()
-
-    def _scan_step(self) -> None:
-        self.game.step()
-        self.changed.emit()
 
     def press(self, action="") -> None:
+        """BACK leaves. NOTHING ELSE DOES ANYTHING, and that is what Harry asked for.
+
+        Word for word the same as build_the_salaah.Screen.press, and for the same reason: the
+        ring's job on this mat is the prayer steps, and a game played on two touchscreens has
+        no one-button reading. Everything this used to do on a press -- answer, next round,
+        play again -- is a button on the panel beside it.
+        """
         from .buttons import BACK
         if action == BACK or str(action).lower() in ("back", "exit", "escape"):
-            self._scan.stop()
             self.leave.emit()
-            return
-        result = self.game.press()
-        if self.game.done or self.game.locked:
-            self._scan.stop()
-        else:
-            self._scan.start()
-        if result != "nothing":
-            self.changed.emit()
 
     def showEvent(self, event):
         self.follow_theme()
-        if not self.game.done and not self.game.locked:
-            self._scan.start()
         super().showEvent(event)
-
-    def hideEvent(self, event):
-        self._scan.stop()
-        super().hideEvent(event)
 
     def _look_for_a_win(self) -> None:
         """Runs after every change. See salaah/winning.py for why it is once and not always."""

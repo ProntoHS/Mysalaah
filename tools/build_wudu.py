@@ -3,6 +3,18 @@
 
     python3 tools/build_wudu.py --gifs ~/Downloads/wudu_gifs --sheet ~/Downloads/wudu.png
 
+                    ---- SUPERSEDED AT 2.44. DO NOT RUN THIS ON THE ----
+                    ---- COLOURED ARTWORK: IT WILL DESTROY IT.      ----
+
+This builds the 1.84 artwork, which was black line drawings on white paper, and the first
+thing it does to a film is throw away everything but four greys. Run on Harry's 2.44
+watercolours it would take the colour out of all eight, flatten the seventy step pictures to
+black and white, and leave their night versions behind untouched and no longer matching.
+
+What builds the current artwork is tools/wudu/install_colour.py. This is kept, unrun, because
+the 1.84 films are still what the fallback looks like and because the reasoning below about
+four greys is the reasoning that set the sixteen greys elsewhere on the mat.
+
 Writes assets/wudu: a film per step, and a tile per step off the sheet.
 
 The films arrive as 512x768, thirty frames, and weigh forty-six megabytes between them -- more

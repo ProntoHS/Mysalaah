@@ -1317,22 +1317,64 @@ def load_timings(assets: Path) -> dict:
 
 
 class PixmapCache:
-    """Posture pictures scaled to the frame. On a dark screen they are drawn inverted, white
-    lines on black, so the figure matches the words; both versions are cached."""
+    """Pictures scaled to the frame, and whatever the dark screen does to them, both cached.
+
+    A line drawing is inverted -- white lines on black, so the figure matches the words -- and
+    that was all this did until 2.43. Two things have been added since, and both are decided by
+    the picture rather than by a list of filenames, because the list is what nobody updates
+    when the artwork is redrawn and this artwork keeps being redrawn.
+
+    A PICTURE IN COLOUR IS NEVER TURNED OVER. Inverting a painting is not a change of theme,
+    it is a different picture: Harry's jigsaw Kaaba came out as a white cube in a pink sky.
+
+    A PICTURE MAY SHIP ITS OWN NIGHT VERSION, beside it, as <name>-dark.png, and then that is
+    what is shown after dark and nothing is computed at all. The wu'du steps need it: each is
+    a coloured drawing with a frame, a numbered badge and a label in black around it, so the
+    lettering has to turn over while the boy does not -- which no single rule over the whole
+    picture can do. tools/wudu/install_colour.py writes the two together from the one sheet,
+    so the night version is derived rather than remembered.
+    """
 
     def __init__(self, capacity: int = 12):
         self.capacity = capacity
         self._items: OrderedDict[tuple[str, int, int, bool], QtGui.QPixmap] = OrderedDict()
+        #: Whether each picture is in colour, kept per file rather than per size: the answer
+        #: cannot change with the size it is drawn at, and the cache is keyed on size, so
+        #: without this every resize would ask again.
+        self._colour: dict[str, bool] = {}
+
+    @staticmethod
+    def after_dark(path: Path) -> Path:
+        """The night version of this picture, whether or not it exists."""
+        return path.with_name(f"{path.stem}-dark{path.suffix}")
+
+    def in_colour(self, path: Path, pix: QtGui.QPixmap) -> bool:
+        answer = self._colour.get(str(path))
+        if answer is None:
+            answer = has_colour(pix)
+            self._colour[str(path)] = answer
+        return answer
 
     def get(self, path: Path, size: QtCore.QSize) -> QtGui.QPixmap:
         dark = palette().dark
         key = (str(path), size.width(), size.height(), dark)
         pix = self._items.get(key)
         if pix is None:
-            src = QtGui.QPixmap(str(path))
+            drawn = path
+            turn = dark
+            if dark:
+                night = self.after_dark(path)
+                if night.is_file():
+                    drawn, turn = night, False
+            src = QtGui.QPixmap(str(drawn))
+            # Asked of the picture as it came off the disk, not of the scaled copy: scaling
+            # does not change whether something is in colour, and a question asked once per
+            # file is cheaper than one asked once per size.
+            if turn and not src.isNull() and self.in_colour(drawn, src):
+                turn = False
             pix = src if src.isNull() else src.scaled(
                 size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            if dark and not pix.isNull():
+            if turn and not pix.isNull():
                 pix = invert(pix)
             self._items[key] = pix
             while len(self._items) > self.capacity:

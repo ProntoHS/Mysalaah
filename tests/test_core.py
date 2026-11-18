@@ -6349,28 +6349,83 @@ class WuduContentTest(unittest.TestCase):
         self.assertIn("Hanafi", self.raw["source"], "the mat follows a school; say which")
 
     def test_the_films_are_small_enough_to_put_on_a_mat(self):
-        """They arrived at forty-six megabytes between them -- more than the whole of the rest
-        of the app, on a card with a few hundred megabytes spare. Re-encoded they are under a
-        megabyte. This is the check that nobody drops the originals back in."""
+        """They arrived at forty-six megabytes between them at 1.84 and thirty-three at 2.44 --
+        either way more than the whole of the rest of the app, on a card with a few hundred
+        megabytes spare. This is the check that nobody drops the originals back in.
+
+        The ceiling moved at 2.44 because the drawings did: eight flat line drawings in four
+        greys came to 191 KB, and eight watercolours in a hundred and twenty-eight colours
+        come to seven megabytes. What the ceiling is FOR has not changed -- it is a long way
+        under what arrives and a long way over what is built.
+        """
         films = sorted((ASSETS / "wudu").glob("*.gif"))
         self.assertEqual(8, len(films))
         total = sum(f.stat().st_size for f in films)
-        self.assertLess(total, 4_000_000,
+        self.assertLess(total, 9_000_000,
                         f"the wu'du films are {total / 1e6:.0f} MB between them")
 
-    def test_the_drawings_still_have_black_lines_in_them(self):
-        """Cut to four shades by population, the palette went on the paper and the black lines
-        came out grey -- the drawing was still there and no longer looked drawn. Measured on
-        the pixels rather than taken on trust."""
+    def test_the_drawings_have_dark_lines_and_a_page_that_shows_through(self):
+        """Two things, and the second one is what Harry asked for.
+
+        The drawing must still be drawn: quantised by population the palette went on the paper
+        once already and the black lines came out grey.
+
+        And the paper must not be there at all. "as the background is white, the white can be
+        inverted if on dark theme and the pictures can stay the same" is done by cutting the
+        paper away and letting the page show through, so a film that arrived with its white
+        still in it would be a white slab on the night screen -- which is the fault being fixed.
+        """
         from PIL import Image
         import numpy as np
         for film in sorted((ASSETS / "wudu").glob("*.gif")):
             with self.subTest(film.name):
                 with Image.open(film) as opened:
-                    frame = np.asarray(opened.convert("L"))
-                self.assertLess(frame.min(), 40, "nothing in this drawing is actually dark")
-                self.assertGreater(int((frame < 40).sum()), 2000, "barely any ink")
-                self.assertGreater(int((frame > 215).sum()), frame.size * 0.4, "no paper left")
+                    frame = np.asarray(opened.convert("RGBA"))
+                page = frame[:, :, 3] == 0
+                self.assertGreater(float(page.mean()), 0.4,
+                                   f"only {page.mean():.0%} of this film lets the page through")
+                drawn = frame[:, :, :3][~page]
+                self.assertLess(int(drawn.min()), 60, "nothing in this drawing is actually dark")
+                self.assertGreater(int((drawn.min(1) < 60).sum()), 2000, "barely any ink")
+
+    def test_the_paper_is_cut_away_in_the_same_place_in_every_frame(self):
+        """Or the outline crawls. The same check the front door's film gets, and it is why the
+        paper is taken where it is paper in EVERY frame rather than frame by frame: these are
+        shipped differenced, so a frame can only add to the one before it and could not paint
+        paper back over a drawing even if it wanted to."""
+        from PIL import Image
+        import numpy as np
+        for path in sorted((ASSETS / "wudu").glob("*.gif")):
+            with self.subTest(path.name):
+                film = Image.open(path)
+                first = None
+                for i in range(getattr(film, "n_frames", 1)):
+                    film.seek(i)
+                    clear = np.asarray(film.convert("RGBA"))[:, :, 3] == 0
+                    if first is None:
+                        first = clear
+                        continue
+                    apart = int((clear != first).sum())
+                    self.assertEqual(0, apart, f"frame {i} lets the page through in {apart} "
+                                               f"places frame one does not: the outline crawls")
+
+    def test_the_films_are_in_colour_so_the_mat_leaves_them_alone(self):
+        """The whole of what Harry asked for, in the one measurement that decides it.
+
+        "i dont want you to invert the the actual child and wash basin etc, just the background
+        only if possible." The mat does that by asking the drawing what to do with it rather
+        than by keeping a list of filenames, and the answer for these is KEEP: leave it exactly
+        as drawn, on both screens, and let the page show through where the paper was.
+        """
+        from salaah.filmsheet import KEEP, how_it_turns
+        from salaah.qt import QtGui
+        for path in sorted((ASSETS / "wudu").glob("*.gif")):
+            with self.subTest(path.name):
+                film = QtGui.QMovie(str(path))
+                self.assertTrue(film.isValid(), "the mat cannot read this film")
+                film.jumpToFrame(0)
+                self.assertEqual(KEEP, how_it_turns(film.currentPixmap()),
+                                 "the mat would turn this drawing over after dark")
 
     def test_the_steps_are_named_in_every_language_the_mat_speaks(self):
         packs = available_packs(ASSETS)
@@ -6447,6 +6502,216 @@ class WuduContentTest(unittest.TestCase):
                          "hi": "तीन", "zh": "三", "ar": "ثلاث"}[lang]
                 self.assertIn(three.lower(), said.lower(),
                               f"{lang} dropped the warning about washing three times")
+
+
+class TheWuduStepsAreCutOffHarrysSheetTest(unittest.TestCase):
+    """Seven step pictures in ten languages, and a night version of each.
+
+    Harry drew the seven steps as one 1920x1080 sheet per language and they are cut into
+    columns by tools/build_tiles.py, the same cutter the du'a and hadith menus use -- his 2.44
+    sheets came out 284x1026 a column against the 285x1027 the old ones were, so he drew them
+    to the same grid.
+
+    EACH PICTURE IS A DRAWING WITH LETTERING ROUND IT, and the two want opposite things from a
+    dark screen. The boy must be left exactly as he is -- Harry: "i dont want you to invert the
+    the actual child and wash basin etc, just the background only if possible" -- and the frame,
+    the numbered badge and the label must turn over, or they are black lettering on a black
+    page. No single rule over a whole picture can do both, so the night version is built
+    alongside the day one by tools/wudu/install_colour.py, which decides per DRAWN SHAPE: a
+    shape with colour in it is left alone, a shape with none is inverted.
+
+    These are the checks on what came out of that, measured on the shipped files.
+    """
+
+    STEPS = ("hands", "mouth", "nose", "face", "arms", "head", "feet")
+    #: English keeps the bare name -- see duamenu.drawn_in -- and the other nine carry theirs.
+    TAILS = ("", ".ar", ".bn", ".es", ".fr", ".hi", ".pt", ".ru", ".ur", ".zh")
+
+    def pictures(self):
+        for step in self.STEPS:
+            for tail in self.TAILS:
+                yield step, tail, ASSETS / "wudu" / f"step-{step}{tail}.png"
+
+    @staticmethod
+    def read(path):
+        from PIL import Image
+        import numpy as np
+        with Image.open(path) as opened:
+            return np.asarray(opened.convert("RGBA")).astype(int)
+
+    def test_every_step_in_every_language_has_a_picture_and_a_night_version(self):
+        for step, tail, path in self.pictures():
+            with self.subTest(f"{step}{tail or '.en'}"):
+                self.assertTrue(path.is_file(), f"{path.name} is missing")
+                night = path.with_name(f"{path.stem}-dark{path.suffix}")
+                self.assertTrue(night.is_file(), f"{night.name} is missing: the lettering on "
+                                                 f"this step would be black on a black page")
+                self.assertEqual(self.read(path).shape, self.read(night).shape,
+                                 "the two versions are different sizes")
+
+    def test_the_paper_is_cut_away_so_the_page_shows_through(self):
+        for step, tail, path in self.pictures():
+            with self.subTest(f"{step}{tail or '.en'}"):
+                clear = self.read(path)[:, :, 3] < 128
+                self.assertGreater(float(clear.mean()), 0.5,
+                                   f"only {clear.mean():.0%} of this picture lets the page "
+                                   f"through: the paper is still in it")
+
+    def test_the_boy_is_the_same_pixels_on_both_screens(self):
+        """The whole of what Harry asked for. Measured on the pixels that are unmistakably
+        part of the drawing -- the skin, the thobe, the teal basin, the gold tap -- which must
+        be IDENTICAL in the night version, not merely similar."""
+        import numpy as np
+        for step, tail, path in self.pictures():
+            with self.subTest(f"{step}{tail or '.en'}"):
+                day = self.read(path)
+                night = self.read(path.with_name(f"{path.stem}-dark{path.suffix}"))
+                solid = day[:, :, 3] >= 128
+                colour = day[:, :, :3].max(2) - day[:, :, :3].min(2)
+                drawing = solid & (colour >= 40)
+                self.assertGreater(int(drawing.sum()), 5000,
+                                   "there is barely any coloured drawing in this picture")
+                apart = int(np.abs(day[:, :, :3] - night[:, :, :3]).max(2)[drawing].max())
+                self.assertEqual(0, apart, f"the drawing itself changes by up to {apart} "
+                                           f"levels after dark")
+
+    def test_the_frame_and_the_lettering_turn_over_after_dark(self):
+        """And the other half of it: what is NOT the drawing has to turn over, or the step
+        loses its frame, its number and its name on the night screen.
+
+        Two places are measured, both of them lettering wherever the sheet was drawn: the band
+        the frame runs in, eleven pixels in from the edge where build_tiles leaves it, and the
+        top fifth of the column, which holds the badge and the label in every language.
+        """
+        import numpy as np
+        for step, tail, path in self.pictures():
+            with self.subTest(f"{step}{tail or '.en'}"):
+                day = self.read(path)
+                night = self.read(path.with_name(f"{path.stem}-dark{path.suffix}"))
+                tall, wide = day.shape[:2]
+                solid = day[:, :, 3] >= 128
+                black = solid & (day[:, :, :3].max(2) < 90)
+                band = np.zeros((tall, wide), bool)
+                band[11:17, :] = band[-17:-11, :] = True
+                band[:, 11:17] = band[:, -17:-11] = True
+                top = np.zeros((tall, wide), bool)
+                top[:int(tall * 0.20), :] = True
+                for what, where in (("the frame", band & black), ("the lettering", top & black)):
+                    self.assertGreater(int(where.sum()), 200, f"{what} is not there to measure")
+                    lit = float((night[:, :, :3].min(2)[where] > 150).mean())
+                    self.assertEqual(1.0, lit, f"{1 - lit:.1%} of {what} stayed dark after "
+                                               f"dark, so it reads as nothing")
+
+    def test_the_number_on_each_step_is_the_right_number(self):
+        """THE ONE THAT CATCHES A ROW OF STEPS IN REVERSE, and there was one on the mat.
+
+        The 2.43 release shipped its Urdu and Arabic step pictures backwards: step-hands.ur.png
+        was wholly the seventh tile -- badge 7, the words for washing the feet, and the boy
+        sitting washing his feet -- and step-feet.ur.png was the first. Harry draws those sheets
+        with step 1 on the right, as an Urdu reader expects, and whatever cut them read them
+        left to right. So on an Urdu or Arabic mat the seven steps were shown in reverse, each
+        tile's number and name contradicting the step it opened. Nothing in the app could
+        notice: a picture is a valid picture wherever it is hung.
+
+        The badge settles it with nothing to trust. The digit in it is the same drawing in
+        every language, so the tile whose badge looks most like English step N's IS step N.
+        Run across the seventy 2.43 pictures this answers 6,5,4,3,2,1,0 for Urdu and Arabic --
+        the fault, exactly -- and 0,1,2,3,4,5,6 for the other eight.
+        """
+        import numpy as np
+        from PIL import Image
+
+        def badge(path):
+            with Image.open(path) as opened:
+                grey = opened.convert("L").resize((285, 1027), Image.LANCZOS)
+            return np.asarray(grey).astype(float)[25:102, 94:191]
+
+        english = {step: badge(ASSETS / "wudu" / f"step-{step}.png") for step in self.STEPS}
+        for step, tail, path in self.pictures():
+            if not tail:
+                continue
+            with self.subTest(f"{step}{tail}"):
+                mine = badge(path)
+                apart = {other: float(np.abs(mine - english[other]).mean())
+                         for other in self.STEPS}
+                closest = min(apart, key=apart.get)
+                self.assertEqual(step, closest,
+                                 f"this tile's badge is step {self.STEPS.index(closest) + 1}'s, "
+                                 f"not step {self.STEPS.index(step) + 1}'s: the sheet has gone "
+                                 f"in the wrong way round")
+
+    def test_the_head_is_the_step_drawn_twice_in_every_language(self):
+        """The one check that would have caught the cut going in back to front.
+
+        Harry draws the Urdu and Arabic sheets with step 1 on the RIGHT, and the first run of
+        the installer read all ten left to right and put the feet on the hands in both of
+        them. Nothing in the app can notice a picture in the wrong place -- the mat has already
+        shipped one screen where an Urdu reader pressing Fajr got Isha -- so it is noticed
+        here.
+
+        The head is the one step drawn as two pictures, one above the other, so it is the one
+        column whose drawing comes in two bands down the page. Every other step has one.
+        """
+        for step, tail, path in self.pictures():
+            with self.subTest(f"{step}{tail or '.en'}"):
+                picture = self.read(path)
+                solid = picture[:, :, 3] >= 128
+                colour = picture[:, :, :3].max(2) - picture[:, :, :3].min(2)
+                rows = ((solid & (colour >= 40)).sum(1) > 3)
+                bands = int(((rows[1:]) & (~rows[:-1])).sum()) + int(rows[0])
+                self.assertEqual(2 if step == "head" else 1, bands,
+                                 f"this column has {bands} bands of drawing in it, and "
+                                 f"{step} should have {2 if step == 'head' else 1}: the sheet "
+                                 f"has been cut in the wrong order")
+
+
+class TheWorldMapIsTheSameProjectionTest(unittest.TestCase):
+    """Qibla Quest's map, recoloured at 2.44.
+
+    qibla_quest.py: "A REDRAWN MAP INVALIDATES EVERY POINT HERE. There is nothing in the app
+    that can notice, because a fraction is a valid fraction wherever it lands." It has happened
+    twice. So the five cities are checked against the drawing rather than taken on trust.
+    """
+
+    PATH = ASSETS / "children" / "qibla-quest.png"
+
+    @classmethod
+    def setUpClass(cls):
+        from PIL import Image
+        import numpy as np
+        with Image.open(cls.PATH) as opened:
+            cls.map = np.asarray(opened.convert("RGBA")).astype(int)
+
+    def test_the_paper_is_cut_away_and_the_continents_are_in_colour(self):
+        from salaah.filmsheet import KEEP, how_it_turns
+        from salaah.qt import QtGui
+        clear = self.map[:, :, 3] < 128
+        self.assertGreater(float(clear.mean()), 0.5,
+                           f"only {clear.mean():.0%} of the map lets the page through")
+        self.assertEqual(KEEP, how_it_turns(QtGui.QPixmap(str(self.PATH))),
+                         "the mat would turn the map over after dark and the land would "
+                         "come out magenta")
+
+    def test_every_city_still_lands_on_the_land(self):
+        """Measured under the pin the game draws -- a filled disc of px(16) on a 1920-wide
+        screen -- rather than one pixel, because a city is a dot on a coastline and the dot is
+        what a child sees. Jakarta is the tightest: a sixth of its pin is Java, which is what a
+        thin island looks like, against nothing at all for a pin in open sea."""
+        import numpy as np
+        from salaah.qibla_quest import ROUNDS
+        tall, wide = self.map.shape[:2]
+        radius = max(4, round(16 * wide / 1920))
+        down, across = np.ogrid[:tall, :wide]
+        land = self.map[:, :, 3] >= 128
+        for round_ in ROUNDS:
+            with self.subTest(round_.city):
+                x, y = int(round_.point[0] * wide), int(round_.point[1] * tall)
+                pin = (across - x) ** 2 + (down - y) ** 2 <= radius * radius
+                on = float(land[pin].mean())
+                self.assertGreater(on, 0.05,
+                                   f"{round_.city} has {on:.0%} of its pin on land: the map "
+                                   f"has been redrawn on a different projection and every "
+                                   f"point in qibla_quest.py has to be measured again")
 
 
 class PrayerPagesMatchTheSchoolTest(unittest.TestCase):
