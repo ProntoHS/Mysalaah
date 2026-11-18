@@ -35,8 +35,45 @@ NAME_BAND = (0.0, 0.58, 1.0, 0.98)         # where a drawn-in name sits in its a
                                            # at 0.533-0.817 of a taller arch, and the old band
                                            # would have tinted the bottom fifth of an empty
                                            # panel and cut the top off the Bengali.
+def _overlaid(described: dict, changes: dict) -> dict:
+    """[described] with [changes] laid over it, ONE LEVEL DOWN as well as at the top.
+
+    A flat merge replaces a whole section when the overlay mentions any part of it, so saying
+    the colour drawing's dome takes light lettering would throw away the box the lettering goes
+    in. Found by rendering it: the time came out in the dark red meant for a pale dome, on a
+    dome the colour of deep teal.
+
+    One level is enough for everything here and is what makes the colour block readable -- it
+    says only what differs, and the arch boxes, the clock box and the minarets, which do not,
+    are written down once.
+
+    AN EMPTY SECTION CLEARS THE ONE UNDER IT rather than merging with it, which is the one
+    thing a merge cannot otherwise say. The colour block needs to say it: the painted mosques
+    carry a map of ten drawings, one per language, and the coloured one is a single picture for
+    all ten, so "images": {} has to mean "there is no such map here" and not "change nothing
+    about the map". Found by rendering an Urdu mat in colour and getting the black-and-white
+    drawing, because the merge had quietly put the ten back.
+    """
+    out = dict(described)
+    for key, value in changes.items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict) and value:
+            out[key] = {**out[key], **value}
+        else:
+            out[key] = value
+    return out
+
+
 CLOCK_INK = QtGui.QColor("#FF5A47")        # the time, on a dome the colour of night
 CLOCK_INK_ON_PALE = QtGui.QColor("#C0392B")   # and on a dome the colour of day
+#: And on Harry's coloured mosque. "when displaying time on dome in coloured version, change
+#: font colour to white" -- 18 November 2026. Red on his teal dome is two strong colours
+#: arguing; white is the only thing on the picture that is not one of his.
+#:
+#: Chosen the same way the two reds are, by asking how dark the dome came out rather than by
+#: the theme alone, so a pale coloured dome drawn later still gets lettering that reads instead
+#: of white on cream. On the teal dome he has drawn, that question answers "dark" and this is
+#: what shows.
+CLOCK_INK_IN_COLOUR = QtGui.QColor("#FFFFFF")
                                            # Red since 2.42, asked for; black and white until
                                            # then. The two are the app's own reds out of
                                            # theme.py, and they are used the OTHER way round
@@ -523,17 +560,41 @@ class MosqueScreen(QtWidgets.QWidget):
         self.clock_font = clock_font
         self._scaled: QtGui.QPixmap | None = None
         self._scaled_dark = False
+        self.assets = assets
+        #: Which of the two drawings is loaded. follow_theme reads the other one in when the
+        #: colour theme goes on or off, and does nothing between light and dark, which share.
+        self._loaded_in_colour = palette().colour
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent)
         self.load(assets)
 
     # Loading
 
     def load(self, assets: Path) -> None:
+        """Read the drawing and everything written down about it.
+
+        SAFE TO RUN AGAIN, which it is whenever the colour theme goes on or off -- the arches
+        and minarets are emptied first because they are appended to, and the scaled copy is
+        dropped because it is of the old picture. A theme change is still a repaint rather than
+        a rebuild: this reloads one JSON and one pixmap, both of which _load_once has already,
+        and the widget keeps its place, its labels and the prayer it has lit.
+        """
+        self.assets = assets
         folder = assets / self.folder
         try:
             described = json.loads((folder / "mosque.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return
+        self.arches = []
+        self.minarets = {}
+        self._scaled = None
+        # WHAT THE COLOUR THEME CHANGES ABOUT THIS DRAWING, if the drawing says. Harry's
+        # coloured mosques are a different picture with their arches left empty -- the names
+        # are written in by the app, so one picture serves all ten languages where the painted
+        # ones need ten -- and they carry their own night sky, so the mat must not paint stars
+        # over it. Everything else about the drawing, the arch boxes above all, is the same:
+        # measured, not assumed, and the overlay is in tools/ARTWORK-MEASURED.md.
+        if palette().colour:
+            described = _overlaid(described, described.get("colour", {}))
         self.picture = _load_once(folder / self.drawing_for(described, self.lang))
         self.own_names = described.get("names") == "drawn"
         self.mirror_names = described.get("names_in_rtl") == "mirrored"
@@ -554,6 +615,16 @@ class MosqueScreen(QtWidgets.QWidget):
             x0, y0, x1, y1 = arch["box"]
             self.arches.append(Arch(prayer, QtCore.QRect(x0, y0, x1 - x0, y1 - y0)))
         self.face_the_other_way()
+
+    def follow_theme(self) -> None:
+        """Called when the screen mode changes. Reads the drawing again only if the answer to
+        "is this the colour theme?" has actually moved, because light and dark share one
+        drawing and only colour has another."""
+        if palette().colour == self._loaded_in_colour:
+            return
+        self._loaded_in_colour = palette().colour
+        self.load(self.assets)
+        self.update()
 
     @staticmethod
     def drawing_for(described: dict, lang: str) -> str:
@@ -1059,9 +1130,26 @@ class MosqueScreen(QtWidgets.QWidget):
                                int(self.clock_box.width() * scale),
                                int(self.clock_box.height() * scale))
             font = self.clock_type(box, self.time_text, painter.font())
-            dark = self.clock_dark != self.flipped
-            self.draw_the_time(painter, font, box,
-                               CLOCK_INK_ON_PALE if dark else CLOCK_INK)
+            self.draw_the_time(painter, font, box, self.clock_ink())
+
+    def clock_ink(self) -> QtGui.QColor:
+        """What colour the time on the dome is written in.
+
+        One question, asked of the DOME rather than of the screen: did the dome come out pale
+        or dark? `clock_dark` is what the drawing says about its own dome and `flipped` is
+        whether the drawing is being shown inside out, so the two together answer it whichever
+        way up the artwork is.
+
+        Pale dome, dark lettering; dark dome, light. The two reds are the light and dark
+        answers for a black-and-white mosque, where red is the only colour on the screen. On a
+        coloured one red is a third colour arguing with Harry's, so a dark dome takes white --
+        which is what he asked for -- and a pale coloured dome, should one ever be drawn, still
+        takes the dark red rather than disappearing.
+        """
+        pale = self.clock_dark != self.flipped
+        if pale:
+            return CLOCK_INK_ON_PALE
+        return CLOCK_INK_IN_COLOUR if palette().colour else CLOCK_INK
 
     # Choosing
 

@@ -30,7 +30,17 @@ class Settings:
     #: heartbeat that will honour it is a later release.
     on_the_map: bool = False
     figure: str = "boy"  # whose posture pictures to show: a set in assets/postures
-    theme: str = "auto"  # "auto" (dark from Maghrib to sunrise), "light" or "dark"
+    #: "light", "dark" or "colour". Auto -- dark from Maghrib to sunrise -- went at 2.45 at
+    #: Harry's asking, and theme.resolve_auto turns a mat that still says it into whichever of
+    #: the two it was showing at the moment it upgraded.
+    #:
+    #: A MAT OUT OF THE BOX NOW STARTS DARK, where it used to start auto. Light would be the
+    #: conventional default and it is the wrong one here: this is a prayer mat, the first thing
+    #: it is used for in a day is Fajr, and Fajr at Bury in November is twenty past five in the
+    #: morning. Auto existed so that a screen in a dark room was not white, and with auto gone
+    #: the default has to carry that on its own. One line to change if Harry would rather it
+    #: started light.
+    theme: str = "dark"
     cursor: bool = True  # show the mouse pointer (turn off in Settings for a touchscreen alone)
     arabic_font: str = "scheherazade"  # a key from render.FONTS
     text_step: int = 0        # how large the Qur'an is set: 0, 1 or 2, chosen by the three A

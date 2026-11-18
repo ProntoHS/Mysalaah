@@ -473,7 +473,7 @@
   "settings.swap_panels_hint": "Normally the posture is on the left panel and the words on the right.",
   "settings.tap_timings": "Tap in the word timings",
   "settings.theme": "Screen mode",
-  "settings.theme_auto": "Automatic: dark from Maghrib to sunrise",
+  "settings.theme_colour": "Colour: pictures on black",
   "settings.theme_dark": "Dark: white on black",
   "settings.theme_light": "Light: black on white",
   "settings.timings_estimated": "The word timings are worked out from the length of the text, not taken by ear, so the red will drift. Fix them with tools/tap_timings.py.",

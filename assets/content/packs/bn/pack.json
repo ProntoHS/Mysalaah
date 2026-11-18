@@ -345,7 +345,7 @@
   "settings.swap_panels_hint": "সাধারণত ভঙ্গি বাঁ প্যানেলে আর শব্দ ডান প্যানেলে থাকে।",
   "settings.tap_timings": "শব্দের সময় টোকা দিন",
   "settings.theme": "পর্দার ধরন",
-  "settings.theme_auto": "স্বয়ংক্রিয়: মাগরিব থেকে সূর্যোদয় পর্যন্ত অন্ধকার",
+  "settings.theme_colour": "রঙিন: কালোর উপর ছবি",
   "settings.theme_dark": "অন্ধকার: কালোর উপর সাদা",
   "settings.theme_light": "উজ্জ্বল: সাদার উপর কালো",
   "settings.timings_estimated": "শব্দের সময় লেখার দৈর্ঘ্য থেকে হিসাব করা, কানে শুনে নেওয়া নয়, তাই লাল রং সরে যাবে। tools/tap_timings.py দিয়ে ঠিক করুন।",

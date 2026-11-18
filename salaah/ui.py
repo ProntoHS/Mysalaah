@@ -1093,7 +1093,15 @@ class MainWindow(QtWidgets.QWidget):
         self.veil = ZoomVeil(self)               # the walk into an arch, laid over the top
         self.facing = Facing(compass or NoCompass(), settings.compass_declination,
                              settings.compass_mounting)
-        theme.set_dark(self.wants_dark())
+        # AUTO'S LAST DECISION. Every mat that has not been touched says "auto", because that
+        # was the default, so the mode is resolved here once -- to whatever auto would have
+        # shown at this instant -- and written down. Nobody's screen jumps at the upgrade, and
+        # from the next start this is an ordinary three-way choice. See theme.resolve_auto.
+        settled = theme.resolve_auto(self.settings.theme, datetime.now(), self.prayer_times())
+        if settled != self.settings.theme:
+            self.settings.theme = settled
+            self.persist()
+        theme.set_mode(self.settings.theme)
         # The 7" screen, when there is one: the Qibla between prayers, the posture during one.
         self.side: SideWindow | None = None
         if side:
@@ -3691,15 +3699,16 @@ class MainWindow(QtWidgets.QWidget):
 
     # Light and dark
 
-    def wants_dark(self, now: datetime | None = None) -> bool:
-        now = now or datetime.now()
-        mode = self.settings.theme if self.settings.theme in theme.MODES else "auto"
-        return theme.wants_dark(mode, now, self.prayer_times(now))
+    # wants_dark() HAS GONE WITH AUTO. It asked the clock and the prayer times whether the
+    # screen should be dark; with three fixed modes the answer is simply which mode is set,
+    # and theme.set_mode knows that. What used to happen at Maghrib and at sunrise now happens
+    # when somebody chooses, which is what Harry asked for: "remove auto from screen mode
+    # selection. keep it simple 3 modes to choose from."
 
     def apply_theme(self, chosen: bool = False) -> bool:
-        """Light or dark, as Settings says. Automatic changes at Maghrib and at sunrise, but
-        never in the middle of a prayer: it waits until the prayer is over. Returns True if the
-        screen changed."""
+        """Light, dark or colour, as Settings says. Nothing changes it on its own any more --
+        auto went at 2.45 -- but a change somebody makes still waits for a prayer in progress
+        to finish rather than repainting under them. Returns True if the screen changed."""
         if not chosen and self.playing:
             return False
         # Light or dark is set for the whole application, so a window nobody is looking at must
@@ -3708,9 +3717,13 @@ class MainWindow(QtWidgets.QWidget):
         # quietly put the palette back to light underneath the window being examined.
         if not chosen and not self.isVisible():
             return False
-        if not theme.set_dark(self.wants_dark()):
+        if not theme.set_mode(self.settings.theme):
             return False
         self.setStyleSheet(self.stylesheet())
+        # The mosques read a different drawing in the colour theme, so they are told before
+        # anything repaints. They do nothing at all between light and dark, which share one.
+        for mosque in self.findChildren(MosqueScreen):
+            mosque.follow_theme()
         if hasattr(self, "slide"):
             self.slide.follow_theme()
         if self.side is not None:
@@ -5184,7 +5197,7 @@ class MainWindow(QtWidgets.QWidget):
         section(left, "settings.theme")
         self.theme_picker = self.dropdown(
             [(mode, self.t(f"settings.theme_{mode}")) for mode in theme.MODES],
-            self.settings.theme if self.settings.theme in theme.MODES else "auto", self.set_theme)
+            self.settings.theme if self.settings.theme in theme.MODES else "light", self.set_theme)
         left.addWidget(self.theme_picker)
 
         # THE MOUSE POINTER ROW WAS HERE and Harry asked for it to go: "In settings page,

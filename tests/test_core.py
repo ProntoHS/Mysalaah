@@ -6714,6 +6714,189 @@ class TheWorldMapIsTheSameProjectionTest(unittest.TestCase):
                                    f"point in qibla_quest.py has to be measured again")
 
 
+class ThreeScreenModesTest(unittest.TestCase):
+    """Light, dark and colour, and nothing else.
+
+    Harry, 18 November 2026: "remove auto from screen mode selection. keep it simple 3 modes to
+    choose from", and "colour theme will sit on black".
+    """
+
+    def setUp(self):
+        from salaah import theme
+        self.theme = theme
+        was = theme.palette()
+        self.addCleanup(lambda: setattr(theme._Current, "palette", was))
+
+    def test_there_are_three_and_auto_is_not_one_of_them(self):
+        self.assertEqual(("light", "dark", "colour"), self.theme.MODES)
+
+    def test_colour_is_a_dark_palette(self):
+        """Not a fudge: Harry drew the coloured mosques on black. It is what lets the ten
+        places on the mat that ask whether the screen is dark carry on unchanged, and it is
+        why the colour mat is as kind at Fajr as the dark one."""
+        self.theme.set_mode("colour")
+        self.assertTrue(self.theme.is_dark(), "the colour page is not black")
+        self.assertTrue(self.theme.is_colour())
+        self.assertEqual(self.theme.DARK.paper, self.theme.palette().paper)
+        self.assertEqual(self.theme.DARK.ink, self.theme.palette().ink)
+
+    def test_only_colour_says_it_is_colour(self):
+        for mode, expected in (("light", False), ("dark", False), ("colour", True)):
+            with self.subTest(mode):
+                self.theme.set_mode(mode)
+                self.assertEqual(expected, self.theme.is_colour())
+
+    def test_set_dark_cannot_reach_the_colour_palette(self):
+        """A good deal of the suite switches the screen with set_dark, and none of it means
+        colour by it."""
+        self.theme.set_mode("colour")
+        self.theme.set_dark(True)
+        self.assertFalse(self.theme.is_colour())
+        self.assertTrue(self.theme.is_dark())
+
+    def test_an_unknown_mode_lands_on_light(self):
+        self.theme.set_mode("mauve")
+        self.assertFalse(self.theme.is_dark())
+
+    def test_a_mat_that_still_says_auto_keeps_the_screen_it_had(self):
+        """AUTO'S LAST DECISION, and the reason it is not simply deleted. Auto was the default,
+        so every mat that has never been touched says it -- including Harry's. Dropping it
+        without this would move everybody to the fallback at whatever moment they happened to
+        upgrade: a white screen at Fajr for somebody who chose auto precisely so that would
+        not happen."""
+        from datetime import datetime
+        for hour, expected in ((20, "dark"), (2, "dark"), (12, "light"), (9, "light")):
+            with self.subTest(hour=hour):
+                self.assertEqual(expected, self.theme.resolve_auto(
+                    "auto", datetime(2026, 11, 18, hour, 0), {}))
+
+    def test_it_uses_maghrib_and_sunrise_when_it_has_them(self):
+        from datetime import time
+        times = {"sunrise": time(7, 30), "maghrib": time(16, 8)}
+        from datetime import datetime
+        self.assertEqual("dark", self.theme.resolve_auto(
+            "auto", datetime(2026, 11, 18, 16, 30), times))
+        self.assertEqual("light", self.theme.resolve_auto(
+            "auto", datetime(2026, 11, 18, 15, 30), times))
+
+    def test_a_mode_that_is_already_one_of_the_three_is_left_alone(self):
+        from datetime import datetime
+        for mode in self.theme.MODES:
+            with self.subTest(mode):
+                self.assertEqual(mode, self.theme.resolve_auto(
+                    mode, datetime(2026, 11, 18, 20, 0), {}))
+
+    def test_a_new_mat_starts_dark(self):
+        """Light is the conventional default and the wrong one here. This is a prayer mat, the
+        first thing it is used for in a day is Fajr, and Fajr at Bury in November is twenty
+        past five in the morning. Auto carried that; with auto gone the default has to."""
+        from salaah.settings import Settings
+        self.assertEqual("dark", Settings().theme)
+
+    def test_every_mode_has_a_word_for_itself(self):
+        """In the nine packs that carry the screen-mode wording at all. ARABIC CARRIES NONE OF
+        IT -- not the heading, not light, not dark -- so that row has always shown the English
+        through pack.t's fallback, and a lone Arabic "colour" would make it half translated.
+        Written down rather than quietly fixed."""
+        import json
+        packs = Path(__file__).resolve().parent.parent / "assets" / "content" / "packs"
+        for pack in sorted(packs.iterdir()):
+            if not (pack / "pack.json").is_file():
+                continue
+            ui = json.loads((pack / "pack.json").read_text(encoding="utf-8")).get("ui", {})
+            if "settings.theme_light" not in ui:
+                self.assertEqual("ar", pack.name,
+                                 f"{pack.name} has lost its screen-mode wording")
+                continue
+            with self.subTest(pack.name):
+                for mode in ("light", "dark", "colour"):
+                    self.assertIn(f"settings.theme_{mode}", ui, f"no word for {mode}")
+                self.assertNotIn("settings.theme_auto", ui,
+                                 "the wording for a mode that no longer exists")
+
+
+class TheColouredMosquesTest(unittest.TestCase):
+    """Harry's coloured mosques, which only the colour theme shows.
+
+    Six drawings: the five-arch front page and the 2, 3, 4 and 6 archway pages behind the
+    prayers. NOTHING IS REPLACED -- the light and dark mats go on using exactly what they used
+    before, and a mat that never selects colour cannot tell this release happened.
+    """
+
+    FOLDERS = ("mosque", "prayers/fajr", "prayers/dhuhr", "prayers/asr",
+               "prayers/maghrib", "prayers/isha")
+
+    def described(self, folder):
+        import json
+        return json.loads((ASSETS / folder / "mosque.json").read_text(encoding="utf-8"))
+
+    def test_every_mosque_has_a_coloured_one_beside_it(self):
+        for folder in self.FOLDERS:
+            with self.subTest(folder):
+                block = self.described(folder).get("colour")
+                self.assertIsNotNone(block, "no colour block in this drawing's description")
+                picture = ASSETS / folder / block["image"]
+                self.assertTrue(picture.is_file(), f"{picture.name} is missing")
+
+    def test_the_night_behind_them_is_cut_away(self):
+        """Or the mat paints a sky nothing can see. The stars and the moon are drawn UNDER the
+        mosque -- that is how the black-and-white ones get theirs -- so a drawing with its own
+        solid black sky hides them, and the colour mat had no moon until this was cut."""
+        from PIL import Image
+        import numpy as np
+        for folder in self.FOLDERS:
+            with self.subTest(folder):
+                block = self.described(folder)["colour"]
+                with Image.open(ASSETS / folder / block["image"]) as opened:
+                    picture = np.asarray(opened.convert("RGBA"))
+                sky = picture[:, :, 3] < 128
+                self.assertGreater(float(sky.mean()), 0.4,
+                                   f"only {sky.mean():.0%} of this drawing lets the sky "
+                                   f"through")
+
+    def test_they_are_in_colour_and_the_right_size(self):
+        """The boxes in mosque.json are in the picture's own pixels, so a drawing of another
+        size puts every arch, the clock and both minarets somewhere else."""
+        from salaah.render import has_colour
+        from salaah.qt import QtGui
+        for folder in self.FOLDERS:
+            with self.subTest(folder):
+                block = self.described(folder)["colour"]
+                picture = QtGui.QPixmap(str(ASSETS / folder / block["image"]))
+                self.assertFalse(picture.isNull(), "the mat cannot read this drawing")
+                self.assertEqual((1920, 1080), (picture.width(), picture.height()))
+                self.assertTrue(has_colour(picture), "this drawing is not in colour")
+
+    def test_the_front_page_writes_its_own_names(self):
+        """The whole point of it. The painted mosques carry the five prayer names in the
+        artwork, which is why there are ten of them, one per language. Harry's coloured one has
+        empty arches and the app writes the names in from the pack -- so one picture serves all
+        ten, and nine files stop existing the day he is happy to drop them."""
+        block = self.described("mosque")["colour"]
+        self.assertNotEqual("drawn", block.get("names"),
+                            "the colour front page still claims to carry its own names")
+        self.assertEqual({}, block.get("images"),
+                         "the colour front page still has a drawing per language")
+
+    def test_the_dome_asks_for_light_lettering(self):
+        """Harry: "when displaying time on dome in coloured version, change font colour to
+        white". The drawing says its dome is dark and mosque.clock_ink turns that into white."""
+        for folder in self.FOLDERS:
+            with self.subTest(folder):
+                block = self.described(folder)["colour"]
+                self.assertEqual("light", block.get("clock", {}).get("ink"),
+                                 "this coloured dome would take dark red lettering")
+
+    def test_the_light_and_dark_mats_are_untouched(self):
+        """Everything the colour block changes, it changes for the colour theme alone."""
+        for folder in self.FOLDERS:
+            with self.subTest(folder):
+                described = self.described(folder)
+                self.assertNotIn("colour", described["image"],
+                                 "the drawing everybody else sees is the coloured one")
+                self.assertTrue((ASSETS / folder / described["image"]).is_file())
+
+
 class PrayerPagesMatchTheSchoolTest(unittest.TestCase):
     """Harry's five new prayer pages: one arch per unit of that prayer, and no words on them.
 

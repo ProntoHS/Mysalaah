@@ -345,7 +345,7 @@
   "settings.swap_panels_hint": "आम तौर पर तस्वीर बाएँ पैनल पर और शब्द दाएँ पैनल पर होते हैं।",
   "settings.tap_timings": "अल्फ़ाज़ के अवक़ात दर्ज करें",
   "settings.theme": "स्क्रीन मोड",
-  "settings.theme_auto": "अपने आप: मग़रिब से सूरज निकलने तक गहरा",
+  "settings.theme_colour": "रंगीन: काले पर चित्र",
   "settings.theme_dark": "गहरा: काले पर सफ़ेद",
   "settings.theme_light": "हल्का: सफ़ेद पर काला",
   "settings.timings_estimated": "अल्फ़ाज़ के अवक़ात मतन की लंबाई से अंदाज़न निकाले गए हैं, कान से नहीं, इसलिए सुर्ख़ रंग बहकेगा। tools/tap_timings.py से दुरुस्त करें।",

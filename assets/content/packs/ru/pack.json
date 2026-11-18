@@ -345,7 +345,7 @@
   "settings.swap_panels_hint": "Обычно поза на левой панели, а слова на правой.",
   "settings.tap_timings": "Задать тайминг слов",
   "settings.theme": "Режим экрана",
-  "settings.theme_auto": "Автоматически: тёмный от магриба до восхода",
+  "settings.theme_colour": "Цветной: изображения на чёрном",
   "settings.theme_dark": "Тёмный: белым по чёрному",
   "settings.theme_light": "Светлый: чёрным по белому",
   "settings.timings_estimated": "Тайминг слов рассчитан по длине текста, а не снят на слух, поэтому красный будет уходить. Исправьте его с помощью tools/tap_timings.py.",

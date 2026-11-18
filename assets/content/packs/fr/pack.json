@@ -345,7 +345,7 @@
   "settings.swap_panels_hint": "Normally the posture is on the left panel and the words on the right.",
   "settings.tap_timings": "Saisir les temps des mots",
   "settings.theme": "Mode d'écran",
-  "settings.theme_auto": "Automatique : sombre du Maghrib au lever du soleil",
+  "settings.theme_colour": "Couleur : images sur noir",
   "settings.theme_dark": "Sombre : blanc sur noir",
   "settings.theme_light": "Clair : noir sur blanc",
   "settings.timings_estimated": "Les temps des mots sont calculés d'après la longueur du texte, non relevés à l'oreille : le rouge dérivera. Corrigez-les avec tools/tap_timings.py.",

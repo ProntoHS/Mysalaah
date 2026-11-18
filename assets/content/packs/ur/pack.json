@@ -345,7 +345,7 @@
   "settings.swap_panels_hint": "Normally the posture is on the left panel and the words on the right.",
   "settings.tap_timings": "الفاظ کے اوقات درج کریں",
   "settings.theme": "اسکرین موڈ",
-  "settings.theme_auto": "خودکار: مغرب سے طلوعِ آفتاب تک گہرا",
+  "settings.theme_colour": "رنگین: سیاہ پر تصاویر",
   "settings.theme_dark": "گہرا: سیاہ پر سفید",
   "settings.theme_light": "روشن: سفید پر سیاہ",
   "settings.timings_estimated": "الفاظ کے اوقات متن کی لمبائی سے اندازاً نکالے گئے ہیں، کان سے نہیں، اس لیے سرخ رنگ بہکے گا۔ tools/tap_timings.py سے درست کریں۔",

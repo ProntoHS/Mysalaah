@@ -345,7 +345,7 @@
   "settings.swap_panels_hint": "通常姿势在左面板，经文在右面板。",
   "settings.tap_timings": "录入词的时间点",
   "settings.theme": "屏幕模式",
-  "settings.theme_auto": "自动：从昏礼到日出为深色",
+  "settings.theme_colour": "彩色：黑底彩图",
   "settings.theme_dark": "深色：黑底白字",
   "settings.theme_light": "浅色：白底黑字",
   "settings.timings_estimated": "词的时间点是按文本长度推算的，并非听录而来，因此红色会有偏差。请用 tools/tap_timings.py 校正。",

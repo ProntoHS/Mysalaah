@@ -345,7 +345,7 @@
   "settings.swap_panels_hint": "Normalmente a postura está no painel esquerdo e as palavras no direito.",
   "settings.tap_timings": "Marcar os tempos das palavras",
   "settings.theme": "Modo do ecrã",
-  "settings.theme_auto": "Automático: escuro do Maghrib ao nascer do sol",
+  "settings.theme_colour": "Cor: imagens sobre preto",
   "settings.theme_dark": "Escuro: branco sobre preto",
   "settings.theme_light": "Claro: preto sobre branco",
   "settings.timings_estimated": "Os tempos das palavras são calculados pelo comprimento do texto, não marcados de ouvido, por isso o vermelho vai desviar-se. Corrija-os com tools/tap_timings.py.",

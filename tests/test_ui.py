@@ -1463,7 +1463,9 @@ class QiblaScreenTest(unittest.TestCase):
 
 
 class ThemeTest(unittest.TestCase):
-    """Light, dark, and automatic: dark from Maghrib until sunrise."""
+    """Light, dark and colour. AUTOMATIC WENT AT 2.45 at Harry's asking -- "remove auto from
+    screen mode selection. keep it simple 3 modes to choose from" -- and what it used to do is
+    now done once, at the upgrade, by theme.resolve_auto."""
 
     def window(self, **settings):
         from salaah import theme
@@ -1476,20 +1478,32 @@ class ThemeTest(unittest.TestCase):
                                  theme.set_dark(False)))
         return w
 
-    def test_automatic_follows_maghrib_and_sunrise(self):
+    def test_a_mat_that_still_says_automatic_keeps_the_screen_it_had(self):
+        """WAS test_automatic_follows_maghrib_and_sunrise, and asks the same question of the
+        same rule -- the rule now runs ONCE, when a mat that says "auto" upgrades, instead of
+        every ten seconds forever.
+
+        It matters because auto was the default, so every mat that has never been touched says
+        it. Dropping the mode without this would move everybody to the fallback at whatever
+        moment they happened to upgrade: a white screen at Fajr for somebody who chose auto
+        precisely so that would not happen.
+        """
         from datetime import datetime, time as clock
-        from salaah.theme import wants_dark
+        from salaah.theme import resolve_auto
         times = {"sunrise": clock(6, 53), "maghrib": clock(19, 12)}
         day = datetime(2026, 9, 21, 12, 0)
-        self.assertFalse(wants_dark("auto", day, times))
-        self.assertFalse(wants_dark("auto", day.replace(hour=19, minute=11), times))
-        self.assertTrue(wants_dark("auto", day.replace(hour=19, minute=12), times))
-        self.assertTrue(wants_dark("auto", day.replace(hour=2), times))
-        self.assertFalse(wants_dark("auto", day.replace(hour=6, minute=53), times))
-        self.assertTrue(wants_dark("dark", day, times))
-        self.assertFalse(wants_dark("light", day.replace(hour=23), times))
+        self.assertEqual("light", resolve_auto("auto", day, times))
+        self.assertEqual("light", resolve_auto("auto", day.replace(hour=19, minute=11), times))
+        self.assertEqual("dark", resolve_auto("auto", day.replace(hour=19, minute=12), times))
+        self.assertEqual("dark", resolve_auto("auto", day.replace(hour=2), times))
+        self.assertEqual("light", resolve_auto("auto", day.replace(hour=6, minute=53), times))
         # no sunset that far north: the clock decides
-        self.assertTrue(wants_dark("auto", day.replace(hour=22), {"sunrise": None, "maghrib": None}))
+        self.assertEqual("dark", resolve_auto("auto", day.replace(hour=22),
+                                              {"sunrise": None, "maghrib": None}))
+        # and a mat that has been set to one of the three is left where it is
+        for mode in ("light", "dark", "colour"):
+            with self.subTest(mode):
+                self.assertEqual(mode, resolve_auto(mode, day.replace(hour=22), times))
 
     def test_dark_is_white_on_black(self):
         w = self.window(theme="dark")
@@ -1537,27 +1551,30 @@ class ThemeTest(unittest.TestCase):
         w.set_theme("light")
         self.assertFalse(theme.is_dark())
 
-    def test_automatic_waits_for_the_prayer_to_finish(self):
-        from unittest import mock
+    def test_the_screen_does_not_change_under_a_prayer(self):
+        """WAS test_automatic_waits_for_the_prayer_to_finish. Nothing changes the screen on its
+        own any more, but the waiting is still there and still right: it is what stops a
+        repaint arriving in the middle of somebody praying. Driven by a settings change now
+        rather than by Maghrib, which is the only way it can be reached."""
         from salaah import theme
-        w = self.window(theme="auto")
+        w = self.window(theme="light")
         w.open_prayer("fajr")
         w.start("fajr", w.school.prayers["fajr"][-1])
-        was = theme.is_dark()
-        with mock.patch.object(type(w), "wants_dark", return_value=not was):
-            self.assertFalse(w.apply_theme(), "not in the middle of a prayer")
-            self.assertEqual(was, theme.is_dark())
-            w.stop()
-            self.assertTrue(w.apply_theme())
-            self.assertEqual(not was, theme.is_dark())
+        self.assertFalse(theme.is_dark())
+        w.settings.theme = "dark"
+        self.assertFalse(w.apply_theme(), "not in the middle of a prayer")
+        self.assertFalse(theme.is_dark())
+        w.stop()
+        self.assertTrue(w.apply_theme())
+        self.assertTrue(theme.is_dark())
 
     def test_settings_offers_the_three_choices_in_a_dropdown(self):
         w = self.window(theme="light")
         picker = w.theme_picker
         labels = [picker.itemText(i) for i in range(picker.count())]
-        self.assertEqual(["Automatic: dark from Maghrib to sunrise", "Light: black on white",
-                          "Dark: white on black"], labels)
-        self.assertEqual(["auto", "light", "dark"],
+        self.assertEqual(["Light: black on white", "Dark: white on black",
+                          "Colour: pictures on black"], labels)
+        self.assertEqual(["light", "dark", "colour"],
                          [picker.itemData(i) for i in range(picker.count())])
         self.assertEqual("Light: black on white", picker.currentText(), "the setting it is on")
 
@@ -15323,6 +15340,288 @@ class TheTrialEndsTest(unittest.TestCase):
                          "the trial cleared without recording what was installed")
 
 
+class HowAStillPictureMeetsTheDarkTest(unittest.TestCase):
+    """The three things PixmapCache can do with a picture when the screen goes dark.
+
+    Until 2.43 there was one: invert it, which is right for a line drawing and nothing else.
+    2.43 added "leave a painting alone", measured off the picture rather than a list of names,
+    because the list had been wrong twice. 2.44 adds "use the night version shipped beside it",
+    which the wu'du steps need: each is a coloured drawing with black lettering round it, and
+    no single rule over a whole picture can turn one over without the other.
+
+    All three are exercised here on pictures made for the purpose, because only one of them is
+    exercised by what the mat ships -- and the two that are not are the two that have been
+    silently wrong before.
+    """
+
+    def spare(self, name):
+        """A picture written beside the real ones under a name of its own, and taken away
+        again. A stray file the manifest would notice beats editing a shipped one, which it
+        would not."""
+        path = Path(__file__).resolve().parent.parent / "assets" / "children" / name
+        self.addCleanup(lambda: path.exists() and path.unlink())
+        return path
+
+    @staticmethod
+    def drawn(colour, mark=None):
+        """A small picture: white paper with a stripe of [colour] across it."""
+        image = QtGui.QImage(64, 64, QtGui.QImage.Format.Format_ARGB32)
+        image.fill(QtGui.QColor("white"))
+        p = QtGui.QPainter(image)
+        p.fillRect(QtCore.QRect(8, 8, 48, 24), QtGui.QColor(colour))
+        if mark is not None:
+            p.fillRect(QtCore.QRect(8, 40, 16, 16), QtGui.QColor(mark))
+        p.end()
+        return image
+
+    def cache(self, theme="dark"):
+        from salaah.render import PixmapCache
+        from salaah import theme as themes
+        was = themes.is_dark()
+        self.addCleanup(lambda: themes.set_dark(was))
+        themes.set_dark(theme == "dark")
+        return PixmapCache()
+
+    def shown(self, cache, path):
+        return cache.get(path, QtCore.QSize(64, 64)).toImage()
+
+    def test_a_line_drawing_is_still_turned_over(self):
+        """The oldest of the three, and the one every posture figure depends on. White paper
+        with a black stripe on it comes back as a black page with a white stripe."""
+        path = self.spare("turned-over-by-a-test.png")
+        self.assertTrue(self.drawn("black").save(str(path)))
+        got = self.shown(self.cache("dark"), path)
+        self.assertLess(QtGui.qGray(got.pixel(1, 1)), 60,
+                        "the paper did not turn over")
+        self.assertGreater(QtGui.qGray(got.pixel(32, 20)), 200,
+                           "the black stripe did not turn over")
+
+    def test_a_painting_is_left_alone(self):
+        """Said as the pixels rather than as a brightness: after dark it must be the same
+        picture, colour for colour, paper and all. 2.43's rule, kept honest here because
+        nothing the mat ships exercises it through this cache any more."""
+        path = self.spare("left-alone-by-a-test.png")
+        self.assertTrue(self.drawn("#1a7fd4").save(str(path)))
+        day = self.shown(self.cache("light"), path)
+        night = self.shown(self.cache("dark"), path)
+        for x, y in ((1, 1), (32, 20), (10, 48)):
+            with self.subTest(at=(x, y)):
+                self.assertEqual(day.pixel(x, y), night.pixel(x, y),
+                                 "a picture in colour came out different after dark")
+
+    def test_a_night_version_beside_it_is_used_as_it_is(self):
+        """What the wu'du steps need. The day picture is in colour, so without a twin it would
+        be shown unchanged and its lettering would be black on a black page; with one, the twin
+        is shown and nothing is computed."""
+        day = self.spare("twinned-by-a-test.png")
+        night = self.spare("twinned-by-a-test-dark.png")
+        self.assertTrue(self.drawn("#1a7fd4", mark="black").save(str(day)))
+        # the same drawing with the black mark turned over, which is what the builder does
+        self.assertTrue(self.drawn("#1a7fd4", mark="white").save(str(night)))
+        got = self.shown(self.cache("dark"), day)
+        self.assertGreater(QtGui.qGray(got.pixel(14, 46)), 200,
+                           "the night version was not used: the lettering is still black")
+        self.assertEqual(QtGui.QColor("#1a7fd4").rgb() & 0xFFFFFF, got.pixel(32, 20) & 0xFFFFFF,
+                         "the drawing was changed on the way through")
+
+    def test_the_day_version_is_the_day_version(self):
+        """A twin must not leak into the light screen."""
+        day = self.spare("twinned-by-a-test.png")
+        night = self.spare("twinned-by-a-test-dark.png")
+        self.assertTrue(self.drawn("#1a7fd4", mark="black").save(str(day)))
+        self.assertTrue(self.drawn("#1a7fd4", mark="white").save(str(night)))
+        got = self.shown(self.cache("light"), day)
+        self.assertLess(QtGui.qGray(got.pixel(14, 46)), 60,
+                        "the night version is being shown by day")
+
+    def test_the_wudu_steps_all_ship_one(self):
+        """Not a property of the mechanism but of the artwork, and the thing that would
+        actually go wrong: a sheet reinstalled without its night versions."""
+        from salaah.render import PixmapCache
+        for step in ("hands", "mouth", "nose", "face", "arms", "head", "feet"):
+            with self.subTest(step):
+                path = ASSETS / "wudu" / f"step-{step}.png"
+                self.assertTrue(PixmapCache.after_dark(path).is_file(),
+                                f"{path.name} has no night version beside it")
+
+
+class TheWuduStepsKeepTheirBoyAfterDarkTest(unittest.TestCase):
+    """End to end, on the real menu: the same seven tiles in both themes.
+
+    The pictures themselves are checked in test_core. This is the other half -- that what the
+    menu actually puts on the screen is those pictures, through the cache, the right way up.
+    """
+
+    def menu(self, theme):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.open_corner("wudu")
+        settle()
+        self.assertIsNotNone(w.wudu_menu, "the seven were never built")
+        return w
+
+    def test_the_drawing_is_the_same_and_the_lettering_is_not(self):
+        shots = {}
+        for theme in ("light", "dark"):
+            w = self.menu(theme)
+            tile = w.wudu_menu.tiles[0]
+            shots[theme] = tile.grab().toImage()
+        day, night = shots["light"], shots["dark"]
+        self.assertEqual(day.size(), night.size(), "the tile changed size with the theme")
+        wide, tall = day.width(), day.height()
+        self.assertGreater(wide, 20, "the tile has no size to measure")
+        same = apart = turned = 0
+        for x in range(0, wide, 3):
+            for y in range(0, tall, 3):
+                a, b = day.pixelColor(x, y), night.pixelColor(x, y)
+                colour = max(a.red(), a.green(), a.blue()) - min(a.red(), a.green(), a.blue())
+                if colour >= 40:
+                    same += 1
+                    # WITHIN A FEW LEVELS, not identical. The tile is scaled into its box by
+                    # Qt's smooth transform, and a pixel that straddles the black frame picks
+                    # up a little of whichever side the frame is on that screen. Measured:
+                    # 1.8% of the coloured samples differ at all and the worst of them by FOUR
+                    # levels out of 255. An inversion moves a pixel by two hundred.
+                    off = max(abs(a.red() - b.red()), abs(a.green() - b.green()),
+                              abs(a.blue() - b.blue()))
+                    self.assertLess(off, 12,
+                                    f"the drawing changed by {off} levels at ({x},{y}) "
+                                    f"after dark")
+                elif a.alpha() > 128 and max(a.red(), a.green(), a.blue()) < 90:
+                    apart += 1
+                    if QtGui.qGray(b.rgb()) > 150:
+                        turned += 1
+        self.assertGreater(same, 50, "no coloured drawing was found on the tile")
+        self.assertGreater(apart, 20, "nothing drawn in black was found on the tile")
+        # MOST OF THE BLACK, NOT ALL OF IT. The black on this tile is the frame, the badge and
+        # the label, which must turn over, AND the boy's own outlines and his hair, which must
+        # not. Which pixel is which is settled on the files themselves in test_core, per drawn
+        # shape; what is asked here is only that the night version is reaching the screen at
+        # all, which it cannot be if the black stays black. Measured: 77% of it turns over.
+        self.assertGreater(turned / apart, 0.5,
+                           f"only {turned / apart:.0%} of the black on this tile turned over "
+                           f"after dark: the night version is not being shown")
+
+
+class TheColourThemeOnTheScreenTest(unittest.TestCase):
+    """The third screen mode, measured on what a child would see rather than on the settings.
+
+    Harry, 18 November 2026: "could i have a 'third theme'? we we have white on black, black on
+    white, colour?", "colour theme will sit on black", "have mat write the five prayer names
+    into empty arches", "when displaying time on dome in coloured version, change font colour
+    to white".
+    """
+
+    def mat(self, mode, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=False)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        w.stack.setCurrentWidget(w.home)
+        settle()
+        self.addCleanup(lambda: shut(w))
+        self.assertTrue(w.mosque.ready, "the mosque did not load")
+        return w
+
+    def test_the_colour_mat_shows_the_coloured_drawing(self):
+        """And the other two show the one they have always shown. Measured off the pixels: a
+        test that asked which filename was chosen would pass on a file that failed to load."""
+        from salaah.render import has_colour
+        for mode, expected in (("light", False), ("dark", False), ("colour", True)):
+            with self.subTest(mode):
+                w = self.mat(mode)
+                self.assertEqual(expected, has_colour(w.mosque.picture),
+                                 f"{mode}: the wrong drawing is on the screen")
+
+    def test_the_colour_mat_shows_it_in_every_language(self):
+        """THE REGRESSION THIS WAS WRITTEN FOR. The painted mosques carry a map of ten drawings
+        and the coloured one is a single picture for all ten, so the colour block empties that
+        map. When the overlay learned to merge sections rather than replace them, "there is no
+        map here" quietly became "change nothing about the map" -- and an Urdu colour mat went
+        back to the black-and-white drawing while English stayed right."""
+        from salaah.render import has_colour
+        for lang in ("en", "ur", "ar", "zh", "bn"):
+            with self.subTest(lang):
+                w = self.mat("colour", lang)
+                self.assertTrue(has_colour(w.mosque.picture),
+                                f"an {lang} colour mat is showing the black-and-white mosque")
+
+    def test_the_names_are_written_in_rather_than_painted_on(self):
+        """One picture for ten languages, which is the whole reason for the empty arches. The
+        words come from the pack, so they are the pack's language and the pack's face."""
+        w = self.mat("colour", "ur")
+        self.assertFalse(w.mosque.own_names, "the colour front page still claims painted names")
+        self.assertEqual(5, len(w.mosque.labels), "the five names were not handed to it")
+        said = {name for _, name in w.mosque.labels.values()}
+        self.assertNotIn("Fajr", said, "an Urdu mat is being given the English names")
+
+    def test_the_painted_mats_are_still_painted(self):
+        for mode in ("light", "dark"):
+            with self.subTest(mode):
+                w = self.mat(mode)
+                self.assertTrue(w.mosque.own_names,
+                                f"{mode}: the names stopped coming from the artwork")
+
+    def test_the_time_on_the_dome_is_white_in_colour_and_not_otherwise(self):
+        """THE LIGHT AND DARK ANSWERS LOOK THE WRONG WAY ROUND AND ARE NOT. The question is
+        what colour the DOME came out, not what colour the page is, and the black-and-white
+        mosque is shown inside out on one of the two screens: on a light mat the dome is black
+        and takes the brighter red, on a dark mat it is white and takes the deeper one. I wrote
+        this pair backwards first time and the test said so."""
+        for mode, expected in (("light", "#ff5a47"), ("dark", "#c0392b"), ("colour", "#ffffff")):
+            with self.subTest(mode):
+                w = self.mat(mode)
+                self.assertEqual(expected, w.mosque.clock_ink().name())
+
+    def test_the_coloured_drawing_is_never_turned_over(self):
+        """It is drawn on black and shown on black, so there is nothing to invert -- and
+        inverting a painting is not a change of theme, it is a different picture."""
+        w = self.mat("colour")
+        self.assertFalse(w.mosque.flipped)
+
+    def test_changing_the_mode_swaps_the_drawing_without_a_rebuild(self):
+        """A theme change is a repaint, which is what keeps a prayer in progress in its place.
+        The mosques are the one thing that has to read a different file, so they are told."""
+        from salaah.render import has_colour
+        w = self.mat("dark")
+        before = w.mosque
+        w.set_theme("colour")
+        settle()
+        self.assertIs(before, w.mosque, "the screen was rebuilt rather than repainted")
+        self.assertTrue(has_colour(w.mosque.picture), "it did not pick up the coloured drawing")
+        w.set_theme("dark")
+        settle()
+        self.assertFalse(has_colour(w.mosque.picture), "it did not go back")
+
+    def test_the_settings_page_offers_three_and_not_four(self):
+        w = self.mat("colour")
+        w.stack.setCurrentWidget(w.settings_screen)
+        settle()
+        offered = [w.theme_picker.itemData(i) for i in range(w.theme_picker.count())]
+        self.assertEqual(["light", "dark", "colour"], offered)
+
+    def test_the_sky_shows_through_the_coloured_mosque(self):
+        """The stars and the moon are drawn under the drawing. Harry's arrived on solid black,
+        which hid them, and the mat was painting a sky every frame that nothing could see."""
+        w = self.mat("colour")
+        picture = w.mosque.picture.toImage()
+        clear = sum(1 for x in range(0, picture.width(), 7)
+                    for y in range(0, picture.height() // 2, 7)
+                    if picture.pixelColor(x, y).alpha() < 128)
+        looked = len(range(0, picture.width(), 7)) * len(range(0, picture.height() // 2, 7))
+        self.assertGreater(clear / looked, 0.5,
+                           f"only {clear / looked:.0%} of the sky lets the page through")
+
+
 class WuduScreensTest(unittest.TestCase):
     """The Wu'du tile opens the seven steps; a step opens its drawing beside its words."""
 
@@ -15977,13 +16276,43 @@ class FilmsFollowTheThemeTest(unittest.TestCase):
 
     def test_the_drawings_are_shipped_once_not_once_per_theme(self):
         """There is no inverted copy of anything on disk. If one ever appears it means somebody
-        solved this with files again, and the two sets will drift."""
-        for folder in ("wudu", "duas-menu", "hadith-menu", "knowledge"):
+        solved this with files again, and the two sets will drift.
+
+        THE WU'DU STEPS ARE THE ONE EXCEPTION SINCE 2.44, and the rule is narrowed rather than
+        dropped, because what they ship is not an inverted copy -- the app could make one of
+        those itself, and this rule is right to say it should.
+
+        A step picture is a coloured drawing with a frame, a numbered badge and a label in
+        black around it. The drawing must not turn over and the lettering must, which is not an
+        inversion of anything: it is a different decision for each drawn shape in the picture,
+        taken by looking at which shapes carry colour. Making it on the mat means finding
+        connected shapes in a 284x1026 picture in Python on a Pi, every time a theme changes.
+
+        So the night version is built beside the day one, by the same tool, in the same run,
+        off the same sheet -- and DRIFT IS WHAT IS CHECKED, not merely that the file is there:
+        tests/test_core.py compares the two pixel for pixel and asks that the drawing is
+        identical in both and that every black pixel of the frame and the lettering has turned
+        over. A night version edited on its own fails that; a day version replaced without its
+        night version fails this.
+        """
+        for folder in ("duas-menu", "hadith-menu", "knowledge"):
             for path in (ASSETS / folder).glob("*"):
                 with self.subTest(path.name):
                     self.assertNotIn("invert", path.name.lower())
                     self.assertNotIn("-dark", path.name.lower())
                     self.assertNotIn("_dark", path.name.lower())
+        for path in (ASSETS / "wudu").glob("*"):
+            with self.subTest(path.name):
+                self.assertNotIn("invert", path.name.lower())
+                self.assertNotIn("_dark", path.name.lower())
+                if path.name.endswith("-dark.png"):
+                    day = path.with_name(path.name[:-len("-dark.png")] + ".png")
+                    self.assertTrue(day.is_file(),
+                                    f"{path.name} is a night version of nothing")
+                    self.assertTrue(day.name.startswith("step-"),
+                                    "only the wu'du steps may ship a night version")
+                    continue
+                self.assertNotIn("-dark", path.name.lower())
 
 
 class AnimatedMenusTest(unittest.TestCase):
@@ -18344,16 +18673,22 @@ class QiblaQuestTest(unittest.TestCase):
         round -- the one fixed point in the game should not come and go with the question.
 
         So this asks the PICTURE. Makkah is at 21.42 N, 39.83 E; put through the same linear
-        fit the city pins use, that lands inside the Arabian landmass, which is solid black.
-        The Kaaba is drawn in white, so what proves it is there is a patch of paper in a place
-        that would otherwise be all ink.
+        fit the city pins use, that lands inside the Arabian landmass.
+
+        TURNED ROUND AT 2.44 WITH THE ARTWORK, and it is the same question either way round.
+        The old map was a black silhouette of the continents with the Kaaba drawn into it in
+        white, so what proved the Kaaba was there was a patch of PAPER where there would
+        otherwise be all ink. Harry's watercolour is the other way about -- the land is green
+        and orange and the Kaaba is a small black cube on it -- so what proves it now is a
+        patch of INK where there would otherwise be all land. What the test rules out is
+        unchanged, and so is the shape of the measurement below.
         """
         from PIL import Image
         import numpy as np
         png = Path(__file__).resolve().parent.parent / "assets" / "children" / "qibla-quest.png"
         with Image.open(png) as drawing:
-            whole = np.asarray(drawing.convert("L"))
-        tall, wide = whole.shape
+            whole = np.asarray(drawing.convert("RGBA")).astype(int)
+        tall, wide = whole.shape[:2]
         # Makkah as a fraction of the map, from the fit in salaah/qibla_quest.py.
         x, y = int(wide * 0.5664), int(tall * 0.4935)
 
@@ -18367,19 +18702,23 @@ class QiblaQuestTest(unittest.TestCase):
         # Second try: a tight patch, searched over a small window so a nudged drawing would
         # still pass. Also sailed through -- the window reached the sea and scored 73%.
         #
-        # What actually tells them apart is not how much paper is there but WHAT SHAPE it is.
-        # The Kaaba is a small mark with ink all round it. The Red Sea is a huge connected run
-        # of paper that leaves the neighbourhood entirely. Measured: the light region nearest
-        # Makkah is 308 pixels and enclosed on the map with the Kaaba, and 8,678 pixels and
-        # running off the edge of the window on the map without it. Twenty-eight times apart,
-        # and different in kind rather than degree.
+        # What actually tells them apart is not how much of it is there but WHAT SHAPE it is.
+        # The Kaaba is a small mark with land all round it; a landmass is a huge connected run
+        # that leaves the neighbourhood entirely. Measured on the 2.44 artwork: the dark region
+        # nearest Makkah is 491 pixels and enclosed, and on the 2.43 map -- whose whole
+        # continent is black and whose Kaaba is white -- it is 28,381 pixels and runs off the
+        # edge of the window. Fifty-seven times apart, and different in kind rather than
+        # degree, which is what makes it a test rather than a threshold.
         from collections import deque
         half = 100
-        window = whole[y - half:y + half, x - half:x + half] > 200
+        near = whole[y - half:y + half, x - half:x + half]
+        # Ink, and only where the page does not show through: the sea is cut out of this
+        # drawing, and a see-through pixel keeps whatever colour it was given.
+        window = (near[:, :, 3] >= 128) & (near[:, :, :3].max(2) < 110)
         height, width = window.shape
-        paper = np.argwhere(window)
-        self.assertTrue(len(paper), "there is no paper at all near Makkah")
-        nearest = paper[(((paper[:, 0] - half) ** 2 + (paper[:, 1] - half) ** 2)).argmin()]
+        marks = np.argwhere(window)
+        self.assertTrue(len(marks), "there is nothing drawn at all near Makkah")
+        nearest = marks[(((marks[:, 0] - half) ** 2 + (marks[:, 1] - half) ** 2)).argmin()]
         seen = np.zeros_like(window)
         queue = deque([tuple(nearest)])
         seen[tuple(nearest)] = True
@@ -18395,8 +18734,8 @@ class QiblaQuestTest(unittest.TestCase):
                     seen[step] = True
                     queue.append(step)
         self.assertFalse(escapes,
-                         f"the paper nearest Makkah runs off out of the neighbourhood "
-                         f"({size}px): that is the sea, not a mark on the land")
+                         f"the ink nearest Makkah runs off out of the neighbourhood "
+                         f"({size}px): that is a landmass, not a mark on it")
         self.assertTrue(60 < size < 4000,
                         f"the mark at Makkah is {size}px, which is not the size of a drawing "
                         f"of the Kaaba")
@@ -18933,16 +19272,97 @@ class PrayerDayJourneyTest(unittest.TestCase):
                     g.tap_order(where)
             self.assertTrue(g.done, f"level {level} could not be finished")
 
-    def test_the_ring_can_do_what_a_touch_can(self):
-        """The ring is how this is played without touching the screen at all, so it has to
-        reach the same two-step selection a touch does."""
-        g = self.game()
-        g.cycle_mode()
-        g.active = 0
-        self.assertEqual(g.press(), "selected")
-        g.active = 1
-        self.assertIn(g.press(), ("moved", "complete"))
-        self.assertEqual(g.moves, 1)
+    def test_the_ring_cannot_play_this_any_more(self):
+        """REPLACES test_the_ring_can_do_what_a_touch_can, which asked for the opposite.
+
+        Harry, 17 November 2026: "the prayer day journey is still enabled for ring control,
+        disable it, touch only and space answers apart slightly."
+
+        Both halves of the ring are gone from the rules -- step(), which moved the highlight
+        on by one, and press(), which acted on wherever it had got to -- so this asks that
+        they are not there rather than that they do nothing. A method kept and neutered is a
+        method somebody wires back up.
+        """
+        from salaah.prayer_day_journey import Rules
+        for gone in ("step", "press"):
+            with self.subTest(gone):
+                self.assertFalse(hasattr(Rules, gone),
+                                 f"Rules.{gone} is still there: the ring can still play this")
+
+    def test_nothing_moves_the_highlight_on_its_own(self):
+        """The timer that walked it round the answers every 1.35 seconds. With the ring gone
+        it would be a thing to wait for rather than a thing to use, and it would keep a Pi
+        repainting a panel nobody is pressing."""
+        from salaah.prayer_day_journey import Screen
+        w = self.window()
+        w.open_a_game("game")
+        settle()
+        screen = w.games["game"]
+        self.assertFalse(hasattr(screen, "_scan"), "the scanning timer is still there")
+        self.assertFalse(hasattr(Screen, "CYCLE"), "the scanning interval is still there")
+        running = [t for t in screen.findChildren(QtCore.QTimer) if t.isActive()]
+        self.assertEqual([], running,
+                         f"something is still ticking on this screen: {running}")
+
+    def test_the_ring_only_leaves(self):
+        """BACK still works, as it does from every other game -- the ring is not dead on this
+        screen, only the playing of it. The same arrangement build_the_salaah has."""
+        from salaah.buttons import BACK, NEXT
+        w = self.window()
+        w.open_a_game("game")
+        settle()
+        screen = w.games["game"]
+        left = []
+        screen.leave.connect(lambda: left.append(True))
+        before = (screen.game.at, screen.game.chosen, screen.game.locked)
+        screen.press(NEXT)
+        settle()
+        self.assertEqual(before, (screen.game.at, screen.game.chosen, screen.game.locked),
+                         "a ring press changed the game")
+        self.assertEqual([], left, "a ring press left the game")
+        screen.press(BACK)
+        settle()
+        self.assertEqual([True], left, "BACK no longer leaves the prayer day")
+
+    def test_no_answer_is_marked_before_anybody_touches_one(self):
+        """The lapis border marked where the ring's highlight was resting. With the ring gone
+        it marked the first answer from the moment the round opened -- an edge drawn round one
+        of five answers, meaning nothing, for a child to read as a hint."""
+        w = self.window()
+        w.open_a_game("game")
+        settle()
+        panel = w.games["game"].companion
+        panel.resize(1080, 1920)
+        settle()
+        marked = [b.text() for b in panel.findChildren(QtWidgets.QPushButton, "answerButton")
+                  if b.isVisible() and b.property("answerState") not in (None, "idle")]
+        self.assertEqual([], marked, f"{marked} is marked before anything has been pressed")
+
+    def test_the_answers_are_spaced_apart(self):
+        """"space answers apart slightly". The gap is the panel's own, not whatever the layout
+        had left over, so it is asked of the layout rather than measured off a screenshot."""
+        from salaah.prayer_day_journey import ANSWER_GAP
+        w = self.window()
+        w.open_a_game("game")
+        settle()
+        screen = w.games["game"]
+        self.assertGreaterEqual(ANSWER_GAP, 20,
+                                "the answers are back to the gap they had before 2.44")
+        self.assertEqual(w.side_px(ANSWER_GAP), screen.answer_box.layout().spacing(),
+                         "the answer box is not using the gap it was given")
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(1080, 1920)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
 
     def test_the_five_skies_are_installed_and_the_game_is_not_offered_without_them(self):
         import tempfile
@@ -24292,16 +24712,21 @@ class ThePraisePhrasesTakeTurnsTest(unittest.TestCase):
         self.assertIsNone(win.next_praise(), "it should fall silent, not fail")
 
 
-class TheQiblaMapTurnsOverAfterDarkTest(unittest.TestCase):
-    """Harry: "the qibla quest map is currently white background and black continents on dark
-    theme but i want this reversed so its a black background and white continents, easier on
-    the eye in their respective themes, do opposite for light theme".
+class TheQiblaMapMeetsTheDarkTest(unittest.TestCase):
+    """Harry, at 2.14: "the qibla quest map is currently white background and black continents
+    on dark theme but i want this reversed so its a black background and white continents,
+    easier on the eye in their respective themes, do opposite for light theme".
 
-    Not a new convention -- the one this mat already has. journey_jigsaw._image draws the
-    line: ship the light half and invert it for the dark screen works for LINE ART, and not
-    for pictures of real places, where it makes a photographic negative. A flat silhouette of
-    the continents is line art by that test. This screen was simply the one place that loaded
-    its own pixmap instead of asking the cache that does the inverting.
+    HOW THAT IS DONE CHANGED AT 2.44 AND WHAT HE ASKED FOR DID NOT. The map was a flat
+    silhouette of the continents, which is line art, and line art inverts to the same drawing
+    with the colours swapped -- so it went through the cache that inverts, and the sea came out
+    black on the night screen because it was white on the day one.
+
+    Harry's watercolour cannot be inverted: green land goes magenta. So the sea is cut out of
+    the drawing instead and the page shows through it, which gives him exactly the same thing
+    -- white behind the continents by day, black after dark -- and leaves the continents the
+    colours he painted them in both. The first test below is unchanged and still passes; the
+    second had to stop asking for a silhouette.
 
     MEASURED ON THE PAINTED PIXELS, because the question is what a child sees. Asking whether
     the code calls images.get would pass on a call whose result was thrown away.
@@ -24348,21 +24773,54 @@ class TheQiblaMapTurnsOverAfterDarkTest(unittest.TestCase):
                         f"is still the white sheet Harry asked to have turned over")
 
     def test_the_continents_are_there_in_both_themes(self):
-        """The other half of it. A map inverted to all-black, or failing to load at all, would
-        satisfy the test above and show a child nothing."""
-        for theme, expect_dark_land in (("light", True), ("dark", False)):
+        """The other half of it. A map that came out all one colour, or failed to load at all,
+        would satisfy the test above and show a child nothing.
+
+        It used to count how much of the panel was dark by day and light after dark, which is
+        what a silhouette does. A watercolour is neither: the land is green and orange in both
+        themes, which is the whole point of it, so what is counted is how much of the panel
+        carries COLOUR.
+        """
+        painted = {}
+        for theme in ("light", "dark"):
             panel = self.panel(theme)
             shot = QtGui.QPixmap(panel.size())
             panel.render(shot)
             image = shot.toImage()
-            tones = [QtGui.qGray(image.pixel(x, y))
-                     for y in range(0, image.height(), 5)
-                     for x in range(0, image.width(), 5)]
-            land = sum(1 for t in tones if (t < 100 if expect_dark_land else t > 155))
+            seen = []
+            for y in range(0, image.height(), 5):
+                for x in range(0, image.width(), 5):
+                    at = image.pixelColor(x, y)
+                    seen.append((at.red(), at.green(), at.blue()))
+            painted[theme] = seen
+            land = sum(1 for r, g, b in seen if max(r, g, b) - min(r, g, b) >= 40)
             with self.subTest(theme):
-                self.assertGreater(land / len(tones), 0.05,
-                                   f"{theme}: only {land / len(tones):.1%} of the map is "
-                                   f"land, so there are no continents drawn on it")
+                self.assertGreater(land / len(seen), 0.05,
+                                   f"{theme}: only {land / len(seen):.1%} of the map carries "
+                                   f"colour, so there are no continents drawn on it")
+        # AND THEY ARE THE SAME CONTINENTS, COLOUR FOR COLOUR. A map that was still being
+        # turned over would pass the count above with magenta continents and a child would be
+        # looking at a different world after dark.
+        #
+        # THE COLOURS THEMSELVES, not how far they stray from grey: inverting a pixel leaves
+        # how far it strays from grey EXACTLY as it was, so a test written on that cannot see
+        # an inversion at all. Mine was, and a sabotage that put the inversion back sailed
+        # through it.
+        # ON THE LAND, not on the whole panel: the sea is three quarters of it and it is
+        # SUPPOSED to change, from paper to ink. That is the first test above.
+        day, night = painted["light"], painted["dark"]
+        self.assertEqual(len(day), len(night), "the two panels came out different sizes")
+        land = [(a, b) for a, b in zip(day, night) if max(a) - min(a) >= 40]
+        self.assertGreater(len(land), 200, "no land was found to compare")
+        # ONE IN TEN, measured rather than guessed: the coastline is crinkly and the sea is
+        # three quarters of the panel, so a sample that straddles the two blends with white by
+        # day and with black after dark. That comes to 3.7% of the land samples. Putting the
+        # inversion back moves 100% of them. Ten times clear of the first and ten times under
+        # the second.
+        apart = sum(1 for a, b in land if max(abs(x - y) for x, y in zip(a, b)) > 12)
+        self.assertLess(apart / len(land), 0.10,
+                        f"{apart / len(land):.1%} of the land is a different colour after "
+                        f"dark: the continents are being turned over")
 
 
 class TheThingsHarryAskedForIn214Test(unittest.TestCase):
