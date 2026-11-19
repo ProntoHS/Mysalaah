@@ -7754,47 +7754,83 @@ class TheColouredFilmsTest(unittest.TestCase):
 
     Harry, 18 November 2026: "the kaaba animation will be the main screen for coloured version.
     the azaan, side menu, childrens menu and spinning globe all need to go into the coloured
-    version only."
+    version only." And a day later, five more menus drawn the other way up -- a white outline
+    and white words straight onto black, where the 2.46 sheets were white tiles carrying black
+    words.
 
-    Five drawings, and twenty-three files: the front door, the muezzin, the turning globe, and
-    the two tile menus in ten languages each. NOTHING IS REPLACED -- the light and dark mats go
-    on using exactly the films they used before, and a mat that never selects colour cannot
-    tell this release happened.
+    NOTHING IS REPLACED. The light and dark mats go on using exactly the films they used before,
+    and a mat that never selects colour cannot tell either release happened.
+
+    THREE SINGLE PICTURES AND FIVE MENUS, and the two are built differently on purpose. A front
+    door or a globe is one drawing, so its coloured version is one more film beside it. A menu
+    is drawn ten times over, once per language, and the ten differ ONLY in the words at the foot
+    of each tile -- so a menu is ONE coloured film with no captions on it and ten small pictures
+    of the words. 2.47 shipped ten complete coloured films per menu first: 41MB for the five,
+    against 4.9MB this way, because a coloured drawing with glows compresses about four times
+    worse than the line art it stands beside.
     """
 
-    #: Every coloured film, and the black-and-white one it stands beside.
+    #: The single-picture films, and the black-and-white one each stands beside.
     TWINS = ("welcome/front.gif", "azaan/muezzin.gif", "world/globe.gif")
-    MENUS = ("knowledge", "children")
+
+    #: The menus, each of which has one coloured film and a picture of the words per language.
+    MENUS = ("knowledge", "children", "hadith-menu", "duas-menu", "knowledge-menu")
 
     @staticmethod
     def twin(path):
         return path.with_name(f"{path.stem}-colour{path.suffix}")
 
-    def films(self):
-        """Every coloured film in the tree, with the film it twins."""
+    def menu(self, folder):
+        described = json.loads((ASSETS / folder / "menu.json").read_text(encoding="utf-8"))
+        return described, ASSETS / folder
+
+    def every_film(self):
         out = [(ASSETS / name, self.twin(ASSETS / name)) for name in self.TWINS]
         for folder in self.MENUS:
-            described = json.loads((ASSETS / folder / "menu.json").read_text(encoding="utf-8"))
-            for name in described["films"].values():
-                was = ASSETS / folder / name
-                out.append((was, self.twin(was)))
+            described, where = self.menu(folder)
+            plain = where / described["films"]["en"]
+            out.append((plain, self.twin(plain)))
+        return out
+
+    def every_word_picture(self):
+        out = []
+        for folder in self.MENUS:
+            described, where = self.menu(folder)
+            for lang in described["films"]:
+                out.append((folder, lang, where / "words" / f"{lang}.png"))
         return out
 
     def test_every_one_of_them_is_there(self):
-        """Twenty-three files. A missing one is not a crash -- the mat falls back to the
-        black-and-white film, by design -- which is exactly why it needs counting here rather
-        than being noticed on the glass."""
-        found = self.films()
-        self.assertEqual(23, len(found), "the number of coloured films has changed")
-        for was, now in found:
+        """Eight films and fifty pictures of words. A missing one is not a crash -- the mat
+        falls back to the black-and-white film, by design -- which is exactly why it needs
+        counting here rather than being noticed on the glass."""
+        films = self.every_film()
+        words = self.every_word_picture()
+        self.assertEqual(8, len(films), "the number of coloured films has changed")
+        self.assertEqual(50, len(words), "the number of word pictures has changed")
+        for was, now in films:
             with self.subTest(now.name):
                 self.assertTrue(was.is_file(), f"{was.name}, the film it stands beside, is gone")
                 self.assertTrue(now.is_file(), f"{now.name} is missing")
+        for folder, lang, picture in words:
+            with self.subTest(f"{folder}/{lang}"):
+                self.assertTrue(picture.is_file(), f"{picture.name} is missing")
+
+    def test_no_per_language_coloured_films_are_left_behind(self):
+        """2.46 shipped one coloured film per language for two of these menus. 2.47 replaced
+        them with one film and a picture of the words, and the old ones have to be GONE rather
+        than merely unused: they are ten megabytes, the mat would still find them by name, and
+        a file nobody reads is a file nobody notices has gone stale."""
+        for folder in self.MENUS:
+            described, where = self.menu(folder)
+            shared = self.twin(where / described["films"]["en"]).name
+            stale = sorted(p.name for p in where.glob("*-colour.gif") if p.name != shared)
+            with self.subTest(folder):
+                self.assertEqual([], stale, f"{folder} still carries per-language coloured films")
 
     def test_they_are_films_and_not_pictures(self):
-        """A still where the mat expects movement stands there."""
         from PIL import Image
-        for _, now in self.films():
+        for _, now in self.every_film():
             with self.subTest(now.name):
                 with Image.open(now) as film:
                     self.assertGreater(getattr(film, "n_frames", 1), 1,
@@ -7803,25 +7839,36 @@ class TheColouredFilmsTest(unittest.TestCase):
     def test_they_are_in_colour(self):
         """THE POINT OF THE RELEASE, so it is measured rather than assumed. A coloured film that
         came back grey -- an exporter set wrong, a palette collapsed on the way through a tool --
-        would otherwise ship as a colour theme that looks like the dark one."""
+        would otherwise ship as a colour theme that looks like the dark one.
+
+        MEASURED AGAINST WHAT IS DRAWN, not against the canvas, which is the same lesson that
+        changed render.has_colour at 2.46: a share taken over the whole picture is diluted by
+        however much empty space the drawing was given. The wu'du menu is seventeen empty tiles
+        and one tap, so it is 0.35% of its canvas and would fail any bar the other seven pass.
+
+        Of the ink actually laid down, the eight coloured films run from 4.7% to 98.5%, and
+        every black-and-white film in the tree is EXACTLY 0.00%. There is nothing in between to
+        choose a threshold in, which is the whole point.
+        """
         from PIL import Image, ImageSequence
         import numpy as np
-        for _, now in self.films():
+        for _, now in self.every_film():
             with self.subTest(now.name):
                 with Image.open(now) as film:
                     frame = np.asarray(next(ImageSequence.Iterator(film)).convert("RGB")).astype(int)
-                spread = frame.max(2) - frame.min(2)
-                coloured = float((spread > 30).mean())
-                self.assertGreater(coloured, 0.004,
-                                   f"{now.name} is {100 * coloured:.3f}% coloured pixels, "
-                                   f"which is a grey picture")
+                lit = frame.max(2) > 24
+                self.assertTrue(lit.any(), f"{now.name} is blank")
+                coloured = float((frame.max(2) - frame.min(2) > 30)[lit].mean())
+                self.assertGreater(coloured, 0.01,
+                                   f"{now.name} is {100 * coloured:.2f}% coloured where it is "
+                                   f"drawn at all, which is a grey picture")
 
     def test_they_are_the_shape_of_the_film_they_stand_beside(self):
-        """Not the same size -- they are scaled to whatever screen they land on, and Harry drew
+        """Not the same size -- they are scaled to whatever screen they land on, and Harry draws
         them larger -- but the same shape. A twin at a different aspect would be letterboxed or
         cropped where the original is not."""
         from PIL import Image
-        for was, now in self.films():
+        for was, now in self.every_film():
             with self.subTest(now.name):
                 with Image.open(was) as old, Image.open(now) as new:
                     before, after = old.size[0] / old.size[1], new.size[0] / new.size[1]
@@ -7829,108 +7876,103 @@ class TheColouredFilmsTest(unittest.TestCase):
                                        msg=f"{now.name} is {after:.4f} and {was.name} "
                                            f"is {before:.4f}")
 
-    def test_the_menus_keep_their_tiles_where_the_buttons_are(self):
-        """THE FAULT THIS IS HERE TO STOP: a child pressing Qibla Quest and getting the jigsaw.
+    def test_the_coloured_menus_carry_no_captions_of_their_own(self):
+        """The film is shared by all ten languages, so it must have NOTHING written on it.
 
-        The touchable boxes in menu.json were found from the English sheet and every language is
-        laid over them, so a coloured sheet whose tiles have shifted puts every button over the
-        wrong picture. Harry's sheets have no black outline round the tiles, so their white
-        starts six pixels in from where the old sheet's ink ended -- a uniform inset on all four
-        sides of every tile, which is the drawing being drawn differently rather than a tile
-        having moved. That inset is allowed; a tile out of step with the others is not.
+        A caption left on it would show through under every translation -- the English word
+        and the Urdu one on top of each other, which is the sort of fault that looks like a
+        rendering glitch and is actually a build that skipped a step. Measured where the words
+        would be: the band of every tile has to be as dark as the ground around it.
         """
         from PIL import Image, ImageSequence
         import numpy as np
-        from scipy import ndimage
         for folder in self.MENUS:
-            described = json.loads((ASSETS / folder / "menu.json").read_text(encoding="utf-8"))
-            names = list(described["tiles"])
-            for lang, name in described["films"].items():
-                now = self.twin(ASSETS / folder / name)
+            described, where = self.menu(folder)
+            film = self.twin(where / described["films"]["en"])
+            with Image.open(film) as f:
+                frames = np.array([np.asarray(x.convert("L"))
+                                   for x in ImageSequence.Iterator(f)], dtype=np.uint8)
+            brightest = frames.max(0)
+            for name, (x0, y0, x1, y1) in described["tiles"].items():
+                picture = self.twin(where / described["films"]["en"])
+                words = where / "words" / "en.png"
+                with Image.open(words) as w:
+                    alpha = np.asarray(w.convert("RGBA"))[:, :, 3]
+                band = alpha[y0:y1, x0:x1]
+                if not band.any():
+                    continue
+                rows = np.nonzero(band.any(1))[0]
+                top, bottom = int(rows.min()), int(rows.max()) + 1
+                lit = brightest[y0 + top:y0 + bottom, x0 + 20:x1 - 20]
+                with self.subTest(f"{folder}/{name}"):
+                    self.assertLess(float((lit > 100).mean()), 0.005,
+                                    f"{picture.name} still has something written in {name}'s "
+                                    f"caption band: {100 * float((lit > 100).mean()):.2f}% of "
+                                    f"it is lit")
+
+    def test_the_words_are_white_and_sit_only_where_a_caption_goes(self):
+        """A word picture is white letterforms and nothing else. If it carried any of the
+        drawing it was lifted from, that would be painted over Harry's own."""
+        from PIL import Image
+        import numpy as np
+        for folder in self.MENUS:
+            described, where = self.menu(folder)
+            inside = None
+            for lang in described["films"]:
+                picture = where / "words" / f"{lang}.png"
+                with Image.open(picture) as w:
+                    shot = np.asarray(w.convert("RGBA"))
                 with self.subTest(f"{folder}/{lang}"):
-                    with Image.open(now) as film:
-                        frame = next(ImageSequence.Iterator(film)).convert("L")
-                    # The tiles are the LIGHT regions: these sheets are drawn on black, where
-                    # the ones that ship are dark outlines enclosing white.
-                    labels, _ = ndimage.label(np.asarray(frame) >= 128)
-                    found = []
-                    for where in ndimage.find_objects(labels):
-                        box = [where[1].start, where[0].start, where[1].stop, where[0].stop]
-                        if box[2] - box[0] >= 150 and box[3] - box[1] >= 150:
-                            found.append(box)
-                    found = [b for b in found
-                             if not any(o is not b and o[0] <= b[0] and o[1] <= b[1]
-                                        and o[2] >= b[2] and o[3] >= b[3] for o in found)]
-                    self.assertEqual(len(names), len(found),
-                                     f"{now.name} has {len(found)} tiles and the menu has "
-                                     f"{len(names)}")
-                    tall = min(b[3] - b[1] for b in found)
-                    found.sort(key=lambda b: b[1])
-                    rows, row = [], [found[0]]
-                    for box in found[1:]:
-                        if box[1] - row[0][1] < tall / 2:
-                            row.append(box)
-                        else:
-                            rows.append(sorted(row, key=lambda b: b[0]))
-                            row = [box]
-                    rows.append(sorted(row, key=lambda b: b[0]))
-                    ordered = [b for line in rows for b in line]
-                    offs = []
-                    for tile, box in zip(names, ordered):
-                        want = described["tiles"][tile]
-                        offs.append((tile, [box[0] - want[0], box[1] - want[1],
-                                            want[2] - box[2], want[3] - box[3]]))
-                    flat = [v for _, off in offs for v in off]
-                    inset = round(sum(flat) / len(flat))
-                    for tile, off in offs:
-                        worst = max(abs(v - inset) for v in off)
-                        self.assertLessEqual(worst, 3,
-                                             f"{now.name}: {tile} sits at {off} where the other "
-                                             f"tiles are inset by {inset}; the button would be "
-                                             f"over the wrong picture")
+                    self.assertEqual(tuple(described["size"]), (shot.shape[1], shot.shape[0]),
+                                     f"{picture.name} is not the size of the menu")
+                    alpha = shot[:, :, 3]
+                    self.assertTrue(alpha.any(), f"{picture.name} is blank")
+                    lit = alpha > 0
+                    rgb = shot[:, :, :3][lit]
+                    self.assertEqual(255, int(rgb.min()),
+                                     f"{picture.name} has letterforms that are not white")
+                    if inside is None:
+                        inside = np.zeros(alpha.shape, bool)
+                        for x0, y0, x1, y1 in described["tiles"].values():
+                            inside[y0:y1, x0:x1] = True
+                    self.assertEqual(0, int((lit & ~inside).sum()),
+                                     f"{picture.name} paints outside the tiles")
 
-    def test_each_one_carries_its_own_language(self):
-        """THE 2.45 REGRESSION, ASKED OF A DIFFERENT SCREEN.
+    def test_each_word_picture_carries_its_own_language(self):
+        """THE 2.45 REGRESSION, ASKED OF THE PICTURES THAT NOW CARRY THE LANGUAGE.
 
-        A colour theme that falls back to the English drawing is the exact fault that put an
-        Urdu mat back on the black-and-white mosque one release ago, and these two menus are
-        where it would land next: twenty films, nineteen of which could quietly be the English
-        one. So each coloured film is measured against the SHIPPED film of its own language and
-        against the shipped ENGLISH film, in the band where the words are. It has to look more
-        like its own.
+        A colour theme falling back to the English drawing is the fault that put an Urdu mat
+        back on the black-and-white mosque. With the film shared between all ten, these fifty
+        pictures are the only thing standing between a colour mat and an English one -- so each
+        is measured against the SHIPPED film of its own language and against the shipped
+        ENGLISH film. It has to look more like its own.
         """
         from PIL import Image, ImageSequence
         import numpy as np
         for folder in self.MENUS:
-            described = json.loads((ASSETS / folder / "menu.json").read_text(encoding="utf-8"))
+            described, where = self.menu(folder)
             tiles = described["tiles"]
 
-            def words_of(path):
+            def ink_of(path):
                 with Image.open(path) as film:
-                    frame = np.asarray(next(ImageSequence.Iterator(film)).convert("L"))
-                # The foot of every tile, where the lettering is, kept clear of the edges so
-                # the outline the shipped sheets have and Harry's do not cannot count.
-                out = []
-                for x0, y0, x1, y1 in tiles.values():
-                    tall = y1 - y0
-                    out.append(frame[y0 + int(tall * 0.72):y1 - 12, x0 + 20:x1 - 20] < 128)
-                return out
+                    return np.asarray(next(ImageSequence.Iterator(film)).convert("L")) < 128
 
-            english = words_of(ASSETS / folder / described["films"]["en"])
+            english = ink_of(where / described["films"]["en"])
             for lang, name in described["films"].items():
                 if lang == "en":
                     continue
+                mine = ink_of(where / name)
+                with Image.open(where / "words" / f"{lang}.png") as w:
+                    painted = np.asarray(w.convert("RGBA"))[:, :, 3] > 0
+                if not painted.any():
+                    continue
+                like_mine = float((painted & mine).sum()) / painted.sum()
+                like_english = float((painted & english).sum()) / painted.sum()
                 with self.subTest(f"{folder}/{lang}"):
-                    mine = words_of(ASSETS / folder / name)
-                    colour = words_of(self.twin(ASSETS / folder / name))
-                    like_mine = like_english = 0.0
-                    for own, theirs, shown in zip(mine, english, colour):
-                        like_mine += float((own == shown).mean())
-                        like_english += float((theirs == shown).mean())
                     self.assertGreater(like_mine, like_english,
-                                       f"{self.twin(ASSETS / folder / name).name} reads more "
-                                       f"like the English sheet ({like_english / len(colour):.3f}) "
-                                       f"than like its own ({like_mine / len(colour):.3f})")
+                                       f"{folder}/{lang}: the painted words sit on the English "
+                                       f"lettering {100 * like_english:.1f}% of the time and on "
+                                       f"their own {100 * like_mine:.1f}%, so this is English")
 
     def test_the_front_door_still_turns_through_every_language(self):
         """Ten languages live inside that one film, a beat on each, and a coloured front door
@@ -7969,12 +8011,8 @@ class TheColouredFilmsTest(unittest.TestCase):
     @staticmethod
     def badge_in(frame):
         """The Kaaba badge: a pale, colourless, round blob of about the right size with a dark
-        drawing inside it.
-
-        NOT "the whitest thing", which was the first version and which finds the snow on
-        Greenland -- the old globe has no ice and the new one does. The drawing inside it is
-        what makes a badge a badge.
-        """
+        drawing inside it. NOT "the whitest thing", which was the first version and which finds
+        the snow on Greenland -- the old globe has no ice and the new one does."""
         import numpy as np
         from scipy import ndimage
         height, width, _ = frame.shape
@@ -8054,7 +8092,7 @@ class TheColouredFilmsTest(unittest.TestCase):
 
         build_globe.py fitted those five numbers so that the arc the app draws ends on the
         marker the animator drew, because both are placed by the same arithmetic. Nothing in
-        the suite has ever checked that against the picture -- it was taken on the build tool's
+        the suite had ever checked that against the picture -- it was taken on the build tool's
         word -- and the coloured globe is the first time a second film has had to honour it.
         """
         from PIL import Image, ImageSequence

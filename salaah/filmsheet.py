@@ -179,6 +179,9 @@ class FilmSheet(QtWidgets.QWidget):
         self.boxes: dict[str, tuple] = {}
         self.film: QtGui.QMovie | None = None
         self.sheet: Path | None = None
+        self.plain: Path | None = None
+        self.lang = "en"
+        self.words = QtGui.QPixmap()
         self.turns = STAMP
         self.playing_colour = False
 
@@ -199,6 +202,14 @@ class FilmSheet(QtWidgets.QWidget):
             self.boxes = {}
             return
         self.sheet = where / self.sheet_for(described, window.settings.lang)
+        #: The English film of this menu. The coloured film is named after THAT one and shared
+        #: by every language -- see play().
+        self.plain = where / self.sheet_for(described, "en")
+        #: NOT falling back to English if this language has no words drawn. A coloured menu
+        #: reading English on an Urdu mat is the fault this whole arrangement exists to stop,
+        #: and it is worse than no colour at all. play() handles the missing case by keeping
+        #: the black-and-white film, which is in the right language.
+        self.lang = window.settings.lang
         if not self.play(self.sheet):
             self.boxes = {}
             return
@@ -216,10 +227,31 @@ class FilmSheet(QtWidgets.QWidget):
         the drawing follows the setting without the menu being rebuilt -- a rebuild would lose
         the tiles, which are the touchable half of this screen.
         """
-        wanted = film_now(sheet)
+        # A MENU IN COLOUR IS ONE FILM AND A PICTURE OF ITS WORDS, which is not how any other
+        # screen works and is worth saying why. Everywhere else -- the front door, the muezzin,
+        # the globe -- a coloured drawing is one more film and filmsheet.film_now finds it. A
+        # menu is drawn ten times over, once per language, and the ten differ ONLY in the words
+        # at the foot of each tile. Shipping ten coloured films carried the same animation ten
+        # times: 41MB for the five menus, against 4.9MB this way, and a coloured drawing
+        # compresses about four times worse than the line art it stands beside. The lettering
+        # never moves -- measured at 0.00% across all five sheets -- so a still picture of it is
+        # not an approximation.
+        #
+        # So the FILM is named after the English one and shared by every language, and the WORDS
+        # come out of a words/ folder keyed by language. If either is missing the mat falls back
+        # to the black-and-white film, which is what a half-updated mat should show.
+        wanted, words = film_now(sheet), None
+        if palette().colour:
+            shared = coloured_twin(self.plain)
+            spelled = sheet.parent / "words" / f"{self.lang}.png"
+            if shared.is_file() and spelled.is_file():
+                wanted, words = shared, spelled
+            else:
+                wanted = sheet
         film = QtGui.QMovie(str(wanted))
         if not film.isValid() or film.frameCount() < 2:
             return False
+        self.words = QtGui.QPixmap(str(words)) if words is not None else QtGui.QPixmap()
         # NOT CacheAll. These sheets are 1980x1080 and three dozen frames; told to cache them
         # all, one menu holds a couple of hundred megabytes of decoded frames for as long as it
         # exists. Decoding a frame of a half-megabyte GIF on the way past is nothing by
@@ -324,8 +356,17 @@ class FilmSheet(QtWidgets.QWidget):
     def paintEvent(self, _):
         p = QtGui.QPainter(self)
         p.fillRect(self.rect(), QtGui.QColor(palette().paper))
-        if self.film is not None:
-            draw_themed(p, self.film, self.placement()[0], self.turns)
+        if self.film is None:
+            return
+        box = self.placement()[0]
+        draw_themed(p, self.film, box, self.turns)
+        if not self.words.isNull():
+            # The coloured film carries no captions; the words go on here, in the mat's own
+            # language. One film and ten small pictures instead of ten films -- see
+            # tools/menu/install_colour.py. Drawn into the same rectangle, so it scales with
+            # the drawing and lands on the tiles whatever screen this is.
+            p.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
+            p.drawPixmap(box, self.words)
 
     def showEvent(self, ev):
         if self.film is not None:

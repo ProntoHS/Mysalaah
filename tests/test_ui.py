@@ -25067,32 +25067,72 @@ class TheColouredFilmsOnTheScreenTest(unittest.TestCase):
                                    f"the earth has {int(orange):,} orange pixels against "
                                    f"{int(sea):,} blue ones; it has been turned inside out")
 
-    def test_the_two_film_menus_are_coloured_and_in_the_mats_own_language(self):
-        """Twenty films, nineteen of which could quietly be the English one -- which is exactly
-        what happened to the coloured mosque one release ago. So the language is measured on
-        the screen as well as the colour."""
+    def test_the_film_menus_are_coloured_and_in_the_mats_own_language(self):
+        """Five menus, ten languages each, and ONE coloured film between them.
+
+        From 2.47 the coloured menus are a single film with no captions on it and a small
+        picture of the words per language painted over the top -- 4.9MB for the five menus
+        where ten films apiece came to 41MB. So every language plays the same file, and the
+        language is carried entirely by the overlay. That makes "is this mat reading its own
+        language" a question about PIXELS rather than filenames: the painted menu has to differ
+        from the English one, and it has to differ in the band where the words are.
+
+        A colour theme that quietly fell back to English is the fault that bit the coloured
+        mosque at 2.45, and it would be invisible here to any test that looked at the film.
+        """
         from salaah.filmsheet import FilmSheet
         import numpy as np
-        for lang in ("en", "ur", "zh"):
-            for mode, wanted in (("dark", False), ("colour", True)):
-                with self.subTest(f"{lang}/{mode}"):
-                    w = self.mat(mode, lang)
-                    w.open_the_children_menu()
-                    settle()
-                    sheets = [s for s in w.findChildren(FilmSheet) if s.isVisible() and s.ready]
-                    self.assertTrue(sheets, "no film menu came up on the children's page")
-                    sheet = sheets[0]
-                    self.assertEqual(wanted, sheet.playing_colour,
-                                     f"{mode}: the menu is playing the wrong film")
-                    share, _ = self.colour_of(sheet)
-                    if wanted:
-                        self.assertGreater(share, 0.01,
-                                           f"{lang}/{mode}: the menu is {100 * share:.2f}% "
-                                           f"coloured, so the black-and-white film is showing")
-                        self.assertIn(f".{lang}-colour" if lang != "en" else "menu-colour",
-                                      str(sheet.film.fileName()),
-                                      f"a {lang} colour mat is playing "
-                                      f"{Path(sheet.film.fileName()).name}")
+
+        def painted(lang, mode="colour"):
+            w = self.mat(mode, lang)
+            w.open_the_children_menu()
+            settle()
+            sheets = [s for s in w.findChildren(FilmSheet) if s.isVisible() and s.ready]
+            self.assertTrue(sheets, f"{lang}: no film menu came up")
+            sheet = sheets[0]
+            share, pixels = self.colour_of(sheet)
+            return sheet, share, pixels
+
+        english, share, _ = painted("en")
+        self.assertTrue(english.playing_colour, "the colour mat is not on the coloured film")
+        self.assertGreater(share, 0.01,
+                           f"the coloured menu is only {100 * share:.2f}% coloured")
+        self.assertFalse(english.words.isNull(), "no words were loaded for English")
+        self.assertIn("menu-colour.gif", Path(english.film.fileName()).name,
+                      "English is not playing the shared coloured film")
+        base = self.colour_of(english)[1]
+        for lang in ("ur", "zh", "bn"):
+            with self.subTest(lang):
+                sheet, _, pixels = painted(lang)
+                self.assertIn("menu-colour.gif", Path(sheet.film.fileName()).name,
+                              f"{lang} should play the same film as every other language")
+                self.assertFalse(sheet.words.isNull(), f"no words were loaded for {lang}")
+                if pixels.shape != base.shape:
+                    continue
+                apart = float((np.abs(pixels.astype(int) - base.astype(int)).max(2) > 40).mean())
+                self.assertGreater(apart, 0.001,
+                                   f"a {lang} colour mat paints the same pixels as an English "
+                                   f"one, so it is reading English")
+
+    def test_a_menu_with_no_words_for_its_language_keeps_the_film_it_can_read(self):
+        """A mat part way through an update has the film and not yet the words, or the other
+        way about. It must show the black-and-white menu it already has rather than a coloured
+        one with no captions on it -- an unlabelled menu is worse than an unstyled one."""
+        from salaah.filmsheet import FilmSheet
+        folder = ASSETS / "children"
+        words = folder / "words" / "ur.png"
+        self.assertTrue(words.is_file(), "the Urdu words are missing from the tree")
+        hidden = words.with_suffix(".png.hidden")
+        words.rename(hidden)
+        self.addCleanup(lambda: hidden.rename(words) if hidden.is_file() else None)
+        w = self.mat("colour", "ur")
+        w.open_the_children_menu()
+        settle()
+        sheet = [s for s in w.findChildren(FilmSheet) if s.isVisible() and s.ready][0]
+        self.assertEqual("menu.ur.gif", Path(sheet.film.fileName()).name,
+                         "with no words to paint it should fall back to the Urdu film that "
+                         "already ships, not show a coloured menu with nothing written on it")
+        self.assertTrue(sheet.words.isNull())
 
     def test_changing_the_mode_swaps_the_films_without_a_rebuild(self):
         """A theme is a repaint, never a rebuild -- the menus carry the touchable tiles, and a
