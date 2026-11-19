@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .filmsheet import film_now
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import Fonts, TextBox
 
@@ -72,8 +73,14 @@ class Adhan:
         return self.folder.parent.parent / "azaan" / "muezzin.png"
 
     def film(self) -> Path:
-        """The moving muezzin, if there is one. The still is what shows when there is not."""
-        return self.folder.parent.parent / "azaan" / "muezzin.gif"
+        """The moving muezzin, if there is one. The still is what shows when there is not.
+
+        The colour theme has its own: Harry drew the boy again in colour, singing into a
+        microphone with the notes coming off it. Nothing here inverts the muezzin on either
+        screen -- he has always been drawn on his own black ground -- so the coloured one needs
+        only to be found, not handled.
+        """
+        return film_now(self.folder.parent.parent / "azaan" / "muezzin.gif")
 
     def line(self, key: str) -> dict:
         for row in self.words.get("lines", []):

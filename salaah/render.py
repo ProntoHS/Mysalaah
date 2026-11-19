@@ -1391,12 +1391,15 @@ def invert(pix: QtGui.QPixmap) -> QtGui.QPixmap:
     return QtGui.QPixmap.fromImage(image)
 
 
-#: How far from grey a picture's pixels have to stray, on average, before it counts as being
-#: in colour. Nowhere near either answer: a flat black-and-white drawing sits at 0.0, and the
-#: least colourful of Harry's 2.43 watercolours -- the Kaaba, which is mostly stone and sky --
-#: sits at 22.8. Anything between the two would be a wash of one faint tint, which is the one
-#: case where either answer is defensible.
-COLOUR_ENOUGH = 8.0
+#: How far from grey one pixel has to stray to be called a coloured pixel. Well above the two
+#: or three levels a palette or a scaling can shift a grey by, and far below any real tint.
+COLOUR_PIXEL = 40
+
+#: What share of a picture has to be made of those before the picture counts as being in
+#: colour. There is nothing to balance here, which is the point: measured over every one of the
+#: 544 pictures and films the mat ships, 357 of them score EXACTLY ZERO and the other 187 score
+#: 0.051 or more. The bar sits in that gap, two and a half times clear of both sides.
+COLOUR_ENOUGH = 0.02
 
 
 def has_colour(pix: QtGui.QPixmap, enough: float = COLOUR_ENOUGH) -> bool:
@@ -1407,25 +1410,36 @@ def has_colour(pix: QtGui.QPixmap, enough: float = COLOUR_ENOUGH) -> bool:
     which: the list is what gets forgotten when the artwork is redrawn, and this artwork has
     been redrawn three times in five releases.
 
-    Measured as how far each pixel's strongest channel is from its weakest -- nought for any
-    grey, whatever its lightness -- averaged over the picture. Sampled on a grid rather than
-    read whole: this runs once per picture at startup on a Pi, and a 1600x900 picture is 1.4
-    million pixels to answer a question that four thousand of them settle.
+    HOW MUCH OF IT IS COLOURED, not how coloured it is on average. The averaged version shipped
+    from 2.43 to 2.45 and it measures the wrong thing: a saturation averaged over the whole
+    picture is diluted by whatever surrounds the subject, so a drawing is judged partly on how
+    much empty space it was drawn with. Harry's coloured front door -- a gold Kaaba on a black
+    field -- came out at 7.8 against a bar of 8.0 and was turned inside out on the screen, which
+    is how this was found. The children's menu cleared the same bar by 0.24.
+
+    Counting instead the share of pixels that are clearly coloured takes the surroundings out of
+    it, and it separates the mat's own artwork completely: every black-and-white drawing in the
+    tree scores nought, and every coloured one scores at least five per cent. Changing to it
+    re-answers exactly one of the 544 -- the front door, which was the one being got wrong.
+
+    Sampled on a grid rather than read whole: this runs once per picture at startup on a Pi, and
+    a 1600x900 picture is 1.4 million pixels to answer a question that four thousand settle.
     """
     image = pix.toImage()
     if image.isNull():
         return False
     step = max(1, min(image.width(), image.height()) // 64)
-    total = seen = 0
+    lit = seen = 0
     for y in range(0, image.height(), step):
         for x in range(0, image.width(), step):
             colour = image.pixelColor(x, y)
             if colour.alpha() < 8:
                 continue
-            total += max(colour.red(), colour.green(), colour.blue()) - \
-                min(colour.red(), colour.green(), colour.blue())
+            if max(colour.red(), colour.green(), colour.blue()) - \
+                    min(colour.red(), colour.green(), colour.blue()) > COLOUR_PIXEL:
+                lit += 1
             seen += 1
-    return seen > 0 and total / seen >= enough
+    return seen > 0 and lit / seen >= enough
 
 
 def paint_house(p: QtGui.QPainter, w: float, h: float, colour: QtGui.QColor) -> None:

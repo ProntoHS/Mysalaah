@@ -7747,3 +7747,339 @@ class StaleBytecodeTest(unittest.TestCase):
         after = source.split("def roll_back(", 1)[1]
         self.assertIn("drop_bytecode(self.root)", after.split("\ndef ", 1)[0],
                       "roll_back() does not clear the caches")
+
+
+class TheColouredFilmsTest(unittest.TestCase):
+    """Harry's coloured animations, which only the colour theme shows.
+
+    Harry, 18 November 2026: "the kaaba animation will be the main screen for coloured version.
+    the azaan, side menu, childrens menu and spinning globe all need to go into the coloured
+    version only."
+
+    Five drawings, and twenty-three files: the front door, the muezzin, the turning globe, and
+    the two tile menus in ten languages each. NOTHING IS REPLACED -- the light and dark mats go
+    on using exactly the films they used before, and a mat that never selects colour cannot
+    tell this release happened.
+    """
+
+    #: Every coloured film, and the black-and-white one it stands beside.
+    TWINS = ("welcome/front.gif", "azaan/muezzin.gif", "world/globe.gif")
+    MENUS = ("knowledge", "children")
+
+    @staticmethod
+    def twin(path):
+        return path.with_name(f"{path.stem}-colour{path.suffix}")
+
+    def films(self):
+        """Every coloured film in the tree, with the film it twins."""
+        out = [(ASSETS / name, self.twin(ASSETS / name)) for name in self.TWINS]
+        for folder in self.MENUS:
+            described = json.loads((ASSETS / folder / "menu.json").read_text(encoding="utf-8"))
+            for name in described["films"].values():
+                was = ASSETS / folder / name
+                out.append((was, self.twin(was)))
+        return out
+
+    def test_every_one_of_them_is_there(self):
+        """Twenty-three files. A missing one is not a crash -- the mat falls back to the
+        black-and-white film, by design -- which is exactly why it needs counting here rather
+        than being noticed on the glass."""
+        found = self.films()
+        self.assertEqual(23, len(found), "the number of coloured films has changed")
+        for was, now in found:
+            with self.subTest(now.name):
+                self.assertTrue(was.is_file(), f"{was.name}, the film it stands beside, is gone")
+                self.assertTrue(now.is_file(), f"{now.name} is missing")
+
+    def test_they_are_films_and_not_pictures(self):
+        """A still where the mat expects movement stands there."""
+        from PIL import Image
+        for _, now in self.films():
+            with self.subTest(now.name):
+                with Image.open(now) as film:
+                    self.assertGreater(getattr(film, "n_frames", 1), 1,
+                                       f"{now.name} has one frame")
+
+    def test_they_are_in_colour(self):
+        """THE POINT OF THE RELEASE, so it is measured rather than assumed. A coloured film that
+        came back grey -- an exporter set wrong, a palette collapsed on the way through a tool --
+        would otherwise ship as a colour theme that looks like the dark one."""
+        from PIL import Image, ImageSequence
+        import numpy as np
+        for _, now in self.films():
+            with self.subTest(now.name):
+                with Image.open(now) as film:
+                    frame = np.asarray(next(ImageSequence.Iterator(film)).convert("RGB")).astype(int)
+                spread = frame.max(2) - frame.min(2)
+                coloured = float((spread > 30).mean())
+                self.assertGreater(coloured, 0.004,
+                                   f"{now.name} is {100 * coloured:.3f}% coloured pixels, "
+                                   f"which is a grey picture")
+
+    def test_they_are_the_shape_of_the_film_they_stand_beside(self):
+        """Not the same size -- they are scaled to whatever screen they land on, and Harry drew
+        them larger -- but the same shape. A twin at a different aspect would be letterboxed or
+        cropped where the original is not."""
+        from PIL import Image
+        for was, now in self.films():
+            with self.subTest(now.name):
+                with Image.open(was) as old, Image.open(now) as new:
+                    before, after = old.size[0] / old.size[1], new.size[0] / new.size[1]
+                self.assertAlmostEqual(before, after, delta=0.01 * before,
+                                       msg=f"{now.name} is {after:.4f} and {was.name} "
+                                           f"is {before:.4f}")
+
+    def test_the_menus_keep_their_tiles_where_the_buttons_are(self):
+        """THE FAULT THIS IS HERE TO STOP: a child pressing Qibla Quest and getting the jigsaw.
+
+        The touchable boxes in menu.json were found from the English sheet and every language is
+        laid over them, so a coloured sheet whose tiles have shifted puts every button over the
+        wrong picture. Harry's sheets have no black outline round the tiles, so their white
+        starts six pixels in from where the old sheet's ink ended -- a uniform inset on all four
+        sides of every tile, which is the drawing being drawn differently rather than a tile
+        having moved. That inset is allowed; a tile out of step with the others is not.
+        """
+        from PIL import Image, ImageSequence
+        import numpy as np
+        from scipy import ndimage
+        for folder in self.MENUS:
+            described = json.loads((ASSETS / folder / "menu.json").read_text(encoding="utf-8"))
+            names = list(described["tiles"])
+            for lang, name in described["films"].items():
+                now = self.twin(ASSETS / folder / name)
+                with self.subTest(f"{folder}/{lang}"):
+                    with Image.open(now) as film:
+                        frame = next(ImageSequence.Iterator(film)).convert("L")
+                    # The tiles are the LIGHT regions: these sheets are drawn on black, where
+                    # the ones that ship are dark outlines enclosing white.
+                    labels, _ = ndimage.label(np.asarray(frame) >= 128)
+                    found = []
+                    for where in ndimage.find_objects(labels):
+                        box = [where[1].start, where[0].start, where[1].stop, where[0].stop]
+                        if box[2] - box[0] >= 150 and box[3] - box[1] >= 150:
+                            found.append(box)
+                    found = [b for b in found
+                             if not any(o is not b and o[0] <= b[0] and o[1] <= b[1]
+                                        and o[2] >= b[2] and o[3] >= b[3] for o in found)]
+                    self.assertEqual(len(names), len(found),
+                                     f"{now.name} has {len(found)} tiles and the menu has "
+                                     f"{len(names)}")
+                    tall = min(b[3] - b[1] for b in found)
+                    found.sort(key=lambda b: b[1])
+                    rows, row = [], [found[0]]
+                    for box in found[1:]:
+                        if box[1] - row[0][1] < tall / 2:
+                            row.append(box)
+                        else:
+                            rows.append(sorted(row, key=lambda b: b[0]))
+                            row = [box]
+                    rows.append(sorted(row, key=lambda b: b[0]))
+                    ordered = [b for line in rows for b in line]
+                    offs = []
+                    for tile, box in zip(names, ordered):
+                        want = described["tiles"][tile]
+                        offs.append((tile, [box[0] - want[0], box[1] - want[1],
+                                            want[2] - box[2], want[3] - box[3]]))
+                    flat = [v for _, off in offs for v in off]
+                    inset = round(sum(flat) / len(flat))
+                    for tile, off in offs:
+                        worst = max(abs(v - inset) for v in off)
+                        self.assertLessEqual(worst, 3,
+                                             f"{now.name}: {tile} sits at {off} where the other "
+                                             f"tiles are inset by {inset}; the button would be "
+                                             f"over the wrong picture")
+
+    def test_each_one_carries_its_own_language(self):
+        """THE 2.45 REGRESSION, ASKED OF A DIFFERENT SCREEN.
+
+        A colour theme that falls back to the English drawing is the exact fault that put an
+        Urdu mat back on the black-and-white mosque one release ago, and these two menus are
+        where it would land next: twenty films, nineteen of which could quietly be the English
+        one. So each coloured film is measured against the SHIPPED film of its own language and
+        against the shipped ENGLISH film, in the band where the words are. It has to look more
+        like its own.
+        """
+        from PIL import Image, ImageSequence
+        import numpy as np
+        for folder in self.MENUS:
+            described = json.loads((ASSETS / folder / "menu.json").read_text(encoding="utf-8"))
+            tiles = described["tiles"]
+
+            def words_of(path):
+                with Image.open(path) as film:
+                    frame = np.asarray(next(ImageSequence.Iterator(film)).convert("L"))
+                # The foot of every tile, where the lettering is, kept clear of the edges so
+                # the outline the shipped sheets have and Harry's do not cannot count.
+                out = []
+                for x0, y0, x1, y1 in tiles.values():
+                    tall = y1 - y0
+                    out.append(frame[y0 + int(tall * 0.72):y1 - 12, x0 + 20:x1 - 20] < 128)
+                return out
+
+            english = words_of(ASSETS / folder / described["films"]["en"])
+            for lang, name in described["films"].items():
+                if lang == "en":
+                    continue
+                with self.subTest(f"{folder}/{lang}"):
+                    mine = words_of(ASSETS / folder / name)
+                    colour = words_of(self.twin(ASSETS / folder / name))
+                    like_mine = like_english = 0.0
+                    for own, theirs, shown in zip(mine, english, colour):
+                        like_mine += float((own == shown).mean())
+                        like_english += float((theirs == shown).mean())
+                    self.assertGreater(like_mine, like_english,
+                                       f"{self.twin(ASSETS / folder / name).name} reads more "
+                                       f"like the English sheet ({like_english / len(colour):.3f}) "
+                                       f"than like its own ({like_mine / len(colour):.3f})")
+
+    def test_the_front_door_still_turns_through_every_language(self):
+        """Ten languages live inside that one film, a beat on each, and a coloured front door
+        that had lost six of them would still look right in a screenshot."""
+        from PIL import Image, ImageSequence
+        import numpy as np
+        counts = {}
+        for name in ("welcome/front.gif", "welcome/front-colour.gif"):
+            with Image.open(ASSETS / name) as film:
+                held = [f.info.get("duration", 100) for f in ImageSequence.Iterator(film)]
+                frames = [np.asarray(f.convert("L")).astype(int)
+                          for f in ImageSequence.Iterator(film)]
+            rested = [frames[i] for i, ms in enumerate(held) if ms >= 400]
+            apart = [a for i, a in enumerate(rested)
+                     if all(np.abs(a - b).mean() > 0.4 for b in rested[:i])]
+            counts[name] = (len(held), len(rested), len(apart))
+        self.assertEqual(counts["welcome/front.gif"][0], counts["welcome/front-colour.gif"][0],
+                         f"the two films are different lengths: {counts}")
+        for name, (_, rested, apart) in counts.items():
+            self.assertEqual(10, rested, f"{name} rests {rested} times, not ten")
+            self.assertEqual(10, apart, f"{name} rests on {apart} different pictures, not ten")
+
+    #: Where the Kaaba badge sits on the coloured globe, as a fraction of the picture, measured
+    #: against where the app works Makkah out to be. It comes out at most 0.047 across the
+    #: twenty-three frames the badge is well in view for -- the badge is a map pin, so its
+    #: middle sits about twenty pixels above the place it marks, which is nearly all of that.
+    #: The bar is a sixteenth, a third again on the worst frame; a globe that started at a
+    #: different longitude or turned the other way misses by hundreds of pixels, not fifty.
+    PIN_WITHIN = 1 / 16
+
+    #: How well in view Makkah has to be before the badge is required. Not a tuned number: the
+    #: animator stops drawing the badge as it goes round the edge, and this is "well in view"
+    #: rather than "just in view". The badge is found on all twenty-three such frames.
+    WELL_IN_VIEW = 0.6
+
+    @staticmethod
+    def badge_in(frame):
+        """The Kaaba badge: a pale, colourless, round blob of about the right size with a dark
+        drawing inside it.
+
+        NOT "the whitest thing", which was the first version and which finds the snow on
+        Greenland -- the old globe has no ice and the new one does. The drawing inside it is
+        what makes a badge a badge.
+        """
+        import numpy as np
+        from scipy import ndimage
+        height, width, _ = frame.shape
+        pale = (frame.min(2) > 170) & ((frame.max(2) - frame.min(2)) < 45)
+        dark = frame.mean(2) < 100
+        labels, _ = ndimage.label(pale)
+        best = None
+        for i, where in enumerate(ndimage.find_objects(labels), start=1):
+            tall = where[0].stop - where[0].start
+            wide = where[1].stop - where[1].start
+            if not (0.020 * width < wide < 0.075 * width):
+                continue
+            if not (0.020 * height < tall < 0.075 * height):
+                continue
+            if not (0.55 < wide / tall < 1.8):
+                continue
+            if dark[where].mean() < 0.08:
+                continue
+            area = int((labels[where] == i).sum())
+            if best is None or area > best[0]:
+                best = (area, (where[1].start + where[1].stop) / 2 / width,
+                        (where[0].start + where[0].stop) / 2 / height)
+        return best
+
+    def test_the_coloured_globe_is_the_same_animation_frame_for_frame(self):
+        """THE ONE THAT WOULD NOT SHOW UP BY LOOKING.
+
+        assets/world/globe.json holds five numbers fitted off the Kaaba marker the animator drew
+        on the black-and-white film -- the centre, the radius, the tilt, the longitude facing us
+        at the start, and how far it turns per frame -- and the line the world screen draws from
+        the mat to Makkah is placed from them. They are not re-measured for the coloured globe,
+        because it is the same animation re-rendered. THAT is what is checked here, and if it
+        ever stops being true the line will end in the sea while the screen looks perfectly
+        right.
+
+        Measured on the land, which both films have and neither draws the same way: black land
+        in a white sea on one, green and yellow in a blue sea on the other. Laid frame against
+        frame they agree over 99% of the globe; one frame out they agree over 89%, played
+        backwards 63%, and at the worst offset 54%. So the bar is 97% AND a clear margin over
+        every other offset -- the margin matters more than the number, because it is what tells
+        a re-render apart from a re-timing.
+        """
+        from PIL import Image, ImageSequence
+        import numpy as np
+
+        def seen(path, size):
+            with Image.open(path) as film:
+                return [np.asarray(f.convert("RGB").resize((size, size), Image.LANCZOS))
+                        .astype(int) for f in ImageSequence.Iterator(film)]
+
+        size = 256
+        old = seen(ASSETS / "world" / "globe.gif", size)
+        new = seen(ASSETS / "world" / "globe-colour.gif", size)
+        self.assertEqual(len(old), len(new),
+                         "the two globes have different numbers of frames, so a frame number "
+                         "means something different on each")
+        rows, cols = np.ogrid[:size, :size]
+        inside = ((cols - size / 2) ** 2 + (rows - size / 2) ** 2) < (0.40 * size) ** 2
+        was = [(f.mean(2) < 110) & inside for f in old]
+        now = [((f[:, :, 1] >= f[:, :, 2]) & inside) for f in new]
+        count = len(old)
+        agree = [float(np.mean([(was[i] == now[(i + shift) % count])[inside].mean()
+                                for i in range(count)])) for shift in range(count)]
+        best = int(np.argmax(agree))
+        others = max(a for shift, a in enumerate(agree) if shift != 0)
+        self.assertEqual(0, best,
+                         f"the coloured globe matches the one that is calibrated best at a "
+                         f"{best}-frame offset, not frame for frame")
+        self.assertGreater(agree[0], 0.97,
+                           f"the two globes agree over {100 * agree[0]:.1f}% of the earth")
+        self.assertGreater(agree[0] - others, 0.05,
+                           f"frame for frame is only {100 * (agree[0] - others):.1f} points "
+                           f"better than the next offset, which is not a match")
+
+    def test_the_line_to_makkah_ends_on_the_badge_the_animator_drew(self):
+        """What the calibration is FOR, asked of the pixels rather than of the file.
+
+        build_globe.py fitted those five numbers so that the arc the app draws ends on the
+        marker the animator drew, because both are placed by the same arithmetic. Nothing in
+        the suite has ever checked that against the picture -- it was taken on the build tool's
+        word -- and the coloured globe is the first time a second film has had to honour it.
+        """
+        from PIL import Image, ImageSequence
+        import numpy as np
+        from salaah.globe import Globe, KAABA
+
+        globe = Globe(ASSETS / "world")
+        self.assertTrue(globe.measured, "globe.json is missing; nothing is calibrated")
+        with Image.open(ASSETS / "world" / "globe-colour.gif") as film:
+            frames = [np.asarray(f.convert("RGB")).astype(int)
+                      for f in ImageSequence.Iterator(film)]
+        checked, worst, where = 0, 0.0, -1
+        for at, frame in enumerate(frames):
+            spot = globe.at(at, *KAABA)
+            if spot.facing < self.WELL_IN_VIEW:
+                continue
+            found = self.badge_in(frame)
+            self.assertIsNotNone(found, f"frame {at}: Makkah is {spot.facing:+.2f} towards us "
+                                        f"and there is no badge on the globe at all")
+            away = float(np.hypot(found[1] - spot.x, found[2] - spot.y))
+            if away > worst:
+                worst, where = away, at
+            checked += 1
+        self.assertGreater(checked, 15,
+                           f"only {checked} frames were checked; the test is not doing its job")
+        self.assertLess(worst, self.PIN_WITHIN,
+                        f"frame {where}: the app puts Makkah {worst:.4f} of the picture away "
+                        f"from the badge drawn on it (the bar is {self.PIN_WITHIN:.4f})")

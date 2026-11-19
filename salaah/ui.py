@@ -14,7 +14,7 @@ from .backlight import Backlight
 from .audio import Call, Recitation, Timings, clamp_volume
 from .audio import Span
 from .content import PRAYERS, Content, LanguagePack, StepRef, UnitEntry
-from .filmsheet import turn_inside_out
+from .filmsheet import KEEP, STAMP, film_now, how_it_turns, turn_inside_out
 from .mosque import ArchButton, ArchShape, GearButton, MosqueScreen, ZoomVeil
 from .prayer_times import Place, current_prayer, day_fraction, next_prayer, times_for
 from .pages import TextPage, build_pages
@@ -639,16 +639,20 @@ class FrontDoor(QtWidgets.QWidget):
     strip of prayer times above. Harry replaced the lot with his own mark, and asked for
     nothing to be added to it: "dont add banner or anything, keep as is".
 
-    WHAT IT DOES. The word "My" turns over through the seven languages the mat speaks -- My,
-    Ma, Mi, صلاتي, میری نماز, मेरी, 我的 -- resting a beat on each and crossing to the next over
-    three frames, while the Kaaba and the crescent stand still. Seven seconds round. None of
-    that is known here: it is a film, and this plays it.
+    WHAT IT DOES. The name turns over through the ten languages the mat speaks -- My, Ma, Mi,
+    صلاتي, میری نماز, मेरी, 我的, আমার, Моя, Minha -- resting seven tenths of a second on each and
+    crossing to the next over three frames, while the Kaaba stands still. Forty frames, ten
+    seconds round. None of that is known here: it is a film, and this plays it.
 
-    IT FOLLOWS THE THEME, like every other drawing on the mat. Harry sent it twice, once black
-    on white and once white on black, and the two are the same pixels inverted -- so the light
-    one ships and the dark screen gets it turned over, which is one blit and no second file to
-    keep in step. See filmsheet.turn_inside_out, which is the same inversion the menu sheets
-    use, and tools/make_front_film.py for how the film is cut.
+    IT FOLLOWS THE THEME, like every other drawing on the mat, and from 2.46 in two different
+    ways. Between light and dark there is one film: Harry sent it black on white, and the dark
+    screen gets it turned over, which is one blit and no second file to keep in step. The
+    colour theme has a film of its own -- the same Kaaba drawn again in colour on black, the
+    same forty frames and the same ten languages -- and that one is never turned over, because
+    turning a coloured drawing over is not a change of theme, it is a different picture. Which
+    of the two is being shown decides both, and it is asked of the drawing rather than listed:
+    see filmsheet.film_now and filmsheet.how_it_turns, and tools/make_front_film.py for how the
+    black-and-white film is cut.
 
     Nothing is cached. The frame is scaled as it is drawn, which on a 1080p mat is ten scalings
     a second of a 1600x900 picture; the version that kept them cost a menu 135MB (see
@@ -680,16 +684,15 @@ class FrontDoor(QtWidgets.QWidget):
         # without being looked at to wake the mat. The full list is a tap away in Settings.
         self.thanks = ""
         self.sheet = QtGui.QPixmap(str(picture)) if picture.is_file() else QtGui.QPixmap()
+        self.reel = film
         self.film: QtGui.QMovie | None = None
-        if film is not None and film.is_file():
-            movie = QtGui.QMovie(str(film))
-            if movie.isValid() and movie.frameCount() > 1:
-                movie.setParent(self)
-                # A bound method rather than a lambda, for the reason the call box and the
-                # turning globe both learned it: a lambda holding this widget outlives it, and
-                # a frame arriving after the widget has gone took one of the two Qt kits down.
-                movie.frameChanged.connect(self.turned)
-                self.film = movie
+        #: What the dark screen does to this drawing -- see filmsheet.how_it_turns. Asked of
+        #: the film rather than listed here, and asked again whenever the film changes, because
+        #: the answer belongs to the drawing: the black-and-white mark is stamped, and Harry's
+        #: coloured Kaaba is left exactly as he drew it.
+        self.turns = STAMP
+        self.showing_colour = False
+        self.open_film()
         self.setObjectName("frontDoor")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAutoFillBackground(True)
@@ -702,6 +705,47 @@ class FrontDoor(QtWidgets.QWidget):
     @property
     def moving(self) -> bool:
         return self.film is not None
+
+    def open_film(self) -> None:
+        """Open the front door's film for the screen as it is set now.
+
+        The colour theme has its own: Harry drew the Kaaba again in colour on black, with the
+        same forty frames and the same ten languages turning over inside it. Light and dark
+        share the black-and-white one between them, as they always have.
+        """
+        if self.reel is None:
+            return
+        wanted = film_now(self.reel)
+        if not wanted.is_file():
+            return
+        movie = QtGui.QMovie(str(wanted))
+        if not movie.isValid() or movie.frameCount() < 2:
+            return
+        movie.setParent(self)
+        # A bound method rather than a lambda, for the reason the call box and the turning
+        # globe both learned it: a lambda holding this widget outlives it, and a frame arriving
+        # after the widget has gone took one of the two Qt kits down.
+        movie.frameChanged.connect(self.turned)
+        was, self.film = self.film, movie
+        if was is not None:
+            was.stop()
+            try:
+                was.frameChanged.disconnect(self.turned)
+            except (TypeError, RuntimeError):
+                pass
+            was.setParent(None)
+            was.deleteLater()
+        movie.jumpToFrame(0)
+        self.turns = how_it_turns(movie.currentPixmap())
+        self.showing_colour = theme.palette().colour
+        if self.isVisible():
+            movie.start()
+
+    def follow_theme(self) -> None:
+        """The colour theme opens a different film; light and dark share one, so they repaint."""
+        if self.showing_colour != theme.palette().colour:
+            self.open_film()
+        self.update()
 
     def turned(self, _frame: int) -> None:
         self.update()
@@ -722,14 +766,21 @@ class FrontDoor(QtWidgets.QWidget):
         # The field first, in the colour it was drawn on, so a screen that is not the film's
         # shape has no bar down the side of it -- and so the inversion below takes the whole
         # screen rather than leaving a white edge round a black picture.
-        p.fillRect(self.rect(), QtGui.QColor("white"))
+        #
+        # WHICH colour it was drawn on is the drawing's own business. The black-and-white mark
+        # is on white and is turned over after dark; Harry's coloured Kaaba is already on black
+        # and is never turned over, so filling white behind it would put a white border round a
+        # black picture and then leave it there.
+        keeps = self.turns == KEEP
+        p.fillRect(self.rect(), QtGui.QColor(theme.palette().paper) if keeps
+                   else QtGui.QColor("white"))
         p.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
         # Whole, not cropped: the mark keeps the proportions it was drawn in.
         shown = shown.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
                              Qt.TransformationMode.SmoothTransformation)
         p.drawPixmap((self.width() - shown.width()) // 2,
                      (self.height() - shown.height()) // 2, shown)
-        if theme.palette().dark:
+        if theme.palette().dark and not keeps:
             turn_inside_out(p, self.rect())
         self.draw_thanks(p)
 
@@ -3720,10 +3771,19 @@ class MainWindow(QtWidgets.QWidget):
         if not theme.set_mode(self.settings.theme):
             return False
         self.setStyleSheet(self.stylesheet())
-        # The mosques read a different drawing in the colour theme, so they are told before
-        # anything repaints. They do nothing at all between light and dark, which share one.
-        for mosque in self.findChildren(MosqueScreen):
-            mosque.follow_theme()
+        # Everything that reads a DIFFERENT DRAWING in the colour theme is told before anything
+        # repaints: the mosques since 2.45, and from 2.46 the front door, the two film menus
+        # and the turning globe. Each one reloads only when the colour-ness changes, so moving
+        # between light and dark still costs nothing but a repaint.
+        #
+        # Asked of the widgets rather than listed by class. The list was MosqueScreen alone,
+        # and four more screens grew a follow_theme in one release -- a list is the thing
+        # nobody remembers to add to, and the cost of missing one is a screen still showing
+        # the drawing for the theme the mat has just left.
+        for widget in self.findChildren(QtWidgets.QWidget):
+            follow = getattr(widget, "follow_theme", None)
+            if callable(follow):
+                follow()
         if hasattr(self, "slide"):
             self.slide.follow_theme()
         if self.side is not None:

@@ -60,6 +60,34 @@ def turn_inside_out(painter, where: QtCore.QRect) -> None:
 STAMP, LIFT, KEEP = "stamp", "lift", "keep"
 
 
+def coloured_twin(path: Path) -> Path:
+    """The coloured version of this film, whether or not it exists.
+
+    The same naming the rest of the mat uses for a second copy of a picture: PixmapCache
+    writes the night version of `boy.png` as `boy-dark.png`, so the coloured version of
+    `menu.ur.gif` is `menu.ur-colour.gif`. One rule for every film, so one helper finds any
+    of them and nothing has to carry a list.
+    """
+    return path.with_name(f"{path.stem}-colour{path.suffix}")
+
+
+def film_now(path: Path) -> Path:
+    """The film to play on the screen as it is set now.
+
+    The colour theme shows Harry's coloured drawing where there is one and the black-and-white
+    film everywhere else, so a mat part way through an update -- or one whose colour artwork
+    has not been drawn yet -- shows the picture it has rather than nothing. Light and dark
+    share one film between them, as they always have.
+
+    ASKED OF THE DISK, not of a list. Which screens have a coloured drawing changes with every
+    release Harry draws for, and a list is the thing nobody remembers to update.
+    """
+    if not palette().colour:
+        return path
+    twin = coloured_twin(path)
+    return twin if twin.is_file() else path
+
+
 def how_it_turns(pix: "QtGui.QPixmap") -> str:
     """Which of the three a drawing wants, asked of the drawing.
 
@@ -150,6 +178,9 @@ class FilmSheet(QtWidgets.QWidget):
         self.shape = QtCore.QSize()
         self.boxes: dict[str, tuple] = {}
         self.film: QtGui.QMovie | None = None
+        self.sheet: Path | None = None
+        self.turns = STAMP
+        self.playing_colour = False
 
         where = Path(window.assets) / folder
         try:
@@ -167,10 +198,28 @@ class FilmSheet(QtWidgets.QWidget):
         if any(name not in self.boxes for name in names):
             self.boxes = {}
             return
-        film = QtGui.QMovie(str(where / self.sheet_for(described, window.settings.lang)))
-        if not film.isValid() or film.frameCount() < 2:
+        self.sheet = where / self.sheet_for(described, window.settings.lang)
+        if not self.play(self.sheet):
             self.boxes = {}
             return
+
+        for name in names:
+            tile = Tile(window.images, where / f"{name}.png", name, quiet=True)
+            tile.setParent(self)
+            tile.clicked.connect(lambda _=False, n=name: self.chose.emit(n))
+            self.tiles.append(tile)
+
+    def play(self, sheet: Path) -> bool:
+        """Open the film for this sheet on the screen as it is set now, and keep it.
+
+        Called at build and again whenever the mat moves into or out of the colour theme, so
+        the drawing follows the setting without the menu being rebuilt -- a rebuild would lose
+        the tiles, which are the touchable half of this screen.
+        """
+        wanted = film_now(sheet)
+        film = QtGui.QMovie(str(wanted))
+        if not film.isValid() or film.frameCount() < 2:
+            return False
         # NOT CacheAll. These sheets are 1980x1080 and three dozen frames; told to cache them
         # all, one menu holds a couple of hundred megabytes of decoded frames for as long as it
         # exists. Decoding a frame of a half-megabyte GIF on the way past is nothing by
@@ -183,18 +232,39 @@ class FilmSheet(QtWidgets.QWidget):
         # until the machine killed it two hundred and eighty tests in.
         film.setParent(self)
         film.frameChanged.connect(self.next_frame)
-        self.film = film
-        # What this sheet wants done to it after dark, settled once here off the first frame --
-        # see how_it_turns. Harry's 1.84 menus are drawn on a clear ground; everything before
-        # them is not; and from 2.44 a sheet may be in colour, in which case nothing is done.
+        was, self.film = self.film, film
+        if was is not None:
+            # The old film goes now rather than when the widget does. It is parented here, so
+            # without this a mat switched back and forth between colour and dark collects a
+            # QMovie per switch, each still wired to this widget's next_frame and each
+            # repainting it on every frame of a film nobody can see.
+            was.stop()
+            try:
+                was.frameChanged.disconnect(self.next_frame)
+            except (TypeError, RuntimeError):
+                pass
+            was.setParent(None)
+            was.deleteLater()
+        # What this sheet wants done to it after dark, settled here off its first frame -- see
+        # how_it_turns. Harry's 1.84 menus are drawn on a clear ground; everything before them
+        # is not; and a sheet in colour is left alone. Asked again for every film, because the
+        # answer belongs to the drawing and the coloured drawing is a different one.
         film.jumpToFrame(0)
         self.turns = how_it_turns(film.currentPixmap())
+        self.playing_colour = palette().colour
+        if self.isVisible():
+            film.start()
+        return True
 
-        for name in names:
-            tile = Tile(window.images, where / f"{name}.png", name, quiet=True)
-            tile.setParent(self)
-            tile.clicked.connect(lambda _=False, n=name: self.chose.emit(n))
-            self.tiles.append(tile)
+    def follow_theme(self) -> None:
+        """The colour theme reads a different film; light and dark share one.
+
+        Reloaded only when the colour-ness changes, so moving between light and dark is a
+        repaint and costs nothing, as it always has.
+        """
+        if getattr(self, "playing_colour", None) != palette().colour and self.film is not None:
+            self.play(self.sheet)
+        self.update()
 
     @staticmethod
     def sheet_for(described: dict, lang: str) -> str:
@@ -256,9 +326,6 @@ class FilmSheet(QtWidgets.QWidget):
         p.fillRect(self.rect(), QtGui.QColor(palette().paper))
         if self.film is not None:
             draw_themed(p, self.film, self.placement()[0], self.turns)
-
-    def follow_theme(self) -> None:
-        self.update()
 
     def showEvent(self, ev):
         if self.film is not None:

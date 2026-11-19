@@ -24953,3 +24953,184 @@ class TheThingsHarryAskedForIn214Test(unittest.TestCase):
                                 f"{was_type}")
         self.assertLessEqual(button.font().pixelSize(), was_type * 1.35,
                              "a quarter bigger was asked for, not half again")
+
+
+class TheColouredFilmsOnTheScreenTest(unittest.TestCase):
+    """Harry's five coloured animations, measured on what a child would see.
+
+    Harry, 18 November 2026: "the kaaba animation will be the main screen for coloured version.
+    the azaan, side menu, childrens menu and spinning globe all need to go into the coloured
+    version only."
+
+    Every one of these asks the PIXELS rather than the filename. A test that checked which file
+    was chosen would pass on a film that failed to load, and -- the fault this release had to
+    fix -- it would pass on a coloured film that the screen then turned inside out.
+    """
+
+    def mat(self, mode, lang="en", size=(1920, 1080)):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=False)
+        w.resize(*size)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def colour_of(widget):
+        """How much of what this widget actually painted is in colour, and how blue it is.
+
+        Taken off the widget's own grab, so everything the screen does on the way -- the
+        scaling, the inversion, the field drawn behind -- is in the answer.
+        """
+        import numpy as np
+        shot = widget.grab().toImage().convertToFormat(QtGui.QImage.Format.Format_RGB888)
+        wide, tall = shot.width(), shot.height()
+        raw = shot.constBits()
+        raw.setsize(shot.sizeInBytes())
+        pixels = (np.frombuffer(bytes(raw), np.uint8)
+                  .reshape(tall, shot.bytesPerLine() // 1)[:, :wide * 3]
+                  .reshape(tall, wide, 3).astype(int))
+        spread = pixels.max(2) - pixels.min(2)
+        lit = spread > 30
+        return float(lit.mean()), pixels
+
+    def test_the_front_door_is_coloured_only_in_the_colour_theme(self):
+        """The screen the mat opens on. Light and dark keep the drawing they have always had."""
+        for mode, wanted in (("light", False), ("dark", False), ("colour", True)):
+            with self.subTest(mode):
+                w = self.mat(mode)
+                self.assertIsNotNone(w.welcome, "the mat has no front door")
+                share, _ = self.colour_of(w.welcome)
+                if wanted:
+                    self.assertGreater(share, 0.01,
+                                       f"{mode}: the front door is {100 * share:.2f}% coloured, "
+                                       f"so it is the black-and-white film")
+                else:
+                    self.assertLess(share, 0.005,
+                                    f"{mode}: the front door is {100 * share:.2f}% coloured, "
+                                    f"and this theme should never show the coloured film")
+
+    def test_the_coloured_front_door_is_never_turned_over(self):
+        """THE FAULT THIS RELEASE FOUND, in the place it bit first.
+
+        Colour is a dark palette -- Harry drew the coloured artwork on black -- and the front
+        door inverted whatever it drew whenever the palette was dark. So the coloured Kaaba
+        came up as its own photographic negative: a blue cloth on a white page.
+
+        Measured on the cloth. Harry's Kaaba is gold, which is to say red and green well above
+        blue; inverted it is blue well above both. The page behind it goes the same way, so
+        either test on its own would do and both are cheap.
+        """
+        import numpy as np
+        w = self.mat("colour")
+        _, pixels = self.colour_of(w.welcome)
+        gold = (pixels[:, :, 0] > 120) & (pixels[:, :, 1] > 90) & (pixels[:, :, 2] < 110)
+        inverted = (pixels[:, :, 2] > 120) & (pixels[:, :, 0] < 110)
+        self.assertGreater(gold.sum(), inverted.sum() * 4,
+                           f"the front door has {int(gold.sum()):,} gold pixels and "
+                           f"{int(inverted.sum()):,} blue ones; it has been turned inside out")
+        corner = pixels[2, 2]
+        self.assertLess(int(corner.max()), 60,
+                        f"the field behind the coloured front door is {tuple(corner)}, not black")
+
+    def test_the_globe_is_coloured_in_colour_and_not_turned_over(self):
+        """The same fault, in the place the 2.45 sweep missed.
+
+        The world screen inverts the globe on a dark screen, which is right for black land in a
+        white sea and wrong for a photograph of the earth. An inverted earth is unmistakable:
+        the sea goes orange. So the sea is what is counted.
+        """
+        import numpy as np
+        for mode, wanted in (("dark", False), ("colour", True)):
+            with self.subTest(mode):
+                w = self.mat(mode, size=(1280, 720))
+                w.open_world()
+                settle()
+                world = w.world_screen.world
+                self.assertTrue(world.there, "the globe has no film")
+                world.start()
+                settle()
+                share, pixels = self.colour_of(world)
+                if not wanted:
+                    self.assertLess(share, 0.02,
+                                    f"{mode}: the globe is {100 * share:.1f}% coloured")
+                    continue
+                self.assertGreater(share, 0.05,
+                                   f"colour: the globe is only {100 * share:.1f}% coloured, "
+                                   f"so it is the black-and-white film")
+                sea = ((pixels[:, :, 2].astype(int) - pixels[:, :, 0]) > 40).sum()
+                orange = ((pixels[:, :, 0].astype(int) - pixels[:, :, 2]) > 40).sum()
+                self.assertGreater(sea, orange,
+                                   f"the earth has {int(orange):,} orange pixels against "
+                                   f"{int(sea):,} blue ones; it has been turned inside out")
+
+    def test_the_two_film_menus_are_coloured_and_in_the_mats_own_language(self):
+        """Twenty films, nineteen of which could quietly be the English one -- which is exactly
+        what happened to the coloured mosque one release ago. So the language is measured on
+        the screen as well as the colour."""
+        from salaah.filmsheet import FilmSheet
+        import numpy as np
+        for lang in ("en", "ur", "zh"):
+            for mode, wanted in (("dark", False), ("colour", True)):
+                with self.subTest(f"{lang}/{mode}"):
+                    w = self.mat(mode, lang)
+                    w.open_the_children_menu()
+                    settle()
+                    sheets = [s for s in w.findChildren(FilmSheet) if s.isVisible() and s.ready]
+                    self.assertTrue(sheets, "no film menu came up on the children's page")
+                    sheet = sheets[0]
+                    self.assertEqual(wanted, sheet.playing_colour,
+                                     f"{mode}: the menu is playing the wrong film")
+                    share, _ = self.colour_of(sheet)
+                    if wanted:
+                        self.assertGreater(share, 0.01,
+                                           f"{lang}/{mode}: the menu is {100 * share:.2f}% "
+                                           f"coloured, so the black-and-white film is showing")
+                        self.assertIn(f".{lang}-colour" if lang != "en" else "menu-colour",
+                                      str(sheet.film.fileName()),
+                                      f"a {lang} colour mat is playing "
+                                      f"{Path(sheet.film.fileName()).name}")
+
+    def test_changing_the_mode_swaps_the_films_without_a_rebuild(self):
+        """A theme is a repaint, never a rebuild -- the menus carry the touchable tiles, and a
+        rebuilt menu is a menu whose buttons have been thrown away and made again. So the film
+        has to be swapped under the same widget, and that widget has to still be the one on
+        the screen afterwards."""
+        from salaah.filmsheet import FilmSheet
+        w = self.mat("dark")
+        w.open_the_children_menu()
+        settle()
+        sheet = [s for s in w.findChildren(FilmSheet) if s.isVisible() and s.ready][0]
+        self.assertFalse(sheet.playing_colour)
+        before = Path(sheet.film.fileName()).name
+        door = w.welcome
+        w.set_theme("colour")
+        settle()
+        self.assertTrue(sheet.playing_colour,
+                        "the menu is still playing the black-and-white film")
+        self.assertNotEqual(before, Path(sheet.film.fileName()).name)
+        self.assertIs(door, w.welcome, "the front door was rebuilt rather than repainted")
+        self.assertIn(sheet, w.findChildren(FilmSheet), "the menu was rebuilt")
+        w.set_theme("dark")
+        settle()
+        self.assertFalse(sheet.playing_colour, "it did not go back")
+        self.assertEqual(before, Path(sheet.film.fileName()).name)
+
+    def test_the_muezzin_is_coloured_in_colour_and_not_otherwise(self):
+        """He is drawn on his own black ground on every theme, so nothing inverts him -- the
+        only question here is which film the mat finds."""
+        from salaah import theme as palettes
+        was = palettes.palette()
+        self.addCleanup(lambda: palettes.set_mode(
+            {v: k for k, v in palettes.PALETTES.items()}.get(was, "light")))
+        w = self.mat("light")
+        for mode, wanted in (("light", False), ("dark", False), ("colour", True)):
+            with self.subTest(mode):
+                palettes.set_mode(mode)
+                name = Path(w.adhan.film()).name
+                self.assertEqual(wanted, name.endswith("-colour.gif"),
+                                 f"{mode}: the muezzin is {name}")
+                self.assertTrue(Path(w.adhan.film()).is_file(), f"{name} is not there")

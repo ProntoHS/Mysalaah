@@ -36,6 +36,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from .filmsheet import KEEP, STAMP, film_now, how_it_turns
 from .globe import Globe, KAABA
 from .qt import QtCore, QtGui, QtWidgets, Qt
 from .theme import palette
@@ -87,15 +88,9 @@ class TurningWorld(QtWidgets.QWidget):
         self.globe = globe
         self.mats: list[Mat] = []
         self.film: QtGui.QMovie | None = None
-        if globe.there:
-            movie = QtGui.QMovie(str(globe.film))
-            if movie.isValid() and movie.frameCount() > 1:
-                movie.setParent(self)
-                # A bound method rather than a lambda, for the reason the call box learned it:
-                # a lambda holding this widget outlives it, and a frame arriving after the
-                # widget has gone took one of the two Qt kits down with it.
-                movie.frameChanged.connect(self.turned)
-                self.film = movie
+        self.turns = STAMP
+        self.showing_colour = False
+        self.open_film()
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                            QtWidgets.QSizePolicy.Policy.Expanding)
         self.setMinimumHeight(window.px(240))
@@ -110,6 +105,48 @@ class TurningWorld(QtWidgets.QWidget):
 
     def show_mats(self, mats: list[Mat]) -> None:
         self.mats = list(mats)
+        self.update()
+
+    def open_film(self) -> None:
+        """Open the globe for the screen as it is set now.
+
+        The colour theme has its own earth: the same seventy-two frames and the same rotation,
+        drawn in colour on black instead of as black land on a white sea. It is the same
+        animation re-rendered, so globe.json's fitted geometry -- the centre, the radius, the
+        tilt, the longitude facing us at the start and the degrees per frame -- holds for both,
+        and the line to the Kaaba lands on the marker the animator drew on either one. That is
+        measured in the suite rather than assumed.
+        """
+        if not self.globe.there:
+            return
+        wanted = film_now(self.globe.film)
+        movie = QtGui.QMovie(str(wanted))
+        if not movie.isValid() or movie.frameCount() < 2:
+            return
+        movie.setParent(self)
+        # A bound method rather than a lambda, for the reason the call box learned it: a lambda
+        # holding this widget outlives it, and a frame arriving after the widget has gone took
+        # one of the two Qt kits down with it.
+        movie.frameChanged.connect(self.turned)
+        was, self.film = self.film, movie
+        if was is not None:
+            was.stop()
+            try:
+                was.frameChanged.disconnect(self.turned)
+            except (TypeError, RuntimeError):
+                pass
+            was.setParent(None)
+            was.deleteLater()
+        movie.jumpToFrame(0)
+        self.turns = how_it_turns(movie.currentPixmap())
+        self.showing_colour = palette().colour
+        if self.isVisible():
+            movie.start()
+
+    def follow_theme(self) -> None:
+        """The colour theme turns a different earth; light and dark share one."""
+        if self.showing_colour != palette().colour:
+            self.open_film()
         self.update()
 
     def turned(self, _frame: int) -> None:
@@ -163,11 +200,18 @@ class TurningWorld(QtWidgets.QWidget):
         left, top, side = self.circle()
         drawn = frame.scaled(side, side, Qt.AspectRatioMode.KeepAspectRatio,
                              Qt.TransformationMode.SmoothTransformation)
-        if colours.dark:
-            # The globe is drawn black on white, like every other picture here. On the dark
-            # screen it is turned inside out rather than shipped twice: one pass over a
-            # 600-pixel square, ten times a second, which is nothing next to a second copy of
-            # the film on every mat.
+        if colours.dark and self.turns != KEEP:
+            # The black-and-white globe is drawn black on white, like every other picture here.
+            # On the dark screen it is turned inside out rather than shipped twice: one pass
+            # over a 600-pixel square, ten times a second, which is nothing next to a second
+            # copy of the film on every mat.
+            #
+            # NOT THE COLOURED ONE. Colour is a dark palette -- Harry drew the coloured artwork
+            # on black -- so this test on its own turned his earth into a photographic
+            # negative: blue land in an orange sea. The question is what the drawing wants,
+            # which is filmsheet.how_it_turns, and a drawing in colour wants nothing done to
+            # it. The same fault put the coloured mosque upside down at 2.45; this is the place
+            # that sweep missed.
             shot = drawn.toImage()
             shot.invertPixels()
             drawn = QtGui.QPixmap.fromImage(shot)
