@@ -8121,3 +8121,304 @@ class TheColouredFilmsTest(unittest.TestCase):
         self.assertLess(worst, self.PIN_WITHIN,
                         f"frame {where}: the app puts Makkah {worst:.4f} of the picture away "
                         f"from the badge drawn on it (the bar is {self.PIN_WITHIN:.4f})")
+
+
+class TheColouredPosturesTest(unittest.TestCase):
+    """Harry's coloured prayer steps, which only the colour theme shows.
+
+    Harry, 19 November 2026: "i have included coloured prayer step pictures for both girl &
+    boy, this should be used in coloured theme, the dimensions should be the same."
+
+    NOTHING IS REPLACED, as with every coloured twin since 2.46: the light and dark mats go on
+    using the line drawings they always used, and a mat that never selects colour cannot tell
+    this release happened.
+
+    WHAT "THE SAME DIMENSIONS" HAS TO MEAN. His drawings arrive at 1024x1536, 1536x1024 and
+    2496x1664 where the mat's are 1200x839 and 699x1200, so they are made to match. But
+    matching the canvas is not enough on its own: render.PostureView scales a picture into its
+    frame and stands it on the bottom line, and assets/postures/modes.json says how tall each
+    posture is drawn relative to that frame. All of it is tuned to the pictures that ship. What
+    has to agree is therefore WHERE THE DRAWING SITS INSIDE THE CANVAS -- get that wrong and
+    the boy changes size, or hops up the screen, at the moment the theme changes, which is the
+    one moment a child is watching the picture rather than the words.
+
+    So both things are checked, and the second is checked in the twin's own terms: the mat's
+    picture is dark ink on white and the twin is light drawing on black, so the same rule
+    cannot read both. Two rules are used, each the obvious one for the picture it reads, and
+    the answers are required to agree.
+    """
+
+    #: Both figures, as render.py finds them: the boy at the top of assets/postures and the
+    #: girl in her own folder beside him.
+    FIGURES = ("", "girl")
+
+    #: How far a twin's drawing may sit from where the mat's drawing sits, in pixels of the
+    #: shared canvas. The twenty come in at 4px and under, seventeen of them at 2px or less, on
+    #: canvases around 1200px -- a third of one per cent. The bar is well clear of that and far
+    #: under anything a child could see: a figure that jumped by 10px on a theme change would
+    #: be a fifth of the width of its own head.
+    SITS_WITHIN = 12
+
+    #: Darker than this is the drawing, on the mat's white page.
+    INK = 250
+
+    #: Lighter than this is the black Harry drew on. The twins keep that black rather than
+    #: having it cut away -- the colour theme sits on black by definition, so an opaque black
+    #: ground is invisible under the drawing, and deciding which blacks in a picture are
+    #: background and which are the outlines of a boy, a prayer mat and the lines on it is a
+    #: judgement that went wrong once already on the wu'du steps at 2.44.
+    GROUND = 24
+
+    def every_posture(self):
+        """Every line drawing that ships, and the coloured twin that stands beside it."""
+        out = []
+        for figure in self.FIGURES:
+            where = ASSETS / "postures" / figure
+            for plain in sorted(where.glob("*.png")):
+                if plain.stem.endswith("-colour"):
+                    continue
+                out.append((figure or "boy", plain,
+                            plain.with_name(f"{plain.stem}-colour{plain.suffix}")))
+        return out
+
+    @staticmethod
+    def box(drawn):
+        """The rectangle the drawing occupies, as (left, top, right, bottom)."""
+        import numpy as np
+        rows, cols = np.nonzero(drawn)
+        return (int(cols.min()), int(rows.min()), int(cols.max()) + 1, int(rows.max()) + 1)
+
+    def read(self, path, lit):
+        import numpy as np
+        from PIL import Image
+        with Image.open(path) as im:
+            shot = np.asarray(im.convert("RGB")).astype(int)
+        drawn = shot.max(2) > self.GROUND if lit else shot.mean(2) < self.INK
+        self.assertTrue(drawn.any(), f"{path.name} is blank")
+        return shot, drawn
+
+    def test_every_posture_that_ships_has_a_coloured_twin(self):
+        """Both figures, all ten steps. A missing twin is not a crash -- render.py falls back
+        to the line drawing -- which is exactly why it needs a test: the colour theme would
+        quietly show one step in black and white and nobody would be told."""
+        for figure, plain, twin in self.every_posture():
+            with self.subTest(f"{figure}/{plain.stem}"):
+                self.assertTrue(twin.is_file(),
+                                f"{figure}'s {plain.stem} has no coloured twin, so the colour "
+                                f"theme shows the line drawing for that step alone")
+
+    def test_no_coloured_posture_is_left_behind(self):
+        """The other way round. A twin whose line drawing has been renamed or dropped is dead
+        weight in the release and a sign the two sets have come apart."""
+        for figure in self.FIGURES:
+            where = ASSETS / "postures" / figure
+            for twin in sorted(where.glob("*-colour.png")):
+                with self.subTest(f"{figure or 'boy'}/{twin.stem}"):
+                    plain = twin.with_name(f"{twin.stem[:-len('-colour')]}{twin.suffix}")
+                    self.assertTrue(plain.is_file(),
+                                    f"{twin.name} stands beside nothing; {plain.name} is gone")
+
+    def test_a_twin_is_the_same_canvas_as_the_picture_it_stands_beside(self):
+        """Harry: "the dimensions should be the same". Literally the same, pixel for pixel,
+        because modes.json is written in the mat's own pixels."""
+        from PIL import Image
+        for figure, plain, twin in self.every_posture():
+            with self.subTest(f"{figure}/{plain.stem}"):
+                with Image.open(plain) as a, Image.open(twin) as b:
+                    self.assertEqual(a.size, b.size,
+                                     f"{figure}'s {plain.stem} is {a.size} and its coloured "
+                                     f"twin is {b.size}")
+
+    def test_the_drawing_sits_where_the_mat_expects_to_find_it(self):
+        """THE ONE THAT MATTERS ON THE GLASS. A twin on the right canvas with the figure drawn
+        smaller, or higher, inside it would pass the size check and still make the boy jump
+        when the theme changed.
+
+        Read with a rule each: the mat's picture is dark on white, the twin is lit on black.
+        Using one threshold for both was tried and it cannot work -- there is no brightness
+        that is 'drawing' in a picture whose ground is white and in one whose ground is black.
+        """
+        worst, worst_name = 0, ""
+        for figure, plain, twin in self.every_posture():
+            with self.subTest(f"{figure}/{plain.stem}"):
+                _, ink = self.read(plain, lit=False)
+                _, bright = self.read(twin, lit=True)
+                off = max(abs(a - b) for a, b in zip(self.box(ink), self.box(bright)))
+                if off > worst:
+                    worst, worst_name = off, f"{figure}/{plain.stem}"
+                self.assertLessEqual(off, self.SITS_WITHIN,
+                                     f"{figure}'s coloured {plain.stem} has its drawing {off}px "
+                                     f"from where the line drawing puts it, so the figure would "
+                                     f"move on the screen when the theme changed")
+        self.assertLessEqual(worst, self.SITS_WITHIN, f"worst was {worst}px at {worst_name}")
+
+    def test_they_are_in_colour(self):
+        """The point of them, so it is measured rather than taken on the build tool's word. A
+        set that came back grey -- an exporter set wrong, a palette collapsed on the way
+        through a tool -- would ship as a colour theme that looks like the dark one.
+
+        Measured against what is DRAWN, not against the canvas, which is the lesson that
+        changed render.has_colour at 2.46: a share taken over the whole picture is diluted by
+        however much black the figure was drawn on. Of the ink actually laid down the twenty
+        run from 74.9% to 90.5%, and the line drawings they stand beside are nought.
+        """
+        import numpy as np
+        for figure, plain, twin in self.every_posture():
+            with self.subTest(f"{figure}/{plain.stem}"):
+                shot, bright = self.read(twin, lit=True)
+                coloured = float((shot.max(2) - shot.min(2) > 30)[bright].mean())
+                self.assertGreater(coloured, 0.20,
+                                   f"{figure}'s coloured {plain.stem} is {100 * coloured:.1f}% "
+                                   f"coloured where it is drawn at all, which is a grey picture")
+
+
+class TheColouredStationMarksTest(unittest.TestCase):
+    """The radio stations' own marks, cut out of the coloured radio page Harry drew.
+
+    HIS SHEET IS NOT SHIPPED, and this is the reason. The radio page is not a drawing:
+    salaah/radio.py builds it from stations.json, sizes the grid to however many stations
+    answer and tools/check_stations.py takes out the ones that do not. Shipping the sheet flat
+    would freeze all of that -- a station that stopped answering would stay pictured and stay
+    pressable, and adding one would need the sheet redrawn. So the sheet was taken apart into
+    ten marks, one beside each stencil, and the page goes on being built as it always was.
+
+    WHAT CAN GO WRONG HERE is not that a mark looks bad. It is that a mark lands on the WRONG
+    STATION -- a square cut from the wrong place, or stations.json reordered without the sheet
+    being redrawn. That would look perfectly fine on the glass, and the only person who would
+    ever notice is a child who pressed Unity FM and got Ramadan FM. It is the fault this class
+    exists for.
+    """
+
+    #: Where both the stencils and the coloured marks live.
+    LOGOS = ASSETS / "content" / "radio" / "logos"
+
+    #: Alpha above this is the mark; the soft edge of a stroke below it is not counted. The
+    #: marks keep real alpha, soft edges and all, so a stroke fades out the way it was drawn.
+    SOLID = 48
+
+    #: The grid both shapes are squashed onto before they are compared, so a mark drawn at one
+    #: size can be matched against a stencil drawn at another.
+    GRID = 48
+
+    #: How much more of its own box a mark may cover than its stencil does, in points.
+    #:
+    #: THE FAULT THIS IS FOR is a mark cut out as a full opaque square. Several of Harry's
+    #: squares carry a faint halo spreading to the edges, and cropping to that halo instead of
+    #: to the drawing is what the build tool's GROUND threshold had to be raised to stop:
+    #: mishary came out as a complete square, 19% fill against its stencil's 19% becoming 100%.
+    #:
+    #: Asked as a comparison against each mark's OWN stencil rather than against a fixed share,
+    #: because the ten are honestly between 19% and 83% full -- unity-fm's logo is a solid
+    #: wordmark and nasheeds is thin Arabic script, and no single figure is wrong for both. A
+    #: mark runs a few points fuller than its stencil because its edges are soft; today's worst
+    #: is ramadan-fm at 8.5 points, and a full square would be 81.
+    FULLER_THAN_ITS_STENCIL = 20
+
+    #: How far ahead of its nearest rival a mark has to match its own stencil. See
+    #: test_no_mark_has_landed_on_the_wrong_station for why this is a comparison and not a bar.
+    AHEAD_BY = 0.10
+
+    def stations(self):
+        described = json.loads((self.LOGOS.parent / "stations.json").read_text(encoding="utf-8"))
+        return [s["key"] for s in described["stations"]]
+
+    def pairs(self):
+        """Each station that has a stencil, with the stencil and the coloured mark beside it.
+
+        Asked of the disk by name, exactly as radio.py asks: a station's artwork is
+        logos/<key>.png or there isn't one. Reading a list instead would let the list and the
+        folder drift apart, which is the thing being tested.
+        """
+        out = []
+        for key in self.stations():
+            plain = self.LOGOS / f"{key}.png"
+            if plain.is_file():
+                out.append((key, plain, self.LOGOS / f"{key}-colour.png"))
+        return out
+
+    def squashed(self, mask):
+        """A shape cropped to itself and squashed onto one small grid."""
+        import numpy as np
+        from PIL import Image
+        rows, cols = np.nonzero(mask)
+        cut = mask[rows.min():rows.max() + 1, cols.min():cols.max() + 1]
+        small = Image.fromarray((cut * 255).astype("uint8")).resize((self.GRID, self.GRID),
+                                                                    Image.BILINEAR)
+        return np.asarray(small) > 110
+
+    def shape_of(self, path, bar):
+        import numpy as np
+        from PIL import Image
+        with Image.open(path) as im:
+            alpha = np.asarray(im.convert("RGBA"))[:, :, 3]
+        drawn = alpha > bar
+        self.assertTrue(drawn.any(), f"{path.name} is blank")
+        return drawn
+
+    def test_every_station_with_a_stencil_has_a_coloured_mark(self):
+        """A missing one is not a crash -- radio.py paints the stencil instead -- which is why
+        it needs saying out loud: one square on the colour page would be in white line art
+        among nine in Harry's colours, and it would look like a fault in his drawing."""
+        for key, _, mark in self.pairs():
+            with self.subTest(key):
+                self.assertTrue(mark.is_file(), f"{key} has no coloured mark")
+
+    def test_no_coloured_mark_is_left_behind(self):
+        """A mark for a station that is no longer listed is dead weight in the release, and a
+        sign that stations.json and the artwork have come apart."""
+        listed = set(self.stations())
+        for mark in sorted(self.LOGOS.glob("*-colour.png")):
+            with self.subTest(mark.stem):
+                key = mark.stem[:-len("-colour")]
+                self.assertIn(key, listed,
+                              f"{mark.name} is a mark for a station stations.json does not list")
+
+    def test_a_mark_is_cut_to_its_drawing_and_not_to_the_square_around_it(self):
+        """Harry's squares carry a faint halo spreading to their edges, and a mark cropped to
+        the halo is a filled rectangle wearing the drawing's colours. On the glass it would
+        read as a coloured tile where the other nine are marks."""
+        worst, worst_name = 0.0, ""
+        for key, plain, mark in self.pairs():
+            with self.subTest(key):
+                his = float(self.shape_of(mark, self.SOLID).mean())
+                theirs = float(self.shape_of(plain, 40).mean())
+                fuller = 100 * (his - theirs)
+                if fuller > worst:
+                    worst, worst_name = fuller, key
+                self.assertLess(fuller, self.FULLER_THAN_ITS_STENCIL,
+                                f"{key}'s mark fills {100 * his:.0f}% of its box where its "
+                                f"stencil fills {100 * theirs:.0f}%, so it has been cut to the "
+                                f"square around the drawing rather than to the drawing")
+        self.assertLess(worst, self.FULLER_THAN_ITS_STENCIL,
+                        f"worst was {worst:.1f} points at {worst_name}")
+
+    def test_no_mark_has_landed_on_the_wrong_station(self):
+        """Every mark must look more like its own station's stencil than like any other's.
+
+        ASKED AS A COMPARISON, not against a threshold, because there is no threshold that
+        works: the weakest true pairing is radio-seerah at 0.61, whose mosque glyph Harry
+        redrew, and the strongest false one is radio-sunna against unity-fm at 0.64, two round
+        marks of a similar weight. Any fixed bar either passes a swap or fails a redraw.
+        Whether each mark beats its own nearest rival is a different question, and the ten
+        answer it by 0.245 at worst.
+        """
+        pairs = self.pairs()
+        marks = {key: self.squashed(self.shape_of(mark, self.SOLID)) for key, _, mark in pairs}
+        stencils = {key: self.squashed(self.shape_of(plain, 40)) for key, plain, _ in pairs}
+
+        def overlap(one, other):
+            return float((one & other).sum()) / max(int((one | other).sum()), 1)
+
+        for key, mine in marks.items():
+            with self.subTest(key):
+                scored = sorted(((overlap(mine, shape), other)
+                                 for other, shape in stencils.items()), reverse=True)
+                (best, whose), (next_best, runner) = scored[0], scored[1]
+                self.assertEqual(key, whose,
+                                 f"{key}'s coloured mark looks more like {whose}'s stencil "
+                                 f"({best:.3f}) than like its own. A mark has landed on the "
+                                 f"wrong station, and the page would look perfectly fine.")
+                self.assertGreaterEqual(best - next_best, self.AHEAD_BY,
+                                        f"{key}'s mark matches its own stencil {best:.3f} and "
+                                        f"{runner}'s {next_best:.3f} -- too close to tell which "
+                                        f"station it belongs to")

@@ -106,6 +106,18 @@ class StationBox(QtWidgets.QAbstractButton):
         self.logo = QtGui.QPixmap(station["logo"]) if station.get("logo") else QtGui.QPixmap()
         if self.logo.isNull():
             self.logo = None
+        #: The station's mark in its own colours, for the colour theme. A stencil cannot do
+        #: this: a stencil has had its colour thrown away so the mat can paint its own ink
+        #: through the shape, and the whole point here is the colour. So it is a second file
+        #: beside the first, cut out of Harry's coloured radio sheet by
+        #: tools/radio/install_colour.py, and it is DRAWN rather than painted through.
+        self.painted: QtGui.QPixmap | None = None
+        if station.get("logo"):
+            spot = Path(station["logo"])
+            bright = spot.with_name(f"{spot.stem}-colour{spot.suffix}")
+            if bright.is_file():
+                shown = QtGui.QPixmap(str(bright))
+                self.painted = None if shown.isNull() else shown
         # The name is set on the button even when it is never drawn: it is what the station
         # is called, and anything that asks a button what it says -- a test, a screen reader,
         # somebody debugging a list of six identical squares -- should get an answer.
@@ -181,7 +193,16 @@ class StationBox(QtWidgets.QAbstractButton):
         if self.logo is not None:
             shape = QtCore.QRect(0, 0, int(room.width() * LOGO_WIDE),
                                  int(room.height() * LOGO_TALL))
-            drawn = self.stencilled(shape, ink)
+            # IN COLOUR, THE MARK IS DRAWN AS IT IS -- but only while the station is not
+            # playing. A playing square turns red, and a mark in its own colours on red is
+            # two brand colours fighting; the stencil in white reads cleanly on it, which is
+            # what the red is for. So colour gives way at exactly the moment something else
+            # has to be legible.
+            if self.painted is not None and c.colour and not self.isChecked():
+                drawn = self.painted.scaled(shape.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                            Qt.TransformationMode.SmoothTransformation)
+            else:
+                drawn = self.stencilled(shape, ink)
             p.drawPixmap(int(room.center().x() - drawn.width() / 2),
                          int(room.center().y() - drawn.height() / 2), drawn)
         else:

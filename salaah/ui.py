@@ -139,8 +139,18 @@ AMBER = "#C08A2E"
 SET_HEAD = 37           # a section heading
 SET_HINT = 24           # the small print under one, where there still is any
 SET_VALUE = 29          # a setting's current value, and the words beside the switches
-SET_PICKER = 31         # the dropdowns, and the rows inside them when open
-SET_PICKER_TALL = 51    # how tall a dropdown is, which the text size alone does not set
+SET_PICKER = 31         # a dropdown while it is shut
+SET_PICKER_TALL = 51    # how tall a shut dropdown is, which the text size alone does not set
+#: THE ROWS INSIDE A DROPDOWN WHILE IT IS OPEN, which is a different question from the box.
+#: Harry, 19 November 2026: "when selecting an option from a drop menu, the drop down list is
+#: small and its easy to select the wrong option, can you make drop down box twice as big when
+#: selecting." A shut box is read; an open row is pressed with a finger, and a finger is about
+#: 9mm across. Twice the shut box's height is 102px at 1920x1080, which on a 16in panel is
+#: about 11mm -- comfortably over the bar and still ten rows inside a 1080-tall screen.
+SET_PICKER_ROW = 102    # how tall each row is in the open list
+SET_PICKER_ROW_TEXT = 42  # and how big its words are. NOT set by the stylesheet alone: every
+                          # row carries its own face, chosen for its own script, so the size
+                          # has to go on with it -- see dropdown().
 SET_CHOICE = 31         # a row of circles to choose between
 SET_KNOB = 35           # the circle itself
 SET_PILL = 31           # the four boxes in the two-column block, on this page only
@@ -1925,6 +1935,7 @@ class MainWindow(QtWidgets.QWidget):
         # these numbers were chosen against; raise one and it will say so.
         head, hint, value = px(SET_HEAD), px(SET_HINT), px(SET_VALUE)
         pick, pick_tall = px(SET_PICKER), px(SET_PICKER_TALL)
+        row_tall, row_text = px(SET_PICKER_ROW), px(SET_PICKER_ROW_TEXT)
         choice, knob, knob_round = px(SET_CHOICE), px(SET_KNOB), px(SET_KNOB // 2 + 3)
         pill_text, pill_pad = px(SET_PILL), px(14)
         return f"""
@@ -2053,10 +2064,12 @@ class MainWindow(QtWidgets.QWidget):
                                             border-top:{px(14)}px solid {c.strong};
                                             margin-right:{px(14)}px; }}
             QComboBox#picker QAbstractItemView {{ background:{c.paper}; color:{c.strong};
-                                                  font-size:{pick}px;
+                                                  font-size:{row_text}px;
                                                   border:{px(3)}px solid {c.strong};
                                                   selection-background-color:{c.pale};
                                                   selection-color:{c.strong}; }}
+            QComboBox#picker QAbstractItemView::item {{ min-height:{row_tall}px;
+                                                        padding:0 {px(16)}px; }}
             QRadioButton#choice {{ font-size:{choice}px; font-weight:bold; color:{c.strong};
                                    spacing:{px(14)}px; padding:{px(6)}px 0; }}
             QRadioButton#choice::indicator {{ width:{knob}px; height:{knob}px;
@@ -5703,8 +5716,23 @@ class MainWindow(QtWidgets.QWidget):
             # Devanagari and Arabic at once and no single face covers it. Each row is given the
             # face its own letters need, or the ones the Pi has not got come out as boxes.
             face = QtGui.QFont(Fonts.for_text(label))
-            face.setPixelSize(self.px(26))
+            # The OPEN list's size. A row carries its own face so that Chinese, Devanagari and
+            # Arabic each get one that has their letters, and a face set here beats anything
+            # the stylesheet says -- which is why making these rows bigger took both.
+            face.setPixelSize(self.px(SET_PICKER_ROW_TEXT))
             box.setItemData(box.count() - 1, face, Qt.ItemDataRole.FontRole)
+        # THE ROW'S HEIGHT comes from the stylesheet -- `QComboBox#picker QAbstractItemView::item
+        # { min-height }`, set from SET_PICKER_ROW -- but only once the view has a plain delegate
+        # on it. The popup ships with one of Qt's internal delegates, which does not read that
+        # rule at all: with it the rows come out at 64px against the 102 asked for, and 59px on
+        # the shorter lists.
+        #
+        # A size hint set on each item (SizeHintRole) was carried here for a while on the theory
+        # that the stylesheet was being ignored because the rows carry their own font. It was
+        # not: taking the hint out changes nothing, taking this line out drops every list back
+        # to 64px. One line, and it is the difference between a row a finger can hit and one it
+        # cannot.
+        box.view().setItemDelegate(QtWidgets.QStyledItemDelegate(box.view()))
         box.setCurrentIndex(max(0, [v for v, _ in options].index(current)
                                 if current in [v for v, _ in options] else 0))
         box.activated.connect(lambda i: on_pick(box.itemData(i)))

@@ -1348,6 +1348,18 @@ class PixmapCache:
         """The night version of this picture, whether or not it exists."""
         return path.with_name(f"{path.stem}-dark{path.suffix}")
 
+    @staticmethod
+    def in_the_colour_theme(path: Path) -> Path:
+        """Harry's coloured version of this picture, whether or not it exists.
+
+        The same naming every other coloured drawing on the mat uses -- filmsheet.coloured_twin
+        writes `menu.ur-colour.gif` for a film, this writes `ruku-colour.png` for a picture --
+        so one rule covers both and nothing anywhere carries a list of which drawings have a
+        coloured version. ASKED OF THE DISK: which ones exist changes with every release Harry
+        draws for, and a list is the thing nobody remembers to update.
+        """
+        return path.with_name(f"{path.stem}-colour{path.suffix}")
+
     def in_colour(self, path: Path, pix: QtGui.QPixmap) -> bool:
         answer = self._colour.get(str(path))
         if answer is None:
@@ -1356,13 +1368,21 @@ class PixmapCache:
         return answer
 
     def get(self, path: Path, size: QtCore.QSize) -> QtGui.QPixmap:
-        dark = palette().dark
-        key = (str(path), size.width(), size.height(), dark)
+        colours = palette()
+        dark = colours.dark
+        # The colour theme is keyed separately even though it is a dark palette, because it may
+        # read a DIFFERENT FILE: two mats, both dark, would otherwise share one cached picture
+        # and whichever drew first would decide what the other saw.
+        key = (str(path), size.width(), size.height(), dark, colours.colour)
         pix = self._items.get(key)
         if pix is None:
             drawn = path
             turn = dark
-            if dark:
+            if colours.colour:
+                bright = self.in_the_colour_theme(path)
+                if bright.is_file():
+                    drawn, turn = bright, False
+            if turn:
                 night = self.after_dark(path)
                 if night.is_file():
                     drawn, turn = night, False

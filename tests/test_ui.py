@@ -21,7 +21,7 @@ from salaah.qt import API, QtCore, QtGui, QtWidgets, Qt  # noqa: E402
 from salaah.render import MIN_ARABIC_PX  # noqa: E402
 from salaah.settings import Settings  # noqa: E402
 from salaah.knowledge import TILES as KNOWLEDGE_TILES  # noqa: E402
-from salaah.ui import MainWindow  # noqa: E402
+from salaah.ui import MainWindow, SET_PICKER_TALL  # noqa: E402
 
 # No test goes on the internet. The verse recitation fetches from everyayah.com, and a test
 # that quietly dials out is slow, flaky, rude to somebody else's CDN, and -- when it prefetches
@@ -2383,7 +2383,22 @@ class FigureTest(unittest.TestCase):
 
 
 class ShippedFigureSetsTest(unittest.TestCase):
-    """The sets that ship with the app: every file named after a posture the app asks for."""
+    """The sets that ship with the app: every file named after a posture the app asks for.
+
+    A FIGURE'S SET IS ITS POSTURES, and a coloured twin is not one of them. 2.48 put a
+    `<posture>-colour.png` beside each picture for the colour theme, exactly as 2.46 did for
+    the front door and 2.47 for the menus, and `<posture>-colour` is not a posture: the app
+    never asks for it by name, render.PixmapCache reaches it only by looking beside the
+    picture it was already drawing. Counted as members they would make the boy's set twenty
+    pictures of ten postures and the question these tests ask -- does every posture the app
+    asks for have a picture, and is there anything here it will never ask for -- would stop
+    having an answer.
+
+    So they are set aside here by name, and asked of properly elsewhere:
+    tests.test_core.TheColouredPosturesTest pairs every twin with the picture it stands beside,
+    in both directions, and checks that it is the same canvas with the drawing in the same
+    place. That is a stricter rule than this class could state, not a looser one.
+    """
 
     def setUp(self):
         from salaah.content import load
@@ -2391,22 +2406,41 @@ class ShippedFigureSetsTest(unittest.TestCase):
         self.wanted = {"standing_arms_down", "standing_folded", "standing_itidal", "takbir_raised",
                        "qunut", "ruku", "sujood", "jalsa", "tashahhud", "salam"}
 
+    @staticmethod
+    def postures_in(folder):
+        """The posture pictures in a folder, leaving the coloured twins aside."""
+        return {p.stem for p in folder.glob("*.png") if not p.stem.endswith("-colour")}
+
     def test_the_original_set_is_complete(self):
-        have = {p.stem for p in (ASSETS / "postures").glob("*.png")}
-        self.assertEqual(self.wanted, have)
+        self.assertEqual(self.wanted, self.postures_in(ASSETS / "postures"))
 
     def test_every_other_set_is_named_from_the_same_list(self):
         for figure in self.content.figures[1:]:
-            folder = ASSETS / "postures" / figure
-            have = {p.stem for p in folder.glob("*.png")}
+            have = self.postures_in(ASSETS / "postures" / figure)
             self.assertTrue(have <= self.wanted, f"{figure}: unknown names {have - self.wanted}")
             self.assertTrue(have, f"{figure} has no pictures")
 
     def test_the_girl_set_is_here_and_complete(self):
         self.assertIn("girl", self.content.figures)
-        have = {p.stem for p in (ASSETS / "postures" / "girl").glob("*.png")}
+        have = self.postures_in(ASSETS / "postures" / "girl")
         self.assertEqual(set(), self.wanted - have,
                          "the girl falls back to the boy for these postures")
+
+    def test_nothing_unknown_hides_behind_a_colour_suffix(self):
+        """The hole the exclusion above opens, shut in the same class that opens it.
+
+        `-colour` is now a name this class skips, so a stray file could ride in under it --
+        a posture that no longer exists, a typo, a picture from another set. Every twin has
+        to name a posture the app asks for, which is the same question the other three tests
+        ask, put to the files they no longer see.
+        """
+        for figure in ("",) + tuple(self.content.figures[1:]):
+            folder = ASSETS / "postures" / figure
+            for twin in sorted(folder.glob("*-colour.png")):
+                with self.subTest(f"{figure or 'boy'}/{twin.stem}"):
+                    self.assertIn(twin.stem[:-len("-colour")], self.wanted,
+                                  f"{twin.name} is not a coloured twin of any posture the app "
+                                  f"asks for")
 
 
 class ArchArtworkTest(unittest.TestCase):
@@ -3753,11 +3787,26 @@ class RadioTest(unittest.TestCase):
         through the shape. A file saved as flat artwork -- white on black with no alpha, the
         way all six arrived -- would draw as a solid block the size of the whole square,
         which is the failure this catches before it leaves here rather than on the mat.
+
+        THE COLOURED MARKS ARE NOT STENCILS and are left out here by name. 2.48 put a
+        `<key>-colour.png` beside each stencil, cut out of the radio page Harry painted, and
+        every rule below is one it is meant to break: it carries its own colour because its
+        colour is the point, and the ink is never painted through it. They are not unchecked --
+        tests.test_core.TheColouredStationMarksTest owns them, and asks the harder question of
+        whether each one has landed on the right station -- and they are still held to the
+        provenance rule at the foot of this test, which is the one rule that is about shipping
+        rather than about stencilling.
         """
         folder = ASSETS / "content" / "radio" / "logos"
         files = sorted(folder.glob("*.png"))
         self.assertTrue(files, "no artwork ships at all")
         for path in files:
+            if path.stem.endswith("-colour"):
+                with self.subTest(path.name):
+                    self.assertIn(path.stem[:-len("-colour")],
+                                  (folder / "README.md").read_text(encoding="utf-8"),
+                                  "a coloured mark for a station the README does not cover")
+                continue
             with self.subTest(path.name):
                 im = QtGui.QImage(str(path))
                 self.assertFalse(im.isNull())
@@ -25174,3 +25223,253 @@ class TheColouredFilmsOnTheScreenTest(unittest.TestCase):
                 self.assertEqual(wanted, name.endswith("-colour.gif"),
                                  f"{mode}: the muezzin is {name}")
                 self.assertTrue(Path(w.adhan.film()).is_file(), f"{name} is not there")
+
+
+class TheColouredStepsAndMarksOnTheScreenTest(unittest.TestCase):
+    """2.48's artwork, measured on what a child would see rather than on which file was picked.
+
+    Harry, 19 November 2026: "i have included coloured prayer step pictures for both girl &
+    boy, this should be used in coloured theme" -- and, with them, a coloured radio page whose
+    ten station marks were cut out of it one by one.
+
+    EVERY TEST HERE ASKS THE PIXELS. A test that checked which file was chosen would pass on a
+    picture that failed to load, and it would pass on a coloured picture that the screen then
+    turned inside out -- which is exactly the fault 2.46 shipped with and 2.47 had to fix, in
+    two separate screens. Colour is a dark palette, and anything that inverts on a dark palette
+    inverts Harry's paintings too unless it is told not to.
+    """
+
+    def mat(self, mode, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=False)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def painted(widget):
+        """What the widget actually put on the glass, as pixels.
+
+        Taken off the widget's own grab so that everything the screen does on the way -- the
+        scaling, the tinting, the inversion after dark, the field drawn behind -- is in the
+        answer.
+        """
+        import numpy as np
+        shot = widget.grab().toImage().convertToFormat(QtGui.QImage.Format.Format_RGB888)
+        wide, tall = shot.width(), shot.height()
+        raw = shot.constBits()
+        raw.setsize(shot.sizeInBytes())
+        return (np.frombuffer(bytes(raw), np.uint8)
+                .reshape(tall, shot.bytesPerLine() // 1)[:, :wide * 3]
+                .reshape(tall, wide, 3).astype(int))
+
+    def coloured_share(self, widget):
+        pixels = self.painted(widget)
+        spread = pixels.max(2) - pixels.min(2)
+        return float((spread > 30).mean()), pixels
+
+    def test_the_prayer_steps_are_coloured_only_in_the_colour_theme(self):
+        """The picture a child copies. Light and dark keep the line drawing they have always
+        had; a mat that never selects colour cannot tell this release happened."""
+        for mode, wanted in (("light", False), ("dark", False), ("colour", True)):
+            with self.subTest(mode):
+                w = self.mat(mode)
+                view = w.slide.posture
+                view.set_image(w.assets / "postures" / "sujood.png")
+                settle()
+                share, _ = self.coloured_share(view)
+                if wanted:
+                    self.assertGreater(share, 0.05,
+                                       f"{mode}: the step is {100 * share:.1f}% coloured, so "
+                                       f"the screen is showing the line drawing")
+                else:
+                    self.assertLess(share, 0.01,
+                                    f"{mode}: the step is {100 * share:.1f}% coloured, and this "
+                                    f"theme should never show Harry's painted one")
+
+    def test_the_coloured_step_is_never_turned_over(self):
+        """THE FAULT THAT SHIPPED TWICE, asked of a third screen before it ships a third time.
+
+        Measured on the boy himself: Harry's thobe is cream, which is red and green above blue
+        and all three high. Inverted it is dark blue -- blue above the other two and all three
+        low. The black field behind him goes white at the same moment, so the corner is checked
+        as well; either would do and both are a line each.
+        """
+        w = self.mat("colour")
+        view = w.slide.posture
+        view.set_image(w.assets / "postures" / "standing_folded.png")
+        settle()
+        pixels = self.painted(view)
+        cream = ((pixels[:, :, 0] > 170) & (pixels[:, :, 1] > 160) & (pixels[:, :, 2] > 120)
+                 & (pixels[:, :, 2] < pixels[:, :, 0]))
+        flipped = ((pixels[:, :, 2] > pixels[:, :, 0] + 20) & (pixels[:, :, 2] < 140))
+        self.assertGreater(cream.sum(), flipped.sum(),
+                           f"the step has {int(cream.sum()):,} cream pixels and "
+                           f"{int(flipped.sum()):,} dark blue ones; the boy has been turned "
+                           f"into his own negative")
+
+    def test_the_station_marks_are_coloured_only_in_the_colour_theme(self):
+        """Harry's ten marks, on the page the app builds out of stations.json.
+
+        The page is never shipped as a drawing -- it is built from the file, sized to however
+        many stations answer -- so the marks have to arrive one at a time, and whether they did
+        is a question about the squares, not about the folder.
+        """
+        for mode, wanted in (("light", False), ("dark", False), ("colour", True)):
+            with self.subTest(mode):
+                w = self.mat(mode)
+                w.open_corner("radio")
+                settle()
+                screen = w.radio_screen
+                screen.reachable = True
+                screen.ask_the_network = lambda: None
+                screen.fill()
+                screen.size_the_boxes()
+                screen.resize(1920, 1080)
+                settle()
+                boxes = [b for b in screen.boxes if b.painted is not None]
+                self.assertGreaterEqual(len(boxes), 8,
+                                        "the page has almost no stations with artwork on it")
+                lit = [self.coloured_share(b)[0] for b in boxes]
+                most = max(lit)
+                if wanted:
+                    self.assertGreater(most, 0.02,
+                                       f"{mode}: the most coloured square on the page is "
+                                       f"{100 * most:.1f}% coloured, so every mark is being "
+                                       f"painted as a white stencil")
+                else:
+                    self.assertLess(most, 0.005,
+                                    f"{mode}: a square is {100 * most:.1f}% coloured, and this "
+                                    f"theme should never show Harry's painted marks")
+
+    def test_a_playing_station_goes_back_to_its_stencil(self):
+        """A square turns red while it is playing -- the colour the mat uses for the thing
+        happening now, the same as a lit prayer arch. A mark in its own brand colours on that
+        red is two colours fighting, and the white stencil is what the red was for. So colour
+        gives way at exactly the moment something else has to be legible.
+
+        MEASURED ON THE MARK'S OWN COLOUR, not on how coloured the square is. The obvious
+        measure is the wrong one and it was written first: a playing square is flooded with
+        red, red is a colour, and the square comes out MORE coloured while playing (67.6%)
+        than while quiet (30.1%) even though the mark on it has gone white. So the question
+        has to be asked of the one hue that can only have come from Harry's drawing.
+
+        Nasheeds is the station to ask: its mark is cyan script, and there is no cyan anywhere
+        on a square that is painting a white stencil on brick red.
+        """
+        w = self.mat("colour")
+        w.open_corner("radio")
+        settle()
+        screen = w.radio_screen
+        screen.reachable = True
+        screen.ask_the_network = lambda: None
+        screen.fill()
+        screen.size_the_boxes()
+        screen.resize(1920, 1080)
+        settle()
+        box = next(b for b in screen.boxes if b.station["key"] == "nasheeds")
+        self.assertIsNotNone(box.painted, "nasheeds has no coloured mark to give up")
+
+        def cyan(widget):
+            pixels = self.painted(widget)
+            return float((((pixels[:, :, 1] > pixels[:, :, 0] + 40)
+                           & (pixels[:, :, 2] > pixels[:, :, 0] + 40)).mean())), pixels
+
+        quiet, _ = cyan(box)
+        self.assertGreater(quiet, 0.01,
+                           f"nasheeds is only {100 * quiet:.2f}% cyan while it is quiet, so "
+                           f"this test is not looking at Harry's mark at all")
+        box.setChecked(True)
+        settle()
+        playing, pixels = cyan(box)
+        self.assertLess(playing, 0.001,
+                        f"nasheeds is still {100 * playing:.2f}% cyan while it plays; the mark "
+                        f"has not given way to the stencil")
+        red = ((pixels[:, :, 0] > 120) & (pixels[:, :, 0] > pixels[:, :, 1] + 40)
+               & (pixels[:, :, 0] > pixels[:, :, 2] + 40))
+        self.assertGreater(float(red.mean()), 0.2,
+                           "the playing square is not red, so this test is measuring the wrong "
+                           "thing")
+
+
+class TheDropdownIsBigEnoughToHitTest(unittest.TestCase):
+    """Harry, 19 November 2026: "in settings when selecting an option from a drop menu, the
+    drop down list is small and its easy to select the wrong option, can you make drop down box
+    twice as big when selecting".
+
+    TWICE AS BIG WHEN SELECTING -- the open list, not the shut box, which was already the size
+    it needed to be. So a row in the open list is twice the height of the whole shut control,
+    and the words in it grew with it.
+
+    MAKING IT STICK TOOK THREE THINGS, and each of them is a line that looks redundant until it
+    is taken out, which is why they are tested rather than trusted:
+      - the row's own font, because a face set on the item beats the stylesheet;
+      - the row's own size hint, because `::item { min-height }` is ignored once a row carries
+        its own font;
+      - a plain QStyledItemDelegate on the view, because the popup's built-in delegate does not
+        read that hint at all. Without it the rows came out at 64px against the 102 asked for.
+
+    AND IT STILL HAS TO FIT. Ten languages at twice the height is 1,042px of list, which is
+    inside Harry's 1,080px screen -- but only just, and the next language added is the one that
+    pushes it over into a list that has to be scrolled with a fingertip.
+    """
+
+    def settings(self, lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=False)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        w.open_settings()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def pickers(self, w):
+        found = w.findChildren(QtWidgets.QComboBox)
+        self.assertTrue(found, "settings has no dropdowns at all")
+        return found
+
+    def test_every_open_row_is_twice_the_shut_control(self):
+        """What Harry asked for, asked of the rows the view will actually lay out rather than
+        of the constant they were set from."""
+        w = self.settings()
+        for box in self.pickers(w):
+            with self.subTest(box.count()):
+                row = box.view().sizeHintForRow(0)
+                self.assertGreaterEqual(row, 2 * w.px(SET_PICKER_TALL),
+                                        f"a row in the open list is {row}px where the shut box "
+                                        f"is {w.px(SET_PICKER_TALL)}px; it is not twice as big")
+
+    def test_every_row_in_a_mixed_list_is_the_same_height(self):
+        """The language list holds Latin, Bengali, Devanagari, Cyrillic, Arabic and Chinese at
+        once, and each row carries the face its own letters need. A row sized by its font
+        instead of by the hint would make the Chinese row taller than the English one, and the
+        list would be a staircase."""
+        w = self.settings()
+        for box in self.pickers(w):
+            if box.count() < 4:
+                continue
+            heights = {box.view().sizeHintForRow(i) for i in range(box.count())}
+            self.assertEqual(1, len(heights),
+                             f"the rows come out {sorted(heights)}px tall; they should all be "
+                             f"the same whatever alphabet they are written in")
+
+    def test_the_whole_list_still_fits_on_the_mats_own_screen(self):
+        """A list taller than the screen is clamped and scrolled with two small arrows, which
+        is worse to hit than the small rows Harry complained about. The longest list is the
+        languages, and it is the one to watch as languages are added."""
+        w = self.settings()
+        for box in self.pickers(w):
+            with self.subTest(box.count()):
+                whole = box.count() * box.view().sizeHintForRow(0)
+                self.assertLessEqual(whole, 1080,
+                                     f"{box.count()} rows at {box.view().sizeHintForRow(0)}px "
+                                     f"is {whole}px of list on a 1080px screen, so it has to "
+                                     f"be scrolled")

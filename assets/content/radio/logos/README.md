@@ -45,5 +45,41 @@ somebody by their own name. It is also not a licence, and none has been asked fo
 would rather its mark were not used this way, delete its file and the square goes back to
 carrying its name in words, which is all it did until now.
 
+## The coloured marks
+
+Beside each stencil is a `<key>-colour.png`, and those are the one thing in this folder that
+**are** pictures. They are shown only in the colour theme, and only while a station is not
+playing; the moment one is playing its square turns red and the stencil comes back, because a
+mark in its own brand colours on that red is two colours fighting and the red is what has to
+be legible.
+
+They did not come from the stations. Harry painted the whole radio page over a render of the
+page the app draws and sent it as one animated sheet on 19 November 2026, and
+`tools/radio/install_colour.py` cut the ten squares back out of it -- the sheet itself is not
+shipped, because the page is built from `../stations.json` at the moment it is drawn and
+freezing it as a picture would mean a station that stopped answering stayed pictured and
+stayed pressable. The tool checks that the squares it found sit exactly where the app puts
+them, and that each mark looks more like its own station's stencil than like any other's,
+before it writes anything.
+
+Stored as real colour with its own alpha, recovered from the black Harry drew on: a pixel's
+brightness becomes its alpha and its colour is divided back out. So the soft edge of every
+stroke survives, and the mark composites correctly over black and over red alike.
+
+The footing is the same as for the stencils above, and so is the caveat: these are his
+paintings of other people's marks, no licence has been asked for or given, and nothing here
+has been checked by anybody qualified. Deleting a `-colour.png` is safe at any time -- the
+square falls back to the stencil, in every theme.
+
+Three of them are worth knowing about before anybody decides they look wrong:
+
+- `unity-fm-colour.png` carries the station's name twice, small over large. So does the
+  stencil, and so does the artwork both were made from.
+- `radio-seerah-colour.png` reads `RAD` then a mosque then `SEERAH`. The mosque is standing in
+  for the `IO`, which is how the mark is drawn.
+- `mishary-colour.png` is a much looser drawing than its stencil -- a cyan suggestion of a
+  face where the stencil is a line portrait. That is what Harry painted, cut faithfully.
+
+
 Nothing here has been checked by anybody qualified, and the same goes for the stations
 themselves — see the note at the top of `../stations.json`.
