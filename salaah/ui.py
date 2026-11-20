@@ -3083,10 +3083,27 @@ class MainWindow(QtWidgets.QWidget):
         them without also dropping the session and handing the small screen back. Both callers
         are "the listener has gone somewhere else", which is the only thing that matters to a
         voice.
+
+        IT SAID "EVERY VOICE" AND MEANT TWO OF THE THREE. The prayer's own recitation -- the
+        words of the step being shown, which is the voice a child is most likely to have
+        running -- was not among them, so pressing Home part way through a prayer left it
+        talking to an empty room. Harry, 20 November 2026: "in prayer steps, during the pray
+        sequence & when audio is playing, when home button is pressed, audio continues, it
+        should stop straightaway."
         """
         if hasattr(self, "reader") and self.reader.reciting:
             self.reader.stop_reciting()
         self.hush_passages()
+        # AND THE PRAYER'S OWN VOICE. stop_audio and not recitation.stop() alone, because the
+        # highlight that runs along the words is driven by timers following that recording:
+        # stopping the sound and leaving them going lights up words nobody is saying.
+        #
+        # Safe on the 7in route as well, which is the other caller. open_corner returns at its
+        # first line while a prayer is on -- the big screen is busy and the touch is a stray
+        # knee -- so the only recitation this can reach from there is one that is not part of a
+        # prayer at all.
+        if hasattr(self, "recitation"):
+            self.stop_audio()
 
     def hush_passages(self) -> None:
         """Stop a kalima part way through. Leaving the screen, the call to prayer and shutting

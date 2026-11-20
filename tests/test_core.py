@@ -8422,3 +8422,155 @@ class TheColouredStationMarksTest(unittest.TestCase):
                                         f"{key}'s mark matches its own stencil {best:.3f} and "
                                         f"{runner}'s {next_best:.3f} -- too close to tell which "
                                         f"station it belongs to")
+
+    #: A mark more than this share of whose pixels are half-transparent is a soft one.
+    MOSTLY_SOFT = 0.80
+
+    #: How many of the ten are allowed to be. See below.
+    SOFT_ONES_ALLOWED = 2
+
+    def test_the_marks_have_not_been_cut_out_of_an_animated_sheet_again(self):
+        """Harry, 20 November 2026: "the old one was a gif and its animation was fuzzy".
+
+        He was right, and he saw it on the glass before any measurement here did. His first
+        coloured radio page had a colour running across the marks. The build tool takes the
+        middle value of each pixel across the frames, which removes the sweep -- but it cannot
+        sharpen a stroke whose edge the sweep moved, because an edge that is half-lit in every
+        frame is half-lit in the middle one too. Cut from the still sheet he sent the next
+        morning, the share of half-transparent pixels across the ten fell from 65% to 45%.
+
+        THE OLD SHEET IS STILL ON DISK in a working folder, so re-cutting from it is one
+        mistyped filename away, and the result would pass every other test in this class: the
+        marks would land on the right stations, be cut to their drawings and be in colour. They
+        would just be soft, and nobody would notice until Harry did.
+
+        COUNTED, NOT AVERAGED, and not asked of each mark on its own. `mishary` is 93% soft and
+        always has been -- it is drawn as a glow, and it was the only one of the ten the still
+        sheet did not improve -- so a bar every mark had to clear would fail on honest artwork.
+        An average would be dragged about by any single redraw. How MANY of the ten are mostly
+        soft is the question that survives both: one is today, four were from the animated
+        sheet, and the bar sits at two so that Harry can draw another glowing mark without
+        being told it is a fault.
+        """
+        import numpy as np
+        from PIL import Image
+        soft = []
+        for key, _, mark in self.pairs():
+            with Image.open(mark) as im:
+                alpha = np.asarray(im.convert("RGBA"))[:, :, 3].astype(int)
+            drawn = alpha > 25
+            self.assertTrue(drawn.any(), f"{mark.name} is blank")
+            share = float(((alpha > 25) & (alpha < 230)).sum()) / float(drawn.sum())
+            if share > self.MOSTLY_SOFT:
+                soft.append(f"{key} {100 * share:.0f}%")
+        self.assertLessEqual(len(soft), self.SOFT_ONES_ALLOWED,
+                             f"{len(soft)} of the ten marks are mostly half-transparent "
+                             f"({', '.join(soft)}), which is what cutting them out of an "
+                             f"animated sheet does to them")
+
+
+class NoColouredFilmIsTurnedOverTest(unittest.TestCase):
+    """Every coloured film in the tree, asked whether the mat would invert it.
+
+    THIS IS THE FAULT 2.46, 2.47 AND 2.49 EACH SHIPPED ONCE, in a different screen each time:
+    the front door, the world globe, and now the knowledge menu. Colour is a dark palette, so
+    anything that inverts for a dark page inverts Harry's paintings too unless it is told not
+    to -- and the telling is done by measuring the film, in render.has_colour. A film the
+    measurement does not recognise as coloured comes up as its own negative: his black sheet
+    turns white, with black tile outlines, which is exactly what he reported on 20 November.
+
+    ASKED OF THE DISK, NOT OF A LIST, and that is the whole point of the class. The screen-side
+    test of the coloured menus walks one menu, because walking all five through the interface
+    means knowing how each is reached; this one needs no interface at all, so it can take every
+    `*-colour.gif` there is and will take the next one the day it is added. The knowledge menu
+    had been wrong since 2.47 and the suite did not notice, because the suite was looking at the
+    children's menu.
+
+    WHY THE MEASUREMENT MISSED IT. The knowledge menu is one wu'du tile on a sheet of eighteen,
+    seventeen of them empty spares waiting to be drawn, so a third of a per cent of that sheet
+    carries colour where the other coloured films carry five to fifty. The bar was 2%. It is now
+    0.1%, and render.COLOUR_ENOUGH carries the sweep that settled it.
+    """
+
+    def every_coloured_film(self):
+        found = sorted(ASSETS.rglob("*-colour.gif"))
+        self.assertGreaterEqual(len(found), 8,
+                                "the coloured films have moved or gone; this test is looking at "
+                                "nothing")
+        return found
+
+    def test_the_mat_can_see_that_every_coloured_film_is_coloured(self):
+        """The question the screen asks, asked here of each file in turn.
+
+        `filmsheet.how_it_turns` is what the screens call, and KEEP is the answer that means
+        "draw this as it was painted". STAMP or LIFT both mean the film gets turned over on a
+        dark page, which is what colour is.
+        """
+        from salaah.filmsheet import how_it_turns, KEEP
+        from salaah.qt import QtGui
+        for film in self.every_coloured_film():
+            with self.subTest(film.relative_to(ASSETS)):
+                pix = QtGui.QPixmap(str(film))
+                self.assertFalse(pix.isNull(), f"{film.name} will not load")
+                self.assertEqual(KEEP, how_it_turns(pix),
+                                 f"{film.relative_to(ASSETS)} would be turned over on a dark "
+                                 f"page, so the colour theme shows it as its own negative")
+
+    def test_each_one_is_clear_of_the_bar_rather_than_sitting_on_it(self):
+        """How much room there is, reported rather than merely passed.
+
+        A film that cleared the bar by a hair would pass the test above and still be one redraw
+        away from failing on Harry's machine instead of here. The thinnest margin in the tree is
+        what this prints, and the knowledge menu is it: 0.0036 against a bar of 0.001.
+        """
+        from salaah.render import has_colour, COLOUR_ENOUGH
+        from salaah.qt import QtGui
+        thinnest, which = 1.0, ""
+        for film in self.every_coloured_film():
+            pix = QtGui.QPixmap(str(film))
+            # The same walk render.has_colour does, so the number reported is the number it
+            # judges on -- a figure measured over every pixel would not be the one that decides.
+            image = pix.toImage()
+            step = max(1, min(image.width(), image.height()) // 64)
+            lit = seen = 0
+            for y in range(0, image.height(), step):
+                for x in range(0, image.width(), step):
+                    c = image.pixelColor(x, y)
+                    if c.alpha() < 8:
+                        continue
+                    if max(c.red(), c.green(), c.blue()) - \
+                            min(c.red(), c.green(), c.blue()) > 40:
+                        lit += 1
+                    seen += 1
+            share = lit / max(seen, 1)
+            with self.subTest(film.relative_to(ASSETS)):
+                self.assertTrue(has_colour(pix), f"{film.name} is not read as coloured")
+            if share < thinnest:
+                thinnest, which = share, str(film.relative_to(ASSETS))
+        self.assertGreater(thinnest, COLOUR_ENOUGH,
+                           f"{which} clears the bar by nothing: {thinnest:.5f} against "
+                           f"{COLOUR_ENOUGH}")
+
+    def test_a_line_drawing_is_still_turned_over_after_dark(self):
+        """THE OTHER SIDE OF THE SAME BAR, and the reason it was not simply set to zero.
+
+        Six pictures in the tree are white line art drawn ON black and must still invert for the
+        light theme -- the muezzin's azaan film, the pillar-match board, the three mosque mazes
+        and the inner arch. They are the files that kill the rule anybody reaches for first
+        ("never invert something drawn on black"), and they are named here so that lowering the
+        bar further has to answer to them.
+        """
+        from salaah.render import has_colour
+        from salaah.qt import QtGui
+        for name in ("azaan/muezzin.gif", "children/pillar-match-board.png",
+                     "children/mosque-maze-beginner.png", "children/mosque-maze-medium.png",
+                     "children/mosque-maze-expert.png", "mosque/arch-inner.png"):
+            path = ASSETS / name
+            with self.subTest(name):
+                if not path.is_file():
+                    continue
+                pix = QtGui.QPixmap(str(path))
+                self.assertFalse(pix.isNull(), f"{name} will not load")
+                self.assertFalse(has_colour(pix),
+                                 f"{name} is being read as coloured artwork, so it would stay "
+                                 f"white-on-black on a white page")

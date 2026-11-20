@@ -65,6 +65,13 @@ GROUND = 48
 #: How many points of overlap a mark must beat its nearest rival by -- see `goes_with`.
 MARGIN = 0.10
 
+#: How far an edge may sit from where the app puts it, in pixels of the rendered page, once the
+#: sheet has been scaled to it. Both of Harry's sheets came in at 0.2px, which is rounding: he
+#: draws over a render of the page, so the squares are the app's own. The bar is loose enough
+#: to allow a sheet exported at an awkward scale and nowhere near loose enough to let a square
+#: land on its neighbour, which is 372px away.
+EDGES_WITHIN = 8.0
+
 
 def squares_in(frame: np.ndarray) -> list[list[int]]:
     """The ten station squares, in reading order."""
@@ -171,6 +178,15 @@ def install(sheet: Path, against: Path | None) -> int:
     # everywhere it passes, so every mark came out as a full square and the first one measured
     # 13.8% away from its own stencil. The median is the picture with the sweep taken out of
     # it, which is the mark as drawn.
+    #
+    # A STILL SHEET IS ONE FRAME and the median of one frame is that frame, so this costs
+    # nothing and the code below does not care which it was given. Harry's second sheet, on 20
+    # November 2026, was a still PNG precisely because the animation was softening the marks:
+    # the median takes the sweep out, but a sweep that has moved a stroke's edge between frames
+    # leaves that edge half-lit in every frame, and the middle value of a half-lit edge is a
+    # half-lit edge. Cutting the same ten marks out of the still sheet dropped the share of
+    # soft-edged pixels from 65% to 45%, and nasheeds and ramadan-fm by better than 45 points
+    # each.
     stack = np.array([np.asarray(f) for f in frames], np.uint8)
     brightest = np.median(stack, axis=0).astype(np.uint8)
     print(f"{sheet.name}: {brightest.shape[1]}x{brightest.shape[0]}, {len(frames)} frames")
@@ -183,11 +199,32 @@ def install(sheet: Path, against: Path | None) -> int:
 
     if against is not None:
         with Image.open(against) as page:
-            theirs = squares_in(np.asarray(page.convert("L")))
-        if theirs != boxes:
-            raise SystemExit(f"  the squares in {sheet.name} are not where the app puts them "
-                             f"in {against.name}. Nothing written.")
-        print(f"  all {4 * len(boxes)} edges agree with the page the app draws")
+            shot = np.asarray(page.convert("L"))
+        theirs = squares_in(shot)
+        if len(theirs) != len(boxes):
+            raise SystemExit(f"  {len(theirs)} squares in {against.name} against {len(boxes)} in "
+                             f"{sheet.name}. Nothing written.")
+        # COMPARED AT WHATEVER SCALE THE SHEET WAS EXPORTED AT, not pixel for pixel. Harry's
+        # first coloured page came back at the render's own 1920x1008 and this was an equality
+        # check; the second came back at 1512x794, the same drawing exported smaller, and an
+        # equality check would have refused it for being 21% too small -- which is not a fault,
+        # and not something to ask him to redo. What the check is actually for is a sheet drawn
+        # over something OTHER than this page: a different grid, a different number across, the
+        # squares in different places. That survives rescaling, and an edge that has moved
+        # relative to the page's own width still shows up here.
+        wide = shot.shape[1] / brightest.shape[1]
+        tall = shot.shape[0] / brightest.shape[0]
+        if abs(wide - tall) > 0.01:
+            raise SystemExit(f"  {sheet.name} is not the same shape as {against.name} "
+                             f"({wide:.3f} across against {tall:.3f} down). Nothing written.")
+        worst = max(max(abs(t - b * s) for t, b, s in zip(them, mine, (wide, tall, wide, tall)))
+                    for them, mine in zip(theirs, boxes))
+        if worst > EDGES_WITHIN:
+            raise SystemExit(f"  the squares in {sheet.name} are not where the app puts them in "
+                             f"{against.name} -- worst edge out by {worst:.1f}px of the page's "
+                             f"own size. Nothing written.")
+        print(f"  all {4 * len(boxes)} edges agree with the page the app draws "
+              f"(worst {worst:.1f}px, sheet drawn at {1 / wide:.3f} of its size)")
 
     # Cut first and checked before anything is written, so a sheet that would put a mark on the
     # wrong station leaves the tree exactly as it was.

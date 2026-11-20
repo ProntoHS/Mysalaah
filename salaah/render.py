@@ -1416,10 +1416,36 @@ def invert(pix: QtGui.QPixmap) -> QtGui.QPixmap:
 COLOUR_PIXEL = 40
 
 #: What share of a picture has to be made of those before the picture counts as being in
-#: colour. There is nothing to balance here, which is the point: measured over every one of the
-#: 544 pictures and films the mat ships, 357 of them score EXACTLY ZERO and the other 187 score
-#: 0.051 or more. The bar sits in that gap, two and a half times clear of both sides.
-COLOUR_ENOUGH = 0.02
+#: colour. There is nothing to balance here, which is the point: a black-and-white drawing in
+#: this tree does not score "nearly nothing", it scores NOTHING. Swept over all 610 pictures and
+#: films the mat now ships:
+#:
+#:     408  score exactly 0.000000        every line drawing, without exception
+#:       1  scores        0.003419        assets/knowledge-menu/menu-colour.gif
+#:     201  score         0.02 or more    every other piece of coloured artwork
+#:
+#: Nothing whatever lies in between, so the bar is not a balance between two risks; it is a
+#: number put somewhere in an empty gap, and the only question is where in the gap.
+#:
+#: IT WAS 0.02 UNTIL 2.49, and that was too high by exactly one file. Harry's coloured knowledge
+#: menu is a single wu'du tile on a sheet of eighteen, seventeen of them empty spares waiting to
+#: be drawn, so only a third of a per cent of that sheet carries any colour at all -- and a
+#: share taken over the whole canvas is diluted by empty space, which is the same way the
+#: averaged rule this one replaced got the front door wrong at 2.46. It was inverted on the
+#: screen: Harry's black sheet came up white, with black tile outlines, in the colour theme.
+#:
+#: As the sampling below actually sees it, that film is 30 coloured samples out of 8,432 and a
+#: line drawing is 0 out of 8,000-odd. The bar is now eight samples. A drawing would have to
+#: carry nine genuinely coloured pixels in a grid sample to be mistaken for artwork, and
+#: antialiasing cannot supply them: grey between black and white is grey, and scores nothing.
+#:
+#: WHAT WAS TRIED INSTEAD, so nobody tries it again. "Never invert a picture that was already
+#: drawn on black" is a better question than any threshold -- it is the thing that is actually
+#: true of every one of Harry's coloured sheets -- and it is wrong. Six pictures in the tree are
+#: white line art ON black and must still invert for the light theme: the muezzin's azaan film,
+#: the pillar-match board, the three mosque mazes and the inner arch. The clause would turn all
+#: six inside out to fix one.
+COLOUR_ENOUGH = 0.001
 
 
 def has_colour(pix: QtGui.QPixmap, enough: float = COLOUR_ENOUGH) -> bool:

@@ -54,13 +54,22 @@ mark in its own brand colours on that red is two colours fighting and the red is
 be legible.
 
 They did not come from the stations. Harry painted the whole radio page over a render of the
-page the app draws and sent it as one animated sheet on 19 November 2026, and
-`tools/radio/install_colour.py` cut the ten squares back out of it -- the sheet itself is not
-shipped, because the page is built from `../stations.json` at the moment it is drawn and
-freezing it as a picture would mean a station that stopped answering stayed pictured and
-stayed pressable. The tool checks that the squares it found sit exactly where the app puts
-them, and that each mark looks more like its own station's stencil than like any other's,
-before it writes anything.
+page the app draws, and `tools/radio/install_colour.py` cut the ten squares back out of it --
+the sheet itself is not shipped, because the page is built from `../stations.json` at the
+moment it is drawn, and freezing it as a picture would mean a station that stopped answering
+stayed pictured and stayed pressable. The tool checks that the squares it found sit where the
+app puts them, and that each mark looks more like its own station's stencil than like any
+other's, before it writes anything.
+
+**These are cut from his second sheet.** The first, on 19 November 2026, was animated -- a
+colour ran across the marks -- and the marks it gave were soft-edged. Taking the middle value
+of each pixel across the frames removes the sweep, but it cannot sharpen a stroke whose edge
+the sweep moved: an edge that is half-lit in every frame is half-lit in the middle one too. He
+noticed on the glass before any measurement did, and sent a still sheet the next morning. Cut
+from that, the share of soft-edged pixels across the ten marks fell from 65% to 45%, and
+nasheeds and ramadan-fm by better than 45 points each. The still sheet came at 1512x794 where
+the render is 1920x1008, so the squares are compared at whatever scale the sheet was exported
+at rather than pixel for pixel; all forty edges agreed to within a fifth of a pixel.
 
 Stored as real colour with its own alpha, recovered from the black Harry drew on: a pixel's
 brightness becomes its alpha and its colour is divided back out. So the soft edge of every
@@ -77,8 +86,10 @@ Three of them are worth knowing about before anybody decides they look wrong:
   stencil, and so does the artwork both were made from.
 - `radio-seerah-colour.png` reads `RAD` then a mosque then `SEERAH`. The mosque is standing in
   for the `IO`, which is how the mark is drawn.
-- `mishary-colour.png` is a much looser drawing than its stencil -- a cyan suggestion of a
-  face where the stencil is a line portrait. That is what Harry painted, cut faithfully.
+- `mishary-colour.png` is a headdress and a beard in green, with nothing inside the outline of
+  the face, where the stencil is a line portrait. That is the one mark whose edges are soft by
+  design rather than by accident -- it is drawn as a glow, and it was the only one of the ten
+  that the still sheet did not sharpen, because there was nothing wrong with it.
 
 
 Nothing here has been checked by anybody qualified, and the same goes for the stations

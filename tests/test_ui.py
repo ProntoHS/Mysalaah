@@ -25473,3 +25473,108 @@ class TheDropdownIsBigEnoughToHitTest(unittest.TestCase):
                                      f"{box.count()} rows at {box.view().sizeHintForRow(0)}px "
                                      f"is {whole}px of list on a 1080px screen, so it has to "
                                      f"be scrolled")
+
+
+class TheHomeButtonStopsThePrayersVoiceTest(unittest.TestCase):
+    """Harry, 20 November 2026: "in prayer steps, during the pray sequence & when audio is
+    playing, when home button is pressed, audio continues, it should stop straightaway."
+
+    He is right, and the rule had already been written down twice. `put_it_all_down` says
+    "leaving the book stops the recitation", and `quieten` says "Stop every voice, and nothing
+    else" -- and `quieten` stopped two voices of the three. The one it left out was the
+    prayer's own recitation: the words of the step on the screen, which is the voice a child
+    is most likely to have running, in the one place a child is most likely to press the house
+    and walk away.
+
+    PRESSED, NOT CALLED. The test clicks the button in the banner rather than calling
+    `go_home`, because the fault could as easily have been a button wired to nothing as a
+    method that did too little, and clicking it covers both. The house is built by one builder
+    shared between the prayer strip and every other strip, so this is the same button a child
+    presses.
+
+    THE VOICE IS A FAKE, and deliberately: the recording is a real file that a test must not
+    depend on, and whether a real player has actually gone quiet is a question about ALSA. What
+    is being tested is that the mat asks it to stop, so the fake records being asked -- and
+    records being started too, because a test that watched for a stop without ever confirming
+    a start would pass just as well on a prayer that never made a sound.
+    """
+
+    def mat(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=True, place="Bury", lang="en"),
+                       scale=1.0, save_settings=False, aspect=None, side=False)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def a_prayer_with_its_voice_going(self, w, sound):
+        """Start fajr and step through it until the recitation has begun."""
+        import unittest.mock as mock
+        with mock.patch.object(type(w.recitation), "available", property(lambda s: True)), \
+             mock.patch.object(type(w.recitation), "play",
+                               lambda s, audio, span, times=1: (sound.__setitem__("on", True),
+                                                                True)[1]), \
+             mock.patch.object(type(w.recitation), "stop",
+                               lambda s: sound.__setitem__("on", False)):
+            w.start("fajr", w.school.prayers["fajr"][0])
+            settle()
+            for i in range(len(w.text_pages)):
+                w.session.position = i
+                w.refresh()
+                settle()
+                if sound["on"]:
+                    return
+        self.fail("the prayer never started its recitation, so there is nothing to stop")
+
+    def houses_on(self, w):
+        found = [b for b in w.findChildren(QtWidgets.QPushButton)
+                 if b.objectName() == "mainScreen" and b.isVisible()]
+        self.assertTrue(found, "there is no house in the banner to press")
+        return found
+
+    def test_pressing_the_house_part_way_through_a_prayer_stops_the_recitation(self):
+        import unittest.mock as mock
+        w = self.mat()
+        sound = {"on": False}
+        self.a_prayer_with_its_voice_going(w, sound)
+        self.assertTrue(sound["on"], "the prayer is not saying anything to begin with")
+        with mock.patch.object(type(w.recitation), "stop",
+                               lambda s: sound.__setitem__("on", False)):
+            self.houses_on(w)[0].click()
+            settle()
+        self.assertFalse(sound["on"],
+                         "the house was pressed and the prayer carried on talking to an empty "
+                         "room")
+
+    def test_it_stops_on_the_way_to_the_prayers_as_well(self):
+        """The other way out of a prayer -- the Salaah tile on the 7in, which lands on the five
+        arches rather than the front door. Both go through the same putting-down, and a fix
+        that reached only the one Harry happened to press would be half a fix."""
+        import unittest.mock as mock
+        w = self.mat()
+        sound = {"on": False}
+        self.a_prayer_with_its_voice_going(w, sound)
+        with mock.patch.object(type(w.recitation), "stop",
+                               lambda s: sound.__setitem__("on", False)):
+            w.go_to_prayers()
+            settle()
+        self.assertFalse(sound["on"], "going to the arches left the prayer talking")
+
+    def test_the_words_stop_being_lit_up_as_well(self):
+        """The highlight runs along the words in time with the recording, driven by timers
+        following it. Stopping the sound and leaving them going lights up words nobody is
+        saying, which is worse than either on its own -- so the test asks for the screen, not
+        just for the silence."""
+        import unittest.mock as mock
+        w = self.mat()
+        sound = {"on": False}
+        self.a_prayer_with_its_voice_going(w, sound)
+        with mock.patch.object(type(w.recitation), "stop",
+                               lambda s: sound.__setitem__("on", False)):
+            self.houses_on(w)[0].click()
+            settle()
+        self.assertFalse(w.follow.isActive(), "the highlight is still following a dead recording")
+        self.assertFalse(w.dhikr_follow.isActive(), "the dhikr highlight is still running")
