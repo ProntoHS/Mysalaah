@@ -9,7 +9,7 @@ this should be used in coloured theme, the dimensions should be the same."
 
 The dimensions are NOT the same as they arrive -- his are 1024x1536 and 1536x1024 and 2496x1664
 where the mat's are 1200x839 and 699x1200 -- so this makes them the same, and does it in the
-way that keeps the figure the size it already is on the screen rather than merely the file the
+way that keeps the figure where it already is on the screen rather than merely the file the
 size it already is.
 
 HOW THE SIZE IS MATCHED. salaah/render.PostureView scales a picture to a frame with
@@ -52,23 +52,36 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 #: fingerprint for which stands for which.
 #:
 #: THE TWO FOLDED ONES needed asking, because qunut and standing_folded are both folded-hands
-#: poses differing only in how high the hands sit. Harry's answer was "07 and 16 are qunut".
-#: The measurement agrees with him on the girl and not on the boy:
+#: poses differing only in how high the hands sit. Harry's answer, 19 November 2026, was "07
+#: and 16 are qunut", and BOTH FIGURES NOW FOLLOW IT.
 #:
-#:     girl  16 is 0.66% from qunut, 13 is 0.36% from standing_folded   <- as he said
-#:     boy   03 is 0.05% from qunut, 07 is 0.28% from standing_folded   <- the other way round
+#: They did not at first. On the set he sent in November the shapes were traced closely enough
+#: over the mat's own drawings to act as a fingerprint -- the eighteen that were not in doubt
+#: all landed within 0.7% -- and on that set the boy pair measured the other way round (03 was
+#: 0.05% from qunut where 07 was 0.28% from standing folded), so the boy was installed against
+#: his answer and he was told exactly that.
 #:
-#: against a worst case of 0.7% across the eighteen that are not in doubt. So the boy pair is
-#: taken the way it measures rather than the way it was answered, and Harry has been told
-#: exactly that. Two lines to swap back if he says otherwise.
+#: THAT REASON IS GONE. The set of 21 November is redrawn rather than traced: against the ten
+#: line drawings the four front-standing poses now sit within 1-2% of EACH OTHER, so aspect
+#: ratio no longer tells them apart and the measurement that overruled him no longer says
+#: anything. What is left is his own answer, plus two things that agree with it: the girl's
+#: half is confirmed independently, because girl/qunut carries a dashed alignment line on the
+#: mat and 16 is the one that has it; and his naming runs the same way on both figures, plain
+#: "folded" for standing folded and the alt/alignment variant for qunut.
+#:
+#: Harry, 21 November 2026, asked directly: "put 07 back as qunut".
+#:
+#: (A crooked thing found on the way, which is older than any of this and not fixed here: in
+#: the mat's own LINE drawings the dashed line sits on standing_folded for the boy but on
+#: qunut for the girl. One of those two is wrong and nobody qualified has looked at either.)
 WHICH = {
     "boy": {
         "jalsa": "18_sitting_boy_profile",
-        "qunut": "03_qiyam_boy_folded",
+        "qunut": "07_qiyam_boy_folded_alignment",
         "ruku": "04_ruku_boy",
         "salam": "05_sitting_two_boys",
         "standing_arms_down": "06_qiyam_boy_alignment",
-        "standing_folded": "07_qiyam_boy_folded_alignment",
+        "standing_folded": "03_qiyam_boy_folded",
         "standing_itidal": "12_qiyam_boy_profile",
         "sujood": "09_sujud_boy",
         "takbir_raised": "17_takbir_boy",
@@ -103,10 +116,15 @@ TINT = 50           # or further from grey than this
 INK = 230
 
 #: How far a twin's shape may differ from the picture it stands for, as a fraction, once both
-#: are cropped to their ink. Eight of the ten come in under 0.001 and the two folded ones at
-#: 0.04; past this the drawing is not the same drawing and the figure would change size on the
-#: screen when the theme changed.
-SHAPE = 0.08
+#: are cropped to their ink.
+#:
+#: SINCE THE DRAWING IS NOW SQUASHED TO FIT, THIS IS HOW MUCH SQUASH IS ALLOWED, which is a
+#: stricter thing to be than it was when it merely bounded how much letterboxing appeared. At
+#: 0.05 the worst of the twenty, girl's sujood, comes in at 0.041, and at that the two
+#: versions are not tellable apart side by side at full size -- Harry looked at the pair and
+#: chose it over redrawing. Past this a picture is a different shape from the one it stands
+#: beside and wants redrawing, not stretching.
+SHAPE = 0.05
 
 
 def ink_box(path: Path, lit: bool) -> tuple[int, int, int, int, int, int]:
@@ -160,16 +178,25 @@ def install(source: Path, figure: str) -> int:
 
         with Image.open(drawing) as im:
             cut = im.convert("RGB").crop((hx0, hy0, hx1, hy1))
-        # Into exactly the rectangle the original's drawing occupies, without distortion: the
-        # longer side fills it and the shorter is centred, so a tenth of a per cent of
-        # disagreement shows up as half a pixel of margin rather than as a stretch.
+        # Into exactly the rectangle the original's drawing occupies, FILLING IT. Up to 5% of
+        # squash, which SHAPE above allows, buys an exact position.
+        #
+        # This used to scale without distorting and centre the result, on the reasoning that a
+        # tenth of a per cent of disagreement is better seen as half a pixel of margin than as
+        # a stretch. That was right for the November set, which was traced over the mat's own
+        # pictures and never disagreed by more than 0.7%. The set of 21 November is redrawn,
+        # disagrees by up to 4.1%, and letterboxing that put four of the twenty 13 to 24 pixels
+        # from where the mat expects the figure -- past the 12px that
+        # test_the_drawing_sits_where_the_mat_expects_to_find_it allows, and for a good reason:
+        # the figure would shift on the glass at the moment the theme changed.
+        #
+        # So the trade is turned around. A few per cent of squash cannot be seen; the figure
+        # moving can. The bound on the squash is SHAPE, and anything past it is a different
+        # drawing that should be drawn again rather than stretched into place.
         box_wide, box_tall = ox1 - ox0, oy1 - oy0
-        scale = min(box_wide / cut.width, box_tall / cut.height)
-        shrunk = cut.resize((max(1, round(cut.width * scale)), max(1, round(cut.height * scale))),
-                            Image.LANCZOS)
+        shrunk = cut.resize((max(1, box_wide), max(1, box_tall)), Image.LANCZOS)
         page = Image.new("RGB", (width, height), (0, 0, 0))
-        page.paste(shrunk, (ox0 + (box_wide - shrunk.width) // 2,
-                            oy0 + (box_tall - shrunk.height) // 2))
+        page.paste(shrunk, (ox0, oy0))
 
         out = original.with_name(f"{original.stem}-colour{original.suffix}")
         beside = out.with_suffix(out.suffix + ".new")
@@ -184,7 +211,7 @@ def install(source: Path, figure: str) -> int:
             beside.unlink(missing_ok=True)
         written += 1
         print(f"  {posture:20s} <- {his:34s} {width:4d}x{height:<4d} "
-              f"{out.stat().st_size / 1e3:6.1f}KB  shape {100 * apart:4.2f}% apart")
+              f"{out.stat().st_size / 1e3:6.1f}KB  squashed {100 * apart:4.2f}%")
     print(f"  {written} written; worst shape difference {100 * worst:.2f}% ({worst_name})")
     return 0
 
