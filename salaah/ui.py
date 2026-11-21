@@ -21,7 +21,7 @@ from .pages import TextPage, build_pages
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import (FONTS, MAX_ARABIC_PX, MIN_ARABIC_PX, Fonts, PixmapCache, PostureView,
                      ParallelText, Speaker, Switch, TextBox, VolumeBar, load_posture_modes,
-                     load_timings, paint_house)
+                     load_timings, paint_house, paint_speaker)
 from .session import Debouncer, Page as SessionPage, PrayerSession
 from .tasbih import TasbihScreen
 from .timing import TimingScreen
@@ -89,6 +89,15 @@ BANNER_RULE = 2
 VOLUME_WIDTH = 300
 VOLUME_LINE = 12
 VOLUME_KNOB = 36
+
+#: Milliseconds the volume slider stays open with nothing happening, before it puts itself
+#: away. Restarted by every move of the slider, so it cannot close under a finger.
+#:
+#: Four seconds because of what the other end costs. Too short and it shuts while somebody is
+#: deciding; too long and a child who has wandered off leaves the strip covered, on the one
+#: control that is in front of the place name and the times. Pressing anywhere else closes it
+#: at once in any case -- this is only for the press that never comes.
+VOLUME_POPUP_IDLE = 4000
 
 #: The gap on the strip between the volume slider and what comes after it -- the cog, or the
 #: Main screen button where there is no cog. At Harry's asking: the slider's right-hand end sat
@@ -1270,6 +1279,16 @@ class MainWindow(QtWidgets.QWidget):
         for home in self.banner_homes:
             home.setFixedSize(side, side)
             self.draw_the_way_home(home, side)
+        # THE VOLUME KEY IS SQUARED HERE TOO, by the same number and for the same reason: it is
+        # the house's twin at the other end of the strip, and the two looking different sizes
+        # would be the first thing anybody noticed. Kept in its own list rather than added to
+        # banner_homes, because what gets drawn on it differs and a list named for one of two
+        # things is a list somebody puts the wrong thing in.
+        self.banner_volumes = [w for w in getattr(self, "banner_volumes", ())
+                               if not sip_deleted(w)]
+        for key in self.banner_volumes:
+            key.setFixedSize(side, side)
+            self.draw_the_volume_key(key, side)
 
     @staticmethod
     def draw_the_way_home(home, side: int) -> None:
@@ -1294,6 +1313,67 @@ class MainWindow(QtWidgets.QWidget):
         p.end()
         home.setIcon(QtGui.QIcon(picture))
         home.setIconSize(picture.size())
+
+    def colour_the_pins(self) -> None:
+        """Draw every strip's map pin again in the theme's own lapis.
+
+        DROPS THE PINS WHOSE PAGE HAS GONE first, the same way show_volume and
+        forget_the_strips_that_have_gone do, and for the same reason: a strip is rebuilt every
+        time its page is, and this list would otherwise keep a Python wrapper around a label
+        Qt has already deleted. Touching one of those raises from a timer, somewhere that looks
+        nothing like the cause -- sixteen crashes in Harry's log between 1.66 and 2.05 were
+        exactly that, one list along.
+        """
+        self.banner_pins = [p for p in getattr(self, "banner_pins", ()) if not sip_deleted(p)]
+        lapis = QtGui.QColor(theme.palette().lapis)
+        for pin in self.banner_pins:
+            pin.setPixmap(trim_sides(map_pin(self.px(30), lapis)))
+
+    def how_loud_it_looks(self) -> tuple[int, bool]:
+        """The volume as the speaker draws it: how many arcs, and whether to cross it out.
+
+        SILENCE IS A CROSS, NOT NO ARCS. A speaker with nothing beside it is a speaker at some
+        volume the drawing is not saying; a crossed one says the mat will make no sound, which
+        is a different fact and the one worth being able to read from across a room. The
+        recitation being switched off in Settings reads the same way, because to a child
+        standing in front of it the two are the same thing.
+        """
+        if not self.settings.recitation or self.settings.volume <= 0:
+            return 0, True
+        return (1 if self.settings.volume <= 50 else 2), False
+
+    def draw_the_volume_key(self, key, side: int) -> None:
+        """Put a loudspeaker on the volume button, at the size the button has just become.
+
+        THE SAME EVERYTHING AS THE HOUSE next to it: drawn rather than loaded, redrawn on every
+        resize because the strip's height follows the window's shape, and inset from the corners
+        so a rounded button does not look as if it has clipped the drawing. See
+        draw_the_way_home, which this deliberately mirrors line for line.
+
+        AND REDRAWN WHEN THE VOLUME MOVES, which the house never has to be. The arcs are the
+        only thing left on the strip that says how loud the mat is, now that the slider has gone
+        behind this button -- so if they did not follow the volume, hiding the slider would have
+        taken the reading away rather than moved it. show_volume calls this for exactly that.
+        """
+        if side <= 0:
+            return
+        waves, crossed = self.how_loud_it_looks()
+        picture = QtGui.QPixmap(side, side)
+        picture.fill(QtGui.QColor(0, 0, 0, 0))
+        p = QtGui.QPainter(picture)
+        p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        # A SHADE MORE INSET THAN THE HOUSE, and measured rather than matched. The speaker is
+        # drawn wider than it is tall -- the body reaches x=0.62 and the outer arc to x=0.95,
+        # against a house that fills its box -- so at the house's 0.18 the arcs sat against the
+        # button's edge while the body floated in the middle of it. 0.21 puts the whole drawing
+        # inside the square and keeps the body the same weight as the house beside it.
+        inset = side * 0.21
+        p.translate(inset, inset)
+        paint_speaker(p, side - inset * 2, side - inset * 2, QtGui.QColor("white"),
+                      waves=waves, crossed=crossed)
+        p.end()
+        key.setIcon(QtGui.QIcon(picture))
+        key.setIconSize(picture.size())
 
     def restyle(self) -> None:
         """Text and spacing follow the box size, so the app looks the same on any screen."""
@@ -2091,6 +2171,17 @@ class MainWindow(QtWidgets.QWidget):
             QPushButton#mainScreen {{ background:{BRICK}; color:white; border:none;
                                       border-radius:{px(8)}px; padding:0; }}
             QPushButton#mainScreen:pressed {{ background:#8E342C; }}
+            /* The speaker at the other end of the strip, and deliberately the same rule as
+               the house: the two are a pair of red squares bookending the row, and a second
+               set of numbers for the second one is how they stop matching. */
+            QPushButton#volumeKey {{ background:{BRICK}; color:white; border:none;
+                                     border-radius:{px(8)}px; padding:0; }}
+            QPushButton#volumeKey:pressed {{ background:#8E342C; }}
+            /* The slider that drops out of it. Painted in the strip's own colours rather than
+               the page's, because it belongs to the strip it hangs from and lands over a page
+               that may be any of the three themes. */
+            QWidget#volumePopup {{ background:{strip.paper}; border:{px(2)}px solid {strip.line};
+                                   border-radius:{px(10)}px; }}
             /* AND AGAIN, SCOPED TO THE PRAYER STRIP, because the rule above loses to it.
                Qt follows CSS specificity: `QWidget#bar QPushButton` is one id and two types,
                `QPushButton#mainScreen` is one id and one type, so the strip's own catch-all
@@ -2578,9 +2669,101 @@ class MainWindow(QtWidgets.QWidget):
         self.set_banner_heights()
         return back
 
+    def volume_key_button(self) -> QtWidgets.QPushButton:
+        """The loudspeaker. First in the row, square, hard against the edge of the strip.
+
+        WHY A BUTTON AND NOT THE SLIDER IT REPLACES. The slider was 384px of the strip -- a
+        speaker at each end, 300 of bar between them and the spacing -- on a strip that also has
+        to hold a pin, a place name, five prayer times, a cog and the house. At 1920 in Arabic,
+        the tightest language, that left 155px of slack, and the place name is the piece that
+        grows: "Bury" is 81px and "Islamabad" is 180. Harry, 20 November 2026, having watched it
+        coming: "once a longer location than Bury is entered....its going to effect it."
+
+        His own answer, and it is the right one: fix the things that cannot shrink and let the
+        rest have what is left. A square of 118 in place of 384 hands 266px back to the place
+        name, which is the difference between a mat that can say where it is and one that can
+        say Bury.
+
+        A SQUARE AT EACH END, so the strip is anchored rather than lopsided -- this one where
+        the reading starts and the house where it ends. In Arabic and Urdu the window is laid
+        out right to left and the two swap sides by themselves, which is the correct answer
+        rather than a lucky one: the speaker leads the strip in the direction that language is
+        read, exactly as it does in English.
+
+        WHAT A PRESS DOES is open the slider underneath it. The slider has not been taken away
+        -- it has been put behind the one control that says what it is for.
+        """
+        key = QtWidgets.QPushButton()
+        key.setObjectName("volumeKey")
+        # The word stays on the button where it costs nothing and still helps: as its accessible
+        # name and its tooltip, so a screen reader and a long press both still say what it is.
+        # Exactly the arrangement the house settled on at 2.26, and for the same reason -- a
+        # drawing is quicker to find across a room than a word, and worse to explain.
+        key.setAccessibleName(self.t("settings.volume"))
+        key.setToolTip(self.t("settings.volume"))
+        key.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        key.clicked.connect(lambda: self.open_the_volume(key))
+        self.banner_volumes = getattr(self, "banner_volumes", [])
+        self.banner_volumes.append(key)
+        # Sized now as well as on the next resize, for the reason way_home_button gives.
+        self.set_banner_heights()
+        return key
+
+    def open_the_volume(self, under) -> None:
+        """Show the slider under the speaker, and take it away again when it is done with.
+
+        A POPUP RATHER THAN A PANEL ON THE PAGE, which is Qt doing the hard half: a popup takes
+        the next press anywhere else and closes on it, so there is no way to leave it open by
+        pressing something it does not know about. On a mat with no keyboard and no back button
+        that matters more than it would anywhere else.
+
+        AND IT CLOSES ITSELF, because a child who walks away is the ordinary case rather than
+        the awkward one. The timer is restarted by moving the slider, so it cannot shut while a
+        finger is on it.
+        """
+        if getattr(self, "volume_popup", None) is not None and not sip_deleted(self.volume_popup):
+            self.volume_popup.close()
+        popup = QtWidgets.QWidget(self, Qt.WindowType.Popup)
+        popup.setObjectName("volumePopup")
+        # DESTROYED WHEN IT CLOSES, not merely hidden, and this is not tidiness. The slider
+        # inside it registers itself in volume_bars so that it moves with every other volume
+        # control -- and a popup that is only hidden keeps that slider alive for ever. Measured
+        # before this line existed: five presses left five popups parented to the window and
+        # five sliders in volume_bars, every one of them walked by show_volume on every tick,
+        # for the life of a mat that runs for weeks at a time.
+        #
+        # Closing it now deletes the slider with it, and volume_bars drops the dead wrapper the
+        # next time show_volume asks it to do its job -- the cure that has been in that method
+        # since 2.06, finally with something to cure.
+        popup.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        lay = QtWidgets.QHBoxLayout(popup)
+        lay.setContentsMargins(self.px(20), self.px(12), self.px(20), self.px(12))
+        # THE SAME SLIDER AS EVER, built by the same method, so it registers itself in
+        # volume_bars and moves with every other one the app owns. A second kind of volume
+        # control was the fault the prayer strip had until 2.40; there is no reason to make it
+        # again inside a popup where it would be even harder to notice.
+        lay.addLayout(self.volume_slider(dark=True))
+        popup.adjustSize()
+        where = under.mapToGlobal(QtCore.QPoint(0, under.height()))
+        # Kept on the screen rather than trusted to fit: in right-to-left the speaker sits at
+        # the right-hand end, and a popup hung from its left corner would run off the glass.
+        screen = self.screen().availableGeometry() if self.screen() else QtCore.QRect(0, 0, 1920, 1080)
+        x = min(max(screen.left(), where.x()), screen.right() - popup.width())
+        popup.move(x, where.y())
+        self.volume_popup = popup
+        shut = QtCore.QTimer(popup)
+        shut.setSingleShot(True)
+        shut.timeout.connect(popup.close)
+        shut.start(VOLUME_POPUP_IDLE)
+        self.volume_popup_timer = shut
+        popup.show()
+
     def make_banner(self, gear: bool = True, home: bool = False) -> QtWidgets.QWidget:
-        """The black strip across the top: where you are, the five prayer times with the
-        current one in green, what is next -- and how loud the recitation is.
+        """The strip across the top: how loud the mat is, where you are, and the five prayer
+        times with the current one in green.
+
+        IN THAT ORDER SINCE 2.50, and the volume is a button now rather than a slider laid out
+        along the strip. See volume_key_button for what that bought and why it was needed.
 
         Built here rather than written out on each screen, so the Qur'an gets exactly the same
         strip as the front door and the two cannot drift apart. Every label it makes is kept in
@@ -2623,7 +2806,18 @@ class MainWindow(QtWidgets.QWidget):
         # AlignVCenter, the cog carries its own fixed size, and the two things that do stretch
         # -- the times label and the slider -- are painted in the strip's own paper with the
         # groove centred by the style, so they look the same either way.
-        row.setContentsMargins(self.px(28), 0, 0, self.px(BANNER_RULE))
+        # NO LEADING MARGIN SINCE 2.50, because the speaker now sits where it was. The house
+        # has always gone hard against its end of the strip and filled it down to the rule; the
+        # speaker is its twin and does the same at the other end, so a margin in front of it
+        # would hold one square off the edge and not the other. The 28px it used to add is now
+        # spacing AFTER the speaker, where it does the job it was always for: keeping the pin
+        # off whatever is beside it.
+        row.setContentsMargins(0, 0, 0, self.px(BANNER_RULE))
+        # THE SPEAKER FIRST, where the reading starts. See volume_key_button for why it is a
+        # button at all; what matters here is only that it comes before the pin, so the strip
+        # reads speaker, place, times, and ends on the house.
+        row.addWidget(self.volume_key_button(), 0, Qt.AlignmentFlag.AlignVCenter)
+        row.addSpacing(self.px(28))
         # The pin, then the place, then the times. Its own widget rather than a picture inside
         # the rich text: no file to find, and it is drawn at whatever size the screen is.
         pin = QtWidgets.QLabel()
@@ -2633,10 +2827,31 @@ class MainWindow(QtWidgets.QWidget):
         # label is as wide as the pixmap, so those three sat between the pin and the place
         # name and no layout spacing could take them away: the gap measured 12px when 3 of
         # those were the spacing, 3 the dead pixmap and 6 the label's own bearing.
-        # RED, like everything else a hand goes to on this mat: Menu, Main screen, the cog.
-        # Harry, 12 November 2026 -- the pin and the place are now the same colour as those,
-        # rather than the lapis they shared with nothing.
-        pin.setPixmap(trim_sides(map_pin(self.px(30), QtGui.QColor(BRICK))))
+        # BLUE AGAIN SINCE 2.50, and this reverses a decision rather than drifting from one.
+        # At 2.42 the pin and the place went red -- "like everything else a hand goes to on
+        # this mat: Menu, Main screen, the cog" -- on Harry's asking, 12 November 2026, and
+        # that reasoning was sound while red meant "pressable" and the strip had nothing
+        # pressable at that end.
+        #
+        # 2.50 put a red square at the start of the strip, a foot from the place name, and it
+        # IS pressable. Red on a name nobody can press, an inch from red on a button they can,
+        # teaches the opposite of what the colour is for. So red keeps its job and the place
+        # goes back to lapis. Harry, 20 November 2026: "change location icon and font colour
+        # to blue."
+        #
+        # THE THEME'S LAPIS, NOT THE CONSTANT, which is the part that is easy to get wrong.
+        # The strip follows the mat's palette -- white paper in light, near-black in dark and
+        # colour -- so one fixed blue cannot serve both: #274B8F is unreadable on the dark
+        # strip and the dark theme's #8FB1F0 is washed out on the white one. palette() already
+        # carries the right one for each.
+        pin.setPixmap(trim_sides(map_pin(self.px(30), QtGui.QColor(strip.lapis))))
+        # KEPT, BECAUSE A PIXMAP DOES NOT FOLLOW A STYLESHEET. Every other coloured thing on
+        # this strip is painted by the sheet and restyles itself when the theme changes; the
+        # pin is a picture drawn once at the colour of the moment. While it was BRICK that
+        # never mattered -- the same red in all three themes -- but a colour that differs by
+        # theme has to be redrawn when the theme does, or the pin keeps the old theme's blue.
+        self.banner_pins = getattr(self, "banner_pins", [])
+        self.banner_pins.append(pin)
         row.addWidget(pin, 0, Qt.AlignmentFlag.AlignVCenter)
         # TIGHT TO THE PIN. Harry: "in top banner, narrow the gap between location icon and
         # location text". The pin and the place name are one thing being read, not two.
@@ -2646,17 +2861,15 @@ class MainWindow(QtWidgets.QWidget):
         label.setTextFormat(Qt.TextFormat.RichText)
         self.banner_labels.append(label)
         row.addWidget(label)
-        # A STRETCH EITHER SIDE OF THE SLIDER, which is the whole of what centres it. Harry:
-        # "centre volume slider equally between the end of isha time and beginning of Main
-        # screen button". Two equal stretches do that by arithmetic rather than by a number
-        # somebody has to keep right: whatever room is left between the end of the times and
-        # whatever comes next is halved, on any screen width and in any language.
+        # ONE STRETCH, WHERE THERE WERE TWO. They used to sit either side of the slider and
+        # centre it by arithmetic -- Harry, 2.09: "centre volume slider equally between the end
+        # of isha time and beginning of Main screen button". With the slider behind the speaker
+        # there is nothing left in the middle to centre, so the slack simply goes here, between
+        # the last prayer time and the cog.
         #
-        # IT REPLACES THE FIXED GAP ADDED IN 2.09, which was the answer to "make a little
-        # space between main menu button and volume slider". There is more space there now,
-        # not less, and the same amount on the other side.
-        row.addStretch(1)
-        row.addLayout(self.volume_slider(dark=True))
+        # AND THE SLACK IS THE POINT OF THE WHOLE CHANGE. It is what the place name grows into:
+        # the strip gave up 384px of slider for a 118px square, and every pixel of the 266
+        # arrives here, where a longer place name can take it.
         row.addStretch(1)
         if gear and self.needs_a_gear:
             # Red, the colour everything you press is in: Menu, Main screen, the leave buttons.
@@ -3736,7 +3949,7 @@ class MainWindow(QtWidgets.QWidget):
             # And if the boxed prayer is the FIRST one -- which it is every day at fajr -- the
             # cell before it is the place name, so the place pays for that gap instead.
             first = f"padding-right:{gap}px;" if shown[:1] == [boxed] else ""
-            cells = [f'<td style="{first}color:{BRICK}">{where}</td>']
+            cells = [f'<td style="{first}color:{band.lapis}">{where}</td>']
             for n, name in enumerate(shown):
                 said = f'{self.t(f"prayer.{name}")} {times[name].strftime("%H:%M")}'
                 after = shown[n + 1] if n + 1 < len(shown) else None
@@ -3818,6 +4031,10 @@ class MainWindow(QtWidgets.QWidget):
             self.slide.follow_theme()
         if self.side is not None:
             self.side.follow_theme()
+        # The map pin, which is a picture rather than anything the sheet can reach. See
+        # make_banner: it is lapis now, and lapis differs between the light strip and the dark
+        # one, so the theme changing means the pin has to be drawn again.
+        self.colour_the_pins()
         for widget in self.findChildren(QtWidgets.QWidget):
             widget.update()
         return True
@@ -4198,17 +4415,22 @@ class MainWindow(QtWidgets.QWidget):
         right = QtWidgets.QHBoxLayout()
         right.setSpacing(self.px(16))
         right.addStretch(1)
-        # THE SAME SLIDER AS EVERY OTHER STRIP, in the place this bar already kept for it.
-        # Harry: "swap the volume slider with our other volume slide from main top banner,
-        # same exact location."
+        # NO VOLUME HERE SINCE 2.50. Harry, 20 November 2026: "i just want the volume in top
+        # banner, no where else." Asked whether that meant leaving this strip alone or taking
+        # the slider off it, with the consequence spelled out, he chose to take it off.
         #
-        # It was a VolumeBar of its own -- a different control, with its own look and its own
-        # way of being dragged, on the one screen where somebody is least able to stop and
-        # work out which kind of slider they are looking at. volume_slider() is the one the
-        # front door, the Qur'an and the rest carry, and it registers itself in volume_bars so
-        # this one now moves with the others instead of only with itself.
-        right.addLayout(self.volume_slider(dark=True))
-        right.addSpacing(self.px(16))
+        # WHAT THAT COSTS, written down because it is not obvious and nobody should rediscover
+        # it by being surprised: this strip is the only one on screen during a prayer, and the
+        # 7in's own volume bar was moved to the main strip long ago. So while a prayer is
+        # running there is now no volume control anywhere on the mat. The way out of a
+        # recitation that is too loud is the house, which since 2.49 stops the audio the
+        # moment it is pressed rather than leaving it talking to an empty room.
+        #
+        # The slider that used to be here was a VolumeBar of its own until 2.40 -- a different
+        # control with its own look on the one screen where somebody is least able to stop and
+        # work out which kind of slider they are looking at. It is worth keeping that in mind
+        # if volume ever comes back to this strip: it comes back as volume_slider(), the one
+        # every other strip carries, and not as something drawn for this bar alone.
         # The house, last in the row and hard against the right edge -- the same place, and
         # the same button, as every other strip on the mat. See way_home_button.
         right.addWidget(self.way_home_button(), 0, Qt.AlignmentFlag.AlignVCenter)
@@ -6088,6 +6310,20 @@ class MainWindow(QtWidgets.QWidget):
                 continue                          # its page has gone; let it go with it
             alive.append((bar, read))
         self.volume_bars = alive
+        # AND THE SPEAKER ON THE STRIP, whose arcs are now the only thing saying how loud the
+        # mat is when the slider is put away. Drawn at the size the button already has, so this
+        # costs nothing on a strip that has not been laid out yet -- draw_the_volume_key
+        # returns on a side of nothing.
+        self.banner_volumes = [k for k in getattr(self, "banner_volumes", ())
+                               if not sip_deleted(k)]
+        for key in self.banner_volumes:
+            self.draw_the_volume_key(key, key.width())
+        # The slider is open, and somebody has just moved it: give them the full four seconds
+        # again rather than closing under a finger that is still deciding.
+        shut = getattr(self, "volume_popup_timer", None)
+        popup = getattr(self, "volume_popup", None)
+        if shut is not None and popup is not None and not sip_deleted(popup) and popup.isVisible():
+            shut.start(VOLUME_POPUP_IDLE)
 
     def set_font(self, key: str) -> None:
         self.settings.arabic_font = key

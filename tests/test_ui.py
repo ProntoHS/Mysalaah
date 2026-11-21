@@ -21,7 +21,7 @@ from salaah.qt import API, QtCore, QtGui, QtWidgets, Qt  # noqa: E402
 from salaah.render import MIN_ARABIC_PX  # noqa: E402
 from salaah.settings import Settings  # noqa: E402
 from salaah.knowledge import TILES as KNOWLEDGE_TILES  # noqa: E402
-from salaah.ui import MainWindow, SET_PICKER_TALL  # noqa: E402
+from salaah.ui import MainWindow, SET_PICKER_TALL, VOLUME_WIDTH  # noqa: E402
 
 # No test goes on the internet. The verse recitation fetches from everyayah.com, and a test
 # that quietly dials out is slow, flaky, rude to somebody else's CDN, and -- when it prefetches
@@ -61,6 +61,36 @@ ARABIC_ONLY = "ar"
 
 def full_packs(packs: dict) -> dict:
     return {lang: pack for lang, pack in packs.items() if lang != ARABIC_ONLY}
+
+
+#: What the offscreen platform adds to a popup's position, in pixels.
+#:
+#: The suite runs offscreen, which reports a fake 800x800 screen -- smaller than the 1920-wide
+#: window the tests build -- and puts a popup window 2 pixels right and below where it was
+#: asked to go. Measured against a real X server at 1920x1080, the same code places the popup
+#: exactly where it is told, at the foot of the key, and inside the screen with a pixel to
+#: spare. So the tests that ask where a popup landed allow these two pixels and say so, rather
+#: than quietly loosening to the point where a popup half a screen away would also pass: the
+#: failure they are for misses by more than a thousand pixels, not by two.
+POPUP_NUDGE = 2
+
+
+def put_away(popup):
+    """Close a volume popup if it is still there to close.
+
+    A Qt popup closes itself the moment anything else takes the focus, and since 2.50 it is
+    deleted when it closes rather than merely hidden -- so by the time a test's cleanup runs,
+    the popup it opened has very often gone already. Asking a dead wrapper to close raises
+    RuntimeError from inside addCleanup, which reports as an error in a test that passed.
+
+    Written as a function rather than a try/except at each call site because three classes
+    open popups now, and the first one to forget would fail in a way that points at cleanup
+    rather than at itself.
+    """
+    try:
+        popup.close()
+    except RuntimeError:
+        pass            # Qt took it away first, which is the usual case
 
 
 def shut(w):
@@ -217,34 +247,40 @@ class UiTest(unittest.TestCase):
         self.assertLess(w.dot.x(), house.x(),
                         "the ring and the house have not swapped ends")
 
-    def test_the_prayer_strip_carries_the_same_volume_slider_as_the_rest(self):
-        """Harry: "swap the volume slider with our other volume slide from main top banner,
-        same exact location."
+    def test_the_prayer_strip_has_no_volume_on_it_any_more(self):
+        """REPLACES two tests that drove the prayer strip's volume slider.
 
-        It was a VolumeBar of its own -- a different control, with its own look and its own
-        way of being dragged, on the one screen where somebody is least able to stop and work
-        out which kind of slider they are looking at.
+        Both were written for 2.40, when that strip gave up a VolumeBar of its own for the
+        slider every other strip carried -- Harry: "swap the volume slider with our other
+        volume slide from main top banner, same exact location." They checked it was the
+        shared one, that it moved with the family, that it sat right of the rakat and that
+        silence switched the recitation off.
 
-        What proves it is the shared one is that it MOVES WITH THE OTHERS: volume_slider()
-        registers itself in volume_bars, and show_volume drives every slider in that list. A
-        test that only counted widgets would pass on a lookalike.
+        At 2.50 the volume left this strip altogether, at Harry's asking: "i just want the
+        volume in top banner, no where else." Asked whether that meant leaving this strip alone
+        or taking the slider off it, with the consequence spelled out, he chose to take it off.
+        So there is nothing here for those tests to drive, and what they proved about the
+        shared slider is proved where it now lives, in TheVolumeIsAKeyOnTheStripTest.
+
+        WHAT REPLACES THEM IS THE ABSENCE, kept here rather than only in the new class because
+        this is where somebody looking at the prayer screen will come. The gap on that strip is
+        deliberate, and while a prayer is on screen there is no volume control anywhere on the
+        mat -- the 7in's own bar moved to the main strip long ago. The way out of a recitation
+        that is too loud is the house, which since 2.49 stops the audio the moment it is pressed.
         """
         w = self.win
         w.start("dhuhr", w.school.prayers["dhuhr"][0])
         APP.processEvents()
-        on_the_strip = [b for b in w.bar.findChildren(QtWidgets.QSlider)
-                        if b.objectName() in ("volume", "volumeOnDark")]
-        self.assertEqual(1, len(on_the_strip), "the prayer strip has no shared volume slider")
-        shared = [b for b, _ in w.volume_bars]
-        self.assertIn(on_the_strip[0], shared,
-                      "the strip's slider is a lookalike, not one of the family")
-        w.settings.volume = 35
-        w.settings.recitation = True
-        w.show_volume()
-        APP.processEvents()
-        for bar, _ in w.volume_bars:
-            self.assertEqual(35, bar.value(),
-                             "a slider did not follow the volume: it is not in the family")
+        self.assertEqual([], w.bar.findChildren(QtWidgets.QSlider),
+                         "a volume slider is back on the prayer strip")
+        self.assertEqual([], [k for k in w.bar.findChildren(QtWidgets.QPushButton)
+                              if k.objectName() == "volumeKey"],
+                         "a volume key is on the prayer strip; the volume lives in the top "
+                         "banner and nowhere else")
+        self.assertTrue([b for b in w.bar.findChildren(QtWidgets.QPushButton)
+                         if b.objectName() == "mainScreen"],
+                        "the house has gone from the prayer strip, and it is now the only way "
+                        "to stop a recitation that is too loud")
 
     def test_leaving_mid_prayer(self):
         w = self.win
@@ -576,58 +612,6 @@ class UiTest(unittest.TestCase):
         self.assertGreater(spot.center().x(), frame.center().x(), "to the right")
         self.assertLess(spot.center().y(), frame.center().y(), "at the top")
         self.shot("11-repeat-badge")
-
-    def test_the_volume_on_the_prayer_strip_sits_right_and_saves_what_it_is_set_to(self):
-        """REPLACES test_volume_bar_sits_in_the_top_bar_and_saves_what_it_is_set_to, whose
-        control is gone. Harry at 2.40: "swap the volume slider with our other volume slide
-        from main top banner, same exact location."
-
-        The strip had a VolumeBar all of its own -- a second kind of volume control, with its
-        own look and its own way of being dragged, on the one screen where somebody is least
-        able to stop and work out which kind they are looking at.
-
-        Every claim the old test made is made again here against the shared slider, because
-        none of them were about the old control: it is in the strip, it is a rectangle lying
-        down, it is on the right and clear of the rakat, silence means the recitation is off,
-        and what it is dragged to is kept.
-        """
-        w = self.win
-        w.start("maghrib", w.school.prayers["maghrib"][0])
-        APP.processEvents()
-        bar = next(b for b in w.bar.findChildren(QtWidgets.QSlider)
-                   if b.objectName() in ("volume", "volumeOnDark"))
-        self.assertIn((bar, next(r for b2, r in w.volume_bars if b2 is bar)), w.volume_bars,
-                      "the strip's slider is not one of the shared family")
-        self.assertTrue(bar.isVisible(), "the volume is there as soon as the prayer starts")
-        self.assertEqual(0, bar.value(), "silent while the recitation is switched off")
-        w.set_recitation("1")
-        APP.processEvents()
-        self.assertEqual(w.settings.volume, bar.value(), "and shows the level once it is on")
-
-        self.assertGreater(bar.width(), bar.height() * 2, "a rectangle, lying down")
-        in_window = bar.mapTo(w, bar.rect().center())
-        self.assertLess(in_window.y(), w.slide.mapTo(w, QtCore.QPoint(0, 0)).y(),
-                        "above the prayer screen, not on it")
-        self.assertGreater(in_window.x(), w.width() / 2, "on the right of the strip")
-        self.assertGreater(bar.mapTo(w, bar.rect().topLeft()).x(),
-                           w.rakat_label.mapTo(w, w.rakat_label.rect().topRight()).x(),
-                           "and clear of the rakat, which is on the left")
-
-        bar.setValue(50)
-        APP.processEvents()
-        self.assertEqual(50, w.settings.volume)
-        self.assertEqual(50, w.recitation.volume)
-        self.assertTrue(w.settings.recitation)
-
-        bar.setValue(0)
-        APP.processEvents()
-        self.assertFalse(w.settings.recitation, "all the way down switches it off")
-        self.assertEqual(50, w.settings.volume, "and keeps the level to come back to")
-
-        bar.setValue(100)
-        APP.processEvents()
-        self.assertTrue(w.settings.recitation, "turning it up switches it back on")
-        self.shot("12-volume-bar")
 
     def finish(self, prayer: str, kind: str):
         """Plays a unit of this kind to the end and returns the window."""
@@ -1631,13 +1615,14 @@ class SideScreenTest(unittest.TestCase):
         self.fardh(w)
         self.assertFalse(w.side.showing_compass)
         self.assertIs(w.side.posture, w.slide.posture)
-        # The volume lives in the main screen's strip and not on the 7in, which is kept for
-        # the posture. It was a VolumeBar of the prayer screen's own until 2.40 and is the
-        # shared slider now -- the claim is about WHERE it is, so it is asked of the strip.
-        self.assertTrue([b for b in w.bar.findChildren(QtWidgets.QSlider)
-                         if b.objectName() in ("volume", "volumeOnDark")],
-                        "the volume is not in the main screen's bar")
-        self.assertFalse(w.side.findChildren(QtWidgets.QSlider), "and not on the 7-inch screen")
+        # THE VOLUME IS NOT ON THE 7IN, which is what this test has always been about: the
+        # small screen is kept for the posture. Where the volume IS has moved twice -- a
+        # VolumeBar of the prayer screen's own until 2.40, the shared slider until 2.50, and
+        # now a key on the top banner alone, which is not on screen during a prayer at all.
+        # So the claim that survives is the one that was always the point, and the prayer
+        # strip's own emptiness is checked in UiTest where somebody would look for it.
+        self.assertFalse(w.side.findChildren(QtWidgets.QSlider),
+                         "the volume is on the 7-inch screen, which is kept for the posture")
         self.assertIs(w.side, w.slide.posture.window(), "the picture is on the 7-inch screen")
         self.assertIsNotNone(w.slide.posture.path)
         # the words have the main screen's whole width
@@ -1657,14 +1642,28 @@ class SideScreenTest(unittest.TestCase):
         self.assertIs(w.side.posture.badge, w.slide.repeat_badge)
         self.assertTrue(w.slide.repeat_badge.isVisible())
 
-    def test_the_volume_bar_in_the_bar_sets_the_volume(self):
-        """The strip's own VolumeBar went at 2.40 for the slider every other strip carries.
-        What it was asked to prove is unchanged: dragging it sets the level, and all the way
-        down switches the recitation off rather than leaving it playing in silence."""
+    def test_the_volume_control_still_sets_the_volume_on_a_mat_with_a_7in(self):
+        """The strip's own VolumeBar went at 2.40 for the slider every other strip carries, and
+        at 2.50 that slider went behind a speaker key on the top banner.
+
+        WHAT IT WAS ASKED TO PROVE IS UNCHANGED through both moves: dragging it sets the level,
+        and all the way down switches the recitation off rather than leaving it playing in
+        silence. Asked here on a mat that HAS a 7in, because that is this class's subject and
+        the 7in's own volume bar was given up for the main strip long ago -- so if the one
+        remaining control stopped working, this is the configuration where nobody would have a
+        second one to fall back on.
+        """
         w = self.window(recitation=True, volume=80)
-        self.fardh(w)
-        bar = next(b for b in w.bar.findChildren(QtWidgets.QSlider)
-                   if b.objectName() in ("volume", "volumeOnDark"))
+        w.open_corner("knowledge")      # the front door carries no strip, so no key either
+        APP.processEvents()
+        key = [k for k in w.findChildren(QtWidgets.QPushButton)
+               if k.objectName() == "volumeKey" and k.isVisible()]
+        self.assertTrue(key, "no strip on screen carries a volume key")
+        key[0].click()
+        APP.processEvents()
+        popup = w.volume_popup
+        self.addCleanup(lambda: put_away(popup))
+        bar = popup.findChildren(QtWidgets.QSlider)[0]
         bar.setValue(30)
         APP.processEvents()
         self.assertEqual(30, w.settings.volume)
@@ -7656,6 +7655,24 @@ class BannerTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         return w
 
+    def slider_of(self, w):
+        """The volume slider, which since 2.50 means pressing the speaker key to get one.
+
+        It used to lie along the strip and could simply be looked up. It is the same control
+        built by the same method; the only difference is that it has to be asked for, and
+        asking for it the way a child does is the only way worth testing.
+        """
+        key = [k for k in w.findChildren(QtWidgets.QPushButton)
+               if k.objectName() == "volumeKey" and k.isVisible()]
+        self.assertTrue(key, "no strip on screen carries a volume key")
+        key[0].click()
+        settle()
+        popup = w.volume_popup
+        self.addCleanup(lambda: put_away(popup))
+        bars = popup.findChildren(QtWidgets.QSlider)
+        self.assertEqual(1, len(bars), "the popup has no single slider")
+        return bars[0]
+
     def test_the_slider_has_a_speaker_at_each_end(self):
         """A bare line says nothing about what it does.
 
@@ -7670,9 +7687,7 @@ class BannerTest(unittest.TestCase):
         """
         from salaah.render import Speaker
         w = self.window()
-        sliders = [s for s in w.findChildren(QtWidgets.QSlider)
-                   if s.objectName() in ("volume", "volumeOnDark")]
-        self.assertTrue(sliders, "no volume slider found, so this proved nothing")
+        sliders = [self.slider_of(w)]
         def holder(lay, want):
             """The layout the slider actually sits in. It is a row nested inside the
             banner's row, so asking the parent WIDGET for its layout finds the wrong one."""
@@ -7703,8 +7718,22 @@ class BannerTest(unittest.TestCase):
             self.assertFalse(quiet[0].loud, "the left-hand speaker is not the quiet one")
             self.assertTrue(loud[0].loud, "the right-hand speaker is not the loud one")
 
-    def test_the_place_is_the_colour_of_the_things_you_press(self):
-        """Red, like Menu, Main screen and the cog. The pin and the name together.
+    def test_the_place_is_not_the_colour_of_the_things_you_press(self):
+        """THIS TEST USED TO SAY THE OPPOSITE, and both versions were right in their turn.
+
+        At 2.42 the place went red "like everything else a hand goes to on this mat: Menu, Main
+        screen, the cog", on Harry's asking. Nothing at that end of the strip was pressable
+        then, so red there cost nothing and matched the furniture.
+
+        2.50 put a red button at the start of the strip, a finger's width from the place name,
+        and it IS pressable. Red on a name nobody can press, an inch from red on a button they
+        can, teaches the opposite of what the colour is for -- so red keeps its job and the
+        place went back to lapis. Harry, 20 November 2026: "change location icon and font
+        colour to blue."
+
+        Kept as a test of what the place must NOT be rather than deleted, because the thing
+        worth guarding is the rule -- red means you can press it -- and not either colour. What
+        the place IS now is checked in TheStripSaysWhereYouAreInBlueTest, in painted pixels.
 
         Measured on the mark-up the label is actually given rather than on the constant that
         was meant to go into it: the place is one cell of a rich-text table, and a colour can
@@ -7712,9 +7741,10 @@ class BannerTest(unittest.TestCase):
         """
         from salaah.ui import BRICK
         w = self.window(place="Bury")
-        said = w.banner_labels[0].text()
-        self.assertIn(f'color:{BRICK}">Bury<', said.replace("; ", "").replace(" >", ">"),
-                      "the place name is not in the red of the pressable things")
+        said = w.banner_labels[0].text().replace("; ", "").replace(" >", ">")
+        self.assertNotIn(f'color:{BRICK}">Bury<', said,
+                         "the place name is red again, which now says it can be pressed")
+        self.assertIn('>Bury<', said, "the place name is not on the strip at all")
 
     def test_nothing_pads_the_left_of_the_place_name(self):
         """The gap between the pin and the name, which Harry asked for twice.
@@ -7786,9 +7816,15 @@ class BannerTest(unittest.TestCase):
             w = self.window(theme=mode, volume=40)
             with self.subTest(mode):
                 paper = QtGui.QColor(theme.palette().paper)
-                bar = w.volume_bars[0][0]
-                where = bar.mapTo(w, bar.rect().topLeft())
-                image = w.grab().toImage()
+                # GRABBED OFF THE POPUP, NOT THE WINDOW, since 2.50. The slider is a top-level
+                # popup now, so it is not in the window's own painting at all: w.grab() would
+                # have returned the strip with a speaker key where the slider used to be, and
+                # this test would have been measuring a button. The popup is painted in the
+                # strip's paper, which is the same colour this compares against.
+                bar = self.slider_of(w)
+                popup = bar.window()
+                where = bar.mapTo(popup, bar.rect().topLeft())
+                image = popup.grab().toImage()
                 rows, marked, total = {}, 0, 0
                 for y in range(where.y(), where.y() + bar.height()):
                     for x in range(where.x(), where.x() + bar.width()):
@@ -7813,7 +7849,18 @@ class BannerTest(unittest.TestCase):
 
 
 class VolumeEverywhereTest(unittest.TestCase):
-    """One notion of volume, however many controls are showing it."""
+    """One notion of volume, however many controls are showing it.
+
+    REWRITTEN AT 2.50, when the sliders came off the strips and went behind a speaker key. The
+    claim this class is about has not moved an inch -- there is one volume and everything that
+    shows it agrees -- but what there is to look at has. Where it used to count four sliders
+    sitting on four strips, it now counts the keys and asks the one slider a press produces.
+
+    THE TESTS THAT WENT VACUOUS ARE THE DANGER HERE, which is why none of them was left alone.
+    Three of these loop over volume_bars, and volume_bars is empty until somebody opens the
+    popup: left as they were they would have passed for ever, green and worthless, on a mat
+    where every volume control had quietly stopped agreeing.
+    """
 
     def window(self, **settings):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
@@ -7823,65 +7870,141 @@ class VolumeEverywhereTest(unittest.TestCase):
         w.resize(1920, 1080)
         w.show()
         settle()
+        w.open_corner("knowledge")      # the front door carries no strip
+        settle()
         self.addCleanup(lambda: shut(w))
         return w
 
-    def test_there_is_one_slider_in_each_banner_and_none_below(self):
-        """There were briefly two within a centimetre of each other in the Qur'an: one in the
-        banner and one in the row under it. The banner's is the one that stayed.
+    def keys_on(self, w):
+        found = [k for k in w.findChildren(QtWidgets.QPushButton)
+                 if k.objectName() == "volumeKey"]
+        self.assertTrue(found, "no strip carries a volume key")
+        return found
 
-        FOUR SINCE 2.40, not three. The prayer screen's strip had a VolumeBar all of its own
-        -- a second kind of volume control, on the one screen where somebody is least able to
-        stop and work out which kind they are looking at. Harry: "swap the volume slider with
-        our other volume slide from main top banner, same exact location." So that strip now
-        carries one of these, and joining the family is the whole point of the swap: it moves
-        when the others move, which a control of its own never did.
+    def slider_of(self, w):
+        """Press a visible key and hand back the slider that drops out of it."""
+        key = [k for k in self.keys_on(w) if k.isVisible()][0]
+        key.click()
+        settle()
+        popup = w.volume_popup
+        self.addCleanup(lambda: put_away(popup))
+        bars = popup.findChildren(QtWidgets.QSlider)
+        self.assertEqual(1, len(bars), "the popup has no single slider")
+        return bars[0]
+
+    def test_there_is_one_key_on_each_strip_and_no_slider_anywhere_else(self):
+        """There were briefly two sliders within a centimetre of each other in the Qur'an: one
+        in the banner and one in the row under it. The banner's is the one that stayed, and at
+        2.50 it stopped being a slider at all.
+
+        WHAT IS COUNTED NOW is keys, one per strip, and the absence of any volume slider lying
+        about on a page. A slider that survived somewhere would mean the room 2.50 freed is
+        still being spent, and would be a second kind of volume control besides.
         """
         w = self.window()
-        self.assertEqual(4, len(w.volume_bars),
-                         "the mosque, the corner, Settings and the prayer strip -- "
-                         "the front door carries no strip")
-        strips = {bar.window().objectName() or bar.parentWidget().objectName()
-                  for bar, _ in w.volume_bars}
-        self.assertTrue(strips, "the sliders are not in anything")
+        keys = self.keys_on(w)
+        # THE PRAYER STRIP IS IN w.banners AND IS NOT ONE OF THESE. It is kept there so it is
+        # squared and re-heighted with the rest, but it is built by hand rather than by
+        # make_banner, and at 2.50 Harry asked for it to carry no volume at all: "i just want
+        # the volume in top banner, no where else." Held out here by identity rather than by
+        # name, and tested for its absence in TheVolumeIsAKeyOnTheStripTest.
+        strips = [b for b in w.banners if b is not getattr(w, "bar", None)]
+        self.assertEqual(len(strips), len(keys),
+                         f"{len(strips)} strips carry {len(keys)} volume keys between them")
+        for strip in strips:
+            with self.subTest(strip.objectName() or "strip"):
+                self.assertEqual(1, len([k for k in strip.findChildren(QtWidgets.QPushButton)
+                                         if k.objectName() == "volumeKey"]))
+                self.assertEqual([], strip.findChildren(QtWidgets.QSlider),
+                                 "a volume slider is still lying along a strip")
         w.open_surah(2)
         settle()
-        from salaah.qt import QtWidgets as Q
-        inside = w.reader.findChildren(Q.QSlider)
-        self.assertEqual([], inside, "the reader should have no slider of its own")
+        self.assertEqual([], w.reader.findChildren(QtWidgets.QSlider),
+                         "the reader should have no slider of its own")
 
-    def test_they_all_start_where_the_setting_is(self):
+    def test_the_slider_opens_where_the_setting_is(self):
         w = self.window(volume=45)
-        for bar, read in w.volume_bars:
-            self.assertEqual(45, bar.value())
-            self.assertEqual("45%", read.text())
+        self.assertEqual(45, self.slider_of(w).value(),
+                         "the slider did not open at the volume the mat is set to")
 
-    def test_moving_one_moves_the_others(self):
-        """Otherwise the banner sits claiming it is loud while the Qur'an has been turned down."""
-        w = self.window(volume=60)
-        w.volume_bars[0][0].setValue(25)
+    def test_moving_it_moves_the_setting_and_every_key(self):
+        """Otherwise a strip sits claiming it is loud while the mat has been turned down.
+
+        THE KEYS ARE THE OTHERS NOW. Only one slider can be open at a time, so "the others"
+        are no longer sliders -- they are the speakers drawn on every strip, which are the only
+        thing left saying how loud the mat is. Checked in pixels, because a wave count that is
+        right in a variable and never reaches the glass tells nobody anything.
+        """
+        w = self.window(volume=100)
+        keys = self.keys_on(w)
+
+        def drawing(key):
+            shot = key.grab().toImage()
+            return bytes(shot.constBits().asstring(shot.sizeInBytes()))
+
+        loud = {id(k): drawing(k) for k in keys}
+        self.slider_of(w).setValue(25)
         settle()
-        self.assertEqual(25, w.settings.volume)
-        for bar, read in w.volume_bars:
-            self.assertEqual(25, bar.value())
-            self.assertEqual("25%", read.text())
+        self.assertEqual(25, w.settings.volume, "the setting did not follow the slider")
+        for k in keys:
+            with self.subTest(k.accessibleName()):
+                self.assertNotEqual(loud[id(k)], drawing(k),
+                                    "a strip's speaker is still drawn as loud after the "
+                                    "volume was turned down")
 
     def test_all_the_way_down_is_silence(self):
-        """The same thing the prayer screen's bar has always meant, so the two agree."""
+        """The same thing the prayer screen's bar always meant, so the two agree -- and they
+        still have to, now that the prayer screen has no bar to agree with."""
         w = self.window(volume=60)
-        w.volume_bars[0][0].setValue(0)
+        self.slider_of(w).setValue(0)
         settle()
         self.assertFalse(w.settings.recitation, "silence should switch the recitation off")
         self.assertEqual(60, w.settings.volume, "and remember the level to come back to")
 
-    def test_turning_it_off_in_settings_shows_as_silence_on_every_slider(self):
+    def test_opening_it_again_and_again_leaves_nothing_behind(self):
+        """FOUND BY WRITING THE TEST ABOVE, not by anything going wrong on the glass.
+
+        The slider registers itself in volume_bars so that it moves with everything else. That
+        is right, and it is also a way of keeping a widget alive for ever: a popup that is
+        merely hidden keeps its slider, and show_volume walks every slider in that list on
+        every tick. Measured before it was fixed, five presses left five popups parented to the
+        window and five sliders in the list -- on a mat that runs for weeks and whose owner
+        presses the speaker whenever a recitation is too loud.
+
+        The cure is one attribute, WA_DeleteOnClose, and the list's own dead-wrapper guard does
+        the rest. The reason this is a test rather than a comment is that nothing about the mat
+        LOOKS wrong while it is happening, which is exactly how it got there in the first place.
+        """
+        w = self.window()
+        key = [k for k in self.keys_on(w) if k.isVisible()][0]
+        for press in range(1, 8):
+            key.click()
+            settle()
+            w.volume_popup.close()
+            settle()
+            w.show_volume()
+            settle()
+            with self.subTest(press=press):
+                self.assertEqual(0, len(w.volume_bars),
+                                 f"after {press} presses the mat is still holding "
+                                 f"{len(w.volume_bars)} sliders nobody can see")
+                left = [c for c in w.children() if c.objectName() == "volumePopup"]
+                self.assertEqual([], left,
+                                 f"after {press} presses {len(left)} popups are still "
+                                 f"parented to the window")
+        # And it still works after all that, which is the half a leak test can forget to ask.
+        self.slider_of(w).setValue(37)
+        settle()
+        self.assertEqual(37, w.settings.volume,
+                         "the slider stopped working once the popups began being deleted")
+
+    def test_turning_it_off_in_settings_shows_as_silence_on_the_slider(self):
         w = self.window(volume=60)
         w.set_recitation("0")
         w.show_volume()
         settle()
-        for bar, read in w.volume_bars:
-            self.assertEqual(0, bar.value())
-            self.assertEqual("0%", read.text())
+        self.assertEqual(0, self.slider_of(w).value(),
+                         "the recitation is off and the slider still shows a level")
 
 
 class ReaderBarTest(unittest.TestCase):
@@ -8257,7 +8380,12 @@ class SettingsScreenTest(unittest.TestCase):
 
     def test_settings_wears_the_same_strip_as_the_rest_of_the_mat(self):
         """It was the one screen with a bare white top. It now says where you are, when the
-        prayers are and how loud it is, exactly as the Knowledge Corner does."""
+        prayers are and how loud it is, exactly as the Knowledge Corner does.
+
+        Since 2.50 "how loud it is" is the speaker key rather than a slider, and the point of
+        this test is that Settings wears whatever the other screens wear -- so it asks for the
+        key, and would fail just as loudly if Settings were left with the old slider.
+        """
         w = self.window()
         strip = self.banner(w)
         self.assertEqual(0, strip.mapTo(w.settings_screen, QtCore.QPoint(0, 0)).y(),
@@ -8268,7 +8396,11 @@ class SettingsScreenTest(unittest.TestCase):
         self.assertIn("Bury", said[0].text())
         for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
             self.assertIn(w.t(f"prayer.{prayer}"), said[0].text(), prayer)
-        self.assertEqual(1, len(strip.findChildren(QtWidgets.QSlider)), "and how loud it is")
+        self.assertEqual(1, len([k for k in strip.findChildren(QtWidgets.QPushButton)
+                                 if k.objectName() == "volumeKey"]),
+                         "and how loud it is")
+        self.assertEqual([], strip.findChildren(QtWidgets.QSlider),
+                         "Settings kept the slider the other strips gave up")
 
     def test_the_strip_carries_the_way_home_and_no_cog(self):
         """A cog on the Settings banner would be a button back to the screen you are on."""
@@ -9701,7 +9833,10 @@ class BannerLeadsWithThePinTest(unittest.TestCase):
         self.assertIn("Bury", said[0].text())
         for prayer in ("fajr", "dhuhr", "asr", "maghrib", "isha"):
             self.assertIn(w.t(f"prayer.{prayer}"), said[0].text(), prayer)
-        self.assertEqual(1, len(front.findChildren(QtWidgets.QSlider)), "and how loud it is")
+        # "and how loud it is" -- the speaker key since 2.50, where this asked for a slider.
+        self.assertEqual(1, len([k for k in front.findChildren(QtWidgets.QPushButton)
+                                 if k.objectName() == "volumeKey"]),
+                         "and how loud it is")
         self.assertEqual(0, front.mapTo(w.home, QtCore.QPoint(0, 0)).y(),
                          "the strip is the top of the screen")
 
@@ -9723,35 +9858,48 @@ class BannerLeadsWithThePinTest(unittest.TestCase):
         self.assertEqual(len(w.banner_labels), len(pins),
                          "a strip somewhere is missing its pin")
 
-    def test_the_place_is_written_in_red_and_the_times_are_not(self):
-        """RED SINCE 2.23, AND IT USED TO BE BLUE, which is worth saying because the blue was
-        not an accident either.
+    def test_only_the_place_is_coloured_and_the_times_are_not(self):
+        """BLUE, THEN RED AT 2.23, AND BLUE AGAIN AT 2.50 -- and none of the three was careless.
 
-        2.07 moved this off a hardcoded constant and onto the strip's own lapis, so that the
-        place followed the palette into either theme. That was the right fix for the problem
-        it had. What it never settled was why the place was a colour of its OWN: lapis is
-        used for nothing a hand goes to, so the one thing on the strip you can press -- the
-        place, which opens the location screen -- was the one colour that said nothing about
-        being pressable.
+        2.07 moved the place off a hardcoded constant and onto the strip's own lapis, so it
+        followed the palette into either theme. 2.23 made it BRICK on Harry's asking, "the same
+        red of main screen button", because lapis was used for nothing a hand goes to and the
+        place -- which opens the location screen -- was the one thing on the strip you could
+        press wearing the one colour that said nothing about pressing. 2.50 put a red button at
+        the other end of that same strip, which gave red a clearer job than the place could
+        honour, so the place went back to lapis: "change location icon and font colour to blue."
 
-        Harry, 12 November 2026: "change font colour of location and the icon to the same red
-        of main screen button". So the pin and the name are now BRICK, the colour of Menu,
-        Main screen, the leave buttons and the cog, and the times keep the strip's own ink.
+        WHAT THIS TEST IS FOR SURVIVED ALL THREE and is not the colour. The place is the only
+        cell of that table given a colour of its own; the five times wear the strip's ink. It
+        is a rich-text table, and a colour set on the wrong cell looks right until somebody
+        changes the times -- which is why the count is here and not just the cell.
         """
-        from salaah.ui import BRICK
+        from salaah import theme
         w = self.window()
+        blue = theme.palette().lapis
         said = next(x for x in w.home.findChildren(QtWidgets.QLabel)
                     if x.objectName() == "bannerText").text()
-        self.assertIn(f'color:{BRICK}">Bury</td>', said)
-        self.assertEqual(1, said.upper().count(BRICK.upper()),
-                         "the prayer times went red as well")
+        self.assertIn(f'color:{blue}">Bury</td>', said)
+        self.assertEqual(1, said.upper().count(blue.upper()),
+                         "the prayer times are wearing the place name's colour as well")
+        # Cell by cell, so that "the times are not that colour" is asked of the cells the
+        # times are in. The live prayer's cell does carry a colour -- green, with the box
+        # around it -- and that is the only other one that may.
+        for cell in said.split("<td")[1:]:
+            style, _, body = cell.partition(">")
+            if any(w.t(f"prayer.{p}") in body
+                   for p in ("fajr", "dhuhr", "asr", "maghrib", "isha")):
+                self.assertNotIn(blue.upper(), style.upper(),
+                                 f"a prayer time is written in the place name's colour: {body}")
 
     def test_the_red_reads_on_the_strip_in_either_theme(self):
-        """The place name lost a guard when it stopped being lapis, so here it is again.
-
-        BRICK is a constant rather than a palette entry, so it does NOT follow the strip from
-        black to white -- the same red sits on both. That is the thing worth checking: a
+        """BRICK is a constant rather than a palette entry, so it does NOT follow the strip
+        from black to white -- the same red sits on both. That is the thing worth checking: a
         colour that cannot move has to work in both places or it is only working in one.
+
+        It was the place name that wore it when this was written. Since 2.50 it is the volume
+        key and the way home, which is more of the strip's red and not less, so the rule holds
+        for the same reason and is read off the constant either way.
         """
         from salaah import theme
         from salaah.ui import BRICK
@@ -9766,8 +9914,9 @@ class BannerLeadsWithThePinTest(unittest.TestCase):
                                    "the red does not read against the strip behind it")
 
     def test_the_blue_is_a_blue_and_reads_on_the_strip_behind_it(self):
-        """Lapis is no longer the place name's colour -- it is the slider's fill and the dots
-        on the globe -- but it is still a palette colour that has to read on the strip.
+        """Lapis is the place name's colour again at 2.50, as well as the slider's fill and the
+        dots on the globe, so this reads on the strip for the plainest reason of all: it is the
+        colour the strip writes the place in.
 
         It compares against the palette, so it follows wherever the palette goes: set the
         strip's lapis to off-white and only the floors below catch it.
@@ -9795,25 +9944,27 @@ class BannerLeadsWithThePinTest(unittest.TestCase):
                     self.assertLess(blue.lightness(), 145,
                                     "too pale to read on a white strip")
 
-    def test_the_place_is_painted_red_on_the_screen(self):
+    def test_the_place_is_painted_in_that_colour_on_the_screen(self):
         """Rendered: rich text that names a colour and then does not use it is a real enough
-        mistake, and only the pixels say. Red since 2.23 -- see the test above for why the
-        blue it replaced was not an accident either."""
-        from salaah.ui import BRICK
+        mistake, and only the pixels say. The test above reads the mark-up; this one reads the
+        glass, and the pair is the point -- see it for why the colour has changed twice."""
+        from salaah import theme
         w = self.window()
         front = self.strip(w, w.home)
         words = next(x for x in front.findChildren(QtWidgets.QLabel)
                      if x.objectName() == "bannerText")
         image = words.grab().toImage()
-        want = QtGui.QColor(BRICK)
-        # Near enough the exact colour, not merely reddish. White lettering carries coloured
+        want = QtGui.QColor(theme.palette().lapis)
+        # Near enough the exact colour, not merely blueish. White lettering carries coloured
         # fringes from the antialiasing, and a loose test counted those and passed on a strip
         # with none of the colour on it at all.
-        red = sum(1 for y in range(image.height()) for x in range(image.width())
-                  if (abs(QtGui.QColor(image.pixel(x, y)).red() - want.red()) < 10
-                      and abs(QtGui.QColor(image.pixel(x, y)).green() - want.green()) < 10
-                      and abs(QtGui.QColor(image.pixel(x, y)).blue() - want.blue()) < 10))
-        self.assertGreater(red, 150, "nothing on the strip is painted in the red")
+        painted = sum(1 for y in range(image.height()) for x in range(image.width())
+                      if (abs(QtGui.QColor(image.pixel(x, y)).red() - want.red()) < 10
+                          and abs(QtGui.QColor(image.pixel(x, y)).green() - want.green()) < 10
+                          and abs(QtGui.QColor(image.pixel(x, y)).blue() - want.blue()) < 10))
+        self.assertGreater(painted, 150,
+                           f"nothing on the strip is painted in {want.name()}, the colour the "
+                           f"mark-up asks for")
 
 
 class MapPinTest(unittest.TestCase):
@@ -9967,7 +10118,18 @@ class BannerStripTest(unittest.TestCase):
             self.skipTest("neither binding offers a way to delete a widget outright")
 
         w = self.window()
-        self.assertTrue(w.volume_bars, "no volume sliders were built at all")
+        # A SLIDER HAS TO BE OPENED FIRST SINCE 2.50, and the fault this guards got worse
+        # rather than better when it moved. volume_bars used to fill at start-up and stay the
+        # same; now it fills when somebody presses the speaker and empties when the popup
+        # closes, so a dead wrapper is not a rare consequence of rebuilding a page -- it is
+        # what every single press produces.
+        w.open_corner("knowledge")
+        settle()
+        key = [k for k in w.findChildren(QtWidgets.QPushButton)
+               if k.objectName() == "volumeKey" and k.isVisible()][0]
+        key.click()
+        settle()
+        self.assertTrue(w.volume_bars, "pressing the key built no slider at all")
         held = len(w.volume_bars)
         # A strip of its own, built and then taken down the way a page is.
         page = QtWidgets.QWidget()
@@ -10501,11 +10663,19 @@ class SettingsFromTheTileTest(unittest.TestCase):
 
 
 class VolumeSliderLookTest(unittest.TestCase):
-    """The slider on the strip: bigger, and with no figure printed beside it."""
+    """The slider itself: still big enough for a thumb, still with no figure beside it.
 
-    def window(self):
+    2.50 moved it off the strip and put it behind the speaker key. What it looks like did not
+    change and neither did these rules -- only the way a test has to get hold of one. The last
+    rule here is new, because it is a risk the old shape did not have: a slider lying along the
+    strip could not fall off the edge of the screen, and a popup dropping out from under a key
+    at the end of the strip very much can.
+    """
+
+    def window(self, lang="en"):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
-                       Settings(theme="dark", recitation=True, place="Bury", volume=60),
+                       Settings(theme="dark", recitation=True, place="Bury", volume=60,
+                                lang=lang),
                        scale=1.0, save_settings=False, aspect=None, side=True)
         w.resize(1920, 1080)
         w.show()
@@ -10516,24 +10686,41 @@ class VolumeSliderLookTest(unittest.TestCase):
         self.addCleanup(lambda: shut(w))
         return w
 
-    def showing(self, w):
-        # Past the front door: it is one picture since 1.76, with no strip and so no slider.
+    def dropped(self, w):
+        """Get past the front door, press the speaker, hand back the popup that drops out.
+
+        The front door is one picture since 1.76, with no strip on it and so no key either.
+        """
         w.leave_welcome()
         w.veil.stop()
         settle()
-        bars = [b for b, _ in w.volume_bars if b.isVisible()]
-        self.assertTrue(bars, "no slider is on screen")
+        key = [k for k in w.findChildren(QtWidgets.QPushButton)
+               if k.objectName() == "volumeKey" and k.isVisible()]
+        self.assertTrue(key, "no strip on screen carries a volume key")
+        key[0].click()
+        settle()
+        popup = getattr(w, "volume_popup", None)
+        self.assertIsNotNone(popup, "pressing the key opened nothing")
+        self.addCleanup(lambda: put_away(popup))
+        return key[0], popup
+
+    def showing(self, w):
+        _, popup = self.dropped(w)
+        bars = popup.findChildren(QtWidgets.QSlider)
+        self.assertEqual(1, len(bars), "the popup has no single slider")
         return bars[0]
 
     def test_no_percentage_is_printed_beside_it(self):
+        """It used to be printed on the strip. Now there is nowhere for it to be printed except
+        inside the popup, so both places are asked -- and asked of what is VISIBLE, since a
+        hidden label answers text() perfectly happily and would make this pass on its own."""
         w = self.window()
+        _, popup = self.dropped(w)
         for bar, read in w.volume_bars:
-            self.assertFalse(read.isVisible(), "the figure is still on the strip")
-        # Anything else on the strip that prints one -- a hidden label still answers text(),
-        # so only what is actually on screen counts.
-        w.leave_welcome()
-        w.veil.stop()
-        settle()
+            self.assertFalse(read.isVisible(), "the figure is back beside the slider")
+        in_popup = " ".join(x.text() for x in popup.findChildren(QtWidgets.QLabel)
+                            if x.text() and x.isVisible())
+        self.assertNotIn("%", in_popup, "a percentage is printed inside the popup")
         said = " ".join(x.text() for x in w.home.findChildren(QtWidgets.QLabel)
                         if x.text() and x.isVisible())
         self.assertNotIn("%", said, "a percentage is still printed on the strip")
@@ -10551,13 +10738,52 @@ class VolumeSliderLookTest(unittest.TestCase):
         self.assertGreaterEqual(bar.width(), w.px(240), "no wider than before")
         self.assertGreaterEqual(bar.height(), w.px(50), "no taller than before")
 
-    def test_it_still_fits_inside_the_strip(self):
+    def test_it_drops_out_from_under_the_key(self):
+        """Where it used to sit inside the strip and could not be anywhere else, it now has to
+        be put somewhere, and the only place that reads as belonging to the key is directly
+        beneath it. The key itself is what must still fit the strip, so that is asked here too
+        -- it is the thing in the strip now."""
         w = self.window()
-        bar = self.showing(w)
+        key, popup = self.dropped(w)
         strip = next(x for x in w.home.findChildren(QtWidgets.QWidget)
                      if x.objectName() == "banner")
-        self.assertLessEqual(bar.height(), strip.height(),
-                             "the slider is taller than the strip it sits in")
+        self.assertLessEqual(key.height(), strip.height(),
+                             "the volume key is taller than the strip it sits in")
+        foot = key.mapToGlobal(QtCore.QPoint(0, key.height()))
+        drop = popup.geometry().y() - foot.y()
+        self.assertTrue(0 <= drop <= POPUP_NUDGE,
+                        f"the slider is {drop} pixels from the foot of the key it came from, "
+                        f"so it is not hanging off it")
+
+    def test_it_lands_on_the_screen_and_not_off_the_edge(self):
+        """THE ONE NEW RISK IN HIDING IT. In Arabic and Urdu the window is laid out right to
+        left, so the key is hard against the far end of the strip -- and a popup placed at the
+        key's own left edge would start a slider's width from the end of a 1920 window and be
+        half off the screen, or entirely off it on a smaller one. open_the_volume pulls it back
+        inside; without that line this test fails in both languages, which is the only reason
+        the line is written down.
+
+        Asked in Arabic and Urdu rather than English because in English the key leads the strip
+        and the popup lands on screen whether anything clamps it or not. A test that passes
+        with the rule taken out is not testing the rule.
+        """
+        for lang in ("ar", "ur"):
+            with self.subTest(lang):
+                w = self.window(lang=lang)
+                key, popup = self.dropped(w)
+                screen = w.screen().availableGeometry()
+                box = popup.geometry()
+                self.assertGreaterEqual(box.left(), screen.left(),
+                                        f"{lang}: the slider starts off the left of the screen")
+                self.assertLessEqual(box.right(), screen.right() + POPUP_NUDGE,
+                                     f"{lang}: the slider runs {box.right() - screen.right()} "
+                                     f"pixels off the right of the screen")
+                # And it was PULLED BACK to get there, rather than happening to fit. This one
+                # is exact on any platform: the key's own left edge is where the popup would
+                # have gone, and it is not where it is.
+                self.assertLess(box.left(), key.mapToGlobal(QtCore.QPoint(0, 0)).x(),
+                                f"{lang}: the slider was not pulled back from the key's edge, "
+                                f"so nothing is holding it on the screen")
 
     def test_it_still_sets_the_volume(self):
         w = self.window()
@@ -14926,16 +15152,23 @@ class TheSlidersAreAllTheSameTest(unittest.TestCase):
 
 
 class TheVolumeControlOnTheStripTest(unittest.TestCase):
-    """Bigger, and still centred between its two speakers.
+    """Bigger, and still centred between its two speakers -- in the popup, since 2.50.
 
-    Harry: "increase volume slider control size slightly & keep centred from either of its
-    boxes on left & right hand side."
+    Harry, 2.34: "increase volume slider control size slightly & keep centred from either of
+    its boxes on left & right hand side." That slider used to lie along the strip. It now drops
+    out from under the speaker key instead, which is the only thing about it that changed: it
+    is the same control, the same width and the same two speakers, built by the same method.
 
-    The width is the expensive half of that. The strip carries a pin, a place name, five
-    prayer times, this, a Main screen button and sometimes a cog, and it has overrun before --
-    at 2.09, in Spanish, which is why the slider went DOWN to 240 then. So the test that
-    matters is not that the number went up; it is that the strip still fits in every language
-    the mat speaks.
+    SO THESE TESTS FOLLOWED IT rather than being deleted with it. What they are about -- the
+    control being big enough to hit and sitting squarely between its speakers -- is as true in
+    a popup as it was on a strip, and deleting them because the furniture moved would have
+    thrown away the answer to a question Harry asked twice.
+
+    THE LAST TEST IS THE ONE THAT MATTERS, and 2.50 is the release that proves it: the strip
+    has overrun before, at 2.09 in Spanish, which is why the slider went DOWN to 240 then. It
+    was going to overrun again the moment a place name longer than Bury arrived -- Harry saw
+    that coming before it happened -- and the answer this time was to take the slider off the
+    strip altogether. That test now measures the strip the slider has left.
     """
 
     def window(self, lang="en"):
@@ -14949,17 +15182,32 @@ class TheVolumeControlOnTheStripTest(unittest.TestCase):
         w.tick()
         settle()
         self.addCleanup(lambda: shut(w))
-        w.open_corner_list()            # the strip with the slider on it
+        w.open_corner_list()            # a strip with the volume key on it
         settle()
         return w
 
     @staticmethod
-    def parts(w):
-        bar = [b for b, _ in w.volume_bars if b.isVisible()][0]
+    def strip_of(w):
+        return [b for b in w.banners if b.isVisible() and b.width() > 1000][0]
+
+    def parts(self, w):
+        """The slider, its row and its two speakers -- with the popup opened to reach them.
+
+        PRESSED RATHER THAN BUILT BY HAND. Reaching into open_the_volume and making a popup
+        here would test a slider this app never shows anybody; the only slider that matters is
+        the one a press produces.
+        """
+        strip = self.strip_of(w)
+        key = [k for k in strip.findChildren(QtWidgets.QPushButton)
+               if k.objectName() == "volumeKey"][0]
+        key.click()
+        settle()
+        popup = w.volume_popup
+        self.addCleanup(lambda: put_away(popup))
+        bar = popup.findChildren(QtWidgets.QSlider)[0]
         row = bar.parentWidget()
         speakers = sorted([s for s in w.speaker_icons
-                           if s.isVisible() and s.parentWidget() is row],
-                          key=lambda s: s.x())
+                           if s.parentWidget() is row], key=lambda s: s.x())
         return bar, row, speakers
 
     def test_it_sits_the_same_distance_from_each_speaker(self):
@@ -14979,7 +15227,9 @@ class TheVolumeControlOnTheStripTest(unittest.TestCase):
         self.assertGreater(VOLUME_WIDTH, 240, "no wider than it was at 2.33")
         self.assertGreater(VOLUME_LINE, 10, "the line is no thicker than it was")
         self.assertGreater(VOLUME_KNOB, 30, "the knob is no bigger than it was")
-        # And it is actually drawn at that size, not merely named it.
+        # And it is actually drawn at that size, not merely named it. Moving the slider into a
+        # popup is no excuse for it coming out narrower: a popup can be any width it likes, so
+        # there is nothing to squeeze it and nothing to hide it shrinking either.
         w = self.window()
         bar, _, _ = self.parts(w)
         self.assertEqual(w.px(VOLUME_WIDTH), bar.width())
@@ -14995,23 +15245,54 @@ class TheVolumeControlOnTheStripTest(unittest.TestCase):
                          "a whole pixel and the knob sits a pixel off the line")
 
     def test_the_strip_still_fits_in_every_language_the_mat_speaks(self):
-        """THE ONE THAT MATTERS. It has overrun before, and the first anybody knew was Harry
-        reading it on the glass: "looks like one long sentence"."""
-        tightest = None
+        """THE ONE THAT MATTERS, and the one 2.50 exists because of.
+
+        It has overrun before and the first anybody knew was Harry reading it on the glass:
+        "looks like one long sentence". It was about to overrun again, and this time he saw it
+        coming first -- "once a longer location than Bury is entered....its going to effect it."
+
+        MEASURED WITH A PLACE NAME THAT HURTS, which the old version of this test did not do.
+        It measured Bury, 81px, and would have passed every day right up to the morning
+        somebody typed where they lived. "Kingston upon Thames" is 401px and is a real place
+        with a real mosque; if the strip holds that in all ten languages it holds nearly
+        anything in these islands, and Islamabad with 220px to spare.
+
+        Against the BANNER's own row now, not the slider's. There is no slider on the strip to
+        hang a measurement off any more, which is the entire point of the release.
+        """
+        tightest, worst = None, ""
         for lang in sorted(available_packs(ASSETS)):
             with self.subTest(lang):
-                w = self.window(lang)
-                _, row, _ = self.parts(w)
-                needs = row.layout().minimumSize().width()
-                slack = row.width() - needs
+                w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                               Settings(theme="dark", recitation=True,
+                                        place="Kingston upon Thames", lang=lang),
+                               scale=1.0, save_settings=False, aspect=None, side=False)
+                w.resize(1920, 1080)
+                w.show()
+                settle()
+                w.tick()
+                settle()
+                w.open_corner("knowledge")
+                settle()
+                # BOUND, NOT CAPTURED. A bare `lambda: shut(w)` inside a loop closes over the
+                # NAME, so all ten cleanups would shut the last window -- nine of them twice
+                # over, on timers Qt had already deleted. Written out because the first version
+                # of this test did exactly that and the error it gave named shutdown(), which
+                # is nowhere near the mistake.
+                self.addCleanup(lambda win=w: shut(win))
+                strip = self.strip_of(w)
+                needs = strip.layout().minimumSize().width()
+                slack = strip.width() - needs
                 self.assertGreater(slack, 0,
-                                   f"the strip needs {needs}px and has {row.width()}px in "
+                                   f"the strip needs {needs}px and has {strip.width()}px in "
                                    f"{lang}: something on it is being squeezed")
-                tightest = slack if tightest is None else min(tightest, slack)
+                if tightest is None or slack < tightest:
+                    tightest, worst = slack, lang
         # Not merely fitting: with room to spare, because a language pack is one edit away
         # from a longer word and the next person should not have to measure this again.
         self.assertGreater(tightest, 40,
-                           f"the tightest language has only {tightest}px of slack left")
+                           f"the tightest language ({worst}) has only {tightest}px of slack "
+                           f"left with a place name people actually live at")
 
 
 class LocalPlacesTest(unittest.TestCase):
@@ -23701,12 +23982,27 @@ class TheGameControlsShowTheValueAndNotALabelTest(unittest.TestCase):
         self.assertEqual(first, screen.mode_button.text())
 
 
-class TheStripHasAirBesideTheSliderTest(unittest.TestCase):
-    """The volume slider sits in the middle of whatever room the strip leaves it.
+class TheStripHasAirAroundItsControlsTest(unittest.TestCase):
+    """Nothing on the strip is jammed against anything else.
 
-    Harry asked twice. First "in top banner make a little space between main menu button and
-    volume slider", which was a fixed gap after it; then "centre volume slider equally
-    between the end of isha time and beginning of Main screen button", which is this.
+    Harry asked for this twice, about the slider: first "in top banner make a little space
+    between main menu button and volume slider", then "centre volume slider equally between the
+    end of isha time and beginning of Main screen button".
+
+    WAS TheStripHasAirBesideTheSliderTest, AND THE SLIDER HAS GONE. At 2.50 it moved behind a
+    speaker key so the place name could have the room, which makes every measurement the old
+    class took -- the air either side of the slider, the gap between it and what follows --
+    questions about furniture that is no longer there.
+
+    KEPT, BECAUSE WHAT HE ASKED FOR WAS NOT ABOUT THE SLIDER. Twice over he was saying the same
+    thing: two controls hard against each other read as one control. That is as true of a
+    speaker key beside a map pin as it was of a slider beside the Main screen button, and the
+    new strip has its own pairs to get wrong. So the class follows the complaint rather than
+    the widget, and the measurements are taken against what is on the strip now.
+
+    THE TWO ENDS ARE DELIBERATELY EXEMPT. The speaker and the house both sit hard against the
+    edges of the strip and fill it down to the rule -- that is what makes them a matched pair
+    bookending the row, and it is the one place on the strip where touching something is right.
     """
 
     def window(self, lang="en"):
@@ -23723,87 +24019,83 @@ class TheStripHasAirBesideTheSliderTest(unittest.TestCase):
         APP.processEvents()
         return w
 
-    def strip_with_the_slider(self, w):
-        for banner in w.banners:
-            for child in banner.findChildren(QtWidgets.QSlider):
-                if child.objectName() == "volumeOnDark":
-                    return banner, child
-        self.fail("no banner carries the volume slider")
+    def strip_of(self, w):
+        laid = [b for b in w.banners if b.isVisible() and b.width() > 1000
+                and b is not getattr(w, "bar", None)]
+        self.assertTrue(laid, "no banner was laid out to measure")
+        return laid[0]
 
-    def test_the_slider_sits_in_the_middle_of_the_room_it_has(self):
-        """Harry: "centre volume slider equally between the end of isha time and beginning of
-        Main screen button".
+    @staticmethod
+    def span(widget, banner):
+        start = widget.mapTo(banner, QtCore.QPoint(0, 0)).x()
+        return start, start + widget.width()
 
-        REPLACES test_there_is_a_gap_after_the_slider, which asserted a fixed spacer of
-        BANNER_GAP after the slider -- the answer to his earlier "make a little space between
-        main menu button and volume slider". Two equal stretches say the same thing and more:
-        there is air on BOTH sides now, and it is the same amount, which no single spacer can
-        promise.
+    def test_the_speaker_key_is_not_jammed_against_the_place(self):
+        """The pair the new strip could get wrong, measured in every full language.
 
-        Measured in every full language, because the thing that moves is the end of the times
-        and that is a translation away from changing.
+        BY COORDINATE AND NOT BY "left" AND "right", which is the lesson the old class paid
+        for: Urdu and Arabic lay the strip out the other way round, and naming the sides
+        reported -1579px of gap in Urdu -- the test being wrong rather than the strip.
         """
         for lang in sorted(full_packs(available_packs(ASSETS))):
-            w = self.window(lang=lang)
-            banner, slider = self.strip_with_the_slider(w)
-            # BY COORDINATE AND NOT BY "left" AND "right". Urdu and Arabic lay the strip out
-            # the other way round, so the times are on the right and the Main screen button
-            # on the left -- naming the sides got -1579px before the slider in Urdu, which is
-            # the test being wrong rather than the strip. The question is the same either
-            # way: how much room is there on each side of the slider.
-            # THE WHOLE CONTROL, not the line in the middle of it. Since 2.23 the slider has
-            # a speaker at each end -- Harry: "there is no distinguishing feature of slider
-            # that tells you its a volume slider" -- and the three of them are one thing to
-            # look at. Measuring to the line alone reported 8px of air on the left, which was
-            # the gap to its own speaker and said nothing about the room on the strip.
-            from salaah.render import Speaker
-            parts = [slider] + [c for c in banner.findChildren(Speaker) if c.isVisible()]
-            start = min(c.mapTo(banner, QtCore.QPoint(0, 0)).x() for c in parts)
-            stop = max(c.mapTo(banner, QtCore.QPoint(c.width(), 0)).x() for c in parts)
-            others = [c for c in banner.findChildren(QtWidgets.QWidget)
-                      if c.isVisible() and c not in parts
-                      and not any(x.isAncestorOf(c) or c.isAncestorOf(x) for x in parts)]
-            lefts = [c.mapTo(banner, QtCore.QPoint(c.width(), 0)).x() for c in others
-                     if c.mapTo(banner, QtCore.QPoint(c.width(), 0)).x() <= start]
-            rights = [c.mapTo(banner, QtCore.QPoint(0, 0)).x() for c in others
-                      if c.mapTo(banner, QtCore.QPoint(0, 0)).x() >= stop]
-            before = start - (max(lefts) if lefts else 0)
-            behind = (min(rights) if rights else banner.width()) - stop
             with self.subTest(lang):
-                self.assertGreater(before, w.px(10),
-                                   f"{lang}: {before}px before the volume control")
-                self.assertGreater(behind, w.px(10),
-                                   f"{lang}: {behind}px after the volume control")
-                self.assertLessEqual(
-                    abs(before - behind), 2,
-                    f"{lang}: {before}px of room before the slider and {behind}px after it, "
-                    f"so it is not centred between the times and what follows")
+                w = self.window(lang=lang)
+                banner = self.strip_of(w)
+                key = [k for k in banner.findChildren(QtWidgets.QPushButton)
+                       if k.objectName() == "volumeKey"][0]
+                pin = banner.findChild(QtWidgets.QLabel, "bannerPin")
+                self.assertIsNotNone(pin, "the strip has no map pin")
+                kstart, kstop = self.span(key, banner)
+                pstart, pstop = self.span(pin, banner)
+                gap = pstart - kstop if pstart >= kstop else kstart - pstop
+                self.assertGreaterEqual(gap, w.px(20),
+                                        f"{lang}: {gap}px between the speaker and the place, "
+                                        f"so the two read as one control")
 
-    def test_the_gap_is_real_in_pixels(self):
-        """And it is actually there on screen, not just in the layout.
+    def test_the_key_and_the_house_sit_hard_against_their_own_ends(self):
+        """The exemption, said out loud so nobody 'fixes' it by adding a margin.
 
-        THE CONTROL IS THE SLIDER AND ITS TWO SPEAKERS since 2.23, so the gap being asked
-        about is the one after the right-hand speaker. Measuring from the slider's own edge
-        found 8px -- the spacing to its own speaker -- which is a true number and the wrong
-        question.
+        Both are square, both fill the strip's height down to the rule, and both go against
+        the edge -- which is what makes them a pair rather than two red squares that happen to
+        be on the same strip. A margin in front of either would break the symmetry at one end
+        only, which is how it went wrong in 2.06 and cost 20px off the button's height.
         """
-        from salaah.render import Speaker
         w = self.window()
-        banner, slider = self.strip_with_the_slider(w)
-        parts = [slider] + [c for c in banner.findChildren(Speaker) if c.isVisible()]
-        right = max(c.mapTo(banner, QtCore.QPoint(c.width(), 0)).x() for c in parts)
-        nearest = banner.width()
+        banner = self.strip_of(w)
+        key = [k for k in banner.findChildren(QtWidgets.QPushButton)
+               if k.objectName() == "volumeKey"][0]
+        house = [b for b in banner.findChildren(QtWidgets.QPushButton)
+                 if b.objectName() == "mainScreen"]
+        ends = {0, banner.width() - key.width()}
+        self.assertIn(self.span(key, banner)[0], ends,
+                      "the speaker key is not hard against either end of the strip")
+        if house:
+            start, stop = self.span(house[0], banner)
+            self.assertIn(start, {0, banner.width() - house[0].width()},
+                          "the house is not hard against either end of the strip")
+            self.assertNotEqual(self.span(key, banner)[0], start,
+                                "the key and the house are at the same end")
+
+    def test_nothing_else_on_the_strip_touches_its_neighbour(self):
+        """The general form of what Harry asked twice, now that there are more things on the
+        strip that could touch than there were sides to the slider."""
+        w = self.window()
+        banner = self.strip_of(w)
+        edges = {0, banner.width()}
+        parts = []
         for child in banner.findChildren(QtWidgets.QWidget):
-            if child in parts or any(x.isAncestorOf(child) or child.isAncestorOf(x)
-                                     for x in parts):
+            if not child.isVisible() or child.parentWidget() is not banner:
                 continue
-            if not child.isVisible():
+            start, stop = self.span(child, banner)
+            if stop > start:
+                parts.append((start, stop, child.objectName() or type(child).__name__))
+        parts.sort()
+        for (astart, astop, aname), (bstart, bstop, bname) in zip(parts, parts[1:]):
+            if astop in edges or bstart in edges:
                 continue
-            left = child.mapTo(banner, QtCore.QPoint(0, 0)).x()
-            if left >= right:
-                nearest = min(nearest, left)
-        self.assertGreaterEqual(nearest - right, w.px(10),
-                                f"the next control sits {nearest - right}px from the slider")
+            with self.subTest(f"{aname} -> {bname}"):
+                self.assertGreaterEqual(bstart - astop, 0,
+                                        f"{aname} and {bname} overlap on the strip")
 
 
 class RebootAppReplacesNoTest(unittest.TestCase):
@@ -25578,3 +25870,316 @@ class TheHomeButtonStopsThePrayersVoiceTest(unittest.TestCase):
             settle()
         self.assertFalse(w.follow.isActive(), "the highlight is still following a dead recording")
         self.assertFalse(w.dhikr_follow.isActive(), "the dhikr highlight is still running")
+
+
+class TheVolumeIsAKeyOnTheStripTest(unittest.TestCase):
+    """2.50 put the volume behind a button so the place name could have the room.
+
+    Harry, 20 November 2026, before anything had gone wrong: "everything fits nicely at the
+    moment. but once a longer location than Bury is entered....its going to effect it." He was
+    right, and he proposed the fix himself -- fix the things that cannot shrink, and let what
+    is left go to the part that grows.
+
+    WHAT WAS ACTUALLY WRONG was never the pin or the times. It was that a slider laid out along
+    the strip took 384px of it -- a speaker at each end, 300 of bar between them and the
+    spacing -- and a place name is the one thing on that strip whose width is not the mat's to
+    choose. "Bury" is 81px and "Kingston upon Thames" is 401. A square of 118 in place of 384
+    hands back 266px, and 266px is the difference.
+
+    THE SLIDER IS NOT GONE, it is behind the one control on the strip that says what it is for.
+    These tests care that it is still reachable, still in step with every other slider the app
+    owns, and still says how loud the mat is while it is put away -- that last one being the
+    thing hiding a slider would otherwise cost.
+    """
+
+    def strip_on(self, mode="dark", lang="en", place="Bury"):
+        """A window with a banner actually laid out, and that banner.
+
+        OPENED ON A PAGE THAT HAS ONE, and waited for. A strip that has not been laid out
+        reports a default width Qt has never measured -- 640 against a real 1920 -- and every
+        number taken off it would be wrong in the same direction. That mistake is already
+        written into write_the_times, where it once dragged every banner on the mat down to
+        one space; it is not worth making twice.
+        """
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=True, place=place, lang=lang),
+                       scale=1.0, save_settings=False, aspect=None, side=False)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        w.tick()
+        settle()
+        w.open_corner("knowledge")
+        settle()
+        self.addCleanup(lambda: shut(w))
+        laid = [b for b in w.banners if b.isVisible() and b.width() > 1000]
+        self.assertTrue(laid, "no banner was laid out, so there is nothing here to measure")
+        return w, laid[0]
+
+    @staticmethod
+    def keys_on(strip):
+        return [k for k in strip.findChildren(QtWidgets.QPushButton)
+                if k.objectName() == "volumeKey"]
+
+    def test_the_strip_carries_a_volume_key_and_no_slider(self):
+        """The swap itself. A slider left behind on the strip would mean the room was never
+        freed, and the whole change bought nothing."""
+        _, strip = self.strip_on()
+        self.assertEqual(1, len(self.keys_on(strip)), "the strip has no single volume key")
+        self.assertEqual([], strip.findChildren(QtWidgets.QSlider),
+                         "a volume slider is still laid out along the strip, so the room it "
+                         "was supposed to give back is still being taken")
+
+    def test_the_key_leads_the_strip_and_the_house_ends_it(self):
+        """Harry: "move to start of top banner before location". Asked of the laid-out
+        positions rather than of the order things were added, because a layout is free to put
+        them anywhere -- and in Arabic and Urdu it does exactly that, which the next test is
+        about."""
+        _, strip = self.strip_on()
+        key = self.keys_on(strip)[0]
+        pin = strip.findChild(QtWidgets.QLabel, "bannerPin")
+        house = [b for b in strip.findChildren(QtWidgets.QPushButton)
+                 if b.objectName() == "mainScreen"]
+        self.assertIsNotNone(pin, "the strip has no map pin")
+        self.assertLess(key.x(), pin.x(), "the volume key is not before the place")
+        self.assertEqual(0, key.x(), "the key is held off the edge of the strip")
+        if house:
+            self.assertGreater(house[0].x(), key.x(), "the house is not at the far end")
+
+    def test_in_arabic_and_urdu_it_leads_from_the_other_side(self):
+        """The window is laid out right to left for those two, so "the start of the strip" is
+        the right-hand end -- and the key must be there, not stranded on the left where the
+        reading finishes. The layout does this by itself; the test is here because "by itself"
+        is exactly the kind of thing that stops happening quietly."""
+        for lang in ("ar", "ur"):
+            with self.subTest(lang):
+                _, strip = self.strip_on(lang=lang)
+                key = self.keys_on(strip)[0]
+                pin = strip.findChild(QtWidgets.QLabel, "bannerPin")
+                self.assertGreater(key.x(), pin.x(),
+                                   f"{lang} reads right to left, so the key should start at "
+                                   f"the right of the strip and it is at the left")
+                self.assertEqual(strip.width() - key.width(), key.x(),
+                                 "the key is not hard against its end of the strip")
+
+    def test_the_key_is_the_same_square_as_the_house(self):
+        """They are a pair bookending the strip, and two red squares of different sizes is the
+        first thing anybody would notice. Both are squared by set_banner_heights off the same
+        number; this is the test that says so out loud."""
+        _, strip = self.strip_on()
+        key = self.keys_on(strip)[0]
+        house = [b for b in strip.findChildren(QtWidgets.QPushButton)
+                 if b.objectName() == "mainScreen"]
+        self.assertEqual(key.width(), key.height(), "the volume key is not square")
+        if house:
+            self.assertEqual(house[0].size(), key.size(),
+                             "the volume key and the house are different sizes")
+
+    def test_pressing_it_brings_the_slider_back(self):
+        """And the slider that arrives is the app's own -- registered in volume_bars, so moving
+        it moves every other one. A popup with a slider of its own would be the fault the
+        prayer strip had until 2.40, rebuilt somewhere even harder to notice."""
+        w, strip = self.strip_on()
+        before = len(w.volume_bars)
+        self.keys_on(strip)[0].click()
+        settle()
+        popup = getattr(w, "volume_popup", None)
+        self.assertIsNotNone(popup, "pressing the key opened nothing")
+        self.assertTrue(popup.isVisible(), "the slider did not appear")
+        bars = popup.findChildren(QtWidgets.QSlider)
+        self.assertEqual(1, len(bars), "the popup has no single slider")
+        self.assertGreater(len(w.volume_bars), before,
+                           "the popup's slider did not join volume_bars, so it will drift "
+                           "away from every other volume control on the mat")
+        w.settings.volume = 33
+        w.show_volume()
+        settle()
+        self.assertEqual(33, bars[0].value(), "the popup's slider does not follow the volume")
+        popup.close()
+
+    def test_the_speaker_says_how_loud_it_is_while_the_slider_is_away(self):
+        """THE ONE THING HIDING THE SLIDER COULD HAVE COST. A slider shows the level without
+        being touched; a button does not, unless it is drawn to. So the arcs follow the volume
+        and a cross means silence -- and this is asked of the PIXELS, because a wave count that
+        is right in a variable and never reaches the icon is worth nothing.
+        """
+        w, strip = self.strip_on()
+        key = self.keys_on(strip)[0]
+
+        def drawn():
+            shot = key.grab().toImage()
+            return bytes(shot.constBits().asstring(shot.sizeInBytes()))
+
+        seen = {}
+        for volume in (0, 30, 100):
+            w.settings.volume = volume
+            w.show_volume()
+            settle()
+            seen[volume] = drawn()
+            self.assertEqual((0, True) if volume == 0 else
+                             (1, False) if volume <= 50 else (2, False),
+                             w.how_loud_it_looks())
+        self.assertNotEqual(seen[0], seen[30], "silent and quiet draw the same speaker")
+        self.assertNotEqual(seen[30], seen[100], "quiet and loud draw the same speaker")
+        w.settings.recitation = False
+        w.show_volume()
+        settle()
+        self.assertEqual(seen[0], drawn(),
+                         "the recitation switched off should look the same as silence; to a "
+                         "child in front of it the two are the same fact")
+
+    def test_a_long_place_name_now_fits_in_every_language(self):
+        """What the whole change is for, asked the way Harry asked it.
+
+        "Kingston upon Thames" is 401px against Bury's 81, and before this it was about 124px
+        past the end of the strip. Measured in all ten languages because the times are what it
+        competes with and they are not the same width twice: Arabic is the tightest at 1300px
+        of times, Hindi the roomiest at 957.
+        """
+        for lang in ("en", "ar", "ur", "ru", "zh", "bn", "hi", "es", "fr", "pt"):
+            with self.subTest(lang):
+                w, strip = self.strip_on(lang=lang, place="Kingston upon Thames")
+                label = [l for l in w.banner_labels if l.isVisible() and l.width() > 1][0]
+                room = w.room_on_the_strip(label)
+                self.assertLessEqual(label.sizeHint().width(), room,
+                                     f"{lang}: the strip overflows by "
+                                     f"{label.sizeHint().width() - room}px with a place name "
+                                     f"people actually live at")
+
+    def test_the_prayer_strip_carries_no_volume_at_all(self):
+        """Harry, 20 November 2026: "i just want the volume in top banner, no where else."
+
+        Asked which he meant -- leave the prayer strip alone, or take the slider off it -- with
+        the consequence spelled out, he chose to take it off. So this is a deliberate absence
+        rather than an oversight, and it is written down as a test because the next person to
+        look at that strip will see a gap where a volume control obviously ought to be.
+
+        WHAT IT COSTS, since nobody should have to rediscover it: this strip is the only one on
+        screen during a prayer, and the 7in's own volume bar moved to the main strip long ago.
+        While a prayer is running there is no volume control anywhere on the mat. The way out
+        of a recitation that is too loud is the house, which since 2.49 stops the audio the
+        moment it is pressed.
+        """
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=True, place="Bury", lang="en"),
+                       scale=1.0, save_settings=False, aspect=None, side=False)
+        w.resize(1920, 1080)
+        w.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        w.start("fajr", w.school.prayers["fajr"][0])
+        settle()
+        bar = getattr(w, "bar", None)
+        self.assertIsNotNone(bar, "the prayer screen has no strip")
+        self.assertEqual([], bar.findChildren(QtWidgets.QSlider),
+                         "a volume slider is back on the prayer strip")
+        self.assertEqual([], [k for k in bar.findChildren(QtWidgets.QPushButton)
+                              if k.objectName() == "volumeKey"],
+                         "a volume key is on the prayer strip; the volume lives in the top "
+                         "banner and nowhere else")
+        self.assertTrue([b for b in bar.findChildren(QtWidgets.QPushButton)
+                         if b.objectName() == "mainScreen"],
+                        "the house has gone from the prayer strip, which is the only way out "
+                        "of a prayer and now the only way to stop the recitation")
+
+    def test_the_room_it_freed_is_the_room_the_slider_took(self):
+        """The arithmetic, pinned. The slider block was a 34px speaker, 8 of spacing, a 300px
+        bar, 8 more and another 34 -- 384 -- against a 118px square and 28px of spacing after
+        it, with the strip's old 28px leading margin gone. The strip should therefore have
+        about 266px more room than the numbers alone would give it, and if somebody widens the
+        key or puts the margin back this is where it shows."""
+        w, strip = self.strip_on()
+        label = [l for l in w.banner_labels if l.isVisible() and l.width() > 1][0]
+        key = self.keys_on(strip)[0]
+        room = w.room_on_the_strip(label)
+        would_have_been = room - (VOLUME_WIDTH + 2 * 34 + 2 * 8 + w.px(28)) + key.width()
+        freed = room - would_have_been
+        self.assertGreater(freed, 200,
+                           f"the swap freed only {freed}px; it was supposed to be about 266")
+
+
+class TheStripSaysWhereYouAreInBlueTest(unittest.TestCase):
+    """Harry, 20 November 2026: "change location icon and font colour to blue."
+
+    THIS REVERSES HIS OWN CALL OF 12 NOVEMBER, when the pin and the place went red "like
+    everything else a hand goes to on this mat". That was right while red meant pressable and
+    nothing at that end of the strip was. 2.50 puts a red button a finger's width from the
+    place name, so red on a name nobody can press now teaches the opposite of what the colour
+    is for.
+    """
+
+    def strip_on(self, mode):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=True, place="Bury", lang="en"),
+                       scale=1.0, save_settings=False, aspect=None, side=False)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        w.tick()
+        settle()
+        w.open_corner("knowledge")
+        settle()
+        self.addCleanup(lambda: shut(w))
+        laid = [b for b in w.banners if b.isVisible() and b.width() > 1000]
+        self.assertTrue(laid, "no banner was laid out")
+        return w, laid[0]
+
+    @staticmethod
+    def bluest(widget):
+        """The most-blue pixel the widget drew, as (r, g, b). Nothing is read from the colour
+        constants: the question is what reached the glass."""
+        shot = widget.grab().toImage().convertToFormat(
+            QtGui.QImage.Format.Format_RGB888)
+        best, score = (0, 0, 0), -1
+        for y in range(0, shot.height(), 2):
+            for x in range(0, shot.width(), 2):
+                c = shot.pixelColor(x, y)
+                lead = c.blue() - max(c.red(), c.green())
+                if lead > score:
+                    best, score = (c.red(), c.green(), c.blue()), lead
+        return best
+
+    def test_the_pin_is_blue_and_not_red_in_every_theme(self):
+        for mode in ("light", "dark", "colour"):
+            with self.subTest(mode):
+                _, strip = self.strip_on(mode)
+                pin = strip.findChild(QtWidgets.QLabel, "bannerPin")
+                self.assertIsNotNone(pin, "the strip has no map pin")
+                r, g, b = self.bluest(pin)
+                self.assertGreater(b, r + 30,
+                                   f"{mode}: the pin's bluest pixel is ({r},{g},{b}), which is "
+                                   f"not a blue pin")
+
+    def test_the_pin_follows_the_theme_rather_than_keeping_the_old_ones_blue(self):
+        """THE FAULT THIS IS FOR is the one the change introduced. Every other coloured thing
+        on the strip is painted by the stylesheet and restyles itself; the pin is a picture
+        drawn once, at the colour of the moment. While it was red that never mattered -- the
+        same red in all three themes -- but lapis is #274B8F on the white strip and #8FB1F0 on
+        the dark one, so a pin that is not redrawn keeps the shade of the theme it was born in.
+        """
+        w, strip = self.strip_on("light")
+        pin = strip.findChild(QtWidgets.QLabel, "bannerPin")
+        pale = self.bluest(pin)
+        w.settings.theme = "dark"
+        w.apply_theme(chosen=True)
+        settle()
+        dark = self.bluest(pin)
+        self.assertNotEqual(pale, dark,
+                            f"the pin is still {pale} after the theme changed; it has kept the "
+                            f"light theme's lapis on a dark strip")
+        self.assertGreater(sum(dark), sum(pale),
+                           "the dark theme's pin should be the lighter blue of the two")
+
+    def test_the_place_name_is_written_in_blue(self):
+        """Asked of the markup the label is given, because the place name is one cell of a rich
+        text table and there is no asking a QLabel what colour one cell came out."""
+        for mode in ("light", "dark"):
+            with self.subTest(mode):
+                w, _ = self.strip_on(mode)
+                from salaah import theme
+                said = w.banner_labels[0].text()
+                self.assertIn("Bury", said, "the place name is not on the strip at all")
+                where = said[:said.index("Bury")]
+                self.assertIn(theme.palette().lapis, where,
+                              f"{mode}: the place name is not written in the theme's lapis")
