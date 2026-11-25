@@ -5,12 +5,13 @@ The 16-inch touchscreen is artwork-only. The companion widget is for the
 """
 from __future__ import annotations
 
+import pathlib
 import random
 from dataclasses import dataclass
 
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import Fonts
-from .theme import palette
+from .theme import mode as theme_mode, palette
 from .winning import announce_if_won
 
 PILLARS = ("faith", "prayer", "charity", "fasting", "hajj")
@@ -21,6 +22,36 @@ PILLARS = ("faith", "prayer", "charity", "fasting", "hajj")
 #: finger that lands squarely between two pillars is still told it missed rather than being
 #: given the nearer one -- which is the right answer in a game about knowing which is which.
 WIDE = 0.19
+
+
+def board_ground(picture) -> int:
+    """The grey the board's background is, read off its four corners.
+
+    WHY THIS EXISTS. measure_the_board used to look for pixels "brighter than 60", which is
+    the same thing as "not the background" only while the background is black -- and it was,
+    on every board this game has ever had. Harry's jewelled pair of 21 November 2026 is the
+    same artwork on two grounds, white for the light theme and black for the other two, and
+    on the white one every pixel is brighter than 60. The five shafts then merge into a
+    single run the width of the picture, the run count is 1 rather than 5, and the function
+    returns FALLBACK -- five evenly spaced guesses -- without saying a word.
+
+    The guesses are close enough to look right and wrong enough to matter: the fallback puts
+    the top of the pillars at .48 where they start at .61, so the item would be released into
+    mid-air rather than onto a capital. This is the fault the docstring of _zones warns about,
+    arriving by a different door.
+
+    The corners rather than a histogram: a board is a picture of five pillars standing on a
+    plain ground, and its corners are the one part guaranteed to be that ground. The median of
+    the four shrugs off a corner that happens to carry a flourish.
+    """
+    wide, tall = picture.width(), picture.height()
+    corners = []
+    for y in (0, tall - 1):
+        line = picture.constScanLine(y)
+        line.setsize(wide)
+        row = bytes(line)
+        corners += [row[0], row[wide - 1]]
+    return sorted(corners)[len(corners) // 2]
 
 
 def measure_the_board(board) -> tuple[float, float, tuple[float, ...]]:
@@ -40,11 +71,13 @@ def measure_the_board(board) -> tuple[float, float, tuple[float, ...]]:
     wide, tall = picture.width(), picture.height()
     if wide < 10 or tall < 10:
         return FALLBACK
+    ground = board_ground(picture)
+    mark = lambda value: abs(value - ground) > 60
     lit = []
     for y in range(tall):
         line = picture.constScanLine(y)
         line.setsize(wide)
-        lit.append(sum(1 for value in bytes(line) if value > 60))
+        lit.append(sum(1 for value in bytes(line) if mark(value)))
     solid = [y for y, count in enumerate(lit) if count > wide * 0.15]
     if not solid:
         return FALLBACK
@@ -57,7 +90,7 @@ def measure_the_board(board) -> tuple[float, float, tuple[float, ...]]:
         line = picture.constScanLine(y)
         line.setsize(wide)
         for x, value in enumerate(bytes(line)):
-            if value > 60:
+            if mark(value):
                 columns[x] += 1
     deep = (shaft[1] - shaft[0]) * 0.05
     runs, start = [], None
@@ -239,30 +272,51 @@ class ItemArt:
     one copy of something that is not actually the same would throw nine away in silence.
     Seventeen files against 170, and 91 MB down to 1.2.
 
-    White, because THE BOARD IS BLACK IN BOTH THEMES. The board is a photograph of a drawing;
-    it does not invert when the mat goes from night to day, so what sits on top of it cannot
-    either. That is exactly what was wrong before: the item was painted in the palette's paper
-    colour, which is white by day and BLACK AT NIGHT, on a board that is black at both. On the
-    mat's own theme the thing the child is meant to drag was drawn black on black. The game
-    could only be played by reading the 7in and dragging an object nobody could see.
+    White, because THE LINE-ART BOARD IS BLACK IN EVERY THEME. That board is a photograph of
+    a drawing; it does not invert when the mat goes from night to day, so what sits on top of
+    it cannot either. That is exactly what was wrong before: the item was painted in the
+    palette's paper colour, which is white by day and BLACK AT NIGHT, on a board that is black
+    at both. On the mat's own theme the thing the child is meant to drag was drawn black on
+    black. The game could only be played by reading the 7in and dragging an object nobody
+    could see.
+
+    SINCE 2.52 THERE IS A COLOURED TWIN OF EACH, and the white reasoning above applies only to
+    the line drawings it falls back to. Harry's painted set is used wherever it is present,
+    in all three themes, because the boards it sits on are painted in all three themes too.
+    A coloured picture must NOT be tinted: the tint is a SourceIn fill, so tinting a painting
+    flattens it to one flat silhouette of whatever colour was asked for -- it exists to make a
+    white line drawing visible on the 7in's pale panel, and a painting needs no such help.
     """
 
     CACHE: dict[str, QtGui.QPixmap] = {}
+    #: Which kinds resolved to a painted twin rather than a line drawing. Recorded as they
+    #: load, so draw() can tell without asking the filesystem on every frame.
+    PAINTED: set[str] = set()
 
     @classmethod
     def picture(cls, window, kind) -> QtGui.QPixmap:
         if kind not in cls.CACHE:
-            path = window.assets / "children" / "pillars" / f"{kind}.png"
-            cls.CACHE[kind] = QtGui.QPixmap(str(path))
+            here = window.assets / "children" / "pillars"
+            painted = here / f"{kind}-colour.png"
+            if painted.is_file():
+                picture = QtGui.QPixmap(str(painted))
+                if not picture.isNull():
+                    cls.PAINTED.add(kind)
+                    cls.CACHE[kind] = picture
+                    return cls.CACHE[kind]
+            cls.CACHE[kind] = QtGui.QPixmap(str(here / f"{kind}.png"))
         return cls.CACHE[kind]
 
     @classmethod
     def draw(cls, p, kind, rect, window, ink=None, paper=None) -> None:
         """Draw item `kind` to fit `rect`. `ink`, when given, tints it -- for the 7in, whose
-        panel IS the theme's paper and where a white picture would be white on white."""
+        panel IS the theme's paper and where a white LINE DRAWING would be white on white. A
+        painted twin is never tinted; see the class docstring."""
         picture = cls.picture(window, kind)
         if picture.isNull():
             return
+        if kind in cls.PAINTED:
+            ink = None
         side = min(rect.width(), rect.height())
         box = QtCore.QRectF(rect.center().x() - side / 2, rect.center().y() - side / 2,
                             side, side)
@@ -395,6 +449,7 @@ class PillarBoard(QtWidgets.QFrame):
         self.win = window
         self.game = game
         self.board = board
+        self._measured = None
         self.dragging = False
         self.drag_position = None
         self.wrong_zone = None
@@ -417,8 +472,16 @@ class PillarBoard(QtWidgets.QFrame):
         reproduces the old answer from the old picture and a different, correct one from the
         new. Redraw the board again and the zones follow it on their own.
         """
-        found = measure_the_board(self.board)
-        top, bottom, centers = found
+        # MEASURED ONCE PER BOARD, not once per frame. measure_the_board walks every pixel of
+        # a 1920x1080 picture in Python and takes 132ms here -- and _zones is called from
+        # paintEvent, so until 2.52 every repaint while a child was dragging an object paid
+        # that, about seven frames a second on a machine far quicker than the mat. Nobody had
+        # noticed because the game is playable at seven frames a second; it just feels like
+        # treacle. What is cached is the MEASUREMENT, in fractions, not the rectangles: those
+        # still come from the current width, so this survives a resize.
+        if self._measured is None:
+            self._measured = measure_the_board(self.board)
+        top, bottom, centers = self._measured
         zones = []
         for center in centers:
             left = self.width() * (center - WIDE / 2)
@@ -469,6 +532,18 @@ class PillarBoard(QtWidgets.QFrame):
             if zone.contains(point):
                 return index
         return None
+
+    def set_board(self, board) -> None:
+        """Hand the widget a different board picture, and forget where the pillars were.
+
+        Both halves matter. The zones are measured off the picture, so a new board with the
+        pillars in different places must drop the old measurement, or every catching area
+        stays where the previous board's pillars were -- the fault _zones exists to prevent,
+        arriving from the other direction.
+        """
+        self.board = board
+        self._measured = None
+        self.update()
 
     def paintEvent(self, _):
         c = palette()
@@ -602,7 +677,7 @@ class Screen(QtWidgets.QWidget):
         self.win = window
         self.game = Rules(shuffle)
         self.setObjectName("pillarMatchMain")
-        self.board_image = QtGui.QPixmap(str(window.assets / "children" / self.BOARD))
+        self.board_image = QtGui.QPixmap(str(self.board_for(window.assets, theme_mode())))
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.board = PillarBoard(window, self.game, self.board_image)
@@ -619,7 +694,24 @@ class Screen(QtWidgets.QWidget):
         self.start_again()
 
     #: The one picture this game needs, named once so the loader and playable() cannot drift.
+    #: Still the line-art board, and still what playable() asks for: it has shipped since the
+    #: game existed, so a mat that has it can always open the game even if the painted pair
+    #: below never arrived.
     BOARD = "pillar-match-board.png"
+
+    #: Harry's jewelled boards of 21 November 2026, by theme: "one for coloured / black theme,
+    #: and the other for light theme". The same five pillars on two grounds, white and black,
+    #: so dark and colour share one and light has the other. A theme with no entry, or an
+    #: entry not on the mat, falls back to BOARD.
+    PAINTED_BOARDS = {"light": "pillar-match-board-light.png",
+                      "dark": "pillar-match-board-dark.png",
+                      "colour": "pillar-match-board-dark.png"}
+
+    @classmethod
+    def board_for(cls, assets, mode: str) -> pathlib.Path:
+        """Which board picture this theme gets. Falls back to the line-art one."""
+        painted = assets / "children" / cls.PAINTED_BOARDS.get(mode, "")
+        return painted if painted.is_file() else assets / "children" / cls.BOARD
 
     @property
     def ready(self) -> bool:
@@ -771,6 +863,17 @@ class Screen(QtWidgets.QWidget):
         self.exit_button.setFont(self._font(self.exit_button.text(), 20, True))
 
     def follow_theme(self) -> None:
+        # THE BOARD ITSELF CHANGES NOW. Until 2.52 there was one board for all three themes,
+        # so nothing here had to touch it; with a white board for light and a black one for
+        # the other two, a theme change while the game is open has to swap the picture. The
+        # zones are measured off whichever board is loaded, so they follow it without being
+        # told -- but only if the new picture actually reaches PillarBoard, which is why the
+        # board widget is handed it rather than just being repainted.
+        wanted = self.board_for(self.win.assets, theme_mode())
+        if wanted != getattr(self, "board_path", None):
+            self.board_path = wanted
+            self.board_image = QtGui.QPixmap(str(wanted))
+            self.board.set_board(self.board_image)
         c = palette()
         radius = self.win.side_px(11)
         edge = self.win.side_px(3)

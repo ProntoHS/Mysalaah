@@ -247,8 +247,9 @@ class UiTest(unittest.TestCase):
         self.assertLess(w.dot.x(), house.x(),
                         "the ring and the house have not swapped ends")
 
-    def test_the_prayer_strip_has_no_volume_on_it_any_more(self):
-        """REPLACES two tests that drove the prayer strip's volume slider.
+    def test_the_prayer_strip_carries_the_same_volume_key_as_the_rest(self):
+        """REPLACES two tests that drove the prayer strip's volume slider, and then a third
+        that asserted the strip had no volume at all.
 
         Both were written for 2.40, when that strip gave up a VolumeBar of its own for the
         slider every other strip carried -- Harry: "swap the volume slider with our other
@@ -259,24 +260,34 @@ class UiTest(unittest.TestCase):
         At 2.50 the volume left this strip altogether, at Harry's asking: "i just want the
         volume in top banner, no where else." Asked whether that meant leaving this strip alone
         or taking the slider off it, with the consequence spelled out, he chose to take it off.
-        So there is nothing here for those tests to drive, and what they proved about the
-        shared slider is proved where it now lives, in TheVolumeIsAKeyOnTheStripTest.
+        A test was written asserting the absence.
 
-        WHAT REPLACES THEM IS THE ABSENCE, kept here rather than only in the new class because
-        this is where somebody looking at the prayer screen will come. The gap on that strip is
-        deliberate, and while a prayer is on screen there is no volume control anywhere on the
-        mat -- the 7in's own bar moved to the main strip long ago. The way out of a recitation
-        that is too loud is the house, which since 2.49 stops the audio the moment it is pressed.
+        A DAY LATER HE REVERSED IT, and this test is that reversal rather than a quiet
+        deletion of the one that said the opposite. "during the prayer steps, the volume icon
+        in top left banner is no longer there due to bluetooth circle ring connectivity. i
+        want to put the volume icon there, this will make it consistent across all screens."
+
+        The absence was never wrong about its cost -- it really did leave the mat with no
+        volume control while a prayer was on screen -- and what changed is that the cost was
+        paid for nothing: the ring had taken the corner, so the strip looked inconsistent AND
+        had no volume. The key is the one every other strip carries, so the old warning that
+        volume must not come back as a control drawn for this bar alone is kept by there being
+        only one such control in the app to come back.
         """
         w = self.win
         w.start("dhuhr", w.school.prayers["dhuhr"][0])
         APP.processEvents()
         self.assertEqual([], w.bar.findChildren(QtWidgets.QSlider),
-                         "a volume slider is back on the prayer strip")
-        self.assertEqual([], [k for k in w.bar.findChildren(QtWidgets.QPushButton)
-                              if k.objectName() == "volumeKey"],
-                         "a volume key is on the prayer strip; the volume lives in the top "
-                         "banner and nowhere else")
+                         "a bespoke volume slider is back on the prayer strip; the key is the "
+                         "control the rest of the mat uses")
+        keys = [k for k in w.bar.findChildren(QtWidgets.QPushButton)
+                if k.objectName() == "volumeKey"]
+        self.assertEqual(1, len(keys), "the prayer strip has no volume key")
+        # The SAME key, not a lookalike: pressing it must reach the app's own volume, so it is
+        # the one volume_key_button registers.
+        self.assertIn(keys[0], w.banner_volumes,
+                      "the key on the prayer strip is not one the app knows about, so it "
+                      "would not follow the volume when anything else changed it")
         self.assertTrue([b for b in w.bar.findChildren(QtWidgets.QPushButton)
                          if b.objectName() == "mainScreen"],
                         "the house has gone from the prayer strip, and it is now the only way "
@@ -7903,12 +7914,12 @@ class VolumeEverywhereTest(unittest.TestCase):
         """
         w = self.window()
         keys = self.keys_on(w)
-        # THE PRAYER STRIP IS IN w.banners AND IS NOT ONE OF THESE. It is kept there so it is
-        # squared and re-heighted with the rest, but it is built by hand rather than by
-        # make_banner, and at 2.50 Harry asked for it to carry no volume at all: "i just want
-        # the volume in top banner, no where else." Held out here by identity rather than by
-        # name, and tested for its absence in TheVolumeIsAKeyOnTheStripTest.
-        strips = [b for b in w.banners if b is not getattr(w, "bar", None)]
+        # THE PRAYER STRIP IS COUNTED WITH THE REST SINCE 2.52, and this line used to hold it
+        # out. At 2.50 it carried no volume at all, at Harry's asking; a day later: "i want to
+        # put the volume icon there, this will make it consistent across all screens." So the
+        # exception that lived here is gone, and its going is the whole of the change: every
+        # strip the mat has, built by make_banner or by hand, carries exactly one key.
+        strips = list(w.banners)
         self.assertEqual(len(strips), len(keys),
                          f"{len(strips)} strips carry {len(keys)} volume keys between them")
         for strip in strips:
@@ -22379,8 +22390,33 @@ class PillarMatchTest(unittest.TestCase):
                 self.assertGreater(picture.stat().st_size, 200)
         # And nothing in that folder is left over from an item that has gone: three were
         # replaced at 2.36 and a dead picture is a thing nobody will ever notice is wrong.
+        #
+        # THE -colour FILES ARE TWINS, NOT MEMBERS, which is the same rule the posture folder
+        # is held to. Each one stands beside a line drawing and is chosen in its place; it is
+        # not an item of its own, and the day one appears with no line drawing behind it, the
+        # second assertion below is what says so.
         self.assertEqual({f"{i.art}.png" for i in ITEMS},
-                         {p.name for p in folder.glob("*.png")})
+                         {p.name for p in folder.glob("*.png")
+                          if not p.stem.endswith("-colour")})
+        self.assertEqual(set(), {p.name for p in folder.glob("*-colour.png")
+                                 if not (folder / f"{p.stem[:-7]}.png").is_file()},
+                         "a painted twin with no line drawing beside it")
+
+    def test_every_item_is_painted_as_well_as_drawn(self):
+        """Since 2.52 each item has a painted twin, and the game uses it in every theme.
+
+        Asked of ALL of them rather than counting to seventeen, because a missing twin does
+        not break anything loudly: ItemArt falls back to the line drawing, so one absent file
+        shows as a single white sketch among sixteen paintings, on a jewelled board, and only
+        somebody looking at that one item would ever catch it.
+        """
+        from salaah.pillar_match import ITEMS
+        folder = ASSETS / "children" / "pillars"
+        for item in ITEMS:
+            with self.subTest(item.key):
+                twin = folder / f"{item.art}-colour.png"
+                self.assertTrue(twin.is_file(), f"{twin.name} is not on the mat")
+                self.assertGreater(twin.stat().st_size, 200)
 
     def test_every_item_is_named_in_every_language_the_mat_speaks(self):
         """The names are PICTURES since 2.37, cropped from Harry's own cards -- see WordArt
@@ -22636,6 +22672,97 @@ class PillarMatchTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as empty:
             self.assertFalse(Screen.playable(Path(empty)),
                              "playable() said yes with no board on disk")
+
+    def test_the_painted_boards_are_installed_and_do_carry_colour(self):
+        """Harry's jewelled pair, 21 November 2026. The opposite of the test above, which is
+        about the line-art board it falls back to -- these are meant to be in colour."""
+        from PIL import Image, ImageChops
+        from salaah.pillar_match import Screen
+        root = Path(__file__).resolve().parent.parent / "assets" / "children"
+        for mode, name in sorted(set(Screen.PAINTED_BOARDS.items())):
+            with self.subTest(mode):
+                board = root / name
+                self.assertTrue(board.is_file(), f"{name} is not installed")
+                with Image.open(board) as picture:
+                    self.assertEqual((1920, 1080), picture.size)
+                    red, green, blue = picture.convert("RGB").split()
+                worst = max(ImageChops.difference(red, green).getextrema()[1],
+                            ImageChops.difference(green, blue).getextrema()[1])
+                self.assertGreater(worst, 40, f"{name} is grey, not painted")
+
+    def test_each_theme_is_given_its_own_board(self):
+        from salaah.pillar_match import Screen
+        root = Path(__file__).resolve().parent.parent / "assets"
+        light = Screen.board_for(root, "light")
+        dark = Screen.board_for(root, "dark")
+        colour = Screen.board_for(root, "colour")
+        self.assertEqual(dark, colour, "dark and colour were given different boards; Harry "
+                                       "sent one picture for both -- 'coloured / black theme'")
+        self.assertNotEqual(light, dark, "light got the same board as dark, so the white one "
+                                         "is not reaching the screen it was drawn for")
+        for path in (light, dark, colour):
+            self.assertTrue(path.is_file(), path)
+        # And a theme nobody has heard of still gets something rather than nothing.
+        self.assertEqual(root / "children" / Screen.BOARD, Screen.board_for(root, "nonsense"))
+
+    def test_a_board_on_a_pale_ground_is_measured_and_not_guessed(self):
+        """THE FAULT THIS CATCHES IS SILENT, which is the only reason it is worth a test.
+
+        measure_the_board used to look for pixels "brighter than 60" -- the same thing as
+        "not the background" only while the background is black, which it was on every board
+        this game had until Harry drew a white one for the light theme. On that board every
+        pixel is brighter than 60, the five shafts merge into one run the width of the
+        picture, and the function returns FALLBACK: five evenly spaced guesses, with no error
+        and nothing in the log.
+
+        The guesses look close enough to pass a glance and are wrong where it counts -- they
+        put the top of the pillars at .48 when they start at .61, so an object would be let go
+        into mid-air rather than onto a capital, and the child would be told they missed.
+
+        MEASURED AGAINST THE OTHER BOARD rather than against numbers typed in here. The two
+        are the same five pillars on two grounds, so whatever is true of one must be true of
+        the other; numbers written into this test would only record what the code did on the
+        day it was written.
+        """
+        from salaah.qt import QtGui
+        from salaah.pillar_match import FALLBACK, Screen, measure_the_board
+        root = Path(__file__).resolve().parent.parent / "assets"
+        light = measure_the_board(QtGui.QPixmap(str(Screen.board_for(root, "light"))))
+        dark = measure_the_board(QtGui.QPixmap(str(Screen.board_for(root, "dark"))))
+        self.assertNotEqual(FALLBACK, light,
+                            "the pale board fell back to five evenly spaced guesses")
+        self.assertAlmostEqual(light[0], dark[0], delta=0.01, msg="tops disagree")
+        self.assertAlmostEqual(light[1], dark[1], delta=0.01, msg="bottoms disagree")
+        for n, (a, b) in enumerate(zip(light[2], dark[2])):
+            self.assertAlmostEqual(a, b, delta=0.01,
+                                   msg=f"pillar {n + 1} is in a different place on each board")
+
+    def test_the_board_is_measured_once_and_not_once_a_frame(self):
+        """_zones is called from paintEvent and measure_the_board walks every pixel of a
+        1920x1080 picture in Python -- 132ms a call here, on a machine far quicker than the
+        mat. Until 2.52 a child dragging an object paid that on every repaint, about seven
+        frames a second. Cached per board, and dropped when the board changes."""
+        from salaah.qt import QtGui
+        from salaah import pillar_match
+        from salaah.pillar_match import Screen
+        root = Path(__file__).resolve().parent.parent / "assets"
+        calls = []
+        real = pillar_match.measure_the_board
+        pillar_match.measure_the_board = lambda b: (calls.append(1), real(b))[1]
+        self.addCleanup(lambda: setattr(pillar_match, "measure_the_board", real))
+        board = pillar_match.PillarBoard.__new__(pillar_match.PillarBoard)
+        QtWidgets.QWidget.__init__(board)
+        board.board = QtGui.QPixmap(str(Screen.board_for(root, "dark")))
+        board._measured = None
+        board.resize(1920, 1080)
+        for _ in range(5):
+            board._zones()
+        self.assertEqual(1, len(calls), f"the board was measured {len(calls)} times for five "
+                                        f"looks at the zones")
+        board.set_board(QtGui.QPixmap(str(Screen.board_for(root, "light"))))
+        board._zones()
+        self.assertEqual(2, len(calls), "a new board was not measured, so its catching areas "
+                                        "are still the previous board's")
 
 
 class EveryGamePanelCanBeReadTest(unittest.TestCase):
@@ -26046,19 +26173,19 @@ class TheVolumeIsAKeyOnTheStripTest(unittest.TestCase):
                                      f"{label.sizeHint().width() - room}px with a place name "
                                      f"people actually live at")
 
-    def test_the_prayer_strip_carries_no_volume_at_all(self):
-        """Harry, 20 November 2026: "i just want the volume in top banner, no where else."
+    def test_the_ring_sits_the_same_distance_from_the_switch_and_the_house(self):
+        """Harry, 21 November 2026: "the bluetooth circle can be moved to between translation
+        button and home button. equal distance apart."
 
-        Asked which he meant -- leave the prayer strip alone, or take the slider off it -- with
-        the consequence spelled out, he chose to take it off. So this is a deliberate absence
-        rather than an oversight, and it is written down as a test because the next person to
-        look at that strip will see a gap where a volume control obviously ought to be.
+        REPLACES test_the_prayer_strip_carries_no_volume_at_all, which asserted the 2.50
+        absence this release reverses -- see the prayer-strip test in UiTest for that history.
+        The speaker took the corner the ring had, and the ring came here.
 
-        WHAT IT COSTS, since nobody should have to rediscover it: this strip is the only one on
-        screen during a prayer, and the 7in's own volume bar moved to the main strip long ago.
-        While a prayer is running there is no volume control anywhere on the mat. The way out
-        of a recitation that is too loud is the house, which since 2.49 stops the audio the
-        moment it is pressed.
+        EQUAL IS MEASURED, not arranged by eye, because it is not a thing stretch factors can
+        be trusted to do: the grid's right-hand column starts at two thirds of the way across
+        and the centre block ends wherever the word "Translation" ends, which is a different
+        place in each of the ten languages. The ring is placed by hand against both. A pixel
+        of slack for integer halving and no more.
         """
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="dark", recitation=True, place="Bury", lang="en"),
@@ -26072,16 +26199,60 @@ class TheVolumeIsAKeyOnTheStripTest(unittest.TestCase):
         settle()
         bar = getattr(w, "bar", None)
         self.assertIsNotNone(bar, "the prayer screen has no strip")
-        self.assertEqual([], bar.findChildren(QtWidgets.QSlider),
-                         "a volume slider is back on the prayer strip")
-        self.assertEqual([], [k for k in bar.findChildren(QtWidgets.QPushButton)
-                              if k.objectName() == "volumeKey"],
-                         "a volume key is on the prayer strip; the volume lives in the top "
-                         "banner and nowhere else")
-        self.assertTrue([b for b in bar.findChildren(QtWidgets.QPushButton)
-                         if b.objectName() == "mainScreen"],
-                        "the house has gone from the prayer strip, which is the only way out "
-                        "of a prayer and now the only way to stop the recitation")
+        house = [b for b in bar.findChildren(QtWidgets.QPushButton)
+                 if b.objectName() == "mainScreen"]
+        self.assertTrue(house, "the house has gone from the prayer strip, which is the only "
+                               "way out of a prayer and the way to stop the recitation")
+        centre, dot = bar.centre, w.dot
+        self.assertIsNotNone(centre, "the strip has no centre block to measure from")
+        edge = house[0].mapTo(bar, QtCore.QPoint(0, 0)).x()
+        self.assertGreater(edge, centre.geometry().right(),
+                           "the house is not to the right of the switch, so the gaps below "
+                           "are being measured across the wrong piece of the strip")
+        # right() + 1 on both, because right() is the last pixel inside the rectangle and
+        # the gap begins after it. Measured any other way the two differ by a pixel for free.
+        before = dot.geometry().left() - (centre.geometry().right() + 1)
+        after = edge - (dot.geometry().right() + 1)
+        self.assertGreater(before, 0, "the ring overlaps the Translation switch")
+        self.assertGreater(after, 0, "the ring overlaps the house")
+        self.assertLessEqual(abs(before - after), 1,
+                             f"the ring sits {before}px from the switch and {after}px from "
+                             f"the house, which is not equal distance apart")
+
+    def test_the_ring_is_still_evenly_placed_when_the_mat_reads_right_to_left(self):
+        """In Arabic and Urdu the row is mirrored: the house goes to the left, the speaker to
+        the right, and the gap the ring has to halve is on the other side of the switch.
+
+        Worth its own test because the placing code has to notice which side the house is on,
+        and the LTR version above would pass whether it noticed or not.
+        """
+        for lang in ("ar", "ur"):
+            with self.subTest(lang):
+                w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                               Settings(theme="dark", recitation=True, place="Bury", lang=lang),
+                               scale=1.0, save_settings=False, aspect=None, side=False)
+                w.resize(1920, 1080)
+                w.show()
+                w.tick()
+                settle()
+                self.addCleanup(lambda win=w: shut(win))
+                w.start("fajr", w.school.prayers["fajr"][0])
+                settle()
+                self.assertTrue(w.isRightToLeft(), f"{lang} did not lay out right to left")
+                bar, dot = w.bar, w.dot
+                house = [b for b in bar.findChildren(QtWidgets.QPushButton)
+                         if b.objectName() == "mainScreen"][0]
+                edge = house.mapTo(bar, QtCore.QPoint(0, 0)).x()
+                self.assertLess(edge, bar.centre.geometry().left(),
+                                f"{lang}: the house is not on the left, so this is not "
+                                f"mirrored and the test is measuring nothing")
+                before = dot.geometry().left() - (edge + house.width())
+                after = bar.centre.geometry().left() - (dot.geometry().right() + 1)
+                self.assertGreater(before, 0, f"{lang}: the ring overlaps the house")
+                self.assertGreater(after, 0, f"{lang}: the ring overlaps the switch")
+                self.assertLessEqual(abs(before - after), 1,
+                                     f"{lang}: {before}px from the house and {after}px from "
+                                     f"the switch, which is not equal distance apart")
 
     def test_the_room_it_freed_is_the_room_the_slider_took(self):
         """The arithmetic, pinned. The slider block was a 34px speaker, 8 of spacing, a 300px

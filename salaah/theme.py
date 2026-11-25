@@ -114,6 +114,20 @@ def set_dark(dark: bool) -> bool:
     return set_mode("dark" if dark else "light")
 
 
+def mode() -> str:
+    """Which of MODES is in use, by name.
+
+    is_dark() answers two-thirds of this and has since before there were three modes, but
+    "not dark" is not the same as "light" now that colour exists, and pillar_match needs to
+    tell colour from dark to pick a board. Read back off the palette rather than stored
+    beside it, so it cannot drift from what set_mode actually did.
+    """
+    for name, chosen in PALETTES.items():
+        if _Current.palette is chosen:
+            return name
+    return "light"
+
+
 def is_dark() -> bool:
     return _Current.palette.dark
 

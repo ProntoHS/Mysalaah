@@ -396,8 +396,8 @@ def play_icon(size: int, colour: str, stop: bool = False) -> QtGui.QPixmap:
 class Dot(QtWidgets.QWidget):
     """Green when a button is connected, red when not. No words: it is read at a glance."""
 
-    def __init__(self, size: int):
-        super().__init__()
+    def __init__(self, size: int, parent: QtWidgets.QWidget | None = None):
+        super().__init__(parent)
         self.color = QtGui.QColor(BRICK)
         self.setFixedSize(size, size)
 
@@ -861,6 +861,9 @@ class TopBar(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.centre: QtWidgets.QWidget | None = None
+        #: Placed by hand too, midway between `centre` and `before`. See place_between.
+        self.between: QtWidgets.QWidget | None = None
+        self.before: QtWidgets.QWidget | None = None
 
     def place_centre(self) -> None:
         if self.centre is None:
@@ -870,9 +873,57 @@ class TopBar(QtWidgets.QWidget):
         self.centre.setGeometry((self.width() - width) // 2,
                                 (self.height() - hint.height()) // 2, width, hint.height())
         self.centre.raise_()
+        # ALWAYS, because where the ring goes is worked out FROM where the centre just went.
+        # Leaving these as two calls cost the first attempt at this: dress_the_player calls
+        # place_centre by hand when a prayer starts, since the Translation switch may have
+        # hidden itself and changed the block's width -- and the ring kept the position it
+        # had been given against the previous width, 399 pixels from the switch and 320 from
+        # the house when the whole point of it is that those two are equal.
+        self.place_between()
+
+    def place_between(self) -> None:
+        """Put `between` halfway between the centre block and `before`, by measurement.
+
+        Harry, 21 November 2026: "the bluetooth circle can be moved to between translation
+        button and home button. equal distance apart."
+
+        BY HAND RATHER THAN BY STRETCH FACTORS, for the same reason the centre is. The grid's
+        right-hand column begins at two thirds of the way across, and the centre block does
+        not end where that column begins -- it ends wherever the word "Translation" happens to
+        end, which is a different place in each of the ten languages the mat speaks. A pair of
+        stretches inside the right column would centre the dot in the column, which is not
+        what was asked for and would drift by a different amount per language.
+
+        Both directions. In Arabic and Urdu the row is mirrored, so the house is to the LEFT
+        of the centre and the gap to halve is on that side.
+        """
+        if self.between is None or self.centre is None or self.before is None:
+            return
+        # NOT sizeHint() ALONE. Dot is a setFixedSize widget with no sizeHint of its own, so
+        # it answers QSize(-1, -1) -- and halving a gap after subtracting minus one puts the
+        # thing half its own width too far along, which is precisely the 399-against-320 this
+        # method exists to avoid. Expanded to the minimum, a fixed-size widget gives its real
+        # size and anything else still gives its hint.
+        hint = self.between.sizeHint().expandedTo(self.between.minimumSize())
+        house = self.before.mapTo(self, QtCore.QPoint(0, 0)).x()
+        middle = self.centre.geometry()
+        # right() is the LAST pixel inside a QRect, not the first one outside it, so the gap
+        # starts at right() + 1. Using right() itself put the ring a pixel late on the left
+        # and a pixel early on the right -- 326 against 328, which is exactly the kind of
+        # not-quite that this method exists to rule out.
+        if house >= middle.right():
+            low, high = middle.right() + 1, house
+        else:
+            low, high = house + self.before.width(), middle.left()
+        if high - low < hint.width():
+            return                       # no room; leave it where the layout had it
+        self.between.setGeometry(low + (high - low - hint.width()) // 2,
+                                 (self.height() - hint.height()) // 2,
+                                 hint.width(), hint.height())
+        self.between.raise_()
 
     def resizeEvent(self, _):
-        self.place_centre()
+        self.place_centre()         # which places the ring too
 
 
 class PrayerPage(QtWidgets.QWidget):
@@ -2193,6 +2244,12 @@ class MainWindow(QtWidgets.QWidget):
             QWidget#bar QPushButton#mainScreen {{ background:{BRICK}; color:white; border:none;
                                                   border-radius:{px(8)}px; padding:0; }}
             QWidget#bar QPushButton#mainScreen:pressed {{ background:#8E342C; }}
+            /* The speaker, for exactly the reason above, now that 2.52 has put it on this
+               strip too. Rendered without this it is a white speaker on black beside a red
+               house -- the same mismatch the house itself had for a release. */
+            QWidget#bar QPushButton#volumeKey {{ background:{BRICK}; color:white; border:none;
+                                                 border-radius:{px(8)}px; padding:0; }}
+            QWidget#bar QPushButton#volumeKey:pressed {{ background:#8E342C; }}
             QPushButton#backButton {{ background:{BRICK}; color:white; border:none;
                                       border-radius:{px(8)}px; font-size:{px(28)}px;
                                       font-weight:bold; padding:{px(12)}px {px(30)}px; }}
@@ -4342,9 +4399,28 @@ class MainWindow(QtWidgets.QWidget):
         # the one every other screen already has, hard against the right edge -- so putting it
         # there here is what makes "the same place on all the screens" true, and the ring
         # takes the corner the Menu button has left.
-        self.dot = Dot(self.px(DOT_PX))
-        left.addWidget(self.dot, 0, Qt.AlignmentFlag.AlignVCenter)
-        left.addSpacing(self.px(4))
+        # THE SPEAKER TAKES THE CORNER, AND THE RING MOVES ALONG. Harry, 21 November 2026:
+        # "during the prayer steps, the volume icon in top left banner is no longer there due
+        # to bluetooth circle ring connectivity. i want to put the volume icon there, this
+        # will make it consistent across all screens. the bluetooth circle can be moved to
+        # between translation button and home button."
+        #
+        # THIS REVERSES 2.50, which is worth saying plainly rather than letting the comment
+        # above quietly disappear. At 2.50 he asked for volume in the top banner and nowhere
+        # else, was asked what that meant for this strip, and chose to take the slider off it
+        # -- leaving no volume control anywhere while a prayer was on screen. That cost is now
+        # paid back: the speaker here is the SAME key as the one at the start of every other
+        # strip, built by the same volume_key_button, so there is one volume control on the
+        # mat with one look, and it is on every screen including this one.
+        #
+        # Not a slider. The old comment at the other end of this method warned that if volume
+        # came back it must come back as the control every other strip carries rather than as
+        # something drawn for this bar alone -- and since 2.50 that control is the key.
+        left.addWidget(self.volume_key_button(), 0, Qt.AlignmentFlag.AlignVCenter)
+        left.addSpacing(self.px(10))
+        # The ring is no longer in this row: it is a child of the bar, placed by hand midway
+        # between the Translation switch and the house. See TopBar.place_between.
+        self.dot = Dot(self.px(DOT_PX), parent=bar)
         self.title_label = QtWidgets.QLabel()
         self.title_label.setObjectName("title")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -4415,26 +4491,29 @@ class MainWindow(QtWidgets.QWidget):
         right = QtWidgets.QHBoxLayout()
         right.setSpacing(self.px(16))
         right.addStretch(1)
-        # NO VOLUME HERE SINCE 2.50. Harry, 20 November 2026: "i just want the volume in top
-        # banner, no where else." Asked whether that meant leaving this strip alone or taking
-        # the slider off it, with the consequence spelled out, he chose to take it off.
+        # NOTHING AT THIS END BUT THE HOUSE. The volume went to the start of this strip at
+        # 2.52 and the ring sits between the switch and the house, placed by the bar itself.
         #
-        # WHAT THAT COSTS, written down because it is not obvious and nobody should rediscover
-        # it by being surprised: this strip is the only one on screen during a prayer, and the
-        # 7in's own volume bar was moved to the main strip long ago. So while a prayer is
-        # running there is now no volume control anywhere on the mat. The way out of a
-        # recitation that is too loud is the house, which since 2.49 stops the audio the
-        # moment it is pressed rather than leaving it talking to an empty room.
-        #
-        # The slider that used to be here was a VolumeBar of its own until 2.40 -- a different
-        # control with its own look on the one screen where somebody is least able to stop and
-        # work out which kind of slider they are looking at. It is worth keeping that in mind
-        # if volume ever comes back to this strip: it comes back as volume_slider(), the one
-        # every other strip carries, and not as something drawn for this bar alone.
+        # This end of the row was empty for one release and the history is worth keeping. At
+        # 2.50 Harry asked for volume in the top banner and nowhere else and, asked what that
+        # meant here, chose to take the slider off -- which left no volume control anywhere on
+        # the mat while a prayer was on screen, since this is the only strip showing then and
+        # the 7in's bar had moved to the main strip long ago. A day later: "i want to put the
+        # volume icon there, this will make it consistent across all screens." It is the same
+        # key as every other strip carries, so the warning the old comment left -- that volume
+        # must come back as the control the rest of the mat uses and not as something drawn
+        # for this bar alone -- is honoured by there being only one such control to come back.
         # The house, last in the row and hard against the right edge -- the same place, and
         # the same button, as every other strip on the mat. See way_home_button.
-        right.addWidget(self.way_home_button(), 0, Qt.AlignmentFlag.AlignVCenter)
+        house = self.way_home_button()
+        right.addWidget(house, 0, Qt.AlignmentFlag.AlignVCenter)
         grid.addLayout(right, 0, 2)
+        # The ring, halfway between the Translation switch and the house. Both ends are given
+        # to the bar rather than measured here, because both move: the switch with the length
+        # of the word in the mat's language, the house with the width of the screen.
+        bar.between = self.dot
+        bar.before = house
+        self.dot.show()
 
         self.bar = bar
         lay.addWidget(bar)
