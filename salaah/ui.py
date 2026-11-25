@@ -99,6 +99,36 @@ VOLUME_KNOB = 36
 #: at once in any case -- this is only for the press that never comes.
 VOLUME_POPUP_IDLE = 4000
 
+
+def beside(key_left: int, key_width: int, popup_wide: int, screen, mirrored: bool) -> int:
+    """Where to put the left edge of something hung beside a key on the top strip.
+
+    A FUNCTION OF ITS OWN, and that is not tidiness. The offscreen Qt the suite runs on
+    reports an 800x800 screen while the window under test is 1920 wide, so the clamp at the
+    end of this swallows everything else: in Arabic the key sits at 1852 and the popup gets
+    pinned to 376 whatever side it was aiming for. A test that reads the finished geometry
+    therefore cannot see the rule at all -- which it proved, by passing with the mirroring
+    taken out. Asked directly, with the screen handed in, it is the same question on every
+    platform.
+
+    BESIDE MEANS FURTHER ALONG THE STRIP, not "to the right". In Arabic and Urdu the window
+    is laid out right to left and the speaker leads the strip from the right-hand end; hanging
+    the slider off its right edge there puts it through the edge of the glass, and the clamp
+    would then shove it back across the key it came out of -- a slider sitting on its own
+    button, which cannot then be pressed to shut it. Same rule TopBar.place_between settled
+    on at 2.52.
+
+    THE CLAMP IS THE LAST WORD and stays: a longer slider, a narrower screen or a language
+    nobody has added yet can still need it.
+
+    screen.right() IS THE LAST PIXEL INSIDE, not the first one outside. The line this
+    replaced read `screen.right() - popup.width()`, which holds the popup a pixel short of
+    the edge. Harmless, and wrong in the same way the bluetooth ring was at 2.52 -- the same
+    off-by-one, found again while moving the thing that sits next to it.
+    """
+    want = key_left - popup_wide if mirrored else key_left + key_width
+    return min(max(screen.left(), want), screen.right() + 1 - popup_wide)
+
 #: The gap on the strip between the volume slider and what comes after it -- the cog, or the
 #: Main screen button where there is no cog. At Harry's asking: the slider's right-hand end sat
 #: hard against the next thing along, and on a bar where everything else has air around it that
@@ -2747,8 +2777,8 @@ class MainWindow(QtWidgets.QWidget):
         rather than a lucky one: the speaker leads the strip in the direction that language is
         read, exactly as it does in English.
 
-        WHAT A PRESS DOES is open the slider underneath it. The slider has not been taken away
-        -- it has been put behind the one control that says what it is for.
+        WHAT A PRESS DOES is open the slider beside it -- under it until 2.54. The slider has
+        not been taken away; it has been put behind the one control that says what it is for.
         """
         key = QtWidgets.QPushButton()
         key.setObjectName("volumeKey")
@@ -2767,7 +2797,7 @@ class MainWindow(QtWidgets.QWidget):
         return key
 
     def open_the_volume(self, under) -> None:
-        """Show the slider under the speaker, and take it away again when it is done with.
+        """Show the slider beside the speaker, and take it away again when it is done with.
 
         A POPUP RATHER THAN A PANEL ON THE PAGE, which is Qt doing the hard half: a popup takes
         the next press anywhere else and closes on it, so there is no way to leave it open by
@@ -2801,12 +2831,29 @@ class MainWindow(QtWidgets.QWidget):
         # again inside a popup where it would be even harder to notice.
         lay.addLayout(self.volume_slider(dark=True))
         popup.adjustSize()
-        where = under.mapToGlobal(QtCore.QPoint(0, under.height()))
-        # Kept on the screen rather than trusted to fit: in right-to-left the speaker sits at
-        # the right-hand end, and a popup hung from its left corner would run off the glass.
+
+        # BESIDE THE SPEAKER SINCE 2.54, NOT UNDER IT, and exactly as tall as the key.
+        #
+        # Harry, 25 November 2026: "i want it to display it on its right instead, this will
+        # obviously overlap with existing text which doesn't matter as the text will reappear
+        # when volume slider disappears, i want this volume slider to be same height as the
+        # speaker button itself, it will fit nicely as it appears and easier to press too."
+        #
+        # He is right about the pressing, and it is worth writing down why rather than just
+        # that it is so: under the key, the slider hangs below the strip over whatever screen
+        # is showing, so the thumb travels down off the bar and back. Beside it, the slider is
+        # in the bar, on the line the hand is already on, and the speaker that opened it is
+        # still under the other finger.
+        #
+        # IT COVERS THE PLACE NAME AND THE PRAYER TIMES while it is open. That is his call and
+        # it costs nothing: the strip is redrawn the moment the popup closes, and the popup
+        # closes on the next press anywhere or after VOLUME_POPUP_IDLE.
+        popup.setFixedHeight(under.height())
+
+        mirrored = self.layoutDirection() == Qt.LayoutDirection.RightToLeft
+        top = under.mapToGlobal(QtCore.QPoint(0, 0))
         screen = self.screen().availableGeometry() if self.screen() else QtCore.QRect(0, 0, 1920, 1080)
-        x = min(max(screen.left(), where.x()), screen.right() - popup.width())
-        popup.move(x, where.y())
+        popup.move(beside(top.x(), under.width(), popup.width(), screen, mirrored), top.y())
         self.volume_popup = popup
         shut = QtCore.QTimer(popup)
         shut.setSingleShot(True)
@@ -5832,10 +5879,18 @@ class MainWindow(QtWidgets.QWidget):
             # So twice the size is a px that doubles, not thirty numbers to find and edit.
             px = self.px if times == 1.0 else (lambda n: self.px(n * times))
             self.notice = Notice(self, px, self.t(title))
-            self.notice.finished.connect(self.notice_closed)
+            # THE BOX ITSELF IS CARRIED, not left to be worked out when the signal lands.
+            # finished() can arrive after this box has already been replaced by the next one,
+            # and a handler that just writes None would then forget the box that is actually
+            # on screen. That is what made the update path put two notices up at once.
+            box = self.notice
+            box.finished.connect(lambda *_: self.notice_closed(box))
         self.notice.say(message)
 
-    def notice_closed(self, *_) -> None:
+    def notice_closed(self, which=None, *_) -> None:
+        """A box has closed. Forget it only if it is still the one being shown."""
+        if which is not None and which is not self.notice:
+            return
         self.notice = None
         self.update_button.setEnabled(True)
 
@@ -5867,20 +5922,54 @@ class MainWindow(QtWidgets.QWidget):
         self.notice.ask(self.t("update.found", number=release.version),
                         self.t("update.now"), self.t("update.later"), release.notes)
         # Taken off first, or a second press would install twice while the first is still going.
-        self.notice.accepted.connect(lambda: self.apply_update(release))
+        #
+        # AFTER THE DIALOG HAS FINISHED CLOSING, NOT DURING -- the same trap the shutdown
+        # question was pulled out of at 2.09, written up at its own accepted.connect above,
+        # and this path never got the fix. Qt emits accepted() BEFORE finished(), and
+        # finished() is what clears self.notice. So apply_update ran inside accepted(), made
+        # its "Getting version…" box, and THEN the late finished() set self.notice to None
+        # underneath it -- leaving that box on screen with nothing holding it and every later
+        # message building another box beside it rather than rewriting that one.
+        #
+        # Measured before this line: two notices visible at once by the restart message.
+        # Harry, 25 November 2026: "there is a delay ... before a box appears saying
+        # installing update. i want a box to appear during that delay."
+        self.notice.accepted.connect(
+            lambda: QtCore.QTimer.singleShot(0, lambda: self.apply_update(release)))
 
     def apply_update(self, release) -> None:
+        """Download, install, restart -- saying which of the three is happening.
+
+        THREE MESSAGES AND NOT ONE, because they are three waits of very different lengths
+        and only the middle one is quick. The download is 127MB over whatever the mat's wifi
+        is; the unpack and swap are local. A single "updating…" for both tells a person
+        nothing about whether to worry.
+
+        ALL OF IT ON THIS THREAD, which is why each message is painted before the work it
+        describes begins -- say() ends in settle(), which ends in processEvents(). Moving the
+        download to a thread would be the better answer and is a bigger change than this one:
+        the whole update path, including the swap, assumes it owns the app.
+        """
         from .update import Refused, install
-        # ask() closed the dialog when it was accepted, so a fresh one carries the progress.
-        self.notice = None
         self.say(self.t("update.downloading", number=release.version))
         try:
-            install(release, self.root)
+            install(release, self.root, stage=self.update_stage)
         except Refused as why:
             # Nothing has been changed: install() only swaps once everything has checked out.
             return self.done_saying(self.t("update.failed", why=str(why)))
         self.say(self.t("update.restarting"))
         QtCore.QTimer.singleShot(1200, self.restart)
+
+    #: What install() calls its stages, and what the mat says while each one runs. A stage
+    #: with no entry here says nothing rather than raising: an updater that grew a fourth step
+    #: should not be able to take the mat down from inside a message.
+    UPDATE_STAGES = {"downloading": "update.downloading", "installing": "update.installing"}
+
+    def update_stage(self, stage: str, release) -> None:
+        """Called by install() as it moves from one stage to the next."""
+        key = self.UPDATE_STAGES.get(stage)
+        if key:
+            self.say(self.t(key, number=release.version))
 
     def restart(self) -> None:
         """Stand down with the agreed code, so run.sh starts the new version -- and puts this

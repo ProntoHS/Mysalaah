@@ -380,6 +380,7 @@
   "update.downloading": "Загрузка версии {number}…",
   "update.failed": "Не удалось обновить: {why}",
   "update.found": "Доступна версия {number}. Обновить сейчас?",
+  "update.installing": "Установка обновления…",
   "update.later": "Не сейчас",
   "update.looking": "Проверка…",
   "update.not_now": "Не во время молитвы",

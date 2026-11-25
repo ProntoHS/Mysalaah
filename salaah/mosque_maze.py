@@ -948,20 +948,24 @@ class Screen(QtWidgets.QWidget):
         # reasoning is still why nothing may be rubbed out with a shape of its own choosing.
         self.draw_the_things(painter)
 
-        # THE TRAIL IN GREEN, AND BIGGER. Harry: "have the footprints in green colour and make
-        # slightly bigger." On a white-on-black maze the old grey prints were the one thing on
-        # the screen with no colour of its own and they were easy to lose. Green is the mat's
-        # own colour for "this is the live one" -- it is what the current prayer is drawn in --
-        # so it carries the same meaning here without a new colour being invented for it.
+        # THE TRAIL, ONE COLOUR PER SCENERY SINCE 2.54, AND BIGGER.
         #
-        # The older prints keep the sense of a trail by fading rather than by greying: the same
-        # green, carrying less of itself the further back it is.
+        # It was green until now, for a good reason that stopped being true. Harry, earlier:
+        # "have the footprints in green colour and make slightly bigger" -- on the old
+        # white-on-black maze the grey prints were the one thing on screen with no colour of
+        # its own, and green is the mat's word for "this is the live one". That argument
+        # assumed ONE board. There are three now, painted on slate, on pale grey and on deep
+        # navy, and no single colour is legible on all three: see foot_colour.
+        #
+        # The older prints keep the sense of a trail by fading rather than by greying: the
+        # same colour, carrying less of itself the further back it is.
         trail = self.game.trail[-18:]
-        green = QtGui.QColor(c.green)
+        base = self.foot_colour()
         for index, cell in enumerate(trail):
-            colour = QtGui.QColor(green)
+            colour = QtGui.QColor(base)
             if index < len(trail) - 1:
-                colour.setAlpha(70 + int(120 * index / max(1, len(trail) - 1)))
+                colour.setAlpha(self.FADE_FLOOR + int(
+                    (255 - self.FADE_FLOOR) * index / max(1, len(trail) - 1)))
             self._draw_footprint(painter, self._cell_point(cell),
                                  float(self.win.px(self.FOOT)), colour)
 
@@ -975,6 +979,55 @@ class Screen(QtWidgets.QWidget):
     #: the seven others. The corners hold a clear 12x12 block of a 160x90 grid, which is where
     #: the big number comes from -- it fills the room Harry left and no more.
     BIG_WIDE, SMALL_WIDE = 0.06875, 0.03125
+
+    #: The footprints, one colour per scenery. Harry, 25 November 2026: "the footprint in the
+    #: hedge garden will be white and stay white when walking. in city streets the footprints
+    #: will be black & remain black throughout. in night clouds, the footprints should be red
+    #: throughout."
+    #:
+    #: MEASURED AGAINST EACH FLOOR rather than taken on trust, because the three floors are
+    #: nothing like each other -- the median of the middle of each picture is slate (84,128,136),
+    #: pale grey (216,219,218) and deep navy (16,40,89). Contrast of the print against its own
+    #: floor, by the usual sRGB formula:
+    #:
+    #:     hedge   white    4.36:1          city    black   15.06:1
+    #:     cloud   #FF5555   4.55:1         cloud   the mat's own red #B4443A   2.63:1
+    #:
+    #: THE RED IS NOT THE MAT'S RED, and that is the one choice here that was not Harry's. The
+    #: mat's brick is a dark red made to sit on white, and on a near-black floor it comes out
+    #: at 2.63:1 -- there, but a smudge. #FF5555 is the same red lifted until it clears 4.5:1,
+    #: which is the line below which a thing this small stops being reliably findable.
+    #:
+    #: NOT A CLASH WITH ITEM_COLOURS[0], which is a near-identical red. That one is drawn on
+    #: the 7in side map and these are on the big board, so the two are never on one screen.
+    #: Checked rather than assumed -- see the route line in the hint painter.
+    FOOT_COLOURS = {"hedge": "#FFFFFF", "city": "#000000", "cloud": "#FF5555"}
+
+    #: How much of itself the OLDEST print in the trail still carries, out of 255. Was 70,
+    #: chosen when there was one board and the prints were green.
+    #:
+    #: What the oldest print actually measures against its own floor, blended:
+    #:
+    #:             alpha 70     alpha 120
+    #:     hedge     1.61:1       2.19:1
+    #:     city      1.91:1       3.38:1
+    #:     cloud     1.35:1       1.85:1
+    #:
+    #: 120 rather than 70 because 1.35:1 is not a faint print, it is no print: the navy trail
+    #: simply stopped a third of the way back. 1.85 is faint and there, which is what the far
+    #: end of a trail is for. It is NOT a legible contrast and is not claimed as one -- the
+    #: oldest print is history, and the prints that have to be readable are the recent ones,
+    #: which run up to full strength. Not raised further because at 140 the city's oldest
+    #: print reaches 4.34:1 and the trail stops looking like a trail at all.
+    FADE_FLOOR = 120
+
+    def foot_colour(self) -> QtGui.QColor:
+        """What the footprints are painted in on the board that is showing.
+
+        Falls back to the mat's green, which is what every board used before 2.54, so adding
+        a fourth scenery and forgetting this table gives dull footprints rather than none.
+        """
+        return QtGui.QColor(self.FOOT_COLOURS.get(self.game.level["name"], palette().green))
 
     def board_floor(self) -> QtGui.QColor:
         """The colour of the floor of whichever board is showing, read off the picture.

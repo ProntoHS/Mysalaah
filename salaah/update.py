@@ -415,14 +415,27 @@ class Installer:
         return True
 
 
-def install(release: Release, root: Path, opener=None) -> None:
+def install(release: Release, root: Path, opener=None, stage=None) -> None:
     """Fetch, check and put in place. Raises Refused, having changed nothing, if anything is
-    wrong with what came down."""
+    wrong with what came down.
+
+    [stage] is called with the name of each stage as it begins -- "downloading", then
+    "installing" -- and the release. It exists because these two waits are nothing alike: the
+    fetch is the whole release over the mat's wifi and the swap is local, so one message
+    covering both leaves a person watching a still screen with no idea which. The names are
+    strings rather than an enum so that this module stays free of anything the screen knows.
+
+    SAYING SO BEFORE DOING IT, not after. The caller paints on this thread, so a stage
+    announced after its work has finished is a message nobody ever sees.
+    """
     from . import __version__
+    announce = stage or (lambda *_: None)
     hold = Path(tempfile.mkdtemp(prefix="salaah-dl-"))
     try:
+        announce("downloading", release)
         zip_path = fetch(release.url, into=hold / "release.zip", opener=opener,
                          missing="this version was announced but its file is not there")
+        announce("installing", release)
         installer = Installer(root)
         staged = installer.unpack(Path(zip_path), release)
         installer.swap(staged, release, __version__)

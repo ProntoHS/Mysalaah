@@ -1746,6 +1746,74 @@ class PowerDrawTest(unittest.TestCase):
         self.assertEqual((0.0, 0.0), tool.parse("vcgencmd: command not found"))
 
 
+class UpdateSaysWhichStageItIsOnTest(unittest.TestCase):
+    """2.54: install() announces each stage BEFORE doing it, not after.
+
+    The caller paints on this thread, so a stage announced once its own work has finished is
+    a message nobody is ever shown. Written as its own test because the screen's tests stub
+    install() out entirely and therefore cannot see this ordering at all -- which I found by
+    reversing the order and watching them stay green.
+    """
+
+    def test_each_stage_is_named_before_the_work_it_describes(self):
+        import types
+        from pathlib import Path
+        from salaah import update as updater
+
+        happened = []
+        release = types.SimpleNamespace(version="9.99", url="http://example/x.zip",
+                                        sha256="0" * 64, notes="")
+
+        def fetch(url, into=None, most=None, opener=None, missing="", **rest):
+            happened.append("fetched")
+            return Path(into) if into else Path("x.zip")
+
+        class Pretend:
+            def __init__(self, root): pass
+            def unpack(self, zip_path, release):
+                happened.append("unpacked")
+                return Path("staged")
+            def swap(self, staged, release, running):
+                happened.append("swapped")
+
+        was_fetch, was_installer = updater.fetch, updater.Installer
+        updater.fetch, updater.Installer = fetch, Pretend
+        try:
+            updater.install(release, Path("/nowhere"),
+                            stage=lambda name, rel: happened.append(f"said {name}"))
+        finally:
+            updater.fetch, updater.Installer = was_fetch, was_installer
+
+        self.assertEqual(happened,
+                         ["said downloading", "fetched", "said installing",
+                          "unpacked", "swapped"],
+                         "the stages are not announced before the work they describe")
+
+    def test_an_update_with_nobody_listening_still_installs(self):
+        """stage is optional: the Pi's own scripted update passes no screen to talk to."""
+        import types
+        from pathlib import Path
+        from salaah import update as updater
+
+        done = []
+        release = types.SimpleNamespace(version="9.99", url="http://example/x.zip",
+                                        sha256="0" * 64, notes="")
+
+        class Pretend:
+            def __init__(self, root): pass
+            def unpack(self, zip_path, release): return Path("staged")
+            def swap(self, staged, release, running): done.append("swapped")
+
+        was_fetch, was_installer = updater.fetch, updater.Installer
+        updater.fetch = lambda url, into=None, **rest: Path(into) if into else Path("x.zip")
+        updater.Installer = Pretend
+        try:
+            updater.install(release, Path("/nowhere"))
+        finally:
+            updater.fetch, updater.Installer = was_fetch, was_installer
+        self.assertEqual(done, ["swapped"])
+
+
 class UpdateTest(unittest.TestCase):
     """Updating over the internet: the only part of the app that fetches code and runs it, and
     so the only part that can brick the mat or be turned against it."""

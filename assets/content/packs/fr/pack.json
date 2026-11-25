@@ -380,6 +380,7 @@
   "update.downloading": "Téléchargement de la version {number}…",
   "update.failed": "Mise à jour impossible : {why}",
   "update.found": "La version {number} est disponible. Mettre à jour ?",
+  "update.installing": "Installation de la mise à jour…",
   "update.later": "Plus tard",
   "update.looking": "Recherche…",
   "update.not_now": "Pas pendant une prière",

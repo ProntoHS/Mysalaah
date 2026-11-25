@@ -380,6 +380,7 @@
   "update.downloading": "সংস্করণ {number} আনা হচ্ছে…",
   "update.failed": "আপডেট করা যায়নি: {why}",
   "update.found": "সংস্করণ {number} পাওয়া যাচ্ছে। এখনই আপডেট করবেন?",
+  "update.installing": "আপডেট ইনস্টল করা হচ্ছে…",
   "update.later": "এখন নয",
   "update.looking": "খোঁজা হচ্ছে…",
   "update.not_now": "নামাজ চলাকালীন নয",

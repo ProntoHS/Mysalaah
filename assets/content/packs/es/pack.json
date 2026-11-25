@@ -380,6 +380,7 @@
   "update.downloading": "Descargando la versión {number}…",
   "update.failed": "No se pudo actualizar: {why}",
   "update.found": "La versión {number} está disponible. ¿Actualizar ahora?",
+  "update.installing": "Instalando la actualización…",
   "update.later": "Ahora no",
   "update.looking": "Buscando…",
   "update.not_now": "No durante una oración",

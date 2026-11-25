@@ -5545,6 +5545,325 @@ class SleepTest(unittest.TestCase):
         self.assertEqual([False, True], w.outputs.calls)
 
 
+class TheVolumeSliderSitsBesideTheSpeakerTest(unittest.TestCase):
+    """2.54: the slider opens alongside the speaker key rather than hanging below it.
+
+    Harry, 25 November 2026: "in the top banner when clicking on the speaker button it shows
+    the volume slider directly underneath it, i want it to display it on its right instead,
+    this will obviously overlap with existing text which doesn't matter as the text will
+    reappear when volume slider disappears, i want this volume slider to be same height as
+    the speaker button itself, it will fit nicely as it appears and easier to press too."
+
+    "On its right" is the English answer to a question about the strip, and the strip mirrors.
+    These tests ask the question the mirroring makes real: beside means further along the
+    strip, which is right in English and left in Arabic and Urdu. There is a test for each
+    direction because the English one passes whether the code noticed the mirroring or not --
+    the same reason the bluetooth ring got two at 2.52.
+    """
+
+    def window(self, lang="en", **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False,
+                                   "place": "Islamabad", "lang": lang, **settings}),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle(2)
+        self.addCleanup(lambda: shut(w))
+        # The front door carries no strip, so it carries no key either.
+        w.open_corner("knowledge")
+        settle(2)
+        return w
+
+    def opened(self, w):
+        """The speaker key that is on screen, and the slider it opens."""
+        keys = [k for k in w.findChildren(QtWidgets.QPushButton)
+                if k.objectName() == "volumeKey" and k.isVisible()]
+        self.assertTrue(keys, "no strip on screen carries a volume key")
+        key = keys[0]
+        key.click()
+        settle(2)
+        popup = w.volume_popup
+        self.addCleanup(lambda: put_away(popup))
+        return key, popup
+
+    @staticmethod
+    def where(widget):
+        return widget.mapToGlobal(QtCore.QPoint(0, 0))
+
+    def test_it_is_beside_the_speaker_and_not_under_it(self):
+        """The change itself: same top, so it is in the strip rather than below it.
+
+        POPUP_NUDGE because the offscreen platform shifts a popup two pixels and the real one
+        does not -- measured on xvfb with xcb, where the two tops are equal to the pixel. The
+        number this is guarding against is 70, the height of the key, which is where the
+        popup's top used to be.
+        """
+        w = self.window()
+        key, popup = self.opened(w)
+        drop = self.where(popup).y() - self.where(key).y()
+        self.assertLessEqual(abs(drop), POPUP_NUDGE,
+                             f"the slider's top is {drop} pixels below the speaker's, so it "
+                             f"is hanging off the strip as it did before 2.54")
+
+    def test_it_is_exactly_as_tall_as_the_speaker(self):
+        w = self.window()
+        key, popup = self.opened(w)
+        self.assertEqual(popup.height(), key.height(),
+                         f"the slider is {popup.height()} tall against a {key.height()} key")
+
+    def test_it_never_lies_on_top_of_the_key_that_opened_it(self):
+        """A slider over its own button is a button that cannot be pressed again to shut it,
+        and it is what the clamp does if the side is chosen without regard to direction."""
+        for lang in ("en", "ar", "ur"):
+            with self.subTest(lang):
+                w = self.window(lang)
+                key, popup = self.opened(w)
+                left = max(self.where(key).x(), self.where(popup).x())
+                right = min(self.where(key).x() + key.width(),
+                            self.where(popup).x() + popup.width())
+                self.assertLessEqual(right - left, 0,
+                                     f"the slider covers {right - left}px of the speaker")
+
+    def test_it_opens_further_along_the_strip_in_each_direction(self):
+        """Right in English, left in Arabic and Urdu -- the direction the strip reads.
+
+        ASKED OF beside() WITH A REAL SCREEN HANDED IN, not read off the finished window.
+        The offscreen platform the suite runs on says the screen is 800x800 while the window
+        is 1920 wide, so the clamp pins every right-to-left popup to 376 regardless of which
+        side it aimed for. Written the obvious way first, this test passed with the mirroring
+        deleted -- which is the definition of not testing the rule.
+        """
+        from salaah.ui import beside
+        screen = QtCore.QRect(0, 0, 1920, 1080)
+        wide, key = 424, 70
+        # English: the speaker leads the strip from the left.
+        self.assertEqual(beside(0, key, wide, screen, mirrored=False), key,
+                         "in English the slider should start at the speaker's right edge")
+        # Arabic and Urdu: the strip mirrors and the speaker leads it from the right.
+        far = 1920 - key
+        self.assertEqual(beside(far, key, wide, screen, mirrored=True), far - wide,
+                         "in a mirrored strip the slider should end at the speaker's left edge")
+        # And the mirrored answer is nowhere near the un-mirrored one, which is the whole
+        # point: getting this wrong is not a few pixels, it is the width of the slider.
+        self.assertNotEqual(beside(far, key, wide, screen, mirrored=True),
+                            beside(far, key, wide, screen, mirrored=False))
+
+    def test_the_slider_is_never_pushed_onto_the_key_it_came_from(self):
+        """What going the wrong way actually costs, stated as its own rule.
+
+        A slider over its own speaker is a speaker that cannot be pressed again to put it
+        away, and on a mat with no keyboard that is the only way out besides waiting.
+        """
+        from salaah.ui import beside
+        screen = QtCore.QRect(0, 0, 1920, 1080)
+        wide, key = 424, 70
+        far = 1920 - key
+        right = beside(far, key, wide, screen, mirrored=True)
+        self.assertLessEqual(right + wide, far,
+                             "the slider overlaps the speaker it was opened from")
+        self.assertGreaterEqual(right, 0, "the slider starts off the edge of the glass")
+
+    def test_the_clamp_is_still_the_last_word(self):
+        """A screen too narrow for key plus slider still gets a slider that is on it."""
+        from salaah.ui import beside
+        narrow = QtCore.QRect(0, 0, 480, 320)
+        at = beside(400, 70, 424, narrow, mirrored=False)
+        self.assertGreaterEqual(at, 0)
+        self.assertLessEqual(at + 424, 480,
+                             "on a narrow screen the slider runs off the edge")
+        # To the pixel, not a pixel short: QRect.right() is the last pixel INSIDE.
+        self.assertEqual(at + 424, 480)
+
+    # Staying on the glass is asked by VolumeSliderLookTest, which has asked it since 2.50
+    # and in the two languages where it can actually fail. Not repeated here.
+
+    def test_the_strip_is_whole_again_once_it_closes(self):
+        """It covers the place name while it is open, which Harry asked for and accepted.
+        What matters is that nothing is left covered afterwards."""
+        from salaah.qt import QtGui
+        w = self.window()
+        band = lambda: w.grab(QtCore.QRect(0, 0, 1920, 80)).toImage()
+        before = band()
+        key, popup = self.opened(w)
+        popup.close()
+        settle(3)
+        after = band()
+        self.assertEqual(before, after,
+                         "the strip did not come back the way it was after the slider closed")
+
+
+class OneBoxAtATimeWhileUpdatingTest(unittest.TestCase):
+    """2.54: the mat says which part of an update is happening, in ONE box.
+
+    Harry, 25 November 2026: "there is a delay (which makes sense as it downloading the
+    update) before a box appears saying installing update. i want a box to appear during that
+    delay something like 'Downloading Update' & will not go until the new pop up appears
+    'Installing update'."
+
+    What was actually wrong was not a missing message. Qt emits accepted() before finished(),
+    and finished() is what clears the page's reference to the box -- so apply_update, running
+    inside accepted(), built its download box and then had the reference wiped out from under
+    it by the late finished(). That box stayed on screen holding nothing, and every message
+    after it built ANOTHER box instead of rewriting it. Measured before the fix: two notices
+    visible by the restart message.
+
+    The shutdown question was pulled out of this same trap at 2.09 and the reasoning is
+    written up beside its own accepted.connect. This path had never had it.
+    """
+
+    def window(self, **settings):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(**{"theme": "light", "recitation": False, **settings}),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1200)
+        w.show()
+        settle(2)
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def release(version="2.54"):
+        import types
+        return types.SimpleNamespace(version=version, url="http://example/x.zip",
+                                     notes="what changed")
+
+    @staticmethod
+    def boxes(w):
+        from salaah.ui import Notice
+        return [c for c in w.findChildren(Notice) if c.isVisible()]
+
+    def run_update(self, w, work):
+        """Press Yes on the offer and let [work] stand in for the download and the swap."""
+        import salaah.update
+        was = salaah.update.install
+        salaah.update.install = work
+        self.addCleanup(lambda: setattr(salaah.update, "install", was))
+        release = self.release()
+        w.notice = None
+        w.offer(release)
+        settle(2)
+        w.notice.accept()
+        settle(3)          # apply_update is deferred to after the dialog has finished closing
+        return release
+
+    def test_only_one_box_is_ever_on_screen(self):
+        """The fault itself, as the person met it."""
+        w = self.window()
+        counted = []
+        def work(release, root, opener=None, stage=None):
+            stage("downloading", release); counted.append(len(self.boxes(w)))
+            stage("installing", release);  counted.append(len(self.boxes(w)))
+        self.run_update(w, work)
+        counted.append(len(self.boxes(w)))
+        for n in counted:
+            self.assertEqual(n, 1, f"{n} notices on screen at once during an update; "
+                                   f"the count at each stage was {counted}")
+
+    def test_the_box_says_downloading_while_it_downloads(self):
+        w = self.window()
+        said = {}
+        def work(release, root, opener=None, stage=None):
+            stage("downloading", release)
+            said["while downloading"] = self.boxes(w)[0].text.text()
+            stage("installing", release)
+            said["while installing"] = self.boxes(w)[0].text.text()
+        self.run_update(w, work)
+        said["after"] = self.boxes(w)[0].text.text()
+        self.assertIn("2.54", said["while downloading"])
+        self.assertEqual(said["while downloading"],
+                         w.t("update.downloading", number="2.54"))
+        self.assertEqual(said["while installing"], w.t("update.installing"))
+        self.assertEqual(said["after"], w.t("update.restarting"))
+
+    def test_the_download_box_is_painted_before_the_download_starts(self):
+        """A message put up after its own work has finished is a message nobody sees.
+
+        The whole update runs on this thread, so the only thing that makes a message visible
+        is the paint that say() forces before returning.
+        """
+        from salaah.qt import QtGui
+        w = self.window()
+        drawn = {}
+        def work(release, root, opener=None, stage=None):
+            stage("downloading", release)
+            box = self.boxes(w)[0]
+            shot = QtGui.QImage(box.size(), QtGui.QImage.Format.Format_ARGB32)
+            shot.fill(0)
+            box.render(shot)
+            ink = {QtGui.QColor(shot.pixel(x, y)).rgb()
+                   for y in range(0, shot.height(), 3) for x in range(0, shot.width(), 3)}
+            drawn["colours"] = len(ink)
+            stage("installing", release)
+        self.run_update(w, work)
+        self.assertGreater(drawn.get("colours", 0), 2,
+                           "the download box had nothing drawn in it when the download began")
+
+    def test_a_box_that_has_already_been_replaced_cannot_forget_the_live_one(self):
+        """The mechanism, not the symptom -- so a future change that reintroduces it is caught
+        even if the stages happen to paper over the result."""
+        w = self.window()
+        w.notice = None
+        w.say("first")
+        first = w.notice
+        self.assertIsNotNone(first)
+        w.notice = None
+        w.say("second")
+        second = w.notice
+        self.assertIsNot(first, second)
+        # The old box closes LATE, which is exactly what Qt does with finished().
+        w.notice_closed(first)
+        self.assertIs(w.notice, second,
+                      "a late goodbye from a replaced box wiped out the box on screen")
+
+    def test_the_update_does_not_start_until_the_offer_box_has_finished_closing(self):
+        """What the deferral buys, stated as its own rule.
+
+        This is belt and braces rather than the fix -- the identity check in notice_closed is
+        what actually stops the boxes stacking, which I found by taking the deferral out and
+        watching the suite stay green. It is kept, and tested, because running inside
+        accepted() is the shape of the 2.09 shutdown fault, and the next thing added to this
+        path should not have to rediscover that.
+        """
+        w = self.window()
+        when = {}
+        def work(release, root, opener=None, stage=None):
+            when["offer still held"] = w.notice is offer
+        import salaah.update
+        was = salaah.update.install
+        salaah.update.install = work
+        self.addCleanup(lambda: setattr(salaah.update, "install", was))
+        w.notice = None
+        w.offer(self.release())
+        settle(2)
+        offer = w.notice
+        w.notice.accept()
+        settle(3)
+        self.assertIn("offer still held", when, "the update never ran")
+        self.assertFalse(when["offer still held"],
+                         "the update began while the offer box was still closing, which is "
+                         "the 2.09 shutdown fault in a new place")
+
+    def test_every_language_can_say_installing(self):
+        """Nine packs carry it. Arabic is held out of the pack strings as it always is."""
+        import json
+        from pathlib import Path
+        packs = sorted(Path(ASSETS / "content" / "packs").glob("*/pack.json"))
+        for pack in packs:
+            code = pack.parent.name
+            words = json.loads(pack.read_text(encoding="utf-8"))["ui"]
+            with self.subTest(code):
+                if code == "ar":
+                    self.assertNotIn("update.installing", words,
+                                     "the Arabic pack has started carrying UI strings")
+                    continue
+                self.assertIn("update.installing", words,
+                              f"{code} cannot say that an update is being installed")
+                self.assertTrue(words["update.installing"].strip())
+                self.assertNotIn("{number}", words["update.installing"],
+                                 f"{code} asks for a version number this message is not given")
+
+
 class UpdateNoticeTest(unittest.TestCase):
     """What the person actually sees when they press Check for updates.
 
@@ -10749,22 +11068,45 @@ class VolumeSliderLookTest(unittest.TestCase):
         self.assertGreaterEqual(bar.width(), w.px(240), "no wider than before")
         self.assertGreaterEqual(bar.height(), w.px(50), "no taller than before")
 
-    def test_it_drops_out_from_under_the_key(self):
-        """Where it used to sit inside the strip and could not be anywhere else, it now has to
-        be put somewhere, and the only place that reads as belonging to the key is directly
-        beneath it. The key itself is what must still fit the strip, so that is asked here too
-        -- it is the thing in the strip now."""
+    def test_it_comes_out_of_the_side_of_the_key(self):
+        """REVERSED AT 2.54, and recorded rather than quietly rewritten.
+
+        This test used to be test_it_drops_out_from_under_the_key, and it asked for the
+        opposite of what it asks now: that the popup's top sat on the FOOT of the key. That
+        was right for 2.50, which hid a 384px slider behind a square and had to put it
+        somewhere.
+
+        Harry, 25 November 2026: "i want it to display it on its right instead ... i want this
+        volume slider to be same height as the speaker button itself, it will fit nicely as it
+        appears and easier to press too."
+
+        What it was really protecting is unchanged and is still asked: the slider comes out of
+        the key, flush against it, rather than landing at some unrelated place on the screen.
+        Only the edge it comes out of has moved, from the bottom to the side. The key itself
+        must still fit the strip, which is also still asked.
+
+        Which side is right depends on the language, and that belongs with the rest of the
+        mirroring: see TheVolumeSliderSitsBesideTheSpeakerTest.
+        """
         w = self.window()
         key, popup = self.dropped(w)
         strip = next(x for x in w.home.findChildren(QtWidgets.QWidget)
                      if x.objectName() == "banner")
         self.assertLessEqual(key.height(), strip.height(),
                              "the volume key is taller than the strip it sits in")
-        foot = key.mapToGlobal(QtCore.QPoint(0, key.height()))
-        drop = popup.geometry().y() - foot.y()
-        self.assertTrue(0 <= drop <= POPUP_NUDGE,
-                        f"the slider is {drop} pixels from the foot of the key it came from, "
-                        f"so it is not hanging off it")
+        self.assertEqual(popup.height(), key.height(),
+                         f"the slider is {popup.height()} tall beside a {key.height()} key, "
+                         f"so it is not sitting in the strip")
+        top = key.mapToGlobal(QtCore.QPoint(0, 0))
+        self.assertTrue(abs(popup.geometry().y() - top.y()) <= POPUP_NUDGE,
+                        f"the slider's top is {popup.geometry().y() - top.y()} pixels from "
+                        f"the key's, so it is not on the same line as the strip")
+        side = key.mapToGlobal(QtCore.QPoint(key.width(), 0)).x()
+        flush = min(abs(popup.geometry().left() - side),
+                    abs(popup.geometry().right() + 1 - top.x()))
+        self.assertLessEqual(flush, POPUP_NUDGE,
+                             f"the slider is {flush} pixels from either edge of the key it "
+                             f"came from, so it is not hanging off it")
 
     def test_it_lands_on_the_screen_and_not_off_the_edge(self):
         """THE ONE NEW RISK IN HIDING IT. In Arabic and Urdu the window is laid out right to
@@ -10789,12 +11131,21 @@ class VolumeSliderLookTest(unittest.TestCase):
                 self.assertLessEqual(box.right(), screen.right() + POPUP_NUDGE,
                                      f"{lang}: the slider runs {box.right() - screen.right()} "
                                      f"pixels off the right of the screen")
-                # And it was PULLED BACK to get there, rather than happening to fit. This one
-                # is exact on any platform: the key's own left edge is where the popup would
-                # have gone, and it is not where it is.
+                # WHAT HOLDS IT ON THE SCREEN CHANGED AT 2.54 and this comment changed with
+                # it, because a test that passes for a reason that has stopped being true is
+                # worse than one that fails. Until 2.54 the popup was placed at the key's own
+                # left edge and the clamp dragged it back inside. Now it is placed on the side
+                # the strip reads towards, which in these two languages is the left, so it is
+                # inside the glass before the clamp is consulted at all.
+                #
+                # The clamp is still here and still the last word -- a longer slider, a
+                # narrower screen or a fourth language could still need it -- which is what
+                # the two assertions above ask. This one asks the thing that is now true:
+                # the slider is on the far side of the key from the edge it would run off.
                 self.assertLess(box.left(), key.mapToGlobal(QtCore.QPoint(0, 0)).x(),
-                                f"{lang}: the slider was not pulled back from the key's edge, "
-                                f"so nothing is holding it on the screen")
+                                f"{lang}: the slider is on the wrong side of the key for a "
+                                f"strip that reads right to left, so only the clamp is "
+                                f"keeping it on the glass")
 
     def test_it_still_sets_the_volume(self):
         w = self.window()
@@ -20141,6 +20492,185 @@ class MosqueMazeTest(unittest.TestCase):
                              f"{level['asset']} is not 1920x1080")
         self.assertLess(total, 2 * 1024 * 1024, f"the three mazes weigh {total} bytes")
         self.assertTrue(Screen.playable(root))
+
+
+class FootprintsOnThreeDifferentFloorsTest(unittest.TestCase):
+    """2.54: the trail is coloured by the scenery it is walked on.
+
+    Harry, 25 November 2026: "the footprint in the hedge garden will be white and stay white
+    when walking. in city streets the footprints will be black & remain black throughout. in
+    night clouds, the footprints should be red throughout."
+
+    The rule worth holding is not the three names, which are his to change. It is that a
+    footprint can be SEEN on the floor it is walked on -- which is why these tests measure
+    against the picture rather than against a list of colours I typed in.
+    """
+
+    @staticmethod
+    def floor_of(name):
+        """The floor colour of a board, read off its picture the way the game reads it."""
+        from salaah.qt import QtGui
+        image = QtGui.QImage(str(ASSETS / "children" / f"mosque-maze-{name}.png"))
+        middle = image.copy(image.width() // 3, image.height() // 3,
+                            image.width() // 3, image.height() // 3)
+        reds, greens, blues = [], [], []
+        for y in range(0, middle.height(), 4):
+            for x in range(0, middle.width(), 4):
+                pixel = QtGui.QColor(middle.pixel(x, y))
+                reds.append(pixel.red()); greens.append(pixel.green()); blues.append(pixel.blue())
+        pick = lambda v: sorted(v)[len(v) // 2]
+        return (pick(reds), pick(greens), pick(blues))
+
+    @staticmethod
+    def contrast(one, two):
+        """The usual sRGB contrast ratio, so the number means what it means everywhere else."""
+        def channel(value):
+            value /= 255
+            return value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4
+        def light(rgb):
+            return (0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]))
+        high, low = sorted((light(one), light(two)), reverse=True)
+        return (high + 0.05) / (low + 0.05)
+
+    def test_every_scenery_says_what_colour_its_footprints_are(self):
+        """A scenery with no entry falls back to green, which is the old one-board answer.
+
+        That fallback is deliberate -- a fourth scenery should give dull footprints rather
+        than an exception on a mat -- which is exactly why it needs a test: a silent fallback
+        is invisible, and this is the only thing that would notice it.
+        """
+        from salaah.mosque_maze import Rules, Screen
+        for level in Rules.BACKGROUNDS:
+            with self.subTest(level["name"]):
+                self.assertIn(level["name"], Screen.FOOT_COLOURS,
+                              f"{level['name']} has no footprint colour, so it would quietly "
+                              f"use the old green")
+
+    #: The contrast a footprint must clear against its own floor.
+    #:
+    #: 3.0 AND NOT 4.5, and the difference is not a concession. 4.5:1 is the line for body
+    #: text -- small shapes whose meaning is in strokes a pixel or two wide. A footprint here
+    #: is a drawing about 40px across, and the line for a graphic that size is 3:1. Using the
+    #: text number on a graphic is the wrong measurement, not a stricter one.
+    #:
+    #: This was written as 4.5 first and white on the hedge failed it at 4.36. The fix was to
+    #: measure the right thing rather than to move the bar to wherever white landed -- which
+    #: is why the number is 3.0 and not 4.3.
+    #:
+    #: What the three actually measure, recorded so a future change can be compared rather
+    #: than argued about:
+    #:
+    #:     hedge   white    on slate       4.36:1
+    #:     city    black    on pale grey  15.06:1
+    #:     cloud   #FF5555  on navy        4.55:1
+    SEEN = 3.0
+
+    def test_the_footprints_can_be_seen_on_the_floor_they_are_walked_on(self):
+        """Each colour against its own board's floor, measured off the picture."""
+        from salaah.mosque_maze import Rules, Screen
+        for level in Rules.BACKGROUNDS:
+            name = level["name"]
+            with self.subTest(name):
+                from salaah.qt import QtGui
+                # Named here as well as in the coverage test above, so a missing entry gives
+                # one sentence rather than a KeyError in three different tests.
+                self.assertIn(name, Screen.FOOT_COLOURS, f"{name} has no footprint colour")
+                ink = QtGui.QColor(Screen.FOOT_COLOURS[name])
+                ratio = self.contrast((ink.red(), ink.green(), ink.blue()), self.floor_of(name))
+                self.assertGreaterEqual(
+                    round(ratio, 2), self.SEEN,
+                    f"footprints on {name} are {ratio:.2f}:1 against that floor, so a child "
+                    f"loses the trail on the one board it is meant to help them on")
+
+    def test_the_night_clouds_red_beats_the_mat_s_own_red_on_that_floor(self):
+        """The one colour choice here that was mine rather than Harry's, so it is guarded.
+
+        He asked for red. The mat's red is the brick it paints its buttons in, and on that
+        navy floor it is 2.63:1 -- present, and a smudge. If someone later "corrects" the
+        table back to the brick for consistency with the rest of the mat, this says why not.
+        """
+        from salaah.mosque_maze import Screen
+        from salaah.qt import QtGui
+        from salaah.ui import BRICK
+        floor = self.floor_of("cloud")
+        brick = QtGui.QColor(BRICK)
+        ours = QtGui.QColor(Screen.FOOT_COLOURS["cloud"])
+        theirs = self.contrast((brick.red(), brick.green(), brick.blue()), floor)
+        mine = self.contrast((ours.red(), ours.green(), ours.blue()), floor)
+        self.assertLess(theirs, self.SEEN,
+                        f"the mat's brick now measures {theirs:.2f}:1 on the night clouds, "
+                        f"which clears the bar -- the reason for a separate red has gone")
+        self.assertGreater(mine, theirs,
+                           f"the night clouds red {ours.name()} is {mine:.2f}:1 and the mat's "
+                           f"own brick is {theirs:.2f}:1, so this is a new colour for nothing")
+
+    def test_no_two_sceneries_are_walked_in_the_same_colour(self):
+        """Not a rule for its own sake. The three boards are three places, and the colour of
+        the trail is the quickest way of knowing which one you are in without reading."""
+        from salaah.mosque_maze import Rules, Screen
+        used = [Screen.FOOT_COLOURS[level["name"]].upper() for level in Rules.BACKGROUNDS
+                if level["name"] in Screen.FOOT_COLOURS]
+        self.assertEqual(len(set(used)), len(used), f"two sceneries share a trail colour: {used}")
+
+    def test_the_trail_is_painted_in_that_colour_and_not_in_green(self):
+        """Rendered, not asserted about the table. The table could be perfect and the painter
+        could still be drawing the old green, which is precisely what this change had to stop.
+        """
+        from salaah.mosque_maze import Rules, Screen
+        from salaah.qt import QtGui
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        settle(2)
+        self.addCleanup(lambda: shut(w))
+        w.open_a_game("mosque")
+        settle(2)
+        screen = w.games["mosque"]
+        game = screen.game
+        for scene in range(len(Rules.BACKGROUNDS)):
+            game.scene = scene
+            game.restart()
+            name = game.level["name"]
+            with self.subTest(name):
+                # One step along the floor, so there is a newest print at full strength.
+                step = next(c for c in ((game.player[0] + 1, game.player[1]),
+                                        (game.player[0], game.player[1] - 1),
+                                        (game.player[0], game.player[1] + 1),
+                                        (game.player[0] - 1, game.player[1]))
+                            if c in game.active)
+                game.player = step
+                game.trail.append(step)
+                screen.update()
+                settle(2)
+                image = QtGui.QImage(screen.size(), QtGui.QImage.Format.Format_ARGB32)
+                image.fill(0)
+                screen.render(image)
+                self.assertIn(name, Screen.FOOT_COLOURS, f"{name} has no footprint colour")
+                want = QtGui.QColor(Screen.FOOT_COLOURS[name])
+                wide = screen.width() / Rules.WIDTH
+                tall = screen.height() / Rules.HEIGHT
+                # The print is drawn around the middle of the cell; look over the cell and
+                # take the pixel closest to the colour we are claiming, then say how close.
+                best, where = 1e9, None
+                for dy in range(-1, 2):
+                    for dx in range(-1, 2):
+                        for fx in (0.3, 0.5, 0.7):
+                            for fy in (0.3, 0.5, 0.7):
+                                x = int((step[0] + dx + fx) * wide)
+                                y = int((step[1] + dy + fy) * tall)
+                                if not (0 <= x < image.width() and 0 <= y < image.height()):
+                                    continue
+                                got = QtGui.QColor(image.pixel(x, y))
+                                off = (abs(got.red() - want.red()) + abs(got.green() - want.green())
+                                       + abs(got.blue() - want.blue()))
+                                if off < best:
+                                    best, where = off, (got.red(), got.green(), got.blue())
+                self.assertLess(best, 30,
+                                f"the newest footprint on {name} should be "
+                                f"{want.name()}; the closest pixel to it anywhere on that cell "
+                                f"is {where}, which is {best} off")
 
 
 class WhatTheMazeDoesWithACollectedThingTest(unittest.TestCase):

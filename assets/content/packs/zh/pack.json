@@ -380,6 +380,7 @@
   "update.downloading": "正在下载版本 {number}…",
   "update.failed": "无法更新：{why}",
   "update.found": "有新版本 {number}。现在更新吗？",
+  "update.installing": "正在安装更新…",
   "update.later": "暂不更新",
   "update.looking": "正在检查…",
   "update.not_now": "礼拜期间不可更新",

@@ -380,6 +380,7 @@
   "update.downloading": "ورژن {number} ڈاؤن لوڈ ہو رہا ہے…",
   "update.failed": "اپ ڈیٹ نہیں ہو سکا: {why}",
   "update.found": "ورژن {number} دستیاب ہے۔ ابھی اپ ڈیٹ کریں؟",
+  "update.installing": "اپ ڈیٹ انسٹال ہو رہی ہے…",
   "update.later": "ابھی نہیں",
   "update.looking": "تلاش جاری ہے…",
   "update.not_now": "نماز کے دوران نہیں",

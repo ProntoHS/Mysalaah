@@ -380,6 +380,7 @@
   "update.downloading": "संस्करण {number} आ रहा है…",
   "update.failed": "अपडेट नहीं हुआ: {why}",
   "update.found": "संस्करण {number} उपलब्ध है। अभी अपडेट करें?",
+  "update.installing": "अपडेट इंस्टॉल हो रहा है…",
   "update.later": "अभी नहीं",
   "update.looking": "देख रहे हैं…",
   "update.not_now": "नमाज़ के दौरान नहीं",
