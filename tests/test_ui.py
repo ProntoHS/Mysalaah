@@ -19819,7 +19819,7 @@ class MosqueMazeTest(unittest.TestCase):
                 self.assertLess(refused / tried, 0.07,
                                 f"{g.level['name']}: {100 * refused / tried:.1f}% of touches "
                                 "do nothing, which reads as a blocked maze")
-            g.cycle_difficulty()
+            g.cycle_scene()
 
     def test_one_tap_cannot_cross_the_maze(self):
         """The cap on how far a single touch may travel, which is what keeps this a maze a
@@ -19838,7 +19838,7 @@ class MosqueMazeTest(unittest.TestCase):
                 self.assertEqual("nothing", g.touch_to(far[0]),
                                  f"one touch carried a child {far[1]} cells across the maze")
                 self.assertEqual(g.start, g.player, "and it moved them anyway")
-            g.cycle_difficulty()
+            g.cycle_scene()
             g.restart()
 
     def test_walking_near_a_thing_picks_it_up(self):
@@ -19865,75 +19865,80 @@ class MosqueMazeTest(unittest.TestCase):
                 self.walk(g, near)
                 self.assertIn(g.items[0], g.collected,
                               f"standing at {near}, a step from it, collected nothing")
-            g.cycle_difficulty()
+            g.cycle_scene()
             g.restart()
 
-    def test_arriving_anywhere_inside_the_mosque_finishes_the_journey(self):
-        """Harry: "when completed and clicked mosque, no well done message or sound appeared."
+    def test_arriving_at_the_door_finishes_the_journey(self):
+        """REPLACES test_arriving_anywhere_inside_the_mosque_finishes_the_journey, and keeps
+        the lesson that test was written for.
 
-        He was doing the right thing. `finished` wanted the player on ONE named cell, and once
-        the gate opens the mosque is a room -- so a tap landed wherever it was nearest and the
-        game ended only by luck. Tapping every spot inside the mosque from the door finished
-        it 1 time in 117 on beginner, 6 in 117 on medium, 30 in 117 on expert. The level he
-        called unfinishable was the one that worked most often.
+        Harry, 15 November 2026: "when completed and clicked mosque, no well done message or
+        sound appeared." He was doing the right thing. `finished` wanted the player on ONE
+        named cell, so a tap landed wherever it was nearest and the game ended only by luck:
+        tapping every spot inside the mosque finished it 1 time in 117 on the easiest maze.
+        The level he had called unfinishable was the one that worked most often.
+
+        That was fixed by letting anywhere inside the mosque count. Harry's mosques of 25
+        November have no inside -- they are a building standing on the floor with a door, not
+        a walled yard -- so there is nowhere to stand in, and arriving is the doorstep: the
+        gate cell and the floor around it. The point is unchanged and so is the danger. A
+        doorstep of one cell would be the 1-in-117 fault returning under a new name, which is
+        why the first thing asked here is how big it is.
         """
         g = self.game()
-        for level in range(3):
+        for _ in range(3):
             with self.subTest(g.level["name"]):
-                self.assertGreater(len(g.inside), 100, "the mosque has no room in it")
+                self.assertGreaterEqual(len(g.doorstep), 6,
+                                        "the doorstep is too small to be found by a finger")
                 g.collected = set(g.items)
                 self.assertTrue(g.gate_open)
-                landed = 0
-                for cell in sorted(g.inside)[::9]:
+                for cell in sorted(g.doorstep):
                     g.player = cell
-                    if g.finished:
-                        landed += 1
-                    else:
-                        self.fail(f"standing inside the mosque at {cell} is not finishing")
-                self.assertGreater(landed, 10, "too few places tried to mean anything")
-                # And outside it is still outside, gate or no gate.
+                    self.assertTrue(g.finished,
+                                    f"standing on the doorstep at {cell} is not arriving")
+                # And away from the door is not arriving, gate or no gate.
                 g.player = g.start
                 self.assertFalse(g.finished, "standing at the start counts as arriving")
+                # Nor is the doorstep enough on its own, with things still to find.
+                g.collected = set()
                 g.player = g.gate_cell
-                self.assertFalse(g.finished, "standing at the door counts as being inside")
-            g.cycle_difficulty()
-            g.restart()
+                self.assertFalse(g.finished, "arrived without collecting anything")
+            g.cycle_scene()
 
-    def test_the_mosque_is_sealed_and_the_gate_is_the_only_way_in(self):
-        """Harry, 15 November 2026: "the mosque in the centre should be sealed completely
-        around, there are currently 2 opening above it, there shouldn't be."
+    def test_the_door_is_the_only_way_to_arrive(self):
+        """REPLACES test_the_mosque_is_sealed_and_the_gate_is_the_only_way_in.
 
-        He was right, and it was worse than he could see: two of the three levels let a child
-        stroll into the mosque without collecting anything, which is the whole game. On
-        beginner the enclosure's top wall had a 22-cell hole in it, divided into the two
-        doorways he could see by a wall stub hanging above it. On expert the same thing
-        happened at the bottom, where the two channels either side of a stub ran straight
-        past the drawn door. Medium was already right, which is what told me what right was.
+        Harry, 15 November 2026: "the mosque in the centre should be sealed completely around,
+        there are currently 2 opening above it, there shouldn't be." He was right, and it was
+        worse than he could see: two of the three mazes let a child stroll in without
+        collecting anything, which is the whole game.
 
-        Measured from the inside out, with the gate SHUT, which is the question that actually
-        matters: can you get from the mosque to the start without it? Counting openings would
-        mean agreeing where the wall is; this does not.
+        His mosques of 25 November are not enclosures -- there is no wall with holes in it to
+        measure -- so sealing cannot be asked the old way. What the old test was really
+        protecting is this: you cannot arrive without having collected everything. That is
+        asked directly here, which is a better question than counting openings ever was,
+        because it does not depend on agreeing where the wall is.
         """
-        from collections import deque
         g = self.game()
-        for level in range(3):
+        for _ in range(3):
             with self.subTest(g.level["name"]):
-                inside = [c for c in g._cardinal(g.goal) if c in g.active]
-                self.assertTrue(inside, "there is no floor inside the mosque at all")
-                seen, queue = set(inside), deque(inside)
-                while queue:
-                    for near in g._cardinal(queue.popleft()):
-                        if near in g.active and near not in seen:
-                            seen.add(near)
-                            queue.append(near)
-                self.assertNotIn(g.start, seen,
-                                 f"{g.level['name']}: a child can walk into the mosque with "
-                                 f"the gate shut -- the pocket runs to {len(seen)} cells")
-                # Sealed, not bricked up: the way in still has to exist once it is earned.
-                g.collected = set(g.items)
-                self.assertTrue(g.gate_open)
-                self.assertTrue(g.walk_to(g.goal), "the gate opened on nothing")
-            g.cycle_difficulty()
+                self.assertFalse(g.gate_open, "the gate starts open")
+                for cell in sorted(g.doorstep):
+                    g.player = cell
+                    self.assertFalse(g.finished,
+                                     f"reached the door at {cell} and finished with nothing "
+                                     f"collected")
+                # The building itself cannot be walked through. Asked of the MIDDLE rather
+                # than of mosque_cells: that is a rectangle around the mosque, drawn wide
+                # enough to keep pickups off it, and the floor inside its corners is floor
+                # like any other -- which is what the first version of this wrongly failed on.
+                middle = ((g.MOSQUE_NORM[0] + g.MOSQUE_NORM[2]) / 2,
+                          (g.MOSQUE_NORM[1] + g.MOSQUE_NORM[3]) / 2)
+                heart = (int(middle[0] * g.WIDTH), int(middle[1] * g.HEIGHT))
+                self.assertNotIn(heart, g.active,
+                                 "the middle of the mosque is walkable, so a child can cut "
+                                 "straight through the building")
+            g.cycle_scene()
 
     def test_every_level_can_still_be_finished_after_the_sealing(self):
         """The companion to the test above, and the reason it is a separate one: a wall that
@@ -19947,16 +19952,53 @@ class MosqueMazeTest(unittest.TestCase):
                 self.assertTrue(g.gate_open, "collecting everything did not open the gate")
                 self.walk(g, g.goal)
                 self.assertTrue(g.finished, "the journey cannot be completed")
-            g.cycle_difficulty()
+            g.cycle_scene()
             g.restart()
 
-    def test_the_three_levels_hold_five_seven_and_nine_things_to_collect(self):
+    def test_every_scene_holds_the_same_ten_things_to_collect(self):
+        """REPLACES test_the_three_levels_hold_five_seven_and_nine_things_to_collect.
+
+        Harry, 25 November 2026: "remove different level settings. instead we will have 3
+        different backgrounds to choose from... the starting location and end destination are
+        the same but backdrop and maze layout is different." So the three are no longer easy,
+        harder and hardest; they are the same journey somewhere else, and an uneven number of
+        things to find between them would be a difficulty setting wearing a scenery label.
+
+        The ten are not in the same PLACES in each -- they cannot be, the walls are different,
+        and that is measured in the test below. What has to match is how many.
+        """
         g = self.game()
         counts = []
         for _ in range(3):
             counts.append(len(g.items))
-            g.cycle_difficulty()
-        self.assertEqual(counts, [5, 7, 9])
+            g.cycle_scene()
+        self.assertEqual([10, 10, 10], counts)
+        self.assertEqual(0, g.scene, "cycling three times did not come back round")
+
+    def test_each_scene_puts_the_things_in_its_own_places(self):
+        """The corners are shared and the rest are not, and both halves are deliberate.
+
+        Harry left the same three corners clear in all three pictures, so the three big
+        pickups land in the same cells -- that is him drawing from one template, not a bug.
+        The other seven are placed in whatever floor that layout actually has, and the floor
+        the three layouts share is in 71 separate pieces, the biggest holding 445 cells, with
+        none of the corners or the start among them. One shared set of positions is therefore
+        not available even in principle.
+        """
+        from salaah.mosque_maze import Rules
+        places = []
+        for scene in range(3):
+            g = Rules()
+            g.scene = scene
+            g.restart()
+            places.append(tuple(g.items))
+        for n in range(Rules.BIG):
+            self.assertEqual(1, len({p[n] for p in places}),
+                             f"the big corner pickup {n + 1} is not in the same corner in all three")
+        scattered = [p[Rules.BIG:] for p in places]
+        self.assertEqual(3, len({s for s in scattered}),
+                         "two scenes scatter their seven in identical places, which three "
+                         "different maze layouts cannot honestly do")
 
     def test_everything_and_the_gate_can_be_walked_to_at_every_level(self):
         """A maze that generates an item behind a wall is a game a child cannot finish and
@@ -19966,7 +20008,7 @@ class MosqueMazeTest(unittest.TestCase):
             reached = set(g.distances(g.start))
             self.assertTrue(set(g.items).issubset(reached), f"level {level}: an item is walled off")
             self.assertIn(g.gate_cell, reached, f"level {level}: the gate cannot be reached")
-            g.cycle_difficulty()
+            g.cycle_scene()
 
     def test_the_gate_stays_shut_until_everything_is_collected(self):
         g = self.game()
@@ -19982,16 +20024,16 @@ class MosqueMazeTest(unittest.TestCase):
             self.assertTrue(g.route_to(g.goal))
             self.walk(g, g.goal)
             self.assertTrue(g.finished, f"level {level} did not finish")
-            g.cycle_difficulty()
+            g.cycle_scene()
 
     def test_a_new_game_keeps_the_level_and_clears_the_progress(self):
         g = self.game()
-        g.cycle_difficulty()
+        g.cycle_scene()
         self.walk(g, g.items[0])
         self.assertTrue(g.collected)
         g.restart()
-        self.assertEqual(g.difficulty, 1)
-        self.assertEqual(len(g.items), 7)
+        self.assertEqual(g.scene, 1, "a new game moved the child to a different scenery")
+        self.assertEqual(len(g.items), 10)
         self.assertEqual(g.collected, set())
         self.assertEqual(g.player, g.start)
 
@@ -20018,25 +20060,46 @@ class MosqueMazeTest(unittest.TestCase):
         self.assertTrue(g.finished)
 
     def test_every_pickup_is_named_and_the_names_are_in_step_with_the_maze(self):
-        """ITEM_KEYS is positional against each level's items, so the nth cell collected is
-        the nth key. Nine keys for nine items: if the expert level ever grows a tenth, the
-        tenth pickup would fall off the end of this list and the screen would say nothing.
+        """ITEM_KEYS is positional against each scene's items, so the nth cell is the nth key
+        and the nth drawing. Ten of each: a pickup past the end of either list is a thing a
+        child can collect that the mat cannot name or draw.
         """
         from salaah.mosque_maze import Rules
         g = self.game()
         # WRITTEN OUT, not read from ITEM_KEYS. Swapping two names in that tuple left the
         # first version of this class green, because both the game's answer and the expected
         # answer came out of the same tuple: the test agreed with whatever the tuple said.
-        # The order is the order a child meets these things, so it is a decision worth
-        # pinning, and nine lines here is the price of pinning it.
-        self.assertEqual(Rules.ITEM_KEYS,
-                         ("wudu", "clothes", "adhan", "mat", "calm",
-                          "miswak", "scent", "right_foot", "salaam"))
-        self.assertEqual(len(set(Rules.ITEM_KEYS)), 9, "a pickup name is used twice")
-        for level in range(3):
-            self.assertLessEqual(len(g.items), len(Rules.ITEM_KEYS),
-                                 f"level {level} has more items than there are names")
-            g.cycle_difficulty()
+        #
+        # THE FIRST THREE ARE THE ORDER THAT MATTERS. They are the three corner pickups and
+        # the three things a child actually does before praying -- wash, dress, put the mat
+        # down -- and they are in that order on purpose. The other seven are things met on
+        # the way and claim no order, which is itself the decision being pinned here: the
+        # nine that preceded them WERE an ordered sequence of steps, and losing that quietly
+        # is how this game drifts back into collecting pretty things.
+        self.assertEqual(("wudu", "clothes", "mat",
+                          "quran", "tasbih", "lantern", "dates", "crescent", "kaaba", "mosque"),
+                         Rules.ITEM_KEYS)
+        self.assertEqual(3, Rules.BIG, "the number of big corner pickups has moved")
+        self.assertEqual(10, len(set(Rules.ITEM_KEYS)), "a pickup name is used twice")
+        self.assertEqual(10, len(set(Rules.ITEM_ART)), "a pickup drawing is used twice")
+        self.assertEqual(len(Rules.ITEM_KEYS), len(Rules.ITEM_ART))
+        for scene in range(3):
+            self.assertEqual(len(Rules.ITEM_KEYS), len(g.items),
+                             f"scene {scene} has a different number of items than names")
+            g.cycle_scene()
+
+    def test_every_pickup_has_a_drawing_on_the_mat(self):
+        """Each of the ten names a file in assets/children/mosque-items. A missing one does
+        not crash: the pickup is simply never drawn, so it is invisible and uncollectable
+        while the counter still waits for it -- a maze that cannot be finished, which is the
+        exact complaint Harry brought on 15 November about a different cause."""
+        from salaah.mosque_maze import Rules
+        folder = ASSETS / "children" / "mosque-items"
+        for name in Rules.ITEM_ART:
+            with self.subTest(name):
+                art = folder / f"{name}.png"
+                self.assertTrue(art.is_file(), f"{art.name} is not on the mat")
+                self.assertGreater(art.stat().st_size, 200)
 
     def test_picking_something_up_says_which_thing_it_was(self):
         """Until 1.97 every pickup repeated "Collect every item to open the gate", so a child
@@ -20044,13 +20107,22 @@ class MosqueMazeTest(unittest.TestCase):
         g = self.game()
         from salaah.mosque_maze import Rules
         self.assertIsNone(g.last_item)
-        said = []
+        # NOT A FIXED SEQUENCE, and the first version of this test wrongly asked for one.
+        # Walking to one thing collects anything else within reach on the way, so the order
+        # a child aims in is not the order things are picked up: aiming at all ten in turn
+        # reported "tasbih" five times running, because four of them had already been swept
+        # up while passing. What matters is that the name shown belongs to something JUST
+        # collected rather than a stale one left over from the last pickup.
         for item in g.items:
+            before = set(g.collected)
             self.walk(g, item)
-            said.append(g.last_item)
-        self.assertEqual(said, ["wudu", "clothes", "adhan", "mat", "calm"],
-                         "the beginner level's five pickups did not report themselves in "
-                         "the order they were collected")
+            fresh = [g.ITEM_KEYS[n] for n, c in enumerate(g.items)
+                     if c in g.collected and c not in before]
+            if fresh:
+                self.assertIn(g.last_item, fresh,
+                              f"the mat named {g.last_item!r} after picking up {fresh}")
+        self.assertEqual(set(g.items), g.collected, "walking to all ten missed one")
+        self.assertEqual(len(Rules.ITEM_KEYS), len(g.collected))
         g.restart()
         self.assertIsNone(g.last_item, "a new game still remembers the last pickup")
 
@@ -20059,7 +20131,7 @@ class MosqueMazeTest(unittest.TestCase):
         from salaah.mosque_maze import Rules, Screen
         root = Path(__file__).resolve().parent.parent / "assets"
         total = 0
-        for level in Rules.LEVEL_DATA:
+        for level in Rules.BACKGROUNDS:
             path = root / "children" / level["asset"]
             self.assertTrue(path.is_file(), f"{level['asset']} is not installed")
             total += path.stat().st_size
@@ -20112,97 +20184,136 @@ class WhatTheMazeDoesWithACollectedThingTest(unittest.TestCase):
                     found = max(found, QtGui.qGray(image.pixel(px, py)))
         return found
 
-    def test_a_collected_thing_is_rubbed_out_and_no_wall_is_touched(self):
-        """THE WHOLE DIFFICULTY OF THIS CHANGE, in one test.
+    def test_a_collected_thing_leaves_the_board_and_the_board_alone(self):
+        """REPLACES test_a_collected_thing_is_rubbed_out_and_no_wall_is_touched.
 
-        The items are painted into the maze artwork, so taking one off the board means
-        covering it up -- and the drawings reach up to 66px from their centres while a wall
-        can be 2px away. The first attempt covered a disc and ate holes in the maze. A hole in
-        the wall of a maze is not a blemish: it tells a child they can walk somewhere they
-        cannot.
+        That test guarded a machine that no longer exists, and the machine is worth a
+        sentence because the rule it protected still binds. The pickups used to be painted
+        INTO the maze artwork, so removing one meant covering it with floor-coloured paint,
+        cell by cell, over exactly the cells the drawing occupied -- because a disc big
+        enough to hide a lantern was bigger than the gap to the wall beside it, and a disc
+        over a wall is a lie about where a child may walk.
 
-        So this asks both halves at once, on the pixels: is the thing gone, and is every wall
-        near it still exactly as bright as the artwork drew it?
+        Harry's pickups of 25 November are ten separate drawings with their own
+        transparency, so collecting one is simply not drawing it. The rule survives as the
+        thing asked here: the board underneath must come back EXACTLY as it was. If
+        collecting ever starts painting over the picture again, this is what says so.
         """
-        win, screen = self.window()
+        w, screen = self.window()
         game = screen.game
-        self.assertTrue(game.walk_to(game.items[0]))
-        while game.route:
-            game.step()
-        # AND THEN WALK AWAY, which is not fussiness: a child stands on the thing to pick it
-        # up, and a green footprint on the cell it used to occupy is bright enough to read as
-        # the thing still being there. The first run of this failed on exactly that.
-        self.assertTrue(game.walk_to(game.start))
-        while game.route:
-            game.step()
-        screen.changed.emit()
+        cell = game.items[3]
+        before = self.shot(screen)
+        there = self.brightest(before, cell, game)
+        game.collected = {cell}
+        screen.update()
         settle(2)
-        shot = self.shot(screen)
+        after = self.shot(screen)
+        self.assertNotEqual(there, self.brightest(after, cell, game),
+                            "the thing is still drawn where it was collected")
+        # Every wall cell well away from it is untouched, pixel for pixel.
+        walls = [c for c in ((x, y) for x in range(8, 152, 7) for y in range(8, 82, 7))
+                 if c not in game.active and abs(c[0] - cell[0]) + abs(c[1] - cell[1]) > 14]
+        self.assertGreater(len(walls), 40, "too few walls sampled to mean anything")
+        for spot in walls:
+            self.assertEqual(self.brightest(before, spot, game),
+                             self.brightest(after, spot, game),
+                             f"the wall at {spot} changed when something was collected")
 
-        trodden = {(x + dx, y + dy) for x, y in game.trail[-18:]
-                   for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
-        looked = [c for c in game.item_cells[0] if c not in trodden]
-        self.assertTrue(looked, "the trail covers the whole drawing, so this proves nothing")
-        for cell in looked:
-            self.assertLess(self.brightest(shot, cell, game), 90,
-                            f"the collected thing is still drawn at {cell}")
+    def test_no_drawing_lies_across_a_wall(self):
+        """REPLACES test_no_thing_claims_a_piece_of_somebody_elses_wall.
 
-        cx, cy = game.items[0]
-        walls = [(x, y)
-                 for x in range(cx - 12, cx + 13)
-                 for y in range(cy - 12, cy + 13)
-                 if (x, y) not in game.active and (x, y) not in game.item_cells[0]
-                 and 0 <= x < game.WIDTH and 0 <= y < game.HEIGHT]
-        artwork = screen.images[game.difficulty].toImage()
-        bitten = [cell for cell in walls
-                  if self.brightest(artwork, cell, game) > 160
-                  and self.brightest(shot, cell, game) < 90]
-        self.assertEqual([], bitten,
-                         f"{len(bitten)} wall cells were rubbed out with the item: {bitten[:6]}")
+        A drawing is placed on a cell and spreads out from it, so a big one on a cell with a
+        hedge two steps away stands in the hedge -- which looks like a mistake and, worse,
+        hides the wall a child is trying to read. The first attempt at this release did
+        exactly that: the Kaaba sat half on a brick, because drawings were sized by their
+        WIDTH while the room for them had been measured as a radius.
 
-    def test_no_thing_claims_a_piece_of_somebody_elses_wall(self):
-        """THE TEST THAT SHOULD HAVE CAUGHT THIS AND DID NOT.
-
-        item_cells is worked out offline by shape: a wall is a long run that leaves any window
-        drawn around an item, and an item is a small thing that does not. A wall bar that sits
-        ENTIRELY INSIDE that window passes the test, and one did -- the miswak on expert came
-        back with twelve cells of maze wall attached. Collecting it would have rubbed out that
-        wall: a gap in the picture where the mask still says you cannot walk, which is the one
-        thing a maze must never do.
-
-        It slipped past test_a_collected_thing_is_rubbed_out_and_no_wall_is_touched because
-        that test EXCLUDES the recorded cells when it looks for bitten walls -- it trusted the
-        very data it was meant to be checking. This checks the data itself: a drawing here
-        reaches about five cells from its centre, so anything claiming more than six is
-        claiming something that is not it.
+        Measured against the room each one was actually given rather than by eye.
         """
-        win, screen = self.window()
-        game = screen.game
-        for level in range(3):
-            with self.subTest(game.level["name"]):
-                for index, item in enumerate(game.items):
-                    far = max((max(abs(x - item[0]), abs(y - item[1]))
-                               for x, y in game.item_cells[index]), default=0)
-                    self.assertLessEqual(
-                        far, 6,
-                        f"{game.ITEM_KEYS[index]} claims a cell {far} away from itself, "
-                        "which is further than any of these drawings reach")
-            game.cycle_difficulty()
+        from salaah.mosque_maze import ItemPictures, Rules, Screen
+        for scene in range(3):
+            game = Rules()
+            game.scene = scene
             game.restart()
+            with self.subTest(game.level["name"]):
+                for index, cell in enumerate(game.items):
+                    art = ItemPictures.CACHE.get(Rules.ITEM_ART[index])
+                    # Read off the painter, never typed in here. A copy of 0.075 in this
+                    # test is a copy that goes on passing after the painter changes, and the
+                    # builder holds a third copy of the pair for its clearance.
+                    share = Screen.BIG_WIDE if index < Rules.BIG else Screen.SMALL_WIDE
+                    # half the drawing's longest side, in cells
+                    reach = share * Rules.WIDTH / 2
+                    # A CIRCLE, NOT A SQUARE. The room each drawing was given was measured
+                    # as a distance to the nearest wall, so the clear area is round: the
+                    # corners of a square of side 2r sit r*1.41 away and are not promised to
+                    # be floor. Asking for them was this test's own first mistake.
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1),
+                                   (0.7, 0.7), (0.7, -0.7), (-0.7, 0.7), (-0.7, -0.7)):
+                        spot = (cell[0] + int(dx * reach), cell[1] + int(dy * reach))
+                        if not (0 <= spot[0] < Rules.WIDTH and 0 <= spot[1] < Rules.HEIGHT):
+                            continue
+                        self.assertIn(spot, game.active,
+                                      f"{Rules.ITEM_KEYS[index]} at {cell} reaches {spot}, "
+                                      f"which is not floor")
 
-    def test_nothing_is_rubbed_out_before_it_is_collected(self):
-        """Or the test above would pass on a maze with no items drawn in it at all.
+    def test_no_two_drawings_sit_on_top_of_each_other(self):
+        """Ten pickups on a board means ten a child can see and tell apart.
 
-        Asks whether anything is DRAWN there, not whether anything is white. Since 2.30 each
-        thing is painted in its own colour, and the first of them is a blue that comes to 156
-        on a grey scale -- under the 160 this used to want. The test failed and the game was
-        fine, which is the right way round but still an hour of mine.
+        This rule is here because the suite was green while six of the Night Clouds pickups
+        were drawn in one heap in the top-right corner, and nothing said so. Every test in
+        this class asked about one drawing at a time; none of them asked what the ten look
+        like together, which is the only question that catches a pile.
+
+        Two drawings overlap when their centres are closer than the sum of their halves. Read
+        off the painter, like the rule above it.
         """
-        win, screen = self.window()
+        from salaah.mosque_maze import Rules, Screen
+        for scene in range(3):
+            game = Rules()
+            game.scene = scene
+            game.restart()
+            with self.subTest(game.level["name"]):
+                def half(index):
+                    share = Screen.BIG_WIDE if index < Rules.BIG else Screen.SMALL_WIDE
+                    return share * Rules.WIDTH / 2
+                for a in range(len(game.items)):
+                    for b in range(a + 1, len(game.items)):
+                        here, there = game.items[a], game.items[b]
+                        gap = ((here[0] - there[0]) ** 2 + (here[1] - there[1]) ** 2) ** 0.5
+                        self.assertGreaterEqual(
+                            gap, half(a) + half(b),
+                            f"{Rules.ITEM_KEYS[a]} at {here} and {Rules.ITEM_KEYS[b]} at "
+                            f"{there} are {gap:.1f} cells apart and need "
+                            f"{half(a) + half(b):.1f}, so they are drawn on top of each other")
+
+    def test_everything_is_on_the_board_until_it_is_collected(self):
+        """The other half of the one above: a thing not yet collected must be visible.
+
+        A pickup that is drawn nowhere is one a child cannot find, while the counter goes on
+        waiting for it -- a maze that cannot be finished, which is exactly the complaint
+        Harry brought on 15 November about a different cause.
+        """
+        w, screen = self.window()
         game = screen.game
+        self.assertEqual(set(), game.collected)
         shot = self.shot(screen)
-        lit = [c for c in game.item_cells[0] if self.brightest(shot, c, game) > 60]
-        self.assertTrue(lit, "the first thing is not on the board to begin with")
+        board = screen.images[game.scene].toImage().scaled(
+            shot.width(), shot.height(), Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation)
+        for index, cell in enumerate(game.items):
+            with self.subTest(game.ITEM_KEYS[index]):
+                # AGAINST THE BARE BOARD, over the cells around the middle rather than the
+                # one under it. A crescent is a hole in the middle and a lantern is a thin
+                # stem, so the single centre cell can honestly be empty -- which is what this
+                # test asked first time and wrongly failed on.
+                spread = [(cell[0] + dx, cell[1] + dy)
+                          for dx in (-2, 0, 2) for dy in (-2, 0, 2)]
+                drawn = max(abs(self.brightest(shot, spot, game)
+                                - self.brightest(board, spot, game)) for spot in spread)
+                self.assertGreater(drawn, 10,
+                                   f"nothing is drawn around {cell}, so this pickup is "
+                                   f"invisible while the counter still waits for it")
 
     def test_the_7in_shows_the_things_that_have_been_collected(self):
         win, screen = self.window()
@@ -20223,128 +20334,92 @@ class WhatTheMazeDoesWithACollectedThingTest(unittest.TestCase):
                   if QtGui.qGray(drawn.pixel(x, y)) > 120)
         self.assertGreater(ink, 200, "two things were collected and the catalogue is empty")
 
-    def test_each_thing_is_catalogued_as_its_own_drawing_and_not_a_wall(self):
-        """Cut from the artwork, so the thing on the 7in is the thing that was on the board.
+    def test_each_thing_is_catalogued_as_its_own_drawing(self):
+        """The 7in shows what has been collected, and each one must be its own picture.
 
-        The cut-out is clipped to the item's own cells for the same reason the erase is: a
-        square cut around a drawing catches whatever is near it, and the first version showed
-        the water drop with two lengths of somebody else's wall standing beside it.
-        """
-        win, screen = self.window()
-        game = screen.game
-        for index in range(len(game.items)):
-            with self.subTest(game.ITEM_KEYS[index]):
-                icon = screen.item_icon(index, 90)
-                self.assertIsNotNone(icon)
-                self.assertFalse(icon.isNull())
-                shown = icon.toImage()
-                solid = [(x, y) for x in range(shown.width()) for y in range(shown.height())
-                         if QtGui.QColor.fromRgba(shown.pixel(x, y)).alpha() > 120]
-                self.assertGreater(len(solid), 40, "the cut-out came back empty")
-
-                # AND EVERY LIT PIXEL BELONGS TO THE THING ITSELF. Counting them and hoping
-                # the total looked small enough was the first version of this, and a sabotage
-                # walked through it: dropping the clip altogether let the walls in and the
-                # count stayed under the bar. So each lit pixel is mapped back to the cell it
-                # was cut from and has to be one of the item's own.
-                art = screen.images[game.difficulty]
-                nx, ny = game.item_norm[index]
-                reach = int(art.width() * screen.ERASE / 1920)
-                left_px = int(nx * art.width()) - reach
-                top_px = int(ny * art.height()) - reach
-                span = reach * 2
-                stray = set()
-                for x, y in solid:
-                    ax = left_px + (x + 0.5) * span / shown.width()
-                    ay = top_px + (y + 0.5) * span / shown.height()
-                    cell = (int(ax * game.WIDTH / art.width()),
-                            int(ay * game.HEIGHT / art.height()))
-                    if cell not in game.item_cells[index]:
-                        stray.add(cell)
-                self.assertEqual(set(), stray,
-                                 f"the cut-out carries {len(stray)} cells that are not the "
-                                 f"thing itself: {sorted(stray)[:6]}")
-
-    def test_the_mosque_is_green_and_each_thing_has_its_own_colour(self):
-        """Harry, 15 November 2026: "the mosque should be green and the items to be collected
-        in red or individual colours." Individual, because it costs no more and does more.
-
-        And NO THING IS GREEN, which is the rule that matters: green already means the mosque
-        and it means the footprints, so a green pickup would be the one colour on the board
-        that says something else. The first palette had a mint in it and the badge read as a
-        small piece of mosque.
+        Until 2.53 this was hard: the icons were cut out of the maze artwork and keyed to
+        transparency by reading brightness, so a crop that caught a passing wall put a lump
+        of hedge in the catalogue. The drawings are separate files now, so the risk is the
+        opposite one -- that two entries quietly show the same picture, which a child would
+        read as having collected the same thing twice.
         """
         from salaah.mosque_maze import Rules
-        from salaah.theme import palette
-        win, screen = self.window()
-        game = screen.game
-        green = QtGui.QColor(palette().green)
-        for colour in Rules.ITEM_COLOURS:
-            with self.subTest(colour):
-                shade = QtGui.QColor(colour)
-                self.assertFalse(
-                    shade.green() > shade.red() + 40 and shade.green() > shade.blue() + 40,
-                    f"{colour} is a green, and green is the mosque")
-                apart = abs(shade.hue() - green.hue())
-                self.assertGreater(min(apart, 360 - apart), 40,
-                                   f"{colour} sits too near the mosque's green")
-        self.assertGreaterEqual(len(set(Rules.ITEM_COLOURS)), 9, "two things share a colour")
+        w, screen = self.window()
+        seen = {}
+        for index, key in enumerate(Rules.ITEM_KEYS):
+            with self.subTest(key):
+                icon = screen.item_icon(index, 96)
+                self.assertIsNotNone(icon, f"{key} has no drawing for the catalogue")
+                self.assertFalse(icon.isNull())
+                self.assertGreater(icon.width(), 8)
+                stamp = icon.toImage().scaled(8, 8).constBits().asstring(8 * 8 * 4)
+                self.assertNotIn(stamp, seen,
+                                 f"{key} is catalogued with the same picture as {seen.get(stamp)}")
+                seen[stamp] = key
 
-        shot = self.shot(screen)
-        found = set()
-        for cell in game.mosque_cells:
-            pixel = QtGui.QColor.fromRgb(shot.pixel(*self.middle(shot, cell, game)))
-            if pixel.green() > pixel.red() + 30 and pixel.green() > pixel.blue() + 10:
-                found.add(cell)
-        self.assertGreater(len(found), len(game.mosque_cells) // 4,
-                           "the mosque is not drawn in green")
+    def test_the_things_are_each_a_different_drawing_on_the_board(self):
+        """REPLACES test_the_mosque_is_green_and_each_thing_has_its_own_colour.
+
+        Harry, 15 November 2026: "the mosque should be green and the items to be collected in
+        red or individual colours." That was answered by painting them, because they were all
+        one flat white drawing and nothing else could tell them apart. His boards of 25
+        November paint the mosque themselves and his pickups are ten different pictures, so
+        the ask is met by the artwork rather than by the code.
+
+        What is still worth asking is that the board really does show ten different things,
+        because ITEM_ART is positional against ITEM_KEYS and one wrong line in that tuple
+        would show a child the same lantern twice and name them differently.
+        """
+        from salaah.mosque_maze import ItemPictures, Rules
+        w, screen = self.window()
+        stamps = {}
+        for index, key in enumerate(Rules.ITEM_KEYS):
+            art = ItemPictures.get(w, Rules.ITEM_ART[index])
+            self.assertFalse(art.isNull(), f"{key} has no drawing")
+            stamp = art.toImage().scaled(10, 10).constBits().asstring(10 * 10 * 4)
+            self.assertNotIn(stamp, stamps,
+                             f"{key} and {stamps.get(stamp)} are the same picture")
+            stamps[stamp] = key
 
     @staticmethod
     def middle(image, cell, game):
         return (int((cell[0] + 0.5) * image.width() / game.WIDTH),
                 int((cell[1] + 0.5) * image.height() / game.HEIGHT))
 
-    def test_no_wall_is_painted_in_a_thing_colour(self):
-        """ADDED AFTER A SABOTAGE WALKED THROUGH, and after the same fault was found by eye.
+    def test_the_board_picture_is_never_painted_over(self):
+        """REPLACES test_no_wall_is_painted_in_a_thing_colour.
 
-        The colour is cut as a RECTANGLE around each drawing, and a rectangle catches whatever
-        else is inside it -- which on this artwork means maze wall. The prayer beads on expert
-        came back with a blue bar beside them, which is a wall painted as if it were something
-        to pick up. Removing the clip that stops this broke no test at all.
+        There is no longer any code that paints a maze cell in a pickup's colour -- the
+        colouring layer went with the erase machinery at 2.53, because Harry's boards arrive
+        already painted and his pickups arrive as their own drawings. What is left to protect
+        is simpler and stronger: the board is a photograph, and nothing the game draws may
+        alter it except the things it is entitled to draw.
 
-        So: every wall the mask knows about, that is not part of a drawing, has to stay the
-        colour walls are. Checked on saturation rather than on a particular grey, because the
-        mat has two themes and white and black are both unsaturated while every one of these
-        colours is not.
+        Asked by covering the whole board and comparing against the bare picture, so it holds
+        wherever a future hand decides to paint something.
         """
-        win, screen = self.window()
+        w, screen = self.window()
         game = screen.game
-        # EVERY LEVEL. The first version of this looked at beginner only, and the wall that
-        # was actually being painted was on expert -- so the sabotage that removes the clip
-        # walked straight through it. The fault had already been found by eye on expert by
-        # then, which made passing here doubly misleading.
-        for level in range(3):
-            with self.subTest(game.level["name"]):
-                game.restart()
-                screen.changed.emit()
-                settle()
-                shot = self.shot(screen)
-                theirs = set(game.mosque_cells)
-                for cells in game.item_cells:
-                    theirs |= set(cells)
-                painted = []
-                for x in range(game.WIDTH):
-                    for y in range(game.HEIGHT):
-                        if (x, y) in game.active or (x, y) in theirs:
-                            continue
-                        spot = self.middle(shot, (x, y), game)
-                        pixel = QtGui.QColor.fromRgb(shot.pixel(*spot))
-                        if pixel.saturation() > 90 and pixel.value() > 80:
-                            painted.append((x, y))
-                self.assertEqual([], painted[:8],
-                                 f"{len(painted)} wall cells on {game.level['name']} are "
-                                 "painted in a colour that belongs to something you pick up")
-            game.cycle_difficulty()
+        shot = self.shot(screen)
+        board = screen.images[game.scene].toImage().scaled(
+            shot.width(), shot.height(), Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation)
+        allowed = set()
+        for cell in list(game.items) + list(game.trail) + [game.gate_cell]:
+            for dx in range(-9, 10):
+                for dy in range(-9, 10):
+                    allowed.add((cell[0] + dx, cell[1] + dy))
+        allowed |= set(game.mosque_cells)
+        changed = []
+        for x in range(4, game.WIDTH - 4, 3):
+            for y in range(4, game.HEIGHT - 4, 3):
+                if (x, y) in allowed:
+                    continue
+                if abs(self.brightest(shot, (x, y), game)
+                       - self.brightest(board, (x, y), game)) > 24:
+                    changed.append((x, y))
+        self.assertEqual([], changed[:8],
+                         f"{len(changed)} cells of the board were painted over by the game")
 
     def test_the_way_is_actually_drawn_on_the_little_map(self):
         """The companion to test_the_map_draws_a_way_to_the_next_thing, which asks the game
@@ -20411,7 +20486,7 @@ class WhatTheMazeDoesWithACollectedThingTest(unittest.TestCase):
                     self.assertTrue(game.walk_to(nxt))
                     while game.route:
                         game.step()
-            game.cycle_difficulty()
+            game.cycle_scene()
 
     def test_the_map_does_not_search_the_board_on_every_step(self):
         """The help may not cost more than the thing it is helping.

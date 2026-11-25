@@ -2,7 +2,7 @@
 
 The 16-inch touch display contains only the approved maze artwork and the live
 footprint trail. The 7-inch companion shows the hint, translated instructions,
-progress, difficulty, New Game and Exit. All state stays in memory.
+progress, scenery, New Game and Exit. All state stays in memory.
 """
 from __future__ import annotations
 
@@ -30,77 +30,84 @@ class Rules:
     of the mat's text and marked for review.
     """
 
-    #: Positional against each level's `items` tuple: the nth cell collected is the nth key.
-    ITEM_KEYS = ("wudu", "clothes", "adhan", "mat", "calm",
-                 "miswak", "scent", "right_foot", "salaam")
+    #: Positional against each background's `items` tuple: the nth cell is the nth key, and
+    #: the nth drawing in ITEM_ART.
+    #:
+    #: TEN SINCE 2.53, AND THEY DO TWO DIFFERENT JOBS. Harry, 25 November 2026: "i want to use
+    #: all the objects at some point, lets keep the 3 main objects in corner and the other can
+    #: be smaller and scattered."
+    #:
+    #: The first three are the three corners, and they are the three things a child actually
+    #: DOES before praying -- washing, dressing, putting the mat down. They are big, they are
+    #: in the three corners he left clear, and they are why the corners are worth the walk.
+    #:
+    #: The other seven are things met on the way, named for what they are and nothing more.
+    #: That distinction is deliberate. The nine that were here before were nine steps of
+    #: getting ready, in order, and the order was the point: it is what stopped this being a
+    #: maze with dots wearing an Islamic name, which is the fault six games were taken out for
+    #: in October 2026 -- see the note in ui.build_corner. Harry's ten objects are not a
+    #: sequence; a lantern and a bowl of dates are not stages of anything. So rather than
+    #: pretend, the three that ARE stages carry that meaning and the rest are honestly just
+    #: the things you pass.
+    #:
+    #: None of these words has been read by anyone qualified.
+    ITEM_KEYS = ("wudu", "clothes", "mat",
+                 "quran", "tasbih", "lantern", "dates", "crescent", "kaaba", "mosque")
+
+    #: The drawing for each, in assets/children/mosque-items. Harry's set of 25 November 2026.
+    ITEM_ART = ("brass_ewer", "kufi_cap", "prayer_rug",
+                "quran_on_rehal", "tasbih_beads", "ramadan_lantern", "dates_bowl",
+                "crescent_moon_star", "kaaba", "mosque")
+
+    #: How many of the ten are the big corner ones.
+    BIG = 3
 
     WIDTH = 160
     HEIGHT = 90
     MAX_TOUCH_ROUTE = 14
-    LEVEL_DATA = (
-        {
-            'name': 'beginner',
-            'asset': 'mosque-maze-beginner.png',
-            'mask': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1f000000000000000000000000000000000000f81f000000000000000000000000000000000000f89fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcf7fffff99fffffff3ffeffffff7ffeffffff7ffcc3fffff99f1f00f03efe0300e07ffe0700c07ffca303f8f99f1f00f03efe0300e07ffe0700c07ffcf203f8f99f1f00707cfeffffff7ffeffffff7f7ef003f8f99f1f0070fcffffffffffffffffffff3ff003f8f99f1f0070f8ffffffffffffffffffff3ff803f8f99f1f0070fcfffffffffffffffffffffffe03f8f99ffffffffffffffffffffffffffffffffefffff99ffffffffffffffffffffffffffffffffffffff99fffffff7f0080ff00000080ff0100fefffffff99fffffff3f0080ff00000000ff0000fcfffffff99fffffff3f0080ff01000080ff0100fcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff91f00fcf33ffeffffff7ffeffffff7ffccf3f00f81f00fcf33ffeffffff7ffeffffff7ffccf3f00f8fffffcf33ffeffffff7ffeffffff7ffccf3ffffffffffcf33ffeffffff7ffeffffff7ffccf3ffffffffffcf33ffeffffff7ffeffffff7ffccf3ffffffffffcf33ffeff0300000000c0ff7ffccf3ffffffffffcf33ffeff0300000000c0ff7ffccf3ffffffffffcf33ffefff3ffffffffcfff7ffccf3ffffffffffcf3fffffff3ffffffffcfffffffcf3ffffffffffcf3fffffff3ff7ffeffcfffffffcf3fffff1f00fcf3fffffff3ffffffffcfffffffcf3f00f81f00fcf3fffffff3cf7ffefbcfffffffcf3f00f8ffffff030000fcf3cf1ff8ffcf3f0000c0ffffffffffff030000fcf3ef0ff0ffcf3f0000c0fffffffffffffffffffff3cf0ff0f9cfffffffff73ffffff7ffefffffffff3cf07f0f9cfffffffff01ffffff1ffefffffffff3cf0180f9cfffffffff01fffffffffffffffffff3cf0000f9cfffffffff01ffffff7ffefffffffff34fc003f9cfffffffff8dffffff1ffffffffffff34fc803f9cfffffffff09feffffffff030000fcf34fea5ff9cf3f0000c0ffffffffffff030000fcf34fca5bf1cf3f0000c0ffffff1f00fcf3fffffff307e002f0cfffffffcf3f00f81f00fcf3fffffff3ffffffffcfffffffcf3f00f8fffffcf3fffffff3ff1ffcffcfffffffcf3ffffffffffcf3fffffff3ffffffffcfffffffcf3ffffffffffcf37ffeff0300000000c0ff7ffecf3ffffffffffcf33ffeff0300000000c0ff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3ffffffffffcf33ffeffffffffffffffff7ffccf3fffff1f00fcf33ffeffffffffffffffff7ffccf3f00f81f00fcf33f0080ff00000000ff0000fccf3f00f89fffffff7f0080ff00000080ff0000fefffffff99fffffffffffffffff7ffefffffffffffffffff99fffffffffffffffff7ffefffffffffffffffff99fffff7ffeffffffff7ffeffffffff3ffcfffff99fffff3ffcffffffff7ffeffffffff5ffafffff99fffff3ffcffffffff7ffeffffffffbff9fffff99f1f00bcfdffffffff7ffeffffffff3f3900f8f99f1f00bc3dfe0700e07ffe0700e07f1c3900f8f99f1f00bc3ffe0700e07ffe0700e07fbc3d00f8f99f1f003c3cfe0700e07ffe0700e07ffc3f00f8f99f1f003c3cfeffffff7ffeffffff7ffc3f00f8f99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffff7ffeffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff99fffffff3ffeffffffffffffffff7ffcfffffff91f000000000000000000000000000000000000f81f000000000000000000000000000000000000f8ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
-            'start': (14, 45),
-            'items': ((34, 18), (129, 16), (139, 45), (32, 69), (128, 68)),
-            'item_norm': ((0.203125, 0.199074), (0.809896, 0.194444), (0.880208, 0.490741), (0.203125, 0.768519), (0.802083, 0.763889)),
-            'approach': (80, 55),
-            'goal': (80, 49),
-            'item_cells': ('000000000000000000000000000000000000000800800300f000001f00e003007c0000070000000000000000000000000000000000000000',
-                           '00000000000000000000000000000000000000c00100fc00c01f00fc01c01f00fc03803f00e0030018000000000000000000000000000000',
-                           '00000000000000000000000000000000c03f00f80f00ff01e03f00fc0780ff00000100000000000000000000000000000000000000000000',
-                           '00000000000000000000006000000c00c003007800801f00e003007c00800f00f801003e00c0070000000000000000000000000000000000',
-                           '00000000000000000000000000000000000000fc00801f00f80700ff00e01f00f801001e0000000000000000000000000000000000000000'),
-            'gate_norm': (0.471354, 0.5, 0.528646, 0.615741),
-        },
-        {
-            'name': 'medium',
-            'asset': 'mosque-maze-medium.png',
-            'mask': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0f000000000000000000000000000000000000f00f000000000000000000000000000000000000f0cffffffffffff9fffffffffdff9fffffffe7fff3cffffffffffff9fffffffffdff9fffffffe7fff3cffffffffffff9fffffffffdff9fffffffe7fff3cffffffffffff9fffffffffdff9fffffffe7fff3cf0700801f00f8010000fcfd7d02e80f0000f8f3cf0700801f00f8010000f8fd7c00c8070000e0f3cfe7ff9fdfffffffdffffffdfcffcfe7ffffeff3cfe7ff9fdfffffffdffffffdfcffcfe7ffffeff3cfe7ff9fdfffffffdffffffdf1ffcfe7fffdeff3cfe7ff9bdfffffffdffffffdffffcfe7fff9eff3cfe7e799dfffffffdffffffdffffcfe77ff0eff3cfe7e791df0f00c0df0f000000c0cfe71f18e0f3cfffe791df0f00c0df0f000000c0cfffaf1fe0f3cfffe799ffffffdfdfffffffffcfcfff379efff3cfffe79fffffffdfffffffffffcfcfff6f9ffff3cfffe79fffffffdfffffffffffcfcfffbf9ffff3cfffe79fffffffdfffffffffffcf0f00f89ffff30fc0e79fffffffdfffffffffffcf0f00f89ffff30fc0070000003e1f00800f00c0cffffff98107f0ffcfffcfffff3f1f00800f00c0cffffff98107f0ffcfffcfffff3fffff9fffffcfcffffff9ffe7ffffcfffcfffff3fffff9fffffcfcffffff9ffe7ffffcfffcfffff3fffff9fffffcfcffffff9ffe7ffffcfffcfffff3fffff9fffffcf0f00f0f9ffe7ffffcf9fcfffff2fffff9fffffcffffff7f9ffe7ffffcf9fcf0300003f00000000fefffff701c0e7ff0fc09fcff3cfffbfffffff7ffefffff701c007f0cfff9fcff3cfffbfffffff7ffefffff7f9cf0ff0cfff9fcff3cfffbfffffff7ffefffff7f9cffff3cfff9fcff3cfffbfffbfff7ffefffff7f9cffff3cfff9ffff3cfffbfff7fff7f0000e0f7f9cffff30f0080fff3cff7bfff7fff7f0000e0f7f9cffff30f0080fff3cff7bf9f3ffe7cfe7ffef7f9cffff3ffff9ffff3cff7bf9f0ffc7dfe7ffefff90c00f0ffff9ffff3cf07809f0ff87cfe7ffefff91c00f0fff11f00f0cf07809f07f87cfe7ffefff9fcffffffff1f00f0cfffbf9f01e07cfe7ffefff9fc03ffffff9fffffcfffbf9f00c07cfe7f3e00f8fc03fffff89fffffcfffbf9f40807c007e3e00f8fc03ffffff9fffffcfffbf9f0aa37c7e7efefffffc33ffffff9fffffcfffbf9f0aac7c7e7efefffffcffff0fc09f03000f00bf0f0003787e7efeffff0000f00fc09f03000f00bf0f0002787e7efeffff0000f0cfdfffff3cff3fbfff1fff7f7e7e0000fffffff3cfdfffff3cff3fbfff1fff7f7e7e0000fffffff3cfdfffff3cff3f3f000000007efeff3ffffffff3cfdfffff3cff3f3f000000007ffeff3ffffffff3cfdfffff3cff3fffff3fffff7ffeff3ffffffff3cf0f00f83c003effff3fffff7ffeff3f1f00e0f3cffffff97c003effff3fffff7ffeff3f1f00e0f3cffffff9fc7f3effff3fffff7f00003fffffe7f3cffffff9fc7f3e00003c1f007e00003fffffe7f3cffffff9fc7f3e00003c1f00feff3f3fffffe7f30fe0fff9fc7ffeffff3cff7ffeff3f3fffffe7f30fe0fff9fc7ffefffffcff7ffeff3f3f00c0e7f3cfffedf9007cfefffffcff7ffeff3fffffdfe7f3cfffeff9007cfefffffcff7ffeff3fffffcfe7f3cfffedf9ff7dfefffffcff7f00003effffcfe7f3cfffe1f9ff7d0000ff3c007c00003effffcfe7f3cfffeff9ff7d0000e77c007cfeff3f00c0cfe7f3cfe7cff9fffdff3fe7fcff7cfeff3f00c0cfe7f3cfe7fff9fffdff3fe7ffff7cfeffffffcfcffff3cfe7fff9f9fdff3fe7ffff7cfeffffffcfcffff3cfe7fff9f9fddf3fe7ffff7cfeffff3fcccffff3cf0700f8f9018e3fe7ffff7c3e00001ccecffff3cf0700f8f901863f0700fc7c3effff1cc80fe0f3cffffffff9ffef3f0f00fc7c3effff1cc81fe0f3cffffffff9ffaf3ffffffcfc3fffff3cccffe7f3cffffffff9ffaf3ffffffcfc3fffff7cceffe7f3cffffffff9ff8f3ffffffcfc3ffffffccfffe7f3cf070000f8ff8f3ffffffc00007ffefccfffe7f3cf070000f8f9030000f8fc00007ffe0000c0e7f3cffffffffff9030000f8fcffff7ffeffffcfeff3cffffffffff9fffffffffcffff7ffeffffcffff3cffffffffff9fffffffffcffff7ffeffffcffff3cffffffffff9fffffffffcffff7ffeffffcffff30f000000000000000000000000000000000000f00f000000000000000000000000000000000000f0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
-            'start': (11, 45),
-            'items': ((27, 20), (99, 14), (136, 19), (149, 46), (19, 64), (53, 74), (129, 71)),
-            'item_norm': ((0.161458, 0.208333), (0.619792, 0.162037), (0.854167, 0.203704), (0.929688, 0.49537), (0.117188, 0.712963), (0.333333, 0.819444), (0.799479, 0.805556)),
-            'approach': (80, 55),
-            'goal': (80, 49),
-            'item_cells': ('00000000000000000000000000000400c000003c00800700f000001e00000000000000000000000000000000000000000000000000000000',
-                           '000000000000000000000000000000000000001c008001003000003e00c00700000000000000000000000000000000000000000000000000',
-                           '00000000000000000000000000001000000700f001007f00f007007f00f007007e0080070060000000000000000000000000000000000000',
-                           '00000000000000000000000000000000e00700fe01c03f00f80700ff00e01f00000000000000000000000000000000000000000000000000',
-                           '000000000000000000000000000000000000003000800f003003006600c00f00e00100300000060000000000000000000000000000000000',
-                           '00000000000000000000000000000800800300f800001f00e003006c00800d00f001003e0000000000000000000000000000000000000000',
-                           '000000000000000000000000000000000000000000000300f801003f00e00700fc00801f00e0010000000000000000000000000000000000'),
-            'gate_norm': (0.466146, 0.49537, 0.523438, 0.611111),
-        },
-        {
-            'name': 'expert',
-            'asset': 'mosque-maze-expert.png',
-            'mask': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0f000000000000000000000000000000000000f0efff0ffeffffdffffffdffcfffff7ffffffffff7effffffeffffdffffffdffcfffff7ffffffffff7effffffeffffdffffffdffcfffff7ffffffffff76ff8fffe3f00c0ffff3d00ccffff7f0f3c0000f76f30f0003c00c003c03d00ce7d00700fbeff3ff7ef33ffff3dffdffbffbdffcffcff77efbfff3ff7ef33ffff3dffdffbffbdffcffcff77efbfbf3ff7ef33ffff3dffdffbffbdffcff1ff77efbf5f3ff7ef33ffef3dffff3b00bcfbcfff9ff7ef80cf3ef70f3080c73d07fc3b00bc7bc0ff9ff7effcbf3ff70ff0bfc73de7ff3bffbffb0f009cf7effcc33ff7efffbfcf3de7ff3bffbffb0f009cf7effce101f7efffbfdf01e7ff3bffbffbffff9c07e0fcf901f7efffbfffcde701380f80fbffff9cfffffcf3f9f7ef01bcffffe7fd3f0f800300f09cffff00fff9f7eff93c00fce7fd3ffffbfffff39cffff01fff9f7eff93c00fce7fd3ffffbfffff380ffff3fff79f0eff9fcfffde03d38ff03e0fff30000fe3fff39f0eff9fcff3de03d308003c0fff31f00fe3f0f38ffeff9fcfffdfffd7380ffcf81f3ffff1e30ff3fffeff900e0fdfffdf39fffcf9ff3ffff0e30ff3fffeff901e0fdfffdf39fffcf9ff3ffffce3fff7fffeff9ffef01fffcf39f7fc09f0300f8ce3fff7fffeff9ffef010f80f39f7fc09ff3fff9ce3f0000f0fff9ffef7fff9f03807fff9ff3fff9c0f3f7fff70fc001ee7fff9ff3ff7fff9ff3fff9c0f3f7fff70fc0f9ef7fff9ff3ff7fff9ff3fff9fff3f7fff7ffdff90f70ff9ff30100008003f0f9fff3f701f7ffdff9ff73ff9ff30100008003f0f9fff3f700f7ffdff9ff7300fcf3fdffff9fff33001e70f07cf7ffdf01bff3fffdf3fdffff9fff33001e70f07cf70fc0010ff3fffdf3fdbfff9fff33ff9fffff7cf7efff3fe7f3fffdf3bd7fff9ee833ff9fffff7cf7efff3fc3f3fffdf3b97fff1ec033ff9fefcc7cf7efff3fff03e001f0b93ffe9eff33ff9fefc07cf70f003eff03e0fffff90ff89fff330780efc07cf7ffff3ffff3e7ffffb90ff89eff3fe7ffeff17cf07fff3f00f0e7ffffb90ff89eff3fe7ffefc0fcf71ffefff7ffe78103b801c09eff3fe7ffeffffcf7fffffff7ffe78103bc01801ec03fe7ffeffffcf70fffe1f7ffe79df3bd00809edf3f07780f0080f7bfffe7f7ffe79df3bd0aa89edf010f70ffff9ff7ffffe7f700e79df3390aa89edfffff73ffff9ff70ff0e7f700e79df31920009cdfffff7bffff9ff7efffe7f77ee09dfff91f389edfffff73ffff9ff7efffe7f77ee09dfff91ffc9f1f00e073007880f7efff07f07eff9dfff97fff9f1f00e0fbff7980f7ef0107f07eff9dff01000080dfffefffff79fff7ef00feff7eff1dc0ff7fffffdfffefffff79fff7ef7cfeff7eff1dc0ff7fffffdfbf0f00e079fff7ef7cfeff7e0ffccfff7fffffdfbf0f00e079fff7ef7cfeff0eefffcfff7fffffc11fefffef7900f0ef7cc001eeefffcf017c00e0c05defffeff9fff7effccffdefefffcff9fcffe7fffdefffeff9fff7effccffdefefffcff9fcffe7fffdef01fff9fff70fbccffdef0f00cffdfcffe7ff01e001ff01c0f7efefcffdefff7f0ff8fcffe7ff01e03dfff9dff7efefce01eeff7f0ffc00c007c0fdff3dfff9dff7efefce01eeff7fffff00c007c0fdff3d03f8dff7efbfcfffeeff7fffffffdfffdffdff3df3ffdff7efffceff0e0078ffffffdfffdf3d003cf37fdcf7eff9cefffeff79e00180dfffdf3dff3ff3ffdcf7eff90ff0feff79c0fd9fdfffdf3dff3ff3ffdcf7eff90ff0fefff9cffd9f1f80df3dff3f73001cf0ef01e0f7fefff9cffd9fdf9fc33dff3f3300fcf7effffff700f0b9cffd9fdf9fc33d070073fffff7effffff7fff319cf7d1fc09ffb3ff7ff3ffffff7effffff7fff319cf7d1fc09ffb3ff7ff7fdbfff70ffcfff7ff3378cf7dffff9ffb3ff7ff7f8f03f7ef3c80f7ff3358cf7fffff9ffb00f701008973f7effcbf07e0335fcf7fffff9ffb80f701008773f7effcbfc7ef331fcf7f07009cfbfff7fdffdb73f7effcbfffff33ff0f7007009cfbfff7fdffff73f7ef00bcffff33000060e7ff1c00c0f7fdffff73f7ef00bcff3f3000c07fe7ff1c00c0f73d000070f7efff3f00ffffffff7ff7fffcffcfff3d0000f0f7efffff3fffffffff7ffff0fcffcffffdfffffff7efffff3fffffffff3ffff0fcffcffffdfffffff70f000000000000000000000000000000000000f0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
-            'start': (10, 44),
-            'items': ((29, 14), (98, 12), (140, 15), (30, 39), (138, 39), (14, 62), (54, 74), (110, 58), (139, 75)),
-            'item_norm': ((0.177083, 0.166667), (0.614583, 0.138889), (0.875, 0.175926), (0.182292, 0.435185), (0.864583, 0.453704), (0.088542, 0.694444), (0.338542, 0.805556), (0.690104, 0.634259), (0.875, 0.833333)),
-            'approach': (80, 55),
-            'goal': (82, 50),
-            'item_cells': ('0000000000000000000000000000000000000000000000004000001c00800300f800001f0080030000000000000000000000000000000000',
-                           '0000000000000000000000000000000000000030000007006000001c00800f00e00000000000000000000000000000000000000000000000',
-                           '00000000000000000000000000000000000000c001007c00c01f00fc01c01f00fc01801f00e0010018000000000000000000000000000000',
-                           '000000000000000000000000000000000000007000000f00f801000f00e00100000000000000000000000000000000000000000000000000',
-                           '000000000000000000000000000000000000000000000000000000fe01c03f00f80700ff00e01f0060000000000000000000000000000000',
-                           '000000000000000000000000000000000000000000000000e003006c00800c00f001003c00000e00c0010000000000000000000000000000',
-                           '000000000000000000000000000000000003007000001e00e003007800000d00f001003e00c0070000000000000000000000000000000000',
-                           '000000000000000000000000000000000000002000001f00e003003800000500000000000000000000000000000000000000000000000000',
-                           '00000000000000000000000000000000000000f000003f00e00f00fc01803f00f003003c0000000000000000000000000000000000000000'),
-            'gate_norm': (0.46875, 0.49537, 0.526042, 0.611111),
-        },
+    BACKGROUNDS = (
+    {
+        'name': 'hedge',
+        'asset': 'mosque-maze-hedge.png',
+        'mask': '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f0ff830fffffffffffffffffffffffc1ff0f0000f0ff870fffffffffffffffffffffffe1ff0f0000f0ff870fffffffffffffffffffffffe1ff0f0000f0ff870fffffffffffffffffffffffe1ff0f0000f0ff870fffff01fc070000000000fce1ff0f0000f0ff870fffff01fc070000000000fce1ff0f0000f0ff87ff1ffe01f0070000000000fce1ff0f0000f0ff87ff1ffe01f0070000000000fce1ff0f0000f0ff87ff1ffefff0ffffffff3ff8ffe1ff0f0000f0ff87ff1ffefff0ffffffff7ff8ffe1ff0f0000f0ff87ff1ffefff0ffffffff7ff8ffe1ff0f0000f0ff87ff1ffefff0ffffffff7ff8ffe1ff0f000000f807000000fef007e0ff7f00f8ffe11f00000000f807000000fef007e0ff7f00f8ffe11f00000000e00f000000fef007800f1f00fef0ff1f00000000e01f000000fef007800f1f00fef0ff1f000000f0e1ff0ffffffff0ff830f1ffcfff0ffff0f0000f0e1ff0ffffffff0ff870f1ffefff0ffff0f0000f0e1ff0ffffffff0ff870f1ffefff0ffff0f0000f0e1ff0ffffffff0ff870f1ffefff0ffff0f0000f001e00fffff01000000001ffe01f00700000000f001e00fffff01000000001ffe01f00700000000f007e00f1f7e00000000001f7e00fc0100000000f007e00f1f7e00000000001f7e00fc0100000000f0ffff0f1f7ef8f0ffff0f1f7ef8ffc1ff0f0000f0ffff0f1f7ef8f0ffff0f1f7ef8ffe1ff0f0000f0ffff0f1f7ef8f0ffff0f1f7ef8ffe1ff0f0000f0ffff0f1f7ef8f0ffff0f1f7ef8ffe1ff0f0000f00700001f7ef8f0ffff0f007ef803e0ff0f0000f00700001f7ef8f001800f007ef803e0ff0f0000f00100001f7ef8ff01800f007ff803f0870f0000f00100001f7ef8ff01800f807ff803f8870f0000f0c1ff0f1f7ef8ff01800fff7ff8ffff870f0000f0e1ff0f1f7ef8ff01800fff7ff8ffff870f0000f0e1ff0f1f7ef8ff01800fff7ff8ffff870f0000f0e1ff0f1f7ef8ff01800fff3ff8ffff830f0000f0e1ff0f1f7ef8ff01800f7f0000fc07800f0000f0e1ff0f1f7ef8ff01800f7f0000fc07800f0000f0e187ff1f7ef8f001800f7f0000f007800f0000f0e187ff1f7ef8f0ffff0f7f0000f007800f0000f0e187ff1f7ef8f0ffff0ffffffff0ff870f0000f0e187ff1f7ef8f0ffff0ffffffff0ff870f0000f0e187ff1f7ef8f0ffff0ffffffff0ff870f0000f0e187ff1f7ef8f0ffff0ffffffff0ff830f0000f0e10700007ef80000000080ffff0000800f0000f0e10700007ef80000000080ffff0000800f0000f0e10700807ff800000000807ff80300800f0000f0e10700807ff800000000807ff80300800f0000f0e187ffff7ff8f0ff87ffff7ff8ffff870f0000f0e187ffff7ff8f0ff87ffff7ff8ffff870f0000f0e187ffff7ff8f0ff87ffff7ff8ffff870f0000f0e187ffff3ff8f0ff83ffff3ff8ffff830f0000f0e1873f0000f8f007803f000000000000000000f0e1873f0000f8f007803f000000000000000000f0e1870f0000fef007803f000000000000000000f0e1870f0000fef007803f000000000000000000f0e1870ffffffff0ff87ffffffffffffff0f0000f0e1870ffffffff0ff87ffffffffffffff0f0000f0e1870ffffffff0ff87ffffffffffffff0f0000f0e1870ffffffff0ff87ffffffffffffff0f0000f0e1870f7f000000f8873f0000fe03f8ff0f0000f0e1870f7f000000f8873f0000fe03f0ff0f0000feff87ff7f000000f8873f0000f803e0ff0f0000feff87ff7f000000f8873f0000f803e0ff0f0000feff87ffffffffffff87ffff7ff8ffe1ff0f0000feff87ffffffffffff87ffff7ff8ffe1ff0f0000feff87ffffffffffff87ffff7ff8ffe1ff0f0000feff83ffffffffffff83ffff3ff8ffc1ff0f0000020000000000000000000000000000000000000002000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+        'start': (9, 76),
+        'items': ((18, 17), (142, 17), (142, 73), (23, 76), (87, 22), (51, 43), (14, 47), (54, 13), (115, 28), (31, 34)),
+        'item_norm': ((0.115625, 0.194444), (0.890625, 0.194444), (0.890625, 0.816667), (0.146875, 0.85), (0.546875, 0.25), (0.321875, 0.483333), (0.090625, 0.527778), (0.340625, 0.15), (0.721875, 0.316667), (0.196875, 0.383333)),
+        'approach': (79, 50),
+    },
+    {
+        'name': 'city',
+        'asset': 'mosque-maze-city.png',
+        'mask': '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e0ff83ffffffffffffffffff3ff8ffc1ff070000f0ff83ffffffffffffffffff3ff8ffc1ff0f0000f0ff83ffffffffffffffffff3ff8ffc1ff0f0000f0ff83ffffffffffffffffff3ff8ffc1ff0f0000f0ff03c0ffff0000000000003ff8ffc1ff0f0000f0ff03c0ffff0000000000003ff8ffc1ff0f0000f0ff03c01ffc070000000000fcfdf0c1ff0f0000f0ff03c01ffc010000000000fcfff0c1ff0f0000f0ff83ff1ffcffffffffff1ffcfff0c1ff0f0000f0ff83ff1ffcffffffffff1ffcfff0c1ff0f0000f0ff83ff1ffcffffffffff1ffcfff0c1ff0f0000f0ff83ff1ffcffffffffff1ffcfff0c1ff0f000000f0833f00fcff0300e03f00000000c00f00000000f0833f00fcff0300e03f00000000c00f00000000c0df0f003ef80300803f00000000c00300000000c0ff0f003ff80300803f00000000c003000000e0c1ff0ffe3ff8ffff83ffffffffffc183070000f0c1ff0fff3ff8ffff83ffffffffffc1830f0000f0c1ff0fff3ff8ffff83ffffffffffc1830f0000f0c1ff0fff3ff8ffff83ffffffffffc1830f0000f00100007f00f8030000c07f0000fcc1830f0000f00100007f00f8030000c07f0000fcc1830f0000f0070000ff03f8000000001f0000fcc1ff0f0000f00700007f00f8000000001f0000fcc1ff0f0000f0ffff0fff3ff8f0ffff0f1ffcffffc1ff0f0000f0ffff0fff3ff8f0ffff0f1ffcffffc1ff0f0000f0ffff0fff3ff8f0ffff0f1ffcffffc1ff0f0000f0ffff0fff3ff8f0ffff0f1ffcffffc1ff0f0000f007e00f003ff8f0ffff0f1ffc000000e00f0000f007e00f003ff8f401800f1ffc000000e00f0000f001e03f003cf8ff01800f1ffc070000e00f0000f001e03f003cf8ff01800f1ffc010000e00f0000f0c1ffff1f3cf8ff01800f1ffcffffffff0f0000f0c1ffff1f3cf8ff01800f1ffcffffffff0f0000f0c1ffff1f3cf8ff01800f1ffcffffffff0f0000f0c1ffff1f3cf8ff01800f1ffcffffffff0f0000f0010000003c00fc01800f1f00000000e00f0000f0010000003c00fc01800f1f00000000e00f0000f0010000003c00f401800f1f00000000a00f0000f0010000003c00f4ffff0f1f00000000800f0000f0c1ffff1f3cf8f0ffff0f1ffcffffff830f0000f0c1ffff1f3cf8f0ffff0f1ffcffffff830f0000f0c1ffff1f3cf8f0ffff0f1ffcffffff830f0000f0c1ffff1f3cf8f0ffff0f1ffcffffff830f0000f0c10fc01f3cf8000000001f0000fcff830f0000f0c11fc01f3cf8000000001f0000fcff830f0000f0c17f401f3cf8030000001f0000f0c1830f0000f0c11f401f3cf8030000001f0000fcc1830f0000f0c1ff0f1f3cf8ffff830f1ffcffffc1830f0000f0c1ff0f1f3cf8ffff830f1ffcffffc1830f0000f0c1ff0f1f3cf8ffff830f1ffcffffc1830f0000f0c1ff0f1f3cf8ffff830f1ffcffffc183070000f001e00f1f3cf8ff07800f1ffcff030000000000f001e00f1f3cf8ff07800f1ffcff030000000000f001a00fff3ff8f43f800fff3ffa000000000000f001e00fff3ff8f407e00fff3ff8000000000000f0c1ff0fff3ff8f0ffff0fff3ff8f0ffff0f0000f0c1ff0fff3ff8f0ffff0fff3ff8f0ffff0f0000f0c1ff0fff3ff8f0ffff0fff3ff8f0ffff0f0000f0c1ff07fe3ff8e0ffff07fe3ff8f0ffff0f0000f4c10f000000f8000000000000f8f4ffff0f0000f4c11f000000f8000000000000f8f4ffff0f0000feff7f000000f8000000000000f8ffd1ff0f0000feff1f000000fe000000000000feffc1ff0f0000fefffffffffffff0ffffffffffffffc1ff0f0000fefffffffffffff0ffffffffffffffc1ff0f0000fefffffffffffff0ffffffffffffffc1ff0f0000feffffffffff7fe0ffffffffffffffc1ff070000020000000000000000000000000000000000000002000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+        'start': (9, 76),
+        'items': ((18, 17), (142, 17), (142, 73), (60, 76), (87, 22), (14, 65), (51, 38), (89, 61), (115, 20), (49, 13)),
+        'item_norm': ((0.115625, 0.194444), (0.890625, 0.194444), (0.890625, 0.816667), (0.378125, 0.85), (0.546875, 0.25), (0.090625, 0.727778), (0.321875, 0.427778), (0.559375, 0.683333), (0.721875, 0.227778), (0.309375, 0.15)),
+        'approach': (79, 50),
+    },
+    {
+        'name': 'cloud',
+        'asset': 'mosque-maze-cloud.png',
+        'mask': '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f0ff87fffffffffffffffffffffff0e1ff0f0000f0ff87fffffffffffffffffffffff0e1ff0f0000f0ff87fffffffffffffffffffffff0e1ff0f0000f0ff87fffffffffffffffffffffff0e1ff0f0000f0ff871f00000000f0cf9f7f0000f0e1ff0f0000f0ff870f00000000e0c70f3f0000f0e1ff0f0000f0ff870f00000000e0870f3f0000f0e1ff0f0000f0ff870f00000000e0870f3f0000f8e1ff0f0000f0ff870ffffffff0ff870fff7ff8ffe1ff0f0000f0ff870ffffffff0ff870fff7ff8ffe1ff0f0000f0ff870ffffffff0ff870fff7ff8ffe1ff0f0000f0ff870ffffffff0ff870fff7ff8ffe1ff0f000000f0870f3f0000f0f30700007ff8f9e10f00000000e0870f3f0000f0e30700007ef8f0e10700000000e0870f3f0000f0e10700007ef8f0e30700000000e0c70f3f0000f8e10700007efcf0e307000000f0e1ff0fffffffffe1ffff1ffefff0ff870f0000f0e1ff0fffffffffe1ffff1ffefff0ff870f0000f0e1ff0fffffffffe1ffff1ffefff0ff870f0000f0e1ff0fffffffffe1ffff1ffefff0ff870f0000f00100003fff00000000801f00fcf0f3870f0000f00100003f7e00000000001f00fcf0e3870f0000f00300001f7e00000000003f00f8f0e1870f0000f00300001ffe00000000003f00f8f0e1cf0f0000f0ffff0f1ffefff0ffff0fff7ff8f0e1ff0f0000f0ffff0f1ffefff0ffff0fff7ff8f0e1ff0f0000f0ffff0f1ffefff0ffff0fff7ff8f0e1ff0f0000f0ffff0f1ffefff0ffff0fff7ff8f0e1ff0f0000f0f3cf0f1ffe00f0ffff0f3f7f00f001c00f0000f0e3c70f1f7e00f001800f3f7e00f001c00f0000f0e1870f1f7e00f001800f1f7e00f003800f0000f0e1870f1ffe00f801800f1ffe00f003800f0000f0e1870f1ffeffff01800f1ffefff0ff870f0000f0e1870f1ffeffff01800f1ffefff0ff870f0000f0e1870f1ffeffff01800f1ffefff0ff870f0000f0e1870f1ffeffff01800f1ffefff0ff870f0000f0e107001ffe00f801800f1f00fc00f0870f0000f0e107001f7e00f001800f1f00fc00e0870f0000f0e107001f7e00f001800f3f00f800e0870f0000f0e10f001ffe00f0ffff0f3f00f801e0870f0000f0e1ff0f1ffefff0ffff0fff7ff8ffe1870f0000f0e1ff0f1ffefff0ffff0fff7ff8ffe1870f0000f0e1ff0f1ffefff0ffff0fff7ff8ffe1870f0000f0e1ff0f1ffefff0ffff0fff7ff8ffe1870f00000000c00f1f00fc00000000007f00f8e1070000000000800f1f00f800000000007e00f0e1070000000000800f3f00f800000000007e00f0e1070000000000c00f3f00f800000000007f00f8e10f000000f0ffff0fff7ff8f0ff870fff7ff8ffe1ff0f0000f0ffff0fff7ff8f0ff870fff7ff8ffe1ff0f0000f0ffff0fff3ff8f0ff870fff7ff8ffe1ff0f0000f0ffff0fff7ff8f0ff870fff7ff8ffe1ff0f0000f0030000007e00f0e3870f0000f8010000000000f0030000007e00f0e3870f0000f8000000000000f0010000007e00f0e1870f0000fc000000000000f0010000007e00f8e1871f0000fc000000000000f0e1ffff1f7ef8ffe187ff1ffefff0ffff0f0000f0e1ffff1f7ef8ffe187ff1ffefff0ffff0f0000f0e1ffff1f7ef8ffe187ff1ffefff0ffff0f0000f0e1ffff1f7ef8ffe187ff1ffefff0ffff0f0000f0e1cf1f007ef801e007801ffe00f0e3ff0f0000f0e1870f007ef800e007001f7e00f0e3ff0f0000f0e3870f007efc00e007003f7e00f0e1ff0f0000f9f3871f00fffc00f00f003fff00f8e1ff0f0000ffff87fffffffff0ffff0fffffffffe1ff0f0080ffff87fffffffff0ffff0fffffffffe1ff0f0080ffff87fffffffff0ffff0fffffffffe1ff0f0000ffff87fffffffff0ffff0fffffffffe1ff0f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+        'start': (7, 76),
+        'items': ((18, 17), (142, 17), (142, 73), (61, 76), (80, 13), (14, 65), (51, 34), (108, 28), (24, 42), (80, 61)),
+        'item_norm': ((0.115625, 0.194444), (0.890625, 0.194444), (0.890625, 0.816667), (0.384375, 0.85), (0.503125, 0.15), (0.090625, 0.727778), (0.321875, 0.383333), (0.678125, 0.316667), (0.153125, 0.472222), (0.503125, 0.683333)),
+        'approach': (79, 50),
+    },
     )
 
+    #: Where the mosque stands, as a fraction of the picture, and where its door is. The same
+    #: in all three backgrounds -- measured off the pictures rather than taken on trust, and
+    #: they agreed to the pixel: Harry drew them from one template.
+    MOSQUE_NORM = (0.461, 0.453, 0.539, 0.546)
+    DOOR_NORM = (0.488, 0.515, 0.512, 0.551)
+
     def __init__(self):
-        self.difficulty = 0
+        self.scene = 0
         self.restart()
 
     @property
     def level(self):
-        return self.LEVEL_DATA[self.difficulty]
+        return self.BACKGROUNDS[self.scene]
 
     @property
     def item_count(self) -> int:
@@ -126,10 +133,10 @@ class Rules:
 
         The journey is called Journey to the Mosque. Arriving at the mosque is arriving.
         """
-        return self.gate_open and (self.player == self.goal or self.player in self.inside)
+        return self.gate_open and self.player in self.doorstep
 
     def restart(self) -> None:
-        level = self.LEVEL_DATA[self.difficulty]
+        level = self.BACKGROUNDS[self.scene]
         packed = bytes.fromhex(level["mask"])
         self.active = {
             (index % self.WIDTH, index // self.WIDTH)
@@ -139,19 +146,45 @@ class Rules:
         self.start = tuple(level["start"])
         self.items = tuple(tuple(cell) for cell in level["items"])
         self.item_norm = tuple(tuple(point) for point in level["item_norm"])
-        self.item_cells = tuple(self._unpack_item(level["item_cells"][index], cell)
-                                for index, cell in enumerate(self.items))
         self.item_reach = tuple(self._near_enough(cell) for cell in self.items)
         self.gate_cell = tuple(level["approach"])
-        self.goal = tuple(level["goal"])
-        self.inside = self._the_mosque()      # needs goal, so it comes after it
+        self.goal = self.gate_cell
         self.mosque_cells = self._the_building()
-        self.gate_norm = tuple(level["gate_norm"])
+        self.doorstep = self._the_doorstep()
+        self.gate_norm = self.DOOR_NORM
         self.player = self.start
         self.collected = set()
         self.last_item = None
         self.route = []
         self.trail = [self.start]
+
+    def _the_building(self) -> frozenset:
+        """The cells the mosque's drawing covers, so nothing is drawn on top of it."""
+        x0, y0, x1, y1 = self.MOSQUE_NORM
+        return frozenset((x, y)
+                         for x in range(int(x0 * self.WIDTH), int(x1 * self.WIDTH) + 1)
+                         for y in range(int(y0 * self.HEIGHT), int(y1 * self.HEIGHT) + 1))
+
+    def _the_doorstep(self) -> frozenset:
+        """Where a child counts as having arrived: the gate cell and the floor touching it.
+
+        NOT ONE FLAGSTONE, and this is the second time that lesson has had to be learnt here.
+        Harry, 15 November 2026: "when completed and clicked mosque, no well done message or
+        sound appeared." Arriving was `player == goal`, one named cell, and tapping the mosque
+        put the child wherever the tap was nearest -- so the game ended only if they happened
+        to land on the single cell that counted. Measured by tapping every spot inside the
+        mosque: it finished 1 time in 117 on the easiest maze. He thought the hardest one was
+        unfinishable; it was the easy ones that were nearly impossible to finish.
+
+        That was fixed by letting anywhere INSIDE the mosque count. Harry's mosques of 25
+        November have no inside -- they are a building drawn on the floor with a door, not a
+        walled yard -- so there is nothing to stand in, and the rule becomes the doorstep.
+        Kept deliberately roomy for the same reason it was then.
+        """
+        near = {self.gate_cell}
+        for step in range(2):
+            near |= {n for cell in near for n in self._cardinal(cell) if n in self.active}
+        return frozenset(near)
 
     #: How far either side of an item's own cell its drawing is recorded.
     ITEM_REACH = 10
@@ -170,8 +203,14 @@ class Rules:
     #: means the footprints, so a green thing to collect would be the one colour on the board
     #: that already says something else. The first draft had a mint and a lime in it and the
     #: mint badge read as a small piece of mosque.
+    #: TEN SINCE 2.53, and the tenth is not decoration. There were nine of these and ten
+    #: pickups, and the lookup takes the colour modulo the length -- so the tenth thing on
+    #: the board would have quietly worn the first one's red, and the line pointing a child
+    #: at it would have pointed in the same colour as the line to another thing entirely.
+    #: Tan, because it has to stay clear of the three floors Harry painted -- slate, pale
+    #: grey, deep navy -- as well as of the other nine.
     ITEM_COLOURS = ("#F2545B", "#F0924F", "#F0C24F", "#D9D94F", "#4FB3F0",
-                    "#4F7BF0", "#9B7BE8", "#E85FD0", "#F07FB0")
+                    "#4F7BF0", "#9B7BE8", "#E85FD0", "#F07FB0", "#C98A5B")
 
     #: How close a child has to come to pick something up, in steps along the floor.
     #:
@@ -185,46 +224,6 @@ class Rules:
     #: through a wall: three steps round a corner is three, three steps through a wall is not
     #: a route at all. Generous is the point, magic is not.
     PICKUP = 3
-
-    def _the_mosque(self) -> frozenset:
-        """The floor sealed inside the mosque wall: what counts as having arrived.
-
-        Worked out rather than written down, by walking out from the goal over the floor
-        WITHOUT the gate -- so it is the pocket the wall encloses, whatever shape that is. If
-        a future map's mosque is a different shape this still knows where inside is, and if
-        somebody leaves a hole in a wall this grows to the whole maze, which the sealing test
-        is watching for.
-        """
-        start = [cell for cell in self._cardinal(self.goal) if cell in self.active]
-        found = set(start)
-        queue = list(start)
-        cursor = 0
-        while cursor < len(queue):
-            for near in self._cardinal(queue[cursor]):
-                if near in self.active and near not in found:
-                    found.add(near)
-                    queue.append(near)
-            cursor += 1
-        return frozenset(found)
-
-    def _the_building(self) -> frozenset:
-        """The cells the mosque itself is drawn on, so it can be coloured.
-
-        Worked out from the floor rather than recorded: inside the enclosure the only thing
-        that is not floor IS the mosque, so it is the not-floor cells within the sealed
-        pocket's own bounds. The bounds are drawn in one cell from the edge so the enclosure
-        wall -- which is maze, not mosque -- keeps the colour of every other wall.
-        """
-        if not self.inside:
-            return frozenset()
-        xs = [cell[0] for cell in self.inside]
-        ys = [cell[1] for cell in self.inside]
-        return frozenset(
-            (x, y)
-            for x in range(min(xs) + 1, max(xs))
-            for y in range(min(ys) + 1, max(ys))
-            if (x, y) not in self.active
-        )
 
     def _near_enough(self, item) -> frozenset:
         """The floor a child can be standing on and still have picked this up. See PICKUP."""
@@ -242,37 +241,8 @@ class Rules:
                     queue.append(near)
         return frozenset(steps)
 
-    @classmethod
-    def _unpack_item(cls, hexed: str, centre) -> frozenset:
-        """The cells one pickup's DRAWING covers, which is not what `active` can tell you.
-
-        WHY THIS IS STORED RATHER THAN WORKED OUT. The maze mask was derived from the artwork,
-        so it calls an item's own drawing a wall exactly as it calls a wall a wall -- the only
-        floor cell an item has is the single one a child stands on. Asking the mask which
-        pixels belong to the water drop gets the answer "none of them", and an erase clipped
-        to floor cells rubbed out the gap around a drawing and left the drawing.
-
-        What separates a drawing from a wall is SHAPE: a wall is a long run that leaves any
-        window you put around an item, and an item is a small thing that does not. That is a
-        connected-component question over the artwork -- far too slow to ask while a child is
-        playing, and pointless to ask twice -- so it was asked once and the answer written
-        down here, the same way the maze's own walls are.
-
-        Recorded in CELLS rather than pixels because it is 1.5KB that way and 52KB the other.
-        The two only share a cell where a wall passes within a pixel or two of a drawing, and
-        there the wall loses that corner; see the erasing note in Screen.paintEvent.
-        """
-        packed = bytes.fromhex(hexed)
-        span = cls.ITEM_REACH * 2 + 1
-        cx, cy = centre
-        return frozenset(
-            (cx - cls.ITEM_REACH + n % span, cy - cls.ITEM_REACH + n // span)
-            for n in range(span * span)
-            if packed[n // 8] & (1 << (n % 8))
-        )
-
-    def cycle_difficulty(self) -> None:
-        self.difficulty = (self.difficulty + 1) % len(self.LEVEL_DATA)
+    def cycle_scene(self) -> None:
+        self.scene = (self.scene + 1) % len(self.BACKGROUNDS)
         self.restart()
 
     def _cardinal(self, cell):
@@ -453,6 +423,23 @@ class Rules:
         return "walking"
 
 
+class ItemPictures:
+    """The ten pickup drawings, loaded once each.
+
+    A class rather than a dict on the screen, because the 7in catalogue wants the same
+    pictures and there is no reason to hold two copies of a lantern.
+    """
+
+    CACHE: dict[str, QtGui.QPixmap] = {}
+
+    @classmethod
+    def get(cls, window, name: str):
+        if name not in cls.CACHE:
+            path = window.assets / "children" / "mosque-items" / f"{name}.png"
+            cls.CACHE[name] = QtGui.QPixmap(str(path)) if path.is_file() else QtGui.QPixmap()
+        return cls.CACHE[name]
+
+
 class Catalogue(QtWidgets.QWidget):
     """What has been collected so far, drawn on the 7in as the things themselves.
 
@@ -510,12 +497,6 @@ class Screen(QtWidgets.QWidget):
     changed = Signal()
     won = Signal()
 
-    #: How far around an item's centre is repainted when it is collected. The widest drawing
-    #: measured on this artwork reaches 66px of 1920, so this covers every one of them with a
-    #: little to spare. It can be generous because the paint is clipped to floor cells and
-    #: cannot reach a wall however large it is; see paintEvent.
-    ERASE = 80
-
     #: The footprint size. Was 7 until 2.28, when Harry asked for "slightly bigger".
     FOOT = 10
 
@@ -536,7 +517,7 @@ class Screen(QtWidgets.QWidget):
         base = window.assets / "children"
         self.images = tuple(
             QtGui.QPixmap(str(base / level["asset"]))
-            for level in self.game.LEVEL_DATA
+            for level in self.game.BACKGROUNDS
         )
         self._move_timer = QtCore.QTimer(self)
         self._move_timer.setInterval(24)
@@ -545,12 +526,15 @@ class Screen(QtWidgets.QWidget):
         #: Which thing the map's line points at; see what_we_are_after.
         self._after = None
         self._after_key = None
+        #: The floor colour of the board on show, and which board that was. See board_floor.
+        self._floor = None
+        self._floor_for = None
         #: How far every cell is from the thing being headed for; see the_way_to.
         self._field: dict = {}
         self._field_key = None
         #: {key: (tinted pixmap, cell bounds)}; see painted().
         self._tints: dict = {}
-        #: {(difficulty, item index, ink): the item's own drawing, for the 7in catalogue}.
+        #: {(scene, item index, ink): the item's own drawing, for the 7in catalogue}.
         self._icons: dict[tuple[int, int, str], QtGui.QPixmap] = {}
 
         self.companion = self._build_companion()
@@ -599,12 +583,12 @@ class Screen(QtWidgets.QWidget):
         self.progress_button.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         layout.addWidget(self.progress_button)
 
-        self.difficulty_button = QtWidgets.QPushButton()
-        self.difficulty_button.setObjectName("gameButton")
-        self.difficulty_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.difficulty_button.setMinimumHeight(self.win.side_px(68))
-        self.difficulty_button.clicked.connect(self.cycle_difficulty)
-        layout.addWidget(self.difficulty_button)
+        self.scene_button = QtWidgets.QPushButton()
+        self.scene_button.setObjectName("gameButton")
+        self.scene_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.scene_button.setMinimumHeight(self.win.side_px(68))
+        self.scene_button.clicked.connect(self.cycle_scene)
+        layout.addWidget(self.scene_button)
 
         controls = QtWidgets.QHBoxLayout()
         controls.setSpacing(self.win.side_px(14))
@@ -636,12 +620,16 @@ class Screen(QtWidgets.QWidget):
         progress = self.win.t("mosque_maze.progress",
                               at=str(len(self.game.collected)),
                               of=str(len(self.game.items)))
-        levels = (self.win.t("mosque_maze.beginner"),
-                  self.win.t("mosque_maze.medium"),
-                  self.win.t("mosque_maze.expert"))
-        # The level on its own, no "Difficulty:" in front: see the note in
+        # THE SCENERY, NOT A DIFFICULTY. Harry, 25 November 2026: "remove different level
+        # settings. instead we will have 3 different backgrounds to choose from... the
+        # starting location and end destination are the same but backdrop and maze layout is
+        # different." The three are the same size of task; what changes is where you are.
+        #
+        # The name on its own, no "Scenery:" in front: see the note in
         # prayer_day_journey.retell. The button it is written on is what says what it means.
-        difficulty = levels[self.game.difficulty]
+        scenes = tuple(self.win.t(f"mosque_maze.scene.{b['name']}")
+                       for b in self.game.BACKGROUNDS)
+        scenery = scenes[self.game.scene]
         if self.game.finished:
             status = self.win.t("mosque_maze.complete")
         elif self.game.gate_open:
@@ -658,7 +646,7 @@ class Screen(QtWidgets.QWidget):
         self.catalogue.update()
         self.title.setText(title)
         self.progress_button.setText(progress)
-        self.difficulty_button.setText(difficulty)
+        self.scene_button.setText(scenery)
         self.status.setText(status)
         self.new_button.setText(new_game)
         self.exit_button.setText(exit_game)
@@ -666,7 +654,7 @@ class Screen(QtWidgets.QWidget):
         self.title.setFont(self._font(title, 36, True))
         self.status.setFont(self._font(status, 22, True))
         for button, words in ((self.progress_button, progress),
-                              (self.difficulty_button, difficulty),
+                              (self.scene_button, scenery),
                               (self.new_button, new_game),
                               (self.exit_button, exit_game)):
             button.setFont(self._font(words, 27, True))
@@ -710,16 +698,16 @@ class Screen(QtWidgets.QWidget):
     def playable(assets) -> bool:
         """Asked of the disk before anything is built. See journey_jigsaw.Screen.playable."""
         base = assets / "children"
-        return all((base / level["asset"]).is_file() for level in Rules.LEVEL_DATA)
+        return all((base / level["asset"]).is_file() for level in Rules.BACKGROUNDS)
 
     def start_again(self) -> None:
         self._move_timer.stop()
         self.game.restart()
         self.changed.emit()
 
-    def cycle_difficulty(self) -> None:
+    def cycle_scene(self) -> None:
         self._move_timer.stop()
-        self.game.cycle_difficulty()
+        self.game.cycle_scene()
         self.changed.emit()
 
     def press(self, action="") -> None:
@@ -820,10 +808,10 @@ class Screen(QtWidgets.QWidget):
         Cached by the cells and the colour, so it survives repaints and is rebuilt only when
         the level or the theme changes.
         """
-        image = self.images[self.game.difficulty]
+        image = self.images[self.game.scene]
         if image.isNull() or not cells:
             return None, None
-        key = (self.game.difficulty, colour, len(cells), min(cells), max(cells))
+        key = (self.game.scene, colour, len(cells), min(cells), max(cells))
         found = self._tints.get(key)
         if found is not None:
             return found
@@ -845,131 +833,39 @@ class Screen(QtWidgets.QWidget):
         self._tints[key] = (tint, (min(xs), min(ys), max(xs) + 1, max(ys) + 1))
         return self._tints[key]
 
-    def colour_layer(self, painter, wide: float, tall: float, background) -> None:
-        """Paint the mosque green and each uncollected thing its own colour, at any scale.
-
-        TAKES ITS SCALE rather than reading the widget's, so the big board and the little map
-        on the 7in draw the same layer. They were drifting apart once already -- the map went
-        on showing things the board had lost -- and two copies of this would do it again.
-
-        Each drawing is rubbed out before it is painted back. A colour laid on top of white
-        comes out washed; laid on the floor colour it comes out as itself.
-        """
-        def rub_out(cells):
-            for x, y in cells:
-                # Rounded outward so neighbouring cells overlap by a pixel rather than
-                # leaving a hairline of the old drawing along the seam between them.
-                left, top = int(x * wide), int(y * tall)
-                painter.fillRect(left, top,
-                                 int((x + 1) * wide) - left + 1,
-                                 int((y + 1) * tall) - top + 1, background)
-
-        def put_back(cells, colour):
-            tint, bounds = self.painted(cells, colour)
-            if tint is None:
-                return
-            # CLIPPED TO THE SAME CELLS THAT WERE RUBBED OUT. The tint is cut as a rectangle
-            # around the drawing, and a rectangle around a drawing catches whatever else is
-            # inside it -- which on this artwork means walls. Without this the prayer beads
-            # on expert came back with a blue box drawn round them: the corridor walls in
-            # their corner, painted in the beads' colour.
-            #
-            # Rubbing out and painting back have to agree on their edges or one of them shows.
-            region = QtGui.QRegion()
-            for x, y in cells:
-                left, top = int(x * wide), int(y * tall)
-                region += QtCore.QRect(left, top,
-                                       int((x + 1) * wide) - left + 1,
-                                       int((y + 1) * tall) - top + 1)
-            left, top, right, foot = bounds
-            painter.save()
-            painter.setClipRegion(region)
-            painter.drawPixmap(QtCore.QRectF(left * wide, top * tall,
-                                             (right - left) * wide, (foot - top) * tall),
-                               tint, QtCore.QRectF(tint.rect()))
-            painter.restore()
-
-        # The enclosure wall keeps the colour of every other wall: it is maze, not mosque.
-        rub_out(self.game.mosque_cells)
-        put_back(self.game.mosque_cells, palette().green)
-        for index, cell in enumerate(self.game.items):
-            rub_out(self.game.item_cells[index])
-            if cell in self.game.collected:
-                continue      # collected: rubbed out and not put back. That is the point.
-            put_back(self.game.item_cells[index],
-                     self.game.ITEM_COLOURS[index % len(self.game.ITEM_COLOURS)])
+    # colour_layer lived here until 2.53. It rubbed out each pickup and the mosque from the
+    # maze artwork and painted them back in colour, because they were drawn INTO that artwork
+    # in one flat white-on-black picture. Harry's boards of 25 November are painted, with the
+    # mosque already coloured in the picture, and his pickups arrive as ten separate drawings
+    # with their own transparency -- so there is nothing to rub out and nothing to recolour.
 
     def item_icon(self, index: int, size: int):
-        """One item's drawing, cut from the maze artwork and recoloured to suit the theme.
+        """One pickup's drawing, for the catalogue on the 7in.
 
-        The artwork is white on black and the 7in panel follows the mat's theme, so a plain
-        crop would be a black tile on a white panel in daylight mode. The black is turned into
-        a mask instead, and what is left is painted in the panel's own ink.
+        Since 2.53 this is simply the drawing, scaled. It used to be a great deal more: the
+        pickups were painted into the maze artwork, one flat white-on-black picture, so the
+        icon had to be cut out of the board, keyed to transparency by reading its brightness
+        pixel by pixel -- createMaskFromColor keys on ONE colour and that floor was not one
+        colour -- clipped to the cells the drawing actually stood on, repainted in the colour
+        it had on the board, and cached per level, item and ink so that changing the theme did
+        not hand back yesterday's colour.
 
-        Cached per level, item and ink -- the ink is in the key so that changing the theme
-        does not hand back yesterday's colour, which is the bug that a cache keyed on the
-        cheap half of the question always has.
+        None of that is needed for ten PNGs with their own transparency. The cache stays,
+        keyed on the drawing and the size, because scaling on every repaint of the panel is
+        still waste; the ink is no longer in the key because nothing is recoloured.
         """
         if size <= 0:
             return None
-        image = self.images[self.game.difficulty]
-        if image.isNull():
+        art = ItemPictures.get(self.win, self.game.ITEM_ART[index])
+        if art is None or art.isNull():
             return None
-        colour = self.game.ITEM_COLOURS[index % len(self.game.ITEM_COLOURS)]
-        key = (self.game.difficulty, index, colour, size)
+        key = (self.game.ITEM_ART[index], size)
         found = self._icons.get(key)
-        if found is not None:
-            return found
-        x, y = self.game.item_norm[index]
-        reach = int(image.width() * self.ERASE / 1920)
-        piece = image.copy(QtCore.QRect(int(x * image.width()) - reach,
-                                        int(y * image.height()) - reach,
-                                        reach * 2, reach * 2))
-        # SCALED FIRST, THEN READ PIXEL BY PIXEL. The brightness has to become the alpha, and
-        # Qt has no one call that does it -- createMaskFromColor was tried and is the wrong
-        # tool: it keys on ONE colour, and this artwork's floor is not one colour. It carries
-        # values all the way up from 0, so keying out pure black left the floor behind and the
-        # catalogue came out as dark shapes on speckled white tiles.
-        #
-        # Reading the pixels is therefore the honest way, and doing it AFTER the scale is what
-        # makes it cheap: a few thousand pixels at the size it is shown instead of 25,600 at
-        # the size it was drawn. It happens once per item per theme, not per repaint.
-        small = (piece.toImage()
-                 .convertToFormat(QtGui.QImage.Format.Format_Grayscale8)
-                 .scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio,
-                         Qt.TransformationMode.SmoothTransformation))
-        out = QtGui.QImage(small.size(), QtGui.QImage.Format.Format_ARGB32_Premultiplied)
-        out.fill(QtGui.QColor(0, 0, 0, 0))
-        ink = QtGui.QColor(colour)      # the colour it had on the board, so they match
-        # ONLY WHAT STANDS ON FLOOR, by the same mask the eraser is clipped to. A square cut
-        # around an item catches whatever else is near it, and near is near: the walls in this
-        # artwork come within 2px of some of these drawings. Without this the catalogue showed
-        # the lantern with two lengths of somebody else's wall standing beside it.
-        #
-        # It also makes the two halves agree by construction. What the board loses and what
-        # the 7in gains are decided by one bitmap, so the catalogue cannot show a thing that is
-        # still on the board, or miss one that is gone.
-        left_px = int(x * image.width()) - reach
-        top_px = int(y * image.height()) - reach
-        span = reach * 2
-        for row in range(small.height()):
-            ay = top_px + (row + 0.5) * span / small.height()
-            cell_y = int(ay * self.game.HEIGHT / image.height())
-            for column in range(small.width()):
-                value = small.pixelColor(column, row).red()      # grey: r == g == b
-                if value < self.FLOOR_IS_BELOW:
-                    continue
-                ax = left_px + (column + 0.5) * span / small.width()
-                if (int(ax * self.game.WIDTH / image.width()),
-                        cell_y) not in self.game.item_cells[index]:
-                    continue
-                out.setPixelColor(column, row, QtGui.QColor(
-                    ink.red(), ink.green(), ink.blue(),
-                    min(255, (value - self.FLOOR_IS_BELOW) * 255
-                        // (255 - self.FLOOR_IS_BELOW))))
-        shown = QtGui.QPixmap.fromImage(out)
-        self._icons[key] = shown
-        return shown
+        if found is None:
+            found = art.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation)
+            self._icons[key] = found
+        return found
 
     def _cell_point(self, cell):
         return QtCore.QPointF((cell[0] + 0.5) * self.width() / self.game.WIDTH,
@@ -994,7 +890,7 @@ class Screen(QtWidgets.QWidget):
 
     def paintEvent(self, _):
         c = palette()
-        image = self.images[self.game.difficulty]
+        image = self.images[self.game.scene]
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
@@ -1003,19 +899,29 @@ class Screen(QtWidgets.QWidget):
             source = QtCore.QRectF(0, 0, image.width(), image.height())
             painter.drawPixmap(QtCore.QRectF(self.rect()), image, source)
 
-        # The maze artwork is white on black in either theme, so "the colour of the floor" is
-        # the dark one whichever way round the mat is set. The gate opening and a collected
-        # item being erased both paint with it. (A `foreground` partner to this went with the
-        # ticks in 2.28: nothing else was ever drawn in it.)
-        background = QtGui.QColor(c.paper if c.dark else c.ink)
-        if self.game.gate_open:
+        # THE BOARD DOES NOT FOLLOW THE THEME SINCE 2.53, so neither can anything drawn on it.
+        # Harry, 25 November 2026: "the new main screen image will be consistent regardless of
+        # theme, only the side menu screen retains its own theme."
+        #
+        # This used to be `c.paper if c.dark else c.ink`, with a comment explaining that the
+        # maze was white-on-black in both themes so the floor was whichever of the two was
+        # dark. Harry's boards have a slate floor, a pale grey one and a deep navy one, and
+        # none of those is the palette's ink or its paper. Read off the picture instead: see
+        # board_floor.
+        background = self.board_floor()
+        if not self.game.gate_open:
+            # THE GATE IS DRAWN, NOT ERASED, and that is the other way round from before. The
+            # old artwork drew the mosque shut and the game painted the doorway away once
+            # everything was collected. Harry's mosques are drawn with the door standing open
+            # -- "the mosque entryway is currently open so you will have to place a gate" --
+            # so the gate is a thing put IN FRONT of the door and taken away at the end. It is
+            # also the better way round to be seen: a child meets a closed gate first and
+            # watches it go, rather than never knowing there was one.
             left, top, right, bottom = self.game.gate_norm
             gate = QtCore.QRectF(left * self.width(), top * self.height(),
                                  (right - left) * self.width(),
                                  (bottom - top) * self.height())
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(background)
-            painter.drawRoundedRect(gate, self.win.px(8), self.win.px(8))
+            self._draw_gate(painter, gate)
 
         # WHAT IS COLLECTED IS GONE, not ticked. Harry, 15 November 2026: "instead of the
         # items collected showing a tick they disappear and the small screen catalogues the
@@ -1032,12 +938,15 @@ class Screen(QtWidgets.QWidget):
         # Clipping to the cells the MASK calls floor was tried and is wrong for a reason worth
         # keeping: the mask was made from this artwork, so it calls the drawing a wall too.
         # That erase rubbed out the floor around each item and left the item sitting in it.
-        # Rules.item_cells is the list of what each drawing actually covers.
-        # THE MOSQUE IN GREEN AND EACH THING IN ITS OWN COLOUR. Harry, 15 November 2026:
-        # "the mosque should be green and the items to be collected in red or individual
-        # colours." The same layer is drawn on the 7in's little map; see colour_layer.
-        self.colour_layer(painter, self.width() / self.game.WIDTH,
-                          self.height() / self.game.HEIGHT, background)
+        # EACH THING IS ITS OWN PICTURE NOW, so collecting one is simply not drawing it. The
+        # paragraphs above describe a machine that no longer has to exist: when the pickups
+        # were painted into the maze artwork, removing one meant covering it exactly, cell by
+        # cell, because a disc big enough to hide a lantern was bigger than the gap to the
+        # wall beside it -- and a disc over a wall is a lie about where a child may walk.
+        # Harry's objects of 25 November arrive as ten separate drawings with their own
+        # transparency, so none of that is needed. Kept as a note rather than deleted: the
+        # reasoning is still why nothing may be rubbed out with a shape of its own choosing.
+        self.draw_the_things(painter)
 
         # THE TRAIL IN GREEN, AND BIGGER. Harry: "have the footprints in green colour and make
         # slightly bigger." On a white-on-black maze the old grey prints were the one thing on
@@ -1062,6 +971,84 @@ class Screen(QtWidgets.QWidget):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawEllipse(centre, self.win.px(34), self.win.px(34))
 
+    #: How wide a pickup is drawn, as a share of the board's width: the three corner ones and
+    #: the seven others. The corners hold a clear 12x12 block of a 160x90 grid, which is where
+    #: the big number comes from -- it fills the room Harry left and no more.
+    BIG_WIDE, SMALL_WIDE = 0.06875, 0.03125
+
+    def board_floor(self) -> QtGui.QColor:
+        """The colour of the floor of whichever board is showing, read off the picture.
+
+        Cached per board, because this walks the picture and paintEvent is not the place to do
+        that: measured at 132ms for the same job on the pillar board, which is seven frames a
+        second while a child drags something.
+
+        The MEDIAN of the middle of the picture, not the mean and not the commonest exact
+        pixel. The mean slides towards whatever is drawn; the commonest exact value is fine
+        here but would fail on a board with a gradient or noise in its floor, and these three
+        are painted.
+        """
+        if self._floor_for != self.game.scene:
+            image = self.images[self.game.scene]
+            colour = QtGui.QColor("#202020")
+            if not image.isNull():
+                shot = image.toImage()
+                wide, tall = shot.width(), shot.height()
+                reds, greens, blues = [], [], []
+                for y in range(tall // 4, tall * 3 // 4, max(1, tall // 60)):
+                    for x in range(wide // 4, wide * 3 // 4, max(1, wide // 60)):
+                        pixel = shot.pixelColor(x, y)
+                        reds.append(pixel.red())
+                        greens.append(pixel.green())
+                        blues.append(pixel.blue())
+                mid = lambda vs: sorted(vs)[len(vs) // 2]
+                colour = QtGui.QColor(mid(reds), mid(greens), mid(blues))
+            self._floor = colour
+            self._floor_for = self.game.scene
+        return self._floor
+
+    def _draw_gate(self, painter, box: QtCore.QRectF) -> None:
+        """A barred gate across the mosque door, until everything has been collected."""
+        painter.save()
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QtGui.QColor("#6B4A1F"))
+        painter.drawRoundedRect(box, self.win.px(6), self.win.px(6))
+        bar = QtGui.QPen(QtGui.QColor("#D9A441"), max(2.0, box.width() / 14))
+        painter.setPen(bar)
+        for n in range(1, 4):
+            x = box.left() + box.width() * n / 4
+            painter.drawLine(QtCore.QPointF(x, box.top() + box.height() * 0.12),
+                             QtCore.QPointF(x, box.bottom() - box.height() * 0.08))
+        painter.drawLine(QtCore.QPointF(box.left(), box.top() + box.height() * 0.38),
+                         QtCore.QPointF(box.right(), box.top() + box.height() * 0.38))
+        painter.restore()
+
+    def draw_the_things(self, painter) -> None:
+        """Every pickup still on the board, as its own drawing.
+
+        The first three are drawn big: they are the three things a child actually does before
+        praying, they sit in the corners Harry left clear for them, and their size is what
+        makes the walk to a corner worth making.
+        """
+        for index, cell in enumerate(self.game.items):
+            if cell in self.game.collected:
+                continue
+            art = ItemPictures.get(self.win, self.game.ITEM_ART[index])
+            if art is None or art.isNull():
+                continue
+            # THE LONGEST SIDE GETS THE ALLOWANCE, not the width. The room each drawing was
+            # placed in was measured as a radius -- so many cells of clear floor in every
+            # direction -- and a jug two-thirds as wide as it is tall, sized by its width,
+            # stands a third of itself out into the hedge. Sized by whichever side is longer,
+            # the whole picture fits the room that was measured for it.
+            share = self.BIG_WIDE if index < self.game.BIG else self.SMALL_WIDE
+            scale = self.width() * share / max(1, max(art.width(), art.height()))
+            wide, tall = art.width() * scale, art.height() * scale
+            centre = self._cell_point(cell)
+            painter.drawPixmap(QtCore.QRectF(centre.x() - wide / 2, centre.y() - tall / 2,
+                                             wide, tall),
+                               art, QtCore.QRectF(art.rect()))
+
     def what_we_are_after(self):
         """Which thing the line on the map points at, chosen once per thing collected.
 
@@ -1074,7 +1061,7 @@ class Screen(QtWidgets.QWidget):
         better to follow: a line that re-aims itself every time a child shuffles a step is a
         line that is hard to walk along.
         """
-        key = (self.game.difficulty, len(self.game.collected), self.game.gate_open)
+        key = (self.game.scene, len(self.game.collected), self.game.gate_open)
         if self._after_key != key:
             self._after = self.game.nearest_objective()
             self._after_key = key
@@ -1097,7 +1084,7 @@ class Screen(QtWidgets.QWidget):
         Keyed on the gate as well as the level, because opening the gate adds a way through
         the mosque wall and so changes every distance behind it.
         """
-        key = (self.game.difficulty, objective, self.game.gate_open)
+        key = (self.game.scene, objective, self.game.gate_open)
         if self._field_key != key:
             self._field = self.game.distances(objective)
             self._field_key = key
@@ -1164,7 +1151,7 @@ class Screen(QtWidgets.QWidget):
     def _update_hint(self) -> None:
         if not hasattr(self, "hint"):
             return
-        image = self.images[self.game.difficulty]
+        image = self.images[self.game.scene]
         if image.isNull() or self.hint.width() <= 0 or self.hint.height() <= 0:
             self.hint.clear()
             return
@@ -1175,13 +1162,27 @@ class Screen(QtWidgets.QWidget):
         # would show a child a map with the water drop still sitting where they picked it up,
         # a hand's width from the catalogue saying they have it -- which is the sort of
         # disagreement a six-year-old notices long before an adult does.
-        c = palette()
         wide = shown.width() / self.game.WIDTH
         tall = shown.height() / self.game.HEIGHT
         painter = QtGui.QPainter(shown)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
-        self.colour_layer(painter, wide, tall,
-                          QtGui.QColor(c.paper if c.dark else c.ink))
+        painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
+        # The things still to find, as little pictures. The paragraph above is about the ones
+        # already found, and it still holds -- it is just that since 2.53 "gone from the map"
+        # takes care of itself: the pictures are drawn here rather than painted into the board,
+        # so a collected thing is one this loop skips.
+        for index, cell in enumerate(self.game.items):
+            if cell in self.game.collected:
+                continue
+            art = ItemPictures.get(self.win, self.game.ITEM_ART[index])
+            if art is None or art.isNull():
+                continue
+            span = wide * (12 if index < self.game.BIG else 7)
+            high = span * art.height() / max(1, art.width())
+            painter.drawPixmap(
+                QtCore.QRectF((cell[0] + 0.5) * wide - span / 2,
+                              (cell[1] + 0.5) * tall - high / 2, span, high),
+                art, QtCore.QRectF(art.rect()))
         self.draw_the_way(painter, wide, tall)
         painter.end()
         self.hint.setPixmap(shown)
