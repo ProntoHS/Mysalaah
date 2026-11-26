@@ -128,18 +128,39 @@ class SurahList(QtWidgets.QWidget):
         bar.setContentsMargins(self.win.px(20), self.win.px(10), self.win.px(20), 0)
         self.title = QtWidgets.QLabel("")
         self.title.setObjectName("readerTitle")
+        # NO WIDTH, SINCE 2.55, AND STILL ITS FULL HEIGHT. The label is empty and exists only
+        # to hold the row open (see just above), but empty is not the same as nothing: the
+        # stylesheet gives it 20px of padding, and while the icons were hard left that 20px
+        # was invisibly part of the gap. Centring them made it visible -- it pushed the middle
+        # 20px to the right, which measured as 838px of air on one side and 817 on the other.
+        # setFixedWidth takes the width and leaves the height, which is the half of it that
+        # this label is for.
+        self.title.setFixedWidth(0)
         bar.addWidget(self.title)
-        # LEFT, over the first column of surahs, not centred. They were centred at 2.33 and
-        # Harry moved them: "move to the left side of screen instead". A control that changes
-        # what is under it reads better standing at the start of it than floating over the
-        # middle, and the left is where a hand already is on the way to the first row.
+        # CENTRED, AND THAT IS THE SECOND TIME THIS HAS MOVED. Both moves are written down
+        # because the next person to look at it deserves to know it is settled rather than
+        # untouched:
         #
-        # A stretch after them and none before. They end up over the left-hand column because
-        # the empty heading beside them takes no width -- the same fact that made the
-        # balancing label this row used to carry do nothing at all.
+        #   2.33  centred
+        #   2.34  left, Harry: "move to the left side of screen instead"
+        #   2.55  centred again, Harry, 25 November 2026: "in the qur'an menu, the 3 column
+        #         icons sit on the left, can you move them to the centre (this does reverse an
+        #         earlier decision, i think you originally had them in the centre & i got you
+        #         to move it the left but back to centre it goes ;)"
+        #
+        # He is remembering it exactly right. The argument for the left was that a control
+        # changing what is under it reads better at the start of it than floating over the
+        # middle; it is a reasonable argument and it lost to his eye on the actual mat, which
+        # is the only place either of them could be judged.
+        #
+        # A STRETCH ON BOTH SIDES. The heading beside them is empty and takes no width, so one
+        # stretch put them hard against the left -- that is how they got there. Two stretches
+        # of equal weight put them in the middle of the row whatever the heading does, and the
+        # row mirrors by itself in Arabic and Urdu, where centred is the same place either way.
         self.columns_choice = ColumnChoice(self.win, columns=self.columns,
                                            tall=COLUMN_ICON_PX)
         self.columns_choice.chose.connect(self.set_columns)
+        bar.addStretch(1)
         bar.addWidget(self.columns_choice)
         bar.addStretch(1)
         outer.addLayout(bar)

@@ -184,6 +184,13 @@ class FilmSheet(QtWidgets.QWidget):
         self.words = QtGui.QPixmap()
         self.turns = STAMP
         self.playing_colour = False
+        # Set here, with the rest of the defaults, and not where they are filled in: there are
+        # four early returns between this line and that one, and showEvent runs on a menu that
+        # took any of them.
+        self.overlay_spec: dict = {}
+        self.overlays: dict[str, QtGui.QMovie] = {}
+        self.overlay_theme: str | None = None
+        self.overlay_folder = Path(window.assets) / folder
 
         where = Path(window.assets) / folder
         try:
@@ -210,9 +217,14 @@ class FilmSheet(QtWidgets.QWidget):
         #: and it is worse than no colour at all. play() handles the missing case by keeping
         #: the black-and-white film, which is in the right language.
         self.lang = window.settings.lang
+        #: Tiles whose PICTURE is replaced by a film of its own, drawn over the sheet after
+        #: the sheet has been themed and before the words go on. See play_overlays.
+        self.overlay_spec = {k: dict(v) for k, v in (described.get("overlays") or {}).items()
+                             if k in self.boxes}
         if not self.play(self.sheet):
             self.boxes = {}
             return
+        self.play_overlays()
 
         for name in names:
             tile = Tile(window.images, where / f"{name}.png", name, quiet=True)
@@ -288,14 +300,81 @@ class FilmSheet(QtWidgets.QWidget):
             film.start()
         return True
 
+    #: Which theme the mat is on, in the words menu.json uses for its overlay films. The three
+    #: the settings screen offers, and the only three: light, dark, colour.
+    @staticmethod
+    def theme_now() -> str:
+        if palette().colour:
+            return "colour"
+        return "dark" if palette().dark else "light"
+
+    def play_overlays(self) -> None:
+        """Open the overlay film each tile wants on the screen as it is set now.
+
+        WHY THESE EXIST AT ALL. The sheet is one drawing and the mat's answer to a dark screen
+        is to turn the whole of it over. That is right for line art and wrong for a painting:
+        Harry's snow maze and his painted boy come out as negatives, which is not a night-time
+        picture of them, it is a different and much worse picture. Two tiles therefore carry
+        their own film, drawn after the sheet has been themed and so never inverted.
+
+        Harry, 25 November 2026: "put this mosque gif on all 3 themes. the boy on white goes
+        over the current salaah builder in light theme. boy with black background goes over
+        dark / coloured theme. everything else stays same."
+
+        So one tile has a single film for all three, and the other has one per theme. Both
+        shapes are in menu.json rather than in here, because which tiles are painted is a fact
+        about the artwork and it will change again.
+
+        RELOADED ONLY WHEN THE THEME NAME CHANGES. Light and dark share the sheet but not
+        necessarily these, so unlike the sheet this does have to follow a light/dark move --
+        and it must not reopen two films on every repaint to do it.
+        """
+        theme = self.theme_now()
+        if theme == self.overlay_theme:
+            return
+        self.overlay_theme = theme
+        for movie in self.overlays.values():
+            movie.stop()
+            try:
+                movie.frameChanged.disconnect(self.next_frame)
+            except (TypeError, RuntimeError):
+                pass
+            movie.setParent(None)
+            movie.deleteLater()
+        self.overlays = {}
+        for name, spec in self.overlay_spec.items():
+            wanted = spec.get("film") or (spec.get("films") or {}).get(theme)
+            if not wanted:
+                # A theme with no film named for it keeps the sheet's own drawing, which is
+                # the honest fallback: the tile looks as it did before any of this existed.
+                continue
+            path = self.overlay_folder / wanted
+            if not path.is_file():
+                continue
+            movie = QtGui.QMovie(str(path))
+            if not movie.isValid():
+                continue
+            movie.setCacheMode(QtGui.QMovie.CacheMode.CacheAll)
+            movie.setParent(self)
+            movie.frameChanged.connect(self.next_frame)
+            self.overlays[name] = movie
+            if self.isVisible():
+                movie.start()
+
     def follow_theme(self) -> None:
         """The colour theme reads a different film; light and dark share one.
 
         Reloaded only when the colour-ness changes, so moving between light and dark is a
         repaint and costs nothing, as it always has.
+
+        THE OVERLAYS ARE ASKED EVERY TIME, because they are the one part of this screen that
+        does differ between light and dark: the Salaah Builder boy is painted on white for one
+        and on black for the other. play_overlays itself does nothing when the theme name has
+        not changed, so this stays the cheap call it has always been.
         """
         if getattr(self, "playing_colour", None) != palette().colour and self.film is not None:
             self.play(self.sheet)
+        self.play_overlays()
         self.update()
 
     @staticmethod
@@ -338,6 +417,22 @@ class FilmSheet(QtWidgets.QWidget):
         box.moveCenter(self.rect().center())
         return box, scale
 
+    def on_screen(self, area, box=None) -> QtCore.QRect:
+        """A rectangle given in the sheet's own pixels, as it lands on this screen.
+
+        The same arithmetic lay_out_the_targets does for the touchable boxes, pulled out so
+        the overlay films and the buttons cannot drift apart: both are rectangles measured off
+        the same drawing, and a sheet scaled one way for one and another way for the other
+        would put a painted tile beside the square you press for it.
+        """
+        if box is None:
+            box = self.placement()[0]
+        scale = self.placement()[1]
+        left, top, right, bottom = area
+        return QtCore.QRect(box.x() + int(left * scale), box.y() + int(top * scale),
+                            max(1, int((right - left) * scale)),
+                            max(1, int((bottom - top) * scale)))
+
     def lay_out_the_targets(self) -> None:
         box, scale = self.placement()
         for tile in self.tiles:
@@ -360,6 +455,19 @@ class FilmSheet(QtWidgets.QWidget):
             return
         box = self.placement()[0]
         draw_themed(p, self.film, box, self.turns)
+
+        # THE PAINTED TILES, OVER THE TOP AND NEVER TURNED OVER. After draw_themed, so the
+        # inversion cannot reach them; before the words, so they cannot cover them. Both
+        # halves of that sentence are the whole reason this is three lines here rather than a
+        # change to the sheets -- see play_overlays.
+        if self.overlays:
+            p.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
+            for name, movie in self.overlays.items():
+                frame = movie.currentPixmap()
+                if frame.isNull():
+                    continue
+                p.drawPixmap(self.on_screen(self.overlay_spec[name]["area"], box), frame)
+
         if not self.words.isNull():
             # The coloured film carries no captions; the words go on here, in the mat's own
             # language. One film and ten small pictures instead of ten films -- see
@@ -371,14 +479,19 @@ class FilmSheet(QtWidgets.QWidget):
     def showEvent(self, ev):
         if self.film is not None:
             self.film.start()
+        for movie in self.overlays.values():
+            movie.start()
         self.lay_out_the_targets()
         super().showEvent(ev)
 
     def hideEvent(self, ev):
         # Nobody is looking at it. A menu left turning behind the screen you are reading is the
-        # Pi doing work for no one, all day.
+        # Pi doing work for no one, all day. The overlay films are stopped with it for exactly
+        # the same reason, and they are the expensive ones: the snow maze is sixty frames.
         if self.film is not None:
             self.film.stop()
+        for movie in self.overlays.values():
+            movie.stop()
         super().hideEvent(ev)
 
     def sizeHint(self):

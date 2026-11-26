@@ -2458,16 +2458,41 @@ class MainWindow(QtWidgets.QWidget):
             QSlider#volumeOnDark::groove:horizontal {{ height:{px(VOLUME_LINE)}px;
                                                        background:{strip.faint};
                                                        border-radius:{px(VOLUME_LINE // 2)}px; }}
-            QSlider#volumeOnDark::sub-page:horizontal {{ background:{strip.ink};
+            /* RED BEHIND THE HANDLE AND A WHITE KNOB RINGED IN RED, since 2.55. Harry drew
+               it that way and asked for "mine or something similar": the part of the bar
+               that is filled says how loud it is, and in his drawing it is the one coloured
+               thing in the popup, so it is the thing the eye lands on.
+               THE RING IS THE GLOW. His mock has the knob glowing, which a stylesheet cannot
+               do -- a real glow is a QGraphicsDropShadowEffect and that applies to a whole
+               widget, not to a sub-control of one. A white knob inside a red ring reads as
+               the same object at arm's length and costs nothing to draw, which on a Pi
+               repainting a slider under a finger is the difference worth having. */
+            QSlider#volumeOnDark::sub-page:horizontal {{ background:{BRICK};
                                                          border-radius:{px(VOLUME_LINE // 2)}px; }}
-            QSlider#volumeOnDark::handle:horizontal {{ background:{strip.ink}; border:none;
+            QSlider#volumeOnDark::handle:horizontal {{ background:white;
+                                                       border:{px(4)}px solid {BRICK};
                                                        width:{px(VOLUME_KNOB)}px;
                                                        height:{px(VOLUME_KNOB)}px;
                                                        margin:{-px((VOLUME_KNOB - VOLUME_LINE) // 2)}px 0;
+                                                       /* HALF THE WIDTH, NOT HALF THE WIDTH
+                                                          PLUS THE BORDER. Qt sizes a handle
+                                                          by width/height alone and ignores a
+                                                          radius larger than half of that --
+                                                          silently, leaving a square knob with
+                                                          a red box round it, which is what
+                                                          the first attempt drew. */
                                                        border-radius:{px(VOLUME_KNOB // 2)}px; }}
             QLabel#volumeRead {{ font-size:{px(22)}px; color:{c.stone}; }}
-            QLabel#volumeReadOnDark {{ background:{strip.paper}; color:{strip.ink};
-                                       font-size:{px(22)}px; }}
+            /* AND THE FIGURE IS BACK, in a box, which REVERSES 2.50. It was taken off then
+               because it was the one thing on the strip nobody was reading -- and the strip
+               is exactly where it no longer is. In a popup opened on purpose to set the
+               volume there is room for it and a reason to look at it, which is why Harry
+               drew it back in. */
+            QLabel#volumeReadOnDark {{ background:transparent; color:{strip.ink};
+                                       border:{px(2)}px solid {strip.line};
+                                       border-radius:{px(8)}px;
+                                       padding:{px(4)}px {px(10)}px;
+                                       font-size:{px(26)}px; font-weight:bold; }}
             QLabel#compassBearing {{ font-size:{px(150)}px; font-weight:bold; color:{c.strong}; }}
             QLabel#compassStatus {{ font-size:{px(40)}px; font-weight:bold; }}
             QLabel#compassDetail {{ font-size:{px(24)}px; color:{c.hint}; }}
@@ -2853,7 +2878,9 @@ class MainWindow(QtWidgets.QWidget):
         mirrored = self.layoutDirection() == Qt.LayoutDirection.RightToLeft
         top = under.mapToGlobal(QtCore.QPoint(0, 0))
         screen = self.screen().availableGeometry() if self.screen() else QtCore.QRect(0, 0, 1920, 1080)
-        popup.move(beside(top.x(), under.width(), popup.width(), screen, mirrored), top.y())
+        wanted = QtCore.QPoint(beside(top.x(), under.width(), popup.width(), screen, mirrored),
+                               top.y())
+        popup.move(wanted)
         self.volume_popup = popup
         shut = QtCore.QTimer(popup)
         shut.setSingleShot(True)
@@ -2861,6 +2888,41 @@ class MainWindow(QtWidgets.QWidget):
         shut.start(VOLUME_POPUP_IDLE)
         self.volume_popup_timer = shut
         popup.show()
+
+        # AND THEN ASKED WHERE IT ACTUALLY WENT, because move() is a request.
+        #
+        # Harry, 25 November 2026: "even though the slider is the same height of the speaker
+        # button, it starts just slightly lower which makes its bottom edge overlap the
+        # banner's bottom edge. if they are the same size & start at the right vertical
+        # height, this should not happen."
+        #
+        # He is right, and the sizes were never the problem: the key is 70 tall, the popup is
+        # 70 tall and they are asked for the same top. A window manager is free to put a new
+        # window somewhere near where it was asked rather than exactly there, and both of the
+        # platforms this is run on do: the offscreen one the suite uses shifts a popup two
+        # pixels, which is why the tests carried a POPUP_NUDGE allowance for it. Two pixels is
+        # nothing anywhere else on the mat. Here it is exactly the height of the rule under
+        # the strip, so the slider's foot lands on the hairline and sits across it.
+        #
+        # So the position is read back and corrected once. Not a loop: if a window manager
+        # will not honour an explicit move it will not honour the fourth one either, and a
+        # loop here would be a loop on a mat with a child in front of it.
+        # ONCE THE EVENT LOOP HAS TURNED, not straight away, and this took two attempts.
+        #
+        # The first one read the position back immediately and pre-compensated: if it had
+        # landed two low, ask for two high. That worked by luck and only downwards. Traced
+        # on the offscreen platform, what actually happens is that the popup is placed where
+        # it was asked, and the shift arrives LATER, on the first turn of the event loop,
+        # and only on the y. Pre-compensating therefore fixed the y and pushed the x two
+        # pixels into the key.
+        #
+        # So the correction is a plain move to where it was always meant to be, scheduled
+        # for after the platform has had its say. Two pixels a frame late is not visible;
+        # the slider's foot on the hairline is.
+        def straighten():
+            if not sip_deleted(popup) and popup.pos() != wanted:
+                popup.move(wanted)
+        QtCore.QTimer.singleShot(0, straighten)
 
     def make_banner(self, gear: bool = True, home: bool = False) -> QtWidgets.QWidget:
         """The strip across the top: how loud the mat is, where you are, and the five prayer
@@ -6179,12 +6241,37 @@ class MainWindow(QtWidgets.QWidget):
         # people read, so the slider is what gives.
         bar.setFixedWidth(self.px(VOLUME_WIDTH))
         bar.setMinimumHeight(self.px(52))       # a finger, not a mouse
-        # The figure beside it has gone: where the handle sits says how loud it is, and the
-        # number was the only thing on the strip nobody was reading. It is still built, hidden,
-        # because everything that keeps the sliders in step is written in terms of the pair.
+        # THE FIGURE IS SHOWN IN THE POPUP AND NOWHERE ELSE, which is the third position this
+        # has had and the first one that distinguishes between them:
+        #
+        #   before 2.50  shown on the strip, beside a slider laid along it
+        #   2.50         hidden everywhere -- "the only thing on the strip nobody was
+        #                reading", and the strip needed the 54 pixels for the place name
+        #   2.55         shown in the popup, hidden on the strip, Harry having drawn it back
+        #                in: "can you replace it with mine or something similar?"
+        #
+        # Both earlier positions were right about the strip, and that is the point: a figure
+        # on a bar you are not looking at is clutter, and a figure on a control you opened on
+        # purpose to set the volume is the answer to the question you opened it with. The
+        # popup is the only slider built with dark=True, which is why that flag decides it.
+        #
+        # It is still BUILT in both cases, shown or not, because everything that keeps the
+        # mat's sliders in step is written in terms of the pair.
+        # HIDDEN WHERE IT IS NOT WANTED, AND NEVER SHOWN HERE.
+        #
+        # setVisible(dark) looks like the obvious way to write this and it closed the popup
+        # every time it opened. This label has no parent yet -- it is added to the row a
+        # dozen lines down -- and showing a widget with no parent makes it a window of its
+        # own: a stray top-level label appears, takes the focus, and a Qt popup closes the
+        # instant it loses the focus. The symptom was the slider vanishing before it could be
+        # touched, which looks nothing like the line that caused it.
+        #
+        # Hiding a parentless widget is harmless; showing one is not. So the wanted case does
+        # nothing at all and lets the layout show it along with everything else.
         read = QtWidgets.QLabel(f"{bar.value()}%")
         read.setObjectName("volumeReadOnDark" if dark else "volumeRead")
-        read.hide()
+        if not dark:
+            read.hide()
         bar.valueChanged.connect(lambda v: self.volume_moved(v))
         self.volume_bars.append((bar, read))
 

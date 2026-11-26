@@ -54,5 +54,29 @@
     "ru": "menu.ru.gif",
     "pt": "menu.pt.gif",
     "bn": "menu.bn.gif"
+  },
+  "overlays": {
+    "mosque": {
+      "area": [
+        1352,
+        586,
+        1894,
+        915
+      ],
+      "film": "overlays/mosque.gif"
+    },
+    "build": {
+      "area": [
+        86,
+        586,
+        628,
+        914
+      ],
+      "films": {
+        "light": "overlays/build-light.gif",
+        "dark": "overlays/build-dark.gif",
+        "colour": "overlays/build-dark.gif"
+      }
+    }
   }
 }

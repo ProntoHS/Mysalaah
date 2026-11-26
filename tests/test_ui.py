@@ -5594,17 +5594,20 @@ class TheVolumeSliderSitsBesideTheSpeakerTest(unittest.TestCase):
     def test_it_is_beside_the_speaker_and_not_under_it(self):
         """The change itself: same top, so it is in the strip rather than below it.
 
-        POPUP_NUDGE because the offscreen platform shifts a popup two pixels and the real one
-        does not -- measured on xvfb with xcb, where the two tops are equal to the pixel. The
-        number this is guarding against is 70, the height of the key, which is where the
-        popup's top used to be.
+        EXACT, with no allowance, since 2.55. This test used to permit POPUP_NUDGE because
+        the offscreen platform shifts a new popup two pixels. Allowing it here was wrong, and
+        Harry found it on the mat: two pixels is nothing anywhere else, and here it is the
+        exact height of the rule under the strip, so the slider's foot came down on the
+        hairline. open_the_volume now reads the position back and corrects the drift, which
+        makes this exact on both platforms -- so the allowance is gone and the thing it was
+        hiding cannot come back.
         """
         w = self.window()
         key, popup = self.opened(w)
         drop = self.where(popup).y() - self.where(key).y()
-        self.assertLessEqual(abs(drop), POPUP_NUDGE,
-                             f"the slider's top is {drop} pixels below the speaker's, so it "
-                             f"is hanging off the strip as it did before 2.54")
+        self.assertEqual(drop, 0,
+                         f"the slider's top is {drop} pixels below the speaker's, so it is "
+                         f"not level with the key it came out of")
 
     def test_it_is_exactly_as_tall_as_the_speaker(self):
         w = self.window()
@@ -5677,6 +5680,96 @@ class TheVolumeSliderSitsBesideTheSpeakerTest(unittest.TestCase):
 
     # Staying on the glass is asked by VolumeSliderLookTest, which has asked it since 2.50
     # and in the two languages where it can actually fail. Not repeated here.
+
+    def test_its_foot_never_comes_down_on_the_rule_under_the_strip(self):
+        """What the two pixels actually cost, which is why the allowance had to go.
+
+        Harry, 25 November 2026: "its bottom edge overlap the banner's bottom edge."
+
+        The strip is BANNER_RULE taller than the key, and those last pixels are the hairline
+        that separates the strip from the screen below it. A slider two pixels low puts its
+        foot exactly on that line. Asked of the rule rather than of the key, because the rule
+        is the thing a person sees being crossed.
+        """
+        from salaah.ui import BANNER_RULE
+        for lang in ("en", "ar"):
+            with self.subTest(lang):
+                w = self.window(lang)
+                key, popup = self.opened(w)
+                banner = key.parentWidget()
+                while banner is not None and banner.objectName() != "banner":
+                    banner = banner.parentWidget()
+                self.assertIsNotNone(banner, "the key is not in a strip")
+                rule = self.where(banner).y() + banner.height() - BANNER_RULE
+                foot = self.where(popup).y() + popup.height()
+                self.assertLessEqual(foot, rule,
+                                     f"the slider's foot is at {foot} and the rule under the "
+                                     f"strip starts at {rule}, so it is sitting across it")
+
+    def test_the_figure_is_shown_in_the_popup_and_not_on_the_strip(self):
+        """REVERSES 2.50, in one place only, and the distinction is the point.
+
+        2.50 hid the percentage everywhere: it sat on the strip beside a slider laid along
+        it, nobody read it, and the strip needed the room for a place name like Islamabad.
+        Harry drew it back in at 2.55 -- but the slider is a popup now, opened on purpose to
+        set the volume, which is the one place the number answers the question you came with.
+
+        So: shown in the popup, still hidden anywhere a slider sits in a page. Asked of both,
+        because a test that only checked the popup would pass with the figure back on every
+        strip on the mat.
+        """
+        w = self.window()
+        key, popup = self.opened(w)
+        inside = [l for l in popup.findChildren(QtWidgets.QLabel)
+                  if l.objectName() == "volumeReadOnDark"]
+        self.assertTrue(inside, "the popup has no figure in it")
+        self.assertTrue(inside[0].isVisible(), "the figure in the popup is hidden")
+        self.assertIn("%", inside[0].text())
+        on_pages = [l for l in w.findChildren(QtWidgets.QLabel)
+                    if l.objectName() == "volumeRead"]
+        for label in on_pages:
+            self.assertFalse(label.isVisible(),
+                             "the percentage is back on a page slider, which is what 2.50 "
+                             "took off the strip")
+
+    def test_the_figure_follows_the_slider(self):
+        w = self.window()
+        key, popup = self.opened(w)
+        bar = popup.findChildren(QtWidgets.QSlider)[0]
+        read = [l for l in popup.findChildren(QtWidgets.QLabel)
+                if l.objectName() == "volumeReadOnDark"][0]
+        bar.setValue(35)
+        settle(2)
+        self.assertEqual("35%", read.text(),
+                         "the figure does not follow the handle, so it is a decoration that "
+                         "can tell a child the wrong thing")
+
+    def test_the_bar_behind_the_handle_is_the_mat_s_red(self):
+        """Harry's drawing has the filled part red, and it is the only coloured thing in the
+        popup. Read off the rendered slider rather than off the stylesheet text, because a
+        rule that does not apply is exactly what a stylesheet test cannot see -- the knob was
+        drawn square for one attempt by a radius Qt silently ignored."""
+        from salaah.qt import QtGui
+        from salaah.ui import BRICK
+        w = self.window()
+        key, popup = self.opened(w)
+        bar = popup.findChildren(QtWidgets.QSlider)[0]
+        bar.setValue(80)
+        settle(2)
+        shot = QtGui.QImage(bar.size(), QtGui.QImage.Format.Format_ARGB32)
+        shot.fill(0)
+        bar.render(shot)
+        want = QtGui.QColor(BRICK)
+        middle = shot.height() // 2
+        # A quarter of the way along the bar is behind the handle at 80%, so it is filled.
+        found = [QtGui.QColor(shot.pixel(x, middle))
+                 for x in range(shot.width() // 8, shot.width() // 4)]
+        close = [c for c in found
+                 if abs(c.red() - want.red()) + abs(c.green() - want.green())
+                 + abs(c.blue() - want.blue()) < 40]
+        self.assertGreater(len(close), len(found) // 2,
+                           f"the filled part of the bar is not the mat's red; a sample across "
+                           f"it reads {found[len(found) // 2].name()}")
 
     def test_the_strip_is_whole_again_once_it_closes(self):
         """It covers the place name while it is open, which Harry asked for and accepted.
@@ -8549,6 +8642,197 @@ class MatchedButtonsTest(unittest.TestCase):
         self.assertEqual(r.recite_button.height(), r.recite_button.width())
 
 
+class PaintedTilesOverAMenuTest(unittest.TestCase):
+    """2.55: two tiles of the children's menu carry their own film, over the sheet.
+
+    Harry, 25 November 2026: "keep the 3 themes as is. put this mosque gif on all 3 themes.
+    the boy on white goes over the current salaah builder in light theme. boy with black
+    background goes over dark / coloured theme. everything else stays same."
+
+    The sheet is ten sheets -- one per language, words baked in -- and the mat's answer to a
+    dark screen is to turn the whole of it over. That is right for line art and ruinous for a
+    painting: an inverted painted boy is a negative, not a night-time boy. So these two tiles
+    are drawn after the sheet has been themed and before the words go on, which is the whole
+    idea and is what these tests hold.
+    """
+
+    def window(self, theme="light", lang="en"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=theme, recitation=False, place="Bury", lang=lang),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle(2)
+        self.addCleanup(lambda: shut(w))
+        w.open_corner("children")
+        settle(3)
+        return w
+
+    def sheet(self, w):
+        from salaah.filmsheet import FilmSheet
+        found = [c for c in w.findChildren(FilmSheet) if c.isVisible()]
+        self.assertTrue(found, "the children's menu is not on screen")
+        return found[0]
+
+    @staticmethod
+    def described():
+        return json.loads((ASSETS / "children" / "menu.json").read_text(encoding="utf-8"))
+
+    def shot(self, widget):
+        image = QtGui.QImage(widget.size(), QtGui.QImage.Format.Format_ARGB32)
+        image.fill(0)
+        widget.render(image)
+        return image
+
+    def test_every_painted_tile_is_a_tile_that_exists(self):
+        described = self.described()
+        for name in described.get("overlays", {}):
+            with self.subTest(name):
+                self.assertIn(name, described["tiles"],
+                              f"{name} has a film but is not a tile, so it would be painted "
+                              f"over nothing and press nothing")
+
+    def test_every_painted_tile_has_a_film_on_disk_for_every_theme(self):
+        described = self.described()
+        for name, spec in described.get("overlays", {}).items():
+            films = [spec["film"]] if "film" in spec else list(spec.get("films", {}).values())
+            with self.subTest(name):
+                self.assertTrue(films, f"{name} is listed with no film at all")
+                for film in set(films):
+                    path = ASSETS / "children" / film
+                    self.assertTrue(path.is_file(), f"{film} is missing")
+                    self.assertGreater(path.stat().st_size, 10_000,
+                                       f"{film} is suspiciously small")
+
+    def test_a_painted_tile_never_reaches_the_words_in_any_language(self):
+        """THE RULE THAT MATTERS, and it is not about English.
+
+        Each tile is a drawing with a caption under it, and the caption's top is not in the
+        same place in every language: Bengali and Hindi start eighteen rows higher than
+        English because their letters hang above the line. Measured in English alone, the
+        overlay would have covered the top of every Hindi and Bengali caption on the mat --
+        and nothing would have failed, because nothing here reads Hindi. So this measures
+        every film in the folder and asks the overlay to clear the highest caption of all.
+        """
+        from PIL import Image
+        import numpy as np
+        described = self.described()
+        films = list(described["films"].values())
+        for name, spec in described.get("overlays", {}).items():
+            box = described["tiles"][name]
+            area = spec["area"]
+            x0, y0, x1, y1 = box
+            inset = area[0] - x0
+            for film in films:
+                with self.subTest(f"{name} {film}"):
+                    with Image.open(ASSETS / "children" / film) as sheet:
+                        sheet.seek(0)
+                        grey = np.array(sheet.convert("L"))
+                    inner = grey[y0 + inset:y1 - inset, x0 + inset:x1 - inset]
+                    ground = int(np.bincount(inner.ravel()).argmax())
+                    rows = (np.abs(inner.astype(int) - ground) > 40).sum(axis=1)
+                    drawn = [i for i, v in enumerate(rows) if v > 3]
+                    start = drawn[-1]
+                    for i in range(len(drawn) - 1, 0, -1):
+                        if drawn[i] - drawn[i - 1] > 6:
+                            start = drawn[i]
+                            break
+                    caption = y0 + inset + start
+                    self.assertLess(area[3], caption,
+                                    f"the {name} film reaches y={area[3]} and the caption in "
+                                    f"{film} starts at y={caption}, so it covers the words")
+
+    def test_the_mosque_tile_is_the_same_picture_on_every_theme(self):
+        """Harry: "journey to the mosque should stay the same throughout all themes."
+
+        Compared pixel for pixel across light and dark, which is where an inversion would
+        show. The rest of the sheet is expected to differ -- and is checked to differ, so
+        that this cannot pass by the theme having quietly stopped working altogether.
+        """
+        from salaah.filmsheet import FilmSheet
+        described = self.described()
+        area = described["overlays"]["mosque"]["area"]
+        looks = {}
+        for theme in ("light", "dark"):
+            w = self.window(theme)
+            sheet = self.sheet(w)
+            # Both themes are asked for the SAME frame of the film, or this compares two
+            # moments of an animation rather than two themes.
+            for movie in sheet.overlays.values():
+                movie.stop()
+                movie.jumpToFrame(0)
+            sheet.update()
+            settle(2)
+            image = self.shot(sheet)
+            looks[theme] = (image.copy(sheet.on_screen(area)),
+                            image.copy(sheet.on_screen(described["tiles"]["qiblaquest"])))
+        self.assertEqual(looks["light"][0], looks["dark"][0],
+                         "the Journey to the Mosque picture changes between light and dark")
+        self.assertNotEqual(looks["light"][1], looks["dark"][1],
+                            "no tile changed between light and dark, so this test is not "
+                            "measuring what it claims to")
+
+    def test_the_boy_is_a_different_picture_on_light_and_on_dark(self):
+        """The other half: a tile that SHOULD follow the theme, by carrying two films rather
+        than by being turned over."""
+        described = self.described()
+        area = described["overlays"]["build"]["area"]
+        films = described["overlays"]["build"]["films"]
+        self.assertNotEqual(films["light"], films["dark"],
+                            "light and dark name the same film for the boy")
+        self.assertEqual(films["dark"], films["colour"],
+                         "the coloured theme should share the dark boy, both being on black")
+        looks = {}
+        for theme in ("light", "dark"):
+            w = self.window(theme)
+            sheet = self.sheet(w)
+            for movie in sheet.overlays.values():
+                movie.stop()
+                movie.jumpToFrame(0)
+            sheet.update()
+            settle(2)
+            looks[theme] = self.shot(sheet).copy(sheet.on_screen(area))
+        self.assertNotEqual(looks["light"], looks["dark"],
+                            "the Salaah Builder boy is the same on light and dark, so one of "
+                            "the two films is not being used")
+
+    def test_the_painted_tiles_follow_a_change_of_theme(self):
+        """Light and dark share the sheet, so nothing used to reload between them. These do
+        not share their film, so something has to."""
+        described = self.described()
+        area = described["overlays"]["build"]["area"]
+        w = self.window("light")
+        sheet = self.sheet(w)
+        self.assertEqual(sheet.overlay_theme, "light")
+        was = self.shot(sheet).copy(sheet.on_screen(area))
+        # The app's own switch, not a poke at the settings object: the point is that the
+        # ordinary way of changing the theme reaches these films.
+        w.set_theme("dark")
+        settle(3)
+        self.assertEqual(sheet.overlay_theme, "dark",
+                         "the painted tiles did not notice the screen going dark")
+        for movie in sheet.overlays.values():
+            movie.stop()
+            movie.jumpToFrame(0)
+        sheet.update()
+        settle(2)
+        self.assertNotEqual(was, self.shot(sheet).copy(sheet.on_screen(area)),
+                            "the boy did not change when the screen did")
+
+    def test_the_words_are_still_drawn_after_the_pictures(self):
+        """Order, asked of the painter rather than of the result: the coloured menu has no
+        captions in its film at all -- they are a separate picture laid on top -- so an
+        overlay drawn after them would rub out every word on the screen."""
+        import inspect
+        from salaah.filmsheet import FilmSheet
+        source = inspect.getsource(FilmSheet.paintEvent)
+        self.assertLess(source.index("self.overlays"), source.index("self.words"),
+                        "the painted tiles are drawn after the words, so they cover them")
+        self.assertLess(source.index("draw_themed"), source.index("self.overlays"),
+                        "the painted tiles are drawn before the sheet is themed, so they "
+                        "would be turned over with it")
+
+
 class TwoMosquesTest(unittest.TestCase):
     """The kalima menu and the front door show the same building in the same place.
 
@@ -11040,17 +11324,29 @@ class VolumeSliderLookTest(unittest.TestCase):
         self.assertEqual(1, len(bars), "the popup has no single slider")
         return bars[0]
 
-    def test_no_percentage_is_printed_beside_it(self):
-        """It used to be printed on the strip. Now there is nowhere for it to be printed except
-        inside the popup, so both places are asked -- and asked of what is VISIBLE, since a
-        hidden label answers text() perfectly happily and would make this pass on its own."""
+    def test_no_percentage_is_printed_on_the_strip(self):
+        """NARROWED AT 2.55 FROM "nowhere at all", and the narrowing is the change.
+
+        At 2.50 the figure went everywhere, and this test said so: not beside a slider, not
+        in the popup, not on the strip. The reason was always about the STRIP -- the number
+        sat on a bar nobody was looking at, and the strip needed its 54 pixels for a place
+        name like Islamabad.
+
+        Harry put it back in the popup at 2.55, drawing the slider he wanted: "can you
+        replace it with mine or something similar?" That is not the 2.50 decision being
+        forgotten, it is the half of it that never applied: a popup opened on purpose to set
+        the volume is the one place a number answers the question you came with.
+
+        So the strip is still asked, and asked of what is VISIBLE -- a hidden label answers
+        text() perfectly happily and would make this pass on its own. The popup is asked the
+        opposite question by TheVolumeSliderSitsBesideTheSpeakerTest.
+        """
         w = self.window()
         _, popup = self.dropped(w)
-        for bar, read in w.volume_bars:
-            self.assertFalse(read.isVisible(), "the figure is back beside the slider")
-        in_popup = " ".join(x.text() for x in popup.findChildren(QtWidgets.QLabel)
-                            if x.text() and x.isVisible())
-        self.assertNotIn("%", in_popup, "a percentage is printed inside the popup")
+        on_pages = [read for bar, read in w.volume_bars
+                    if read.objectName() == "volumeRead"]
+        for read in on_pages:
+            self.assertFalse(read.isVisible(), "the figure is back beside a page slider")
         said = " ".join(x.text() for x in w.home.findChildren(QtWidgets.QLabel)
                         if x.text() and x.isVisible())
         self.assertNotIn("%", said, "a percentage is still printed on the strip")
@@ -11098,15 +11394,15 @@ class VolumeSliderLookTest(unittest.TestCase):
                          f"the slider is {popup.height()} tall beside a {key.height()} key, "
                          f"so it is not sitting in the strip")
         top = key.mapToGlobal(QtCore.QPoint(0, 0))
-        self.assertTrue(abs(popup.geometry().y() - top.y()) <= POPUP_NUDGE,
-                        f"the slider's top is {popup.geometry().y() - top.y()} pixels from "
-                        f"the key's, so it is not on the same line as the strip")
+        self.assertEqual(popup.geometry().y(), top.y(),
+                         f"the slider's top is {popup.geometry().y() - top.y()} pixels from "
+                         f"the key's, so it is not on the same line as the strip")
         side = key.mapToGlobal(QtCore.QPoint(key.width(), 0)).x()
         flush = min(abs(popup.geometry().left() - side),
                     abs(popup.geometry().right() + 1 - top.x()))
-        self.assertLessEqual(flush, POPUP_NUDGE,
-                             f"the slider is {flush} pixels from either edge of the key it "
-                             f"came from, so it is not hanging off it")
+        self.assertEqual(flush, 0,
+                         f"the slider is {flush} pixels from either edge of the key it "
+                         f"came from, so it is not hanging off it")
 
     def test_it_lands_on_the_screen_and_not_off_the_edge(self):
         """THE ONE NEW RISK IN HIDING IT. In Arabic and Urdu the window is laid out right to
@@ -15274,10 +15570,10 @@ class HowWideTheSurahListIsTest(unittest.TestCase):
     words, in the pixels they are actually drawn at, not the layout.
     """
 
-    def window(self, columns=3):
+    def window(self, columns=3, lang="en"):
         w = MainWindow(load(ASSETS), available_packs(ASSETS),
                        Settings(theme="dark", recitation=False, place="Bury",
-                                surah_columns=columns),
+                                lang=lang, surah_columns=columns),
                        scale=1.0, save_settings=False, aspect=None, side=True)
         w.resize(1920, 1080)
         w.show()
@@ -15307,23 +15603,42 @@ class HowWideTheSurahListIsTest(unittest.TestCase):
         self.assertEqual([3, 2, 1], [shape[0] for shape in choice.SHAPES],
                          "the icons are not in the order fewest words per line to most")
 
-    def test_they_stand_over_the_first_column_of_surahs(self):
-        """They were centred at 2.33 and Harry moved them: "move to the left side of screen
-        instead". A control that changes what is under it reads better at the start of it than
-        floating over the middle, and the left is where a hand already is.
+    def test_they_stand_in_the_middle_of_the_page(self):
+        """REPLACES test_they_stand_over_the_first_column_of_surahs, and it is the second time
+        this has turned round. Written out rather than edited quietly:
 
-        Measured against the first surah's row rather than against a number of pixels, so the
-        claim is that they line up with the list -- which is the thing you would notice if
-        they stopped doing it."""
+            2.33  centred
+            2.34  left -- Harry, "move to the left side of screen instead", and the test
+                  that replaced said they stood over the first column of surahs
+            2.55  centred again -- Harry, 25 November 2026, "can you move them to the centre
+                  (this does reverse an earlier decision ... back to centre it goes"
+
+        The 2.34 argument was that a control changing what is under it reads better at the
+        start of it than floating over the middle. It is still a reasonable argument. It lost
+        to his eye on the actual mat, twice now, which is the only place it could be judged.
+
+        Measured as a distance from each edge rather than against a pixel count, so it is the
+        same claim at any width and in either direction.
+        """
         w = self.window()
         choice = w.surah_list.columns_choice
-        first = w.surah_list.grid.itemAtPosition(0, 0).widget()
-        icons = choice.mapTo(w.surah_list, choice.rect().topLeft()).x()
-        column = first.mapTo(w.surah_list, first.rect().topLeft()).x()
-        self.assertLess(icons, w.surah_list.width() // 3,
-                        "the icons are not on the left of the page")
-        self.assertAlmostEqual(icons, column, delta=w.px(40),
-                               msg="the icons do not stand over the first column of surahs")
+        left = choice.mapTo(w.surah_list, choice.rect().topLeft()).x()
+        right = w.surah_list.width() - (left + choice.width())
+        self.assertAlmostEqual(left, right, delta=w.px(8),
+                               msg=f"the icons have {left}px to their left and {right}px to "
+                                   f"their right, so they are not centred")
+
+    def test_they_are_centred_in_arabic_too(self):
+        """Centred is the one position that cannot be got wrong by mirroring -- which is worth
+        a test precisely because it is the reason this is no longer a direction question at
+        all. Left meant two different things in the two directions; the middle does not."""
+        w = self.window(lang="ar")
+        choice = w.surah_list.columns_choice
+        left = choice.mapTo(w.surah_list, choice.rect().topLeft()).x()
+        right = w.surah_list.width() - (left + choice.width())
+        self.assertAlmostEqual(left, right, delta=w.px(8),
+                               msg=f"in Arabic the icons have {left}px to their left and "
+                                   f"{right}px to their right")
 
     def test_they_are_big_enough_to_hit_and_bigger_than_they_were(self):
         """Harry, after using them: "make the column icons slightly bigger".
@@ -22370,25 +22685,78 @@ class TheStripIsTheMatsOwnThemeTest(unittest.TestCase):
                 self.assertEqual(QtGui.QColor(win.colours().paper), paper,
                                  "the strip is not the same paper as the screen under it")
 
-    def test_the_slider_on_it_follows_the_strip_and_not_a_colour_of_its_own(self):
-        """The handle has to show up on the strip's background in BOTH themes.
+    def test_the_handle_shows_up_against_the_strip_in_both_themes(self):
+        """REWRITTEN AT 2.55, and this one has to be justified rather than just recorded.
 
-        Hardcoding it white passes on a dark mat and vanishes on a light one, which is how this
-        was found; hardcoding it black does the reverse. Only taking it from the strip survives
-        both, so both are measured.
+        It used to read the stylesheet and insist the handle's background was the strip's own
+        ink. That was the right rule while the handle was a flat chip: hardcoding it white
+        passes on a dark mat and vanishes on a light one, which is how the fault was found in
+        the first place, and taking the colour from the strip was the only thing that survived
+        both.
+
+        Harry's 2.55 slider is a WHITE knob with a red ring round it, and on the light theme
+        that is a white knob on white paper -- the exact fault above, saved by the ring. The
+        old test cannot see a ring: it reads one word out of the stylesheet. So asserting the
+        colour would now be asserting a means rather than the end.
+
+        This asks the end instead, off the rendered control: something inside the handle has
+        to stand out from the paper behind it. That is a STRONGER test than the one it
+        replaces -- it fails for a white-on-white handle with no ring, which is the original
+        fault, AND it fails for a rule that does not apply at all, which the old one could
+        not see. Both are checked by sabotage rather than claimed here.
         """
         from salaah import theme
         for mode in ("dark", "light"):
             win = self.window(mode)
             with self.subTest(mode):
-                mat = theme.palette()
-                sheet = win.stylesheet()
-                self.assertIn(f"QSlider#volumeOnDark::handle:horizontal {{ background:"
-                              f"{mat.ink}", sheet)
-                handle = QtGui.QColor(mat.ink)
-                behind = QtGui.QColor(mat.paper)
-                self.assertGreater(abs(handle.lightness() - behind.lightness()), 150,
-                                   "the handle does not show up on the strip")
+                win.go_to_prayers()
+                settle(2)
+                keys = [k for k in win.findChildren(QtWidgets.QPushButton)
+                        if k.objectName() == "volumeKey" and k.isVisible()]
+                self.assertTrue(keys, "no strip on screen carries a volume key")
+                keys[0].click()
+                settle(2)
+                popup = win.volume_popup
+                self.addCleanup(lambda p=popup: put_away(p))
+                bar = popup.findChildren(QtWidgets.QSlider)[0]
+                bar.setValue(50)
+                settle(2)
+                shot = QtGui.QImage(bar.size(), QtGui.QImage.Format.Format_ARGB32)
+                shot.fill(0)
+                bar.render(shot)
+                paper = QtGui.QColor(theme.palette().paper)
+                middle = shot.width() // 2
+                # THE KNOB ONLY, NOT THE BAR THROUGH IT. Written first as a line straight
+                # down the middle, which passes through the red filled groove -- so it
+                # reported a huge difference no matter what the handle looked like, and
+                # passed with the handle painted white on white paper. That is the very
+                # fault this test exists for, and it sailed through. Measured again by
+                # sabotage, which is the only reason it was caught.
+                #
+                # The knob is VOLUME_KNOB tall and the groove VOLUME_LINE, both centred, so
+                # the rows between the two are knob and nothing else.
+                from salaah.ui import VOLUME_KNOB, VOLUME_LINE
+                centre = shot.height() // 2
+                groove = win.px(VOLUME_LINE) // 2
+                knob = win.px(VOLUME_KNOB) // 2
+                # STRICTLY INSIDE THE KNOB, both ends. The first version of this band ran
+                # to the knob's last pixel and picked up the one beyond it -- the slider's
+                # own background, black behind a light strip -- which reported 255 and
+                # passed the sabotage it was written to fail. Two pixels of margin at each
+                # end, so what is measured is knob and only knob.
+                rows = [y for y in range(centre - knob + 2, centre + knob - 1)
+                        if abs(y - centre) > groove + 1 and 0 <= y < shot.height()]
+                self.assertTrue(rows, "the knob is no taller than the groove it slides on")
+                apart = 0
+                for y in rows:
+                    pixel = QtGui.QColor(shot.pixel(middle, y))
+                    if pixel.alpha() == 0:
+                        continue
+                    apart = max(apart, abs(pixel.lightness() - paper.lightness()))
+                self.assertGreater(apart, 100,
+                                   f"nothing in the knob itself stands out from the strip in "
+                                   f"the {mode} theme: the most any of it differs by is "
+                                   f"{apart}")
 
     def test_the_prayer_of_the_hour_is_boxed_in_green(self):
         """Drawn as a one-row table, because Qt's rich text will not put a border on an inline
