@@ -8858,3 +8858,216 @@ class CountingWhatThePiHasOutstandingTest(unittest.TestCase):
                   "1 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n")
         out = packages.count(run=self.answers(canned), lists=Path("/nonexistent-lists"))
         self.assertIn("1 update outstanding", packages.sentence(out))
+
+
+class TheSpeedRunClockTest(unittest.TestCase):
+    """Journey to the Mosque, timed. Harry, 27 November 2026: "i am thinking of a good old
+    fashioned speed run ;) as soon as your feet move the clock starts and stops when you get to
+    mosque... the lowest time is the record and could be saved and then displayed for future
+    time to beat. each map will keep track of its own scores."
+
+    THE CLOCK IS TESTED WITHOUT WAITING FOR IT. Rules takes its `now` from outside, the same
+    arrangement backlight.py and power.py use, so a run that takes forty seconds on a mat takes
+    none at all here and the numbers are exact rather than nearly right.
+    """
+
+    def game(self, ticks=None):
+        from salaah.mosque_maze import Rules
+        clock = iter(ticks) if ticks else None
+        g = Rules(now=(lambda: next(clock)) if clock else (lambda: 0.0))
+        return g
+
+    def walk_to_the_mosque(self, g):
+        """Collect everything and arrive, the way a child eventually does."""
+        for _ in range(len(g.items) + 2):
+            target = g.nearest_objective()
+            if target is None or not g.walk_to(target):
+                break
+            while g.route:
+                g.step()
+            if g.finished:
+                return True
+        return g.finished
+
+    # ------------------------------------------------------------------ when it runs
+
+    def test_it_does_not_start_until_feet_move(self):
+        """"As soon as your feet move" -- not when the board appears. A mat can sit on an
+        untouched maze all day while somebody is at school, and a clock running through that
+        is a lie told before the game began."""
+        g = self.game([100.0] * 40)
+        self.assertFalse(g.running)
+        self.assertEqual(0.0, g.elapsed)
+        g.walk_to(g.nearest_objective())
+        self.assertFalse(g.running, "planning a route is not taking a step")
+        g.step()
+        self.assertTrue(g.running, "a step was taken and nothing started counting")
+
+    def test_a_tap_that_moves_nobody_does_not_start_it(self):
+        """A tap at a hedge. It never reaches _arrive, which is exactly why the clock lives
+        there and not in the touch handler."""
+        g = self.game([100.0] * 10)
+        wall = next((x, y) for x in range(g.WIDTH) for y in range(g.HEIGHT)
+                    if (x, y) not in g.active)
+        g.touch_to(wall)
+        self.assertFalse(g.running, "a tap at a wall started the clock")
+        self.assertIsNone(g.began)
+
+    def test_it_stops_on_arrival_and_the_figure_stops_moving(self):
+        from itertools import count
+        ticks = count(500.0, 0.25)
+        g = self.game()
+        g.now = lambda: next(ticks)
+        self.assertTrue(self.walk_to_the_mosque(g), "the journey could not be walked")
+        self.assertFalse(g.running, "it is still counting after arriving")
+        stopped = g.elapsed
+        for _ in range(20):
+            next(ticks)
+        self.assertEqual(stopped, g.elapsed, "the figure moved after the clock stopped")
+
+    def test_arriving_already_means_everything_was_collected(self):
+        """Harry asked that the ten count towards the record. They already do, and not because
+        the speed run added a rule: the gate only opens when all ten are in, and arriving is
+        being inside the mosque with the gate open. A sprint past the lot cannot end the game,
+        so every time on the board is a time for the whole journey."""
+        g = self.game([0.0] * 400)
+        self.assertTrue(self.walk_to_the_mosque(g))
+        self.assertEqual(len(g.items), len(g.collected))
+        self.assertTrue(g.gate_open)
+
+    # ------------------------------------------------------------------ interrupted runs
+
+    def test_an_interrupted_run_still_finishes_but_cannot_take_a_record(self):
+        """The azaan, a prayer-time notice, the sleep switch. A time with a gap in the middle
+        is not one anybody can beat fairly -- but making a child walk the whole maze again
+        because the call to prayer sounded would be a small cruelty on this of all devices."""
+        from itertools import count
+        ticks = count(0.0, 0.1)
+        g = self.game()
+        g.now = lambda: next(ticks)
+        g.walk_to(g.nearest_objective())
+        g.step()
+        g.spoil()
+        self.assertTrue(g.spoiled)
+        self.assertTrue(self.walk_to_the_mosque(g), "a spoiled run could not be finished")
+        self.assertGreater(g.elapsed, 0, "it finished without a time to show")
+
+    def test_spoiling_a_run_nobody_has_started_marks_nothing(self):
+        """Leaving the game before taking a step must not poison the next run: the screen is
+        hidden and shown again every time the children's menu is opened."""
+        g = self.game([0.0] * 10)
+        g.spoil()
+        self.assertFalse(g.spoiled, "a run that had not begun was marked")
+
+    def test_starting_again_clears_the_clock_and_the_mark(self):
+        g = self.game([0.0] * 400)
+        g.walk_to(g.nearest_objective())
+        g.step()
+        g.spoil()
+        g.restart()
+        self.assertIsNone(g.began)
+        self.assertIsNone(g.ended)
+        self.assertFalse(g.spoiled)
+        self.assertEqual(0.0, g.elapsed)
+
+    # ------------------------------------------------------------------ the board
+
+    def test_each_scenery_keeps_its_own_times(self):
+        """"each map will keep track of its own scores"."""
+        from salaah.mosque_maze import Rules, board, remember
+        g = self.game([0.0] * 10)
+        prints = {}
+        for scene in range(len(Rules.BACKGROUNDS)):
+            g.scene = scene
+            g.restart()
+            prints[g.level["name"]] = g.fingerprint
+        self.assertEqual(len(prints), len(set(prints.values())),
+                         f"two sceneries share a fingerprint: {prints}")
+        records = {}
+        remember(records, "hedge", prints["hedge"], 30.0, Rules.KEEPS)
+        remember(records, "city", prints["city"], 90.0, Rules.KEEPS)
+        self.assertEqual([30.0], board(records, "hedge", prints["hedge"]))
+        self.assertEqual([90.0], board(records, "city", prints["city"]))
+
+    def test_it_keeps_the_best_three_shortest_first(self):
+        from salaah.mosque_maze import board, remember
+        records = {}
+        for seconds in (41.2, 38.9, 55.0, 39.4, 12.5):
+            remember(records, "hedge", "abc", seconds, 3)
+        self.assertEqual([12.5, 38.9, 39.4], board(records, "hedge", "abc"))
+
+    def test_a_time_that_does_not_make_the_board_says_so(self):
+        from salaah.mosque_maze import remember
+        records = {}
+        for seconds in (10.0, 11.0, 12.0):
+            self.assertTrue(remember(records, "hedge", "abc", seconds, 3))
+        self.assertFalse(remember(records, "hedge", "abc", 99.0, 3),
+                         "a slower time than all three claimed a place")
+        self.assertTrue(remember(records, "hedge", "abc", 10.5, 3),
+                        "a time good enough for second did not get on")
+
+    def test_a_record_does_not_outlive_the_maze_it_was_set_on(self):
+        """THE ONE THAT IS CHEAP NOW AND EXPENSIVE LATER. The three mazes are generated at
+        release time and frozen into BACKGROUNDS. Regenerate one and every time set on the old
+        one is an unbeatable ghost with nothing on the screen to explain it."""
+        from salaah.mosque_maze import board, remember
+        records = {}
+        remember(records, "hedge", "theoldmaze", 30.0, 3)
+        self.assertEqual([30.0], board(records, "hedge", "theoldmaze"))
+        self.assertEqual([], board(records, "hedge", "anewmaze"),
+                         "a time set on a different maze is still being shown")
+        remember(records, "hedge", "anewmaze", 80.0, 3)
+        self.assertEqual([80.0], board(records, "hedge", "anewmaze"),
+                         "the new maze's board was mixed with the old maze's times")
+
+    def test_the_fingerprint_follows_the_walls_and_not_the_paint(self):
+        """Redrawing the hedges without moving them is a new look at the same maze, and a good
+        time should survive it. Moving a wall is a different maze and should not."""
+        from salaah.mosque_maze import Rules
+        g = self.game([0.0] * 10)
+        before = g.fingerprint
+        level = dict(Rules.BACKGROUNDS[0])
+        level["asset"] = "something-else.png"
+        painted = Rules(now=lambda: 0.0)
+        painted.BACKGROUNDS = (level,) + Rules.BACKGROUNDS[1:]
+        painted.scene = 0
+        painted.restart()
+        self.assertEqual(before, painted.fingerprint,
+                         "repainting the board retired its records")
+        moved = dict(level)
+        moved["start"] = (level["start"][0] + 1, level["start"][1])
+        shifted = Rules(now=lambda: 0.0)
+        shifted.BACKGROUNDS = (moved,) + Rules.BACKGROUNDS[1:]
+        shifted.scene = 0
+        shifted.restart()
+        self.assertNotEqual(before, shifted.fingerprint,
+                            "moving the start kept the old maze's records")
+
+    def test_rubbish_in_the_settings_file_is_ignored_rather_than_crashing(self):
+        """settings.json is a file on a mat that a person can edit, and a game that will not
+        open because somebody put a string where a number goes is worse than no records."""
+        from salaah.mosque_maze import board
+        cases = (
+            ("nothing saved yet", {}, []),
+            ("a string where the record goes", {"hedge": "nonsense"}, []),
+            ("no times at all", {"hedge": {"maze": "abc"}}, []),
+            ("times that are not a list", {"hedge": {"maze": "abc", "times": "fast"}}, []),
+            ("one good time among rubbish",
+             {"hedge": {"maze": "abc", "times": [None, -4, "x", 12.0]}}, [12.0]),
+        )
+        for what, records, want in cases:
+            with self.subTest(what):
+                self.assertEqual(want, board(records, "hedge", "abc"))
+
+    # ------------------------------------------------------------------ how it is written
+
+    def test_the_figure_is_wordless_and_reads_as_a_clock(self):
+        from salaah.mosque_maze import as_clock
+        self.assertEqual("0:00.0", as_clock(0))
+        self.assertEqual("0:09.0", as_clock(9.04))
+        self.assertEqual("1:05.5", as_clock(65.55))
+        self.assertEqual("10:00.0", as_clock(600))
+        self.assertEqual("0:00.0", as_clock(-5), "a negative time showed a minus sign")
+        for seconds in (0, 9.04, 65.55, 600):
+            self.assertFalse(any(c.isalpha() for c in as_clock(seconds)),
+                             "there are letters in the clock, so there is something to translate")

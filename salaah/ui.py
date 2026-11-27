@@ -218,6 +218,100 @@ class ClosesWhenNobodyTouchesIt(QtCore.QObject):
         return False
 
 
+#: How fast "Where the words come from" takes itself to the bottom, in pixels a second, and
+#: how long it waits before setting off. Harry, 27 November 2026: "can it auto scroll to the
+#: bottom slowly and stop."
+#:
+#: 34 px/s is about a line of this page a second -- film-credit speed, which is the thing this
+#: most resembles and the one people have the most practice reading. The pause is so the top
+#: of the page can be read standing still before anything moves; without it the first thing
+#: the page does is slide away from under the heading.
+CREDITS_CRAWL = 34.0
+CREDITS_WAIT = 1500
+
+
+class TakesItselfToTheBottom(QtCore.QObject):
+    """Walks a scroll area gently to its end, once, and stops -- or stops the moment a finger
+    arrives, whichever comes first.
+
+    IT STOPS FOR GOOD WHEN TOUCHED, and that is the rule worth stating. A page that resumes
+    after a touch fights the person reading it: they drag back to a name they want to read
+    again and the page hauls them forward out of it. The crawl is a convenience for somebody
+    standing in front of a mat with no mouse; the moment they take hold, it is theirs.
+
+    FLOATING POINT, NOT WHOLE PIXELS. The obvious loop adds 1 to the scrollbar every so often,
+    which ties the speed to the tick and comes out as a judder at any speed slow enough to
+    read. The position is kept as a float and the bar is set from it, so 34 pixels a second is
+    34 pixels a second whatever the tick is doing.
+
+    Nothing runs when there is nothing to scroll: a short credits page on a big screen simply
+    sits there, which is correct and is also what the test asks for.
+    """
+
+    #: A touch of any kind. Wheel and key included -- a mouse is not the only way in, and
+    #: somebody who presses End should not then be dragged by the crawl.
+    HANDS_ON = (QtCore.QEvent.Type.MouseButtonPress, QtCore.QEvent.Type.TouchBegin,
+                QtCore.QEvent.Type.Wheel, QtCore.QEvent.Type.KeyPress)
+
+    TICK = 30
+
+    def __init__(self, area, speed: float = CREDITS_CRAWL, wait: int = CREDITS_WAIT):
+        super().__init__(area)
+        self.area = area
+        self.speed = speed
+        self.where = 0.0
+        self.taken_over = False
+        area.viewport().installEventFilter(self)
+        area.installEventFilter(self)
+        bar = area.verticalScrollBar()
+        if bar is not None:
+            bar.installEventFilter(self)
+        self.clock = QtCore.QTimer(self)
+        self.clock.setInterval(self.TICK)
+        self.clock.timeout.connect(self.crawl)
+        # Not started here: at this point the page has not been laid out and the scrollbar
+        # still says there is nothing to scroll. The wait covers that as well as being the
+        # pause the top of the page wants.
+        QtCore.QTimer.singleShot(wait, self.set_off)
+
+    def set_off(self) -> None:
+        if self.taken_over or sip_deleted(self.area):
+            return
+        bar = self.area.verticalScrollBar()
+        if bar is None or bar.maximum() <= 0:
+            return                      # the whole page already fits; nothing to do
+        self.where = float(bar.value())
+        self.clock.start()
+
+    def stop(self) -> None:
+        self.taken_over = True
+        self.clock.stop()
+
+    def crawl(self) -> None:
+        if sip_deleted(self.area) or not self.area.isVisible():
+            self.clock.stop()
+            return
+        bar = self.area.verticalScrollBar()
+        if bar is None:
+            self.clock.stop()
+            return
+        # If something else moved the bar -- a scrollbar drag, a key -- follow it rather than
+        # yanking the page back to where the crawl had got to.
+        if abs(bar.value() - round(self.where)) > 2:
+            self.where = float(bar.value())
+        self.where += self.speed * self.TICK / 1000.0
+        if self.where >= bar.maximum():
+            bar.setValue(bar.maximum())
+            self.clock.stop()           # arrived: stop, and do not start again
+            return
+        bar.setValue(round(self.where))
+
+    def eventFilter(self, _who, event):
+        if event.type() in self.HANDS_ON:
+            self.stop()
+        return False
+
+
 def beside(key_left: int, key_width: int, popup_wide: int, screen, mirrored: bool) -> int:
     """Where to put the left edge of something hung beside a key on the top strip.
 
@@ -310,6 +404,18 @@ SET_PICKER_ROW_TEXT = 42  # and how big its words are. NOT set by the stylesheet
                           # has to go on with it -- see dropdown().
 SET_CHOICE = 31         # a row of circles to choose between
 SET_KNOB = 35           # the circle itself
+SET_KNOB_EDGE = 3       # and the line round it, which Qt draws OUTSIDE that 35
+#: WHAT THE BOY/GIRL CIRCLE ACTUALLY MEASURES ON THE GLASS, which is not SET_KNOB. A Qt
+#: stylesheet ::indicator takes width/height as the box INSIDE the border, so a 35px circle
+#: with a 3px line round it draws 41px across -- confirmed by grabbing the button and counting
+#: the ink, not by reading the box model and hoping.
+#:
+#: Named because two things now depend on it. Harry, 27 November 2026: "can you have the 4
+#: circles for ring, audio, wifi, location be the same size circle as the circle for boy/girl."
+#: Setting those dots to SET_KNOB would have left them six pixels short of the thing they are
+#: supposed to match, and six pixels is exactly the kind of near-miss that looks like
+#: carelessness rather than a choice.
+SET_DOT = SET_KNOB + 2 * SET_KNOB_EDGE
 SET_PILL = 31           # the four boxes in the two-column block, on this page only
 
 # The posture screen has no backlight of its own, so it is dimmed by drawing a black film over
@@ -2407,7 +2513,7 @@ class MainWindow(QtWidgets.QWidget):
             QRadioButton#choice {{ font-size:{choice}px; font-weight:bold; color:{c.strong};
                                    spacing:{px(14)}px; padding:{px(6)}px 0; }}
             QRadioButton#choice::indicator {{ width:{knob}px; height:{knob}px;
-                                              border:{px(3)}px solid {c.strong};
+                                              border:{px(SET_KNOB_EDGE)}px solid {c.strong};
                                               border-radius:{knob_round}px; background:{c.paper}; }}
             QRadioButton#choice::indicator:checked {{ background:{c.strong}; }}
             /* The four boxes in the two-column block. #pill is worn on the Wi-Fi, Bluetooth,
@@ -5633,6 +5739,20 @@ class MainWindow(QtWidgets.QWidget):
         scroll.setWidget(inside)
         lay.addWidget(scroll, 1)
 
+        # AND IT TAKES ITSELF TO THE BOTTOM. Harry, 27 November 2026: "In 'where the words
+        # come from' page can it auto scroll to the bottom slowly and stop."
+        #
+        # This page is longer than it looks -- every translation installed, each with its
+        # publisher and licence -- and on a mat with no mouse the only way to reach the foot
+        # of it is to keep dragging. The crawl is for the person standing in front of it
+        # rather than for anybody in a hurry, and it gets out of the way the instant they take
+        # hold; see TakesItselfToTheBottom.
+        #
+        # Kept on the page, so it dies with the page. This screen is rebuilt every time it is
+        # opened and the old one deleted, so a crawl parented anywhere else would outlive the
+        # thing it was scrolling.
+        page.crawl = TakesItselfToTheBottom(scroll)
+
         if getattr(self, "sources_page", None) is not None:
             self.stack.removeWidget(self.sources_page)
             self.sources_page.deleteLater()
@@ -6167,7 +6287,7 @@ class MainWindow(QtWidgets.QWidget):
 
         # The ring. The circle is the same green-or-red one the main screen carries in its bar,
         # so whether it is connected is read at a glance rather than off the words beside it.
-        self.ring_dot = Dot(self.px(28))
+        self.ring_dot = Dot(self.px(SET_DOT))
         self.ring_button = no_focus(QtWidgets.QPushButton(self.t("settings.buttons")))
         self.ring_button.setObjectName("pill")
         self.ring_button.clicked.connect(self.open_bluetooth)
@@ -6181,7 +6301,7 @@ class MainWindow(QtWidgets.QWidget):
 
         # Bluetooth. The circle answers "is there a speaker", not "is Bluetooth connected to
         # anything" -- the ring is on this adapter too and is nearly always connected.
-        self.bt_dot = Dot(self.px(28))
+        self.bt_dot = Dot(self.px(SET_DOT))
         self.bt_button = no_focus(QtWidgets.QPushButton(self.t("bt.row")))
         self.bt_button.setObjectName("pill")
         self.bt_button.clicked.connect(self.open_bluetooth)
@@ -6197,7 +6317,7 @@ class MainWindow(QtWidgets.QWidget):
         # screen shows prayer times in a room, and a dialog seizing it mid-prayer would be
         # worse than no wifi. The only thing that offers it unprompted is the line where
         # something actually failed for want of a network.
-        self.wifi_dot = Dot(self.px(28))
+        self.wifi_dot = Dot(self.px(SET_DOT))
         self.wifi_button = no_focus(QtWidgets.QPushButton(self.t("wifi.row")))
         self.wifi_button.setObjectName("pill")
         self.wifi_button.clicked.connect(self.open_wifi)
@@ -6223,7 +6343,7 @@ class MainWindow(QtWidgets.QWidget):
         # Red is therefore the DEFAULT and the private state, not a fault -- which is the one
         # thing to watch, since red on the three rows above means "not connected yet" and does
         # read as a to-do. Harry asked for it this way on purpose, 12 November 2026.
-        self.place_dot = Dot(self.px(28))
+        self.place_dot = Dot(self.px(SET_DOT))
         self.place_button = no_focus(QtWidgets.QPushButton(self.t("place.row")))
         self.place_button.setObjectName("pill")
         self.place_button.clicked.connect(self.open_place)

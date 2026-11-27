@@ -6,6 +6,9 @@ progress, scenery, New Game and Exit. All state stays in memory.
 """
 from __future__ import annotations
 
+import hashlib
+import time
+
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
 from .render import Fonts
 from .theme import palette
@@ -101,9 +104,65 @@ class Rules:
     MOSQUE_NORM = (0.461, 0.453, 0.539, 0.546)
     DOOR_NORM = (0.488, 0.515, 0.512, 0.551)
 
-    def __init__(self):
+    #: How many times each scenery remembers. Harry, 27 November 2026, having first said one:
+    #: "sorry keep best 3". The three is worth more than the one -- a single record only ever
+    #: gets harder, so after a handful of runs every run is a failure against a number, which
+    #: is a poor thing to build into a mat a child is meant to want to come back to. With three
+    #: a near-miss still lands on the board.
+    KEEPS = 3
+
+    def __init__(self, now=None):
+        # Time comes in from outside so the clock can be tested without waiting for it. The
+        # same arrangement backlight.py and power.py use for the commands they run.
+        self.now = now or time.monotonic
         self.scene = 0
         self.restart()
+
+    @property
+    def running(self) -> bool:
+        """The clock is going: feet have moved and the mosque is not reached."""
+        return self.began is not None and self.ended is None
+
+    @property
+    def elapsed(self) -> float:
+        """Seconds since the first step -- counting up while running, fixed once arrived, and
+        zero before anybody has moved."""
+        if self.began is None:
+            return 0.0
+        return (self.ended if self.ended is not None else self.now()) - self.began
+
+    def spoil(self) -> None:
+        """This run can no longer take a record.
+
+        Called when the mat takes the screen away: the azaan, a prayer-time notice, the sleep
+        switch, or simply leaving the game. THE RUN IS NOT ABANDONED -- it carries on and it
+        still shows a time when it finishes, because making a child start again because the
+        call to prayer sounded would be its own small cruelty on this of all devices. It just
+        does not go on the board, which is the honest half: a time with a gap in the middle is
+        not a time anybody can beat fairly.
+        """
+        if self.running:
+            self.spoiled = True
+
+    @property
+    def fingerprint(self) -> str:
+        """What identifies this maze, so a record cannot outlive the map it was set on.
+
+        The three mazes are generated at release time by tools/maze/build_levels.py and then
+        frozen into BACKGROUNDS above. If a future release ever regenerates them -- new walls,
+        a moved start, items somewhere else -- every saved time becomes a ghost: a number set
+        on a different maze, with nothing on the screen saying so, that a child may simply be
+        unable to beat. So the records carry a fingerprint of the maze, and a maze that has
+        changed retires its own records rather than leaving them to haunt it.
+
+        Over the walls, the start and the items, because those three are what decide how fast
+        the journey can be walked. NOT over the picture: redrawing the hedges without moving
+        them is a new look at the same maze, and a good time should survive it.
+        """
+        level = self.BACKGROUNDS[self.scene]
+        said = repr((level["mask"], tuple(level["start"]),
+                     tuple(tuple(c) for c in level["items"]))).encode("utf-8")
+        return hashlib.sha256(said).hexdigest()[:12]
 
     @property
     def level(self):
@@ -157,6 +216,18 @@ class Rules:
         self.last_item = None
         self.route = []
         self.trail = [self.start]
+        # THE SPEED RUN. Harry, 27 November 2026: "i am thinking of a good old fashioned speed
+        # run ;) as soon as your feet move the clock starts and stops when you get to mosque."
+        #
+        # Nothing starts here. A run begins on the first step a child actually takes, not when
+        # the board appears: the mat can sit on an untouched maze for an hour while somebody
+        # is at school, and a clock running through that would be a lie before the game began.
+        self.began = None
+        self.ended = None
+        # A run that the mat interrupted -- the azaan, a prayer-time notice, the sleep switch,
+        # or simply leaving the game and coming back. It still finishes and still shows its
+        # time; it just cannot take a record. See `spoil`.
+        self.spoiled = False
 
     def _the_building(self) -> frozenset:
         """The cells the mosque's drawing covers, so nothing is drawn on top of it."""
@@ -362,6 +433,12 @@ class Rules:
                    key=lambda cell: ((cell[0] - tx) ** 2 + (cell[1] - ty) ** 2, reach[cell]))
 
     def _arrive(self, cell) -> str:
+        # EVERY SUCCESSFUL MOVE COMES THROUGH HERE -- a touch route and a walked route both --
+        # which is why the clock is started here and nowhere else. "As soon as your feet move"
+        # means a step actually taken: a tap at a hedge is not a step, and it never reaches
+        # this line, so it cannot start the clock.
+        if self.began is None:
+            self.began = self.now()
         self.player = cell
         self.trail.append(cell)
         self.trail = self.trail[-34:]
@@ -376,6 +453,12 @@ class Rules:
             self.last_item = self.ITEM_KEYS[index]
             event = "gate" if self.gate_open else "collected"
         if self.finished:
+            # ARRIVING IS ARRIVING WITH EVERYTHING, and that is not a rule the speed run had
+            # to add: `finished` is being inside the mosque with the gate open, and the gate
+            # only opens once all ten are collected. So a sprint past the lot cannot end the
+            # game, and every time on the board is a time for the whole journey.
+            if self.ended is None:
+                self.ended = self.now()
             self.route = []
             return "finished"
         return event
@@ -421,6 +504,57 @@ class Rules:
         if objective is None or not self.walk_to(objective):
             return "nothing"
         return "walking"
+
+
+def board(records: dict, scene: str, maze: str) -> list[float]:
+    """The times on the board for this scenery, best first, or nothing.
+
+    A record set on a DIFFERENT maze is not shown. See Rules.fingerprint: the three mazes are
+    frozen at release time, and if one is ever regenerated the times set on the old one cannot
+    be beaten and nothing on the screen would say why. They are dropped rather than displayed.
+    Dropped on reading rather than deleted on upgrade, so that a release which regenerates a
+    maze and is then rolled back brings its records back with it.
+    """
+    kept = records.get(scene)
+    if not isinstance(kept, dict) or kept.get("maze") != maze:
+        return []
+    times = kept.get("times")
+    if not isinstance(times, list):
+        return []
+    clean = [float(t) for t in times if isinstance(t, (int, float)) and t > 0]
+    return sorted(clean)
+
+
+def remember(records: dict, scene: str, maze: str, seconds: float, keeps: int) -> bool:
+    """Put a finished run on the board if it belongs there. True if it got on.
+
+    Writes into `records` in place. A board belonging to another maze is replaced rather than
+    merged -- the old times were set somewhere else, and mixing them would make a board that
+    is half one maze and half another, which is worse than either.
+    """
+    if not (seconds and seconds > 0):
+        return False
+    times = board(records, scene, maze)
+    standing = sorted(times + [float(seconds)])[:keeps]
+    got_on = float(seconds) in standing
+    records[scene] = {"maze": maze, "times": standing}
+    return got_on
+
+
+def as_clock(seconds: float) -> str:
+    """m:ss.t -- the only thing the timer ever shows, and it is deliberately wordless.
+
+    Harry has been told about this one rather than asked: "Record", "Time to beat" and "New
+    record!" are three sentences in nine languages, none of which anybody qualified has read,
+    and this project has been paying that tax all the way through. A clock and a figure say
+    the same thing in every language on the mat and need nothing translated.
+
+    Tenths, not hundredths. A hundredths digit on a maze walked with a finger is a flickering
+    number that nobody can read and that suggests a precision the game does not have.
+    """
+    seconds = max(0.0, float(seconds))
+    minutes, rest = divmod(seconds, 60)
+    return f"{int(minutes)}:{rest:04.1f}"
 
 
 class ItemPictures:
@@ -523,24 +657,50 @@ class Screen(QtWidgets.QWidget):
         self._move_timer.setInterval(24)
         self._move_timer.timeout.connect(self._advance)
         self._ignore_mouse_release = False
-        #: Which thing the map's line points at; see what_we_are_after.
-        self._after = None
-        self._after_key = None
         #: The floor colour of the board on show, and which board that was. See board_floor.
         self._floor = None
         self._floor_for = None
-        #: How far every cell is from the thing being headed for; see the_way_to.
-        self._field: dict = {}
-        self._field_key = None
+        # TWO CACHES WENT WITH THE ROUTE LINE AT 2.59 -- _after/_after_key, which held the
+        # thing the line pointed at, and _field/_field_key, which held how far every cell was
+        # from it. Both were performance work rather than decoration and the numbers are
+        # worth keeping where somebody can find them, because anyone putting the line back
+        # will otherwise rediscover them the slow way:
+        #
+        #   * Asking Rules.nearest_objective on every redraw searched the board once per
+        #     remaining item. That was most of the 112ms a step the game was measured at.
+        #   * route_to(objective) on every redraw was 42ms a step on the old beginner maze
+        #     and 67ms on expert, against a move timer firing every 24ms. On a Pi, several
+        #     times slower again -- a help that made the thing it was helping unusable.
+        #   * The fix was to search FROM THE OBJECTIVE, not from the child: the objective
+        #     changes nine times a game and the child moves hundreds of times, so one search
+        #     per objective stored every cell's distance and each redraw walked downhill from
+        #     wherever the child stood. A few hundred comparisons instead of ten thousand.
+        #
+        # The code itself is in the history; what is hard to recover is knowing it was needed.
         #: {key: (tinted pixmap, cell bounds)}; see painted().
         self._tints: dict = {}
         #: {(scene, item index, ink): the item's own drawing, for the 7in catalogue}.
         self._icons: dict[tuple[int, int, str], QtGui.QPixmap] = {}
 
         self.companion = self._build_companion()
+        # A SECOND TIMER, AND IT IS NOT THE MOVE TIMER. _move_timer steps a walked route and
+        # stops the moment the walking stops; this one keeps the figure on the 7in climbing
+        # while a child stands still thinking, which is exactly when a speed run's clock is
+        # at its most interesting.
+        self._tick = QtCore.QTimer(self)
+        self._tick.setInterval(100)          # tenths, which is all the clock shows
+        self._tick.timeout.connect(self._show_the_clock)
+        #: Whether this finish has already been offered to the board, so that a redraw, a
+        #: theme change or a language change cannot put the same run on it twice. The same
+        #: shape winning.py uses for its Well Done, and for the same reason.
+        self._kept = False
+        #: Whether the run that just finished got onto the board, which is the only thing the
+        #: green figure means.
+        self._landed = False
+
         self.changed.connect(self.update)
         self.changed.connect(self._look_for_a_win)
-        self.changed.connect(self._update_hint)
+        self.changed.connect(self._mind_the_clock)
         self.changed.connect(self.retell)
         self.follow_theme()
         self.start_again()
@@ -558,13 +718,46 @@ class Screen(QtWidgets.QWidget):
         self.title.setWordWrap(True)
         layout.addWidget(self.title)
 
-        self.hint = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        self.hint.setObjectName("gameHint")
-        self.hint.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
-                                QtWidgets.QSizePolicy.Policy.Expanding)
-        self.hint.setMinimumHeight(self.win.side_px(250))
-        self.hint.installEventFilter(self)
-        layout.addWidget(self.hint, 1)
+        # A CLOCK WHERE THE LITTLE MAP WAS, since 2.59. Harry, 27 November 2026: "i am
+        # thinking of a good old fashioned speed run ;) ... the time can be shown on side
+        # screen, instead of showing the map, it shows a digital timer, same size as map."
+        #
+        # THE ROUTE LINE WENT WITH THE MAP, and the reasoning is recorded because the line was
+        # itself a fix -- but the first version of this note got the reason wrong and Harry
+        # caught it, so what follows is the corrected account rather than the one I reached
+        # for.
+        #
+        # The line went in on 15 November, when he reported "there is no way to collect the
+        # items as the routes lead to dead ends". Everything was reachable -- every item had
+        # been walked to -- but reaching one on EXPERT meant tracing about 1,975 cells of
+        # corridor against 424 on beginner, and a child cannot see round a corner. That maze
+        # was not unfair, it was unreadable.
+        #
+        # THAT MAZE NO LONGER EXISTS. The three difficulty levels went at 2.53 and three
+        # sceneries replaced them. Quoting the expert complaint against hedge, city and cloud
+        # was quoting a fault in a thing that was deleted two releases ago. Measured on the
+        # three that actually ship, walking the greedy route to all ten and the mosque:
+        #
+        #     hedge   1,008 cells in all, longest single leg 358
+        #     city    1,208 cells in all, longest single leg 216
+        #     cloud   1,118 cells in all, longest single leg 244
+        #
+        # Between the old beginner and the old expert, and nothing like expert's worst stretch.
+        # So the line is not holding up the same weight it was built to hold, which is what
+        # makes taking it out a reasonable thing to do rather than a regression: "Take it out,
+        # as asked."
+        #
+        # If a child ever does get stuck tracing these, THIS is the paragraph that says what
+        # used to help and roughly how much corridor there is to be stuck in.
+        #
+        # The board, the items and the mosque are all still on the 16in. Only the little copy
+        # of them, and the line across it, have gone.
+        self.clock = QtWidgets.QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
+        self.clock.setObjectName("mazeClock")
+        self.clock.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                                 QtWidgets.QSizePolicy.Policy.Expanding)
+        self.clock.setMinimumHeight(self.win.side_px(250))
+        layout.addWidget(self.clock, 1)
 
         # Under the little maze and above the words: what has been picked up so far. It sits
         # in the gap the panel already had -- there were about 180 blank pixels here.
@@ -614,6 +807,78 @@ class Screen(QtWidgets.QWidget):
         if bold:
             font.setWeight(QtGui.QFont.Weight.Bold)
         return font
+
+    # ------------------------------------------------------------------ the speed run, 2.59
+
+    def _mind_the_clock(self) -> None:
+        """Run after every change: start the tick when feet move, put a finished run on the
+        board, and redraw the figure."""
+        if self.game.running and not self._tick.isActive() and self.isVisible():
+            self._tick.start()
+        elif not self.game.running and self._tick.isActive():
+            self._tick.stop()
+        if self.game.finished and not self._kept:
+            self._kept = True
+            self._keep_the_time()
+        self._show_the_clock()
+
+    def _keep_the_time(self) -> None:
+        """Put a finished run on this scenery's board, if it is allowed to be there.
+
+        A SPOILED RUN IS NOT SAVED. The mat may have taken the screen away in the middle of
+        it -- the azaan, a prayer-time notice, the sleep switch -- and a time with a gap in
+        the middle is not a time anybody can beat fairly. The run still finished and the
+        figure still stands on the 7in; it simply does not go on the board.
+
+        Saving goes through the window so that settings.json is written the one way the rest
+        of the app writes it. A failure to save is not allowed to spoil the finish: a child
+        who has just walked the whole maze should get their Well Done whatever the disk says.
+        """
+        if self.game.spoiled or not self.game.ended:
+            return
+        settings = getattr(self.win, "settings", None)
+        if settings is None:
+            return
+        records = getattr(settings, "maze_records", None)
+        if records is None:
+            return
+        self._landed = remember(records, self.game.level["name"], self.game.fingerprint,
+                                self.game.elapsed, self.game.KEEPS)
+        saver = getattr(self.win, "save_settings", None)
+        try:
+            if callable(saver):
+                saver()
+        except Exception:                       # noqa: BLE001 - see the docstring
+            pass
+
+    def _show_the_clock(self) -> None:
+        """The figure, and the best times under it. No words anywhere in here.
+
+        "Record", "Time to beat" and "New record!" would be three sentences in nine languages
+        that nobody qualified has read, which is the tax this project has paid all the way
+        through. A clock and a list of figures, shortest first, say the same thing in every
+        language. The one the run just set is drawn in the mosque's own green -- the same
+        trick the route line used, colour carrying a meaning so that no sentence has to.
+        """
+        if not hasattr(self, "clock"):
+            return
+        now = as_clock(self.game.elapsed)
+        times = board(getattr(getattr(self.win, "settings", None), "maze_records", {}) or {},
+                      self.game.level["name"], self.game.fingerprint)
+        c = palette()
+        lines = []
+        for seconds in times:
+            said = as_clock(seconds)
+            fresh = (self.game.finished and self._landed and not self.game.spoiled
+                     and abs(seconds - self.game.elapsed) < 0.05)
+            colour = c.green if fresh else c.ink
+            lines.append(f'<span style="color:{colour}">{said}</span>')
+        under = ""
+        if lines:
+            small = self.win.side_px(44)
+            under = (f'<div style="font-size:{small}px; line-height:135%">'
+                     + "<br>".join(lines) + "</div>")
+        self.clock.setText(f'<div>{now}</div>{under}')
 
     def retell(self) -> None:
         title = self.win.t("mosque_maze.title")
@@ -683,10 +948,16 @@ class Screen(QtWidgets.QWidget):
             f"QPushButton#gameButton:pressed {{ background: {c.pressed}; color: {c.ink}; }}"
             f"QLabel#gameTitle {{ font-size: {title}px; font-weight: bold; }}"
             f"QLabel#gameStatus {{ font-size: {body}px; }}"
+            # THE CLOCK IS THE BIGGEST THING ON THIS PANEL, and deliberately so: it is read
+            # from a mat on the floor, at a glance, by somebody who is in the middle of
+            # running. The board of best times under it is a third of the size -- it is for
+            # looking at between runs, not during one.
+            f"QLabel#mazeClock {{ font-size: {self.win.side_px(132)}px; font-weight: bold; "
+            f"color: {c.ink}; }}"
             f"QPushButton#gameButton {{ font-size: {label}px; font-weight: bold; }}"
         )
         self.retell()
-        self._update_hint()
+        self._show_the_clock()
         self.catalogue.update()
         self.update()
 
@@ -703,11 +974,15 @@ class Screen(QtWidgets.QWidget):
     def start_again(self) -> None:
         self._move_timer.stop()
         self.game.restart()
+        self._kept = False
+        self._landed = False
         self.changed.emit()
 
     def cycle_scene(self) -> None:
         self._move_timer.stop()
         self.game.cycle_scene()
+        self._kept = False
+        self._landed = False
         self.changed.emit()
 
     def press(self, action="") -> None:
@@ -783,8 +1058,6 @@ class Screen(QtWidgets.QWidget):
         return super().event(event)
 
     def eventFilter(self, watched, event):
-        if watched is self.hint and event.type() == QtCore.QEvent.Type.Resize:
-            self._update_hint()
         return super().eventFilter(watched, event)
 
     def _advance(self) -> None:
@@ -1102,151 +1375,25 @@ class Screen(QtWidgets.QWidget):
                                              wide, tall),
                                art, QtCore.QRectF(art.rect()))
 
-    def what_we_are_after(self):
-        """Which thing the line on the map points at, chosen once per thing collected.
-
-        Rules.nearest_objective searches the board once FOR EVERY remaining item to find the
-        closest -- nine searches on expert. Called on every redraw that cost more than the
-        drawing did: it was most of the 112ms a step this was measured at.
-
-        It only needs asking when the answer can have changed, which is when something has
-        been collected or the gate has opened. Keeping the same objective in between is also
-        better to follow: a line that re-aims itself every time a child shuffles a step is a
-        line that is hard to walk along.
-        """
-        key = (self.game.scene, len(self.game.collected), self.game.gate_open)
-        if self._after_key != key:
-            self._after = self.game.nearest_objective()
-            self._after_key = key
-        return self._after
-
-    def the_way_to(self, objective):
-        """The cells from the child to their objective, worked out cheaply enough to redraw.
-
-        SEARCHED FROM THE OBJECTIVE, NOT FROM THE CHILD, and that is the whole trick. The
-        obvious route_to(objective) runs a fresh search of the whole board every time anything
-        moves: measured at 42ms a step on beginner and 67ms on expert, against a move timer
-        that fires every 24ms. On a Pi, several times slower again, the game would have
-        crawled -- a help that makes the thing it is helping unusable.
-
-        The objective changes nine times in a game; the child moves hundreds of times. So the
-        search runs once per objective and stores how far every cell is FROM it, and each
-        redraw just walks downhill from wherever the child is. That is a few hundred
-        comparisons instead of ten thousand.
-
-        Keyed on the gate as well as the level, because opening the gate adds a way through
-        the mosque wall and so changes every distance behind it.
-        """
-        key = (self.game.scene, objective, self.game.gate_open)
-        if self._field_key != key:
-            self._field = self.game.distances(objective)
-            self._field_key = key
-        cell = self.game.player
-        if cell not in self._field:
-            return []
-        route = [cell]
-        while cell != objective and len(route) < len(self._field):
-            nearer = [near for near in self.game.neighbours(cell)
-                      if near in self._field and self._field[near] < self._field[cell]]
-            if not nearer:
-                break
-            cell = min(nearer, key=lambda near: self._field[near])
-            route.append(cell)
-        return route
-
-    def draw_the_way(self, painter, wide: float, tall: float) -> None:
-        """On the little map only: a line from where the child is to what they are after.
-
-        Harry, 15 November 2026, on the expert maze: "there is no way to collect the items as
-        the routes lead to dead ends." They were all reachable -- I had walked every one -- but
-        reaching them means tracing about 1,975 cells of corridor on expert, against 424 on
-        beginner, and a child cannot see round a corner. The maze was not unfair, it was
-        unreadable.
-
-        ON THE 7in AND NOT ON THE BOARD, which is the whole idea. The big screen keeps the
-        maze exactly as it was, so finding the way is still the game; the little screen is a
-        map, and drawing the route on a map is what a map is for. A child who wants to work it
-        out can ignore it, the way you can ignore a signpost.
-
-        IN THE COLOUR OF WHAT IT LEADS TO, so the line explains itself: blue while it is
-        taking you to the blue thing, green once everything is collected and the only thing
-        left is the mosque. Nothing has to say in words what the line means, which also means
-        nothing has to say it in ten languages.
-        """
-        objective = self.what_we_are_after()
-        if objective is None or self.game.finished:
-            return
-        colour = QtGui.QColor(palette().green)
-        for index, cell in enumerate(self.game.items):
-            if cell == objective:
-                colour = QtGui.QColor(
-                    self.game.ITEM_COLOURS[index % len(self.game.ITEM_COLOURS)])
-        route = self.the_way_to(objective)
-
-        def middle(cell):
-            return QtCore.QPointF((cell[0] + 0.5) * wide, (cell[1] + 0.5) * tall)
-
-        if len(route) > 1:
-            faint = QtGui.QColor(colour)
-            faint.setAlpha(150)
-            pen = QtGui.QPen(faint, max(1.0, wide * 0.8))
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-            painter.setPen(pen)
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawPolyline(QtGui.QPolygonF([middle(cell) for cell in route]))
-
-        # And where the child is now, or the line starts from nowhere.
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(colour)
-        painter.drawEllipse(middle(self.game.player), wide * 1.6, tall * 1.6)
-
-    def _update_hint(self) -> None:
-        if not hasattr(self, "hint"):
-            return
-        image = self.images[self.game.scene]
-        if image.isNull() or self.hint.width() <= 0 or self.hint.height() <= 0:
-            self.hint.clear()
-            return
-        shown = image.scaled(self.hint.size(), Qt.AspectRatioMode.KeepAspectRatio,
-                             Qt.TransformationMode.SmoothTransformation)
-        # AND WHAT HAS BEEN COLLECTED IS GONE FROM THE LITTLE MAP TOO. This is a picture of
-        # the board, and from 2.28 the board no longer has those things on it. Left alone it
-        # would show a child a map with the water drop still sitting where they picked it up,
-        # a hand's width from the catalogue saying they have it -- which is the sort of
-        # disagreement a six-year-old notices long before an adult does.
-        wide = shown.width() / self.game.WIDTH
-        tall = shown.height() / self.game.HEIGHT
-        painter = QtGui.QPainter(shown)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
-        # The things still to find, as little pictures. The paragraph above is about the ones
-        # already found, and it still holds -- it is just that since 2.53 "gone from the map"
-        # takes care of itself: the pictures are drawn here rather than painted into the board,
-        # so a collected thing is one this loop skips.
-        for index, cell in enumerate(self.game.items):
-            if cell in self.game.collected:
-                continue
-            art = ItemPictures.get(self.win, self.game.ITEM_ART[index])
-            if art is None or art.isNull():
-                continue
-            span = wide * (12 if index < self.game.BIG else 7)
-            high = span * art.height() / max(1, art.width())
-            painter.drawPixmap(
-                QtCore.QRectF((cell[0] + 0.5) * wide - span / 2,
-                              (cell[1] + 0.5) * tall - high / 2, span, high),
-                art, QtCore.QRectF(art.rect()))
-        self.draw_the_way(painter, wide, tall)
-        painter.end()
-        self.hint.setPixmap(shown)
-
     def showEvent(self, event):
         self.retell()
         self.follow_theme()
+        # A run that was going when the screen went away keeps going when it comes back; it
+        # is simply marked, and the mark is never taken off.
+        if self.game.running:
+            self._tick.start()
         super().showEvent(event)
 
     def hideEvent(self, event):
         self._move_timer.stop()
+        # THE RUN IS SPOILED, NOT ABANDONED. The mat took the screen away -- the azaan, a
+        # prayer-time notice, the sleep switch, or simply leaving the game -- and whatever
+        # happens next, the clock has a gap in it that nobody else's time has. It carries on
+        # and it will still show a figure at the end, because making a child start the whole
+        # maze again because the call to prayer sounded would be a small cruelty on this of
+        # all devices. It just cannot take a record.
+        self.game.spoil()
+        self._tick.stop()
         super().hideEvent(event)
 
     def _look_for_a_win(self) -> None:

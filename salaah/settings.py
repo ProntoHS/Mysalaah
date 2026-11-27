@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 PATH = Path.home() / ".config" / "salaah" / "settings.json"
@@ -103,6 +103,24 @@ class Settings:
     update_url: str = ""       # where to look for updates; empty uses the one built in.
                                # A way to point one mat at a laptop while this is tested,
                                # or to move a mat if the address ever has to change.
+    #: THE FIRST THING THIS MAT HAS EVER REMEMBERED ABOUT A GAME. Harry, 27 November 2026:
+    #: "the lowest time is the record and could be saved and then displayed for future time to
+    #: beat. each map will keep track of its own scores."
+    #:
+    #: {scenery name: {"maze": <fingerprint>, "times": [seconds, best first]}}. The three best
+    #: per scenery; see Rules.KEEPS for why three rather than one.
+    #:
+    #: THE FINGERPRINT IS THE POINT OF THE SHAPE. The mazes are generated at release time and
+    #: frozen into mosque_maze.BACKGROUNDS. If one is ever regenerated, the times set on the
+    #: old one are unbeatable ghosts with nothing on the screen to explain them, so a record
+    #: whose fingerprint no longer matches its maze is dropped rather than shown. A plain
+    #: {name: [times]} would have had no way to know, and the day it mattered would have been
+    #: a release where a child's times quietly became impossible.
+    #:
+    #: Kept here because ~/.config/salaah/settings.json is outside the release: an update
+    #: replaces salaah/ and assets/ and never touches this file, so the records survive every
+    #: future version without anything being done about it.
+    maze_records: dict = field(default_factory=dict)
 
     @staticmethod
     def load(path: Path = PATH) -> "Settings":

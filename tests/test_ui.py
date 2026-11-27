@@ -13767,6 +13767,66 @@ class WhatTheMatIsAttachedToTest(unittest.TestCase):
     def values(self, w):
         return (w.devices_label, w.bt_value, w.wifi_value, w.place_label)
 
+    def test_the_four_dots_are_the_same_circle_as_the_boy_girl_one(self):
+        """Harry, 27 November 2026: "can you have the 4 circles for ring, audio, wifi,
+        location be the same size circle as the circle for boy/girl."
+
+        MEASURED OFF THE PIXELS, BOTH OF THEM, and that is the whole point of this test. The
+        two circles are drawn by completely different machinery -- the dots are a QWidget
+        painting an ellipse into its own rect, the boy/girl one is a Qt stylesheet
+        ::indicator -- and a stylesheet indicator takes width/height as the box INSIDE its
+        border. So the obvious way to satisfy this request, setting the dots to SET_KNOB, puts
+        them six pixels short of the thing they are meant to match: near enough to look like
+        carelessness and far enough to see.
+
+        Comparing the two CONSTANTS would have passed on exactly that mistake. Comparing what
+        is drawn cannot.
+        """
+        from salaah.qt import QtGui
+        from salaah.ui import Dot
+        w = self.window()
+        w.open_settings()
+        settle()
+        body = w.settings_scroll.widget()
+
+        def ink(widget, within):
+            """How many rows and columns of the left [within] pixels carry ink.
+
+            AGAINST THE WIDGET'S OWN CORNER, not against a fixed brightness. The first
+            version of this asked for pixels darker than half -- which is ink on the light
+            theme and PAPER on the dark one, where it duly measured the whole button and
+            reported the boy/girl circle as 45x53. This class runs the dark theme, so that
+            mistake failed loudly rather than passing; on the light theme it would have
+            passed while measuring nothing.
+            """
+            image = widget.grab().toImage()
+            paper = QtGui.QColor(image.pixel(0, 0))
+            rows, cols = set(), set()
+            for y in range(image.height()):
+                for x in range(min(within, image.width())):
+                    here = QtGui.QColor(image.pixel(x, y))
+                    apart = (abs(here.red() - paper.red()) + abs(here.green() - paper.green())
+                             + abs(here.blue() - paper.blue()))
+                    if apart > 90:
+                        rows.add(y)
+                        cols.add(x)
+            if not rows:
+                return 0, 0
+            return max(cols) - min(cols) + 1, max(rows) - min(rows) + 1
+
+        radios = [b for b in body.findChildren(QtWidgets.QRadioButton) if b.isVisible()]
+        self.assertTrue(radios, "the boy/girl circles are not on the page to compare against")
+        # The indicator only: everything left of where the label starts.
+        want = ink(radios[0], 45)
+        self.assertTrue(all(want), f"nothing was drawn where the circle should be: {want}")
+
+        dots = [d for d in body.findChildren(Dot) if d.isVisible()]
+        self.assertEqual(4, len(dots), f"expected four status dots, found {len(dots)}")
+        for n, dot in enumerate(dots):
+            with self.subTest(n):
+                self.assertEqual(want, ink(dot, dot.width()),
+                                 "this dot is not the same circle as the boy/girl one")
+
     # -- the fault Harry reported ------------------------------------------------------------
 
     def test_the_speaker_is_not_named_on_the_ring_line_as_well_as_its_own(self):
@@ -21942,96 +22002,41 @@ class WhatTheMazeDoesWithACollectedThingTest(unittest.TestCase):
         self.assertEqual([], changed[:8],
                          f"{len(changed)} cells of the board were painted over by the game")
 
-    def test_the_way_is_actually_drawn_on_the_little_map(self):
-        """The companion to test_the_map_draws_a_way_to_the_next_thing, which asks the game
-        for the route and never checks anybody drew it. Blanking the line broke nothing.
+    def test_there_is_no_little_map_and_no_line_on_it_any_more(self):
+        """REPLACES THREE TESTS, and this is a reversal rather than a tidy-up, so it is
+        recorded rather than deleted.
 
-        Looks partway ALONG the route -- not at either end. The thing being headed for is
-        already that colour, and so is the dot showing where the child is, so both ends would
-        pass on a map with no line on it at all.
+        What went: test_the_map_draws_a_way_to_the_next_thing, which walked every scenery and
+        asked that the line reached its objective without stepping through a wall;
+        test_the_way_is_actually_drawn_on_the_little_map, which looked at the pixels partway
+        along it because blanking the line broke neither of the others; and
+        test_the_map_does_not_search_the_board_on_every_step, which held the line to one board
+        search per objective instead of one per redraw.
+
+        Why: Harry, 27 November 2026, wanting a speed run -- "instead of showing the map, it
+        shows a digital timer, same size as map." The line lived on that map.
+
+        He was told what the line was for and chose to take it out. The reason I first gave
+        him was WRONG and he caught it: the line went in because of the EXPERT maze, and the
+        difficulty levels were replaced by the three sceneries at 2.53, so that maze has not
+        existed for two releases. Measured on the three that ship -- walking the greedy route
+        to all ten and the mosque -- hedge is 1,008 cells with a longest leg of 358, city
+        1,208 and 216, cloud 1,118 and 244. The old expert was about 1,975 against beginner's
+        424. So these sit between the two with nothing like expert's worst stretch, which is
+        what makes removing the line a reasonable change rather than a regression.
+
+        What is asked now is only that the map and its machinery are GONE rather than left
+        half-wired: a screen still carrying what_we_are_after and the_way_to is a screen
+        somebody reconnects.
         """
-        win, screen = self.window()
-        game = screen.game
-        screen._update_hint()
-        settle()
-        shown = screen.hint.pixmap()
-        self.assertFalse(shown.isNull(), "there is no little map")
-        objective = screen.what_we_are_after()
-        way = screen.the_way_to(objective)
-        self.assertGreater(len(way), 8, "the route is too short to prove anything")
-        want = QtGui.QColor(game.ITEM_COLOURS[
-            [i for i, c in enumerate(game.items) if c == objective][0]])
-        picture = shown.toImage()
-        middles = [way[len(way) // 3], way[len(way) // 2], way[2 * len(way) // 3]]
-        found = 0
-        for cell in middles:
-            x, y = self.middle(picture, cell, game)
-            for dx in (-1, 0, 1):
-                for dy in (-1, 0, 1):
-                    if 0 <= x + dx < picture.width() and 0 <= y + dy < picture.height():
-                        pixel = QtGui.QColor.fromRgb(picture.pixel(x + dx, y + dy))
-                        if (abs(pixel.hue() - want.hue()) < 25
-                                and pixel.saturation() > 60):
-                            found += 1
-        self.assertGreater(found, 0,
-                           "nothing is drawn along the middle of the way on the map")
-
-    def test_the_map_draws_a_way_to_the_next_thing(self):
-        """Harry on expert: "there is no way to collect the items as the routes lead to dead
-        ends." Everything was reachable; tracing it is about 1,975 cells of corridor against
-        beginner's 424, and a child cannot see round a corner.
-
-        The line is on the 7in MAP and not on the board, so finding the way is still the game.
-        Every step of it has to be a move the child could actually make -- a line that cuts a
-        corner through a wall would be worse than no line at all.
-        """
-        win, screen = self.window()
-        game = screen.game
-        for level in range(3):
-            with self.subTest(game.level["name"]):
-                for _ in range(len(game.items) + 1):
-                    objective = screen.what_we_are_after()
-                    if objective is None:
-                        break
-                    way = screen.the_way_to(objective)
-                    self.assertTrue(way, "the map shows no way at all")
-                    self.assertEqual(game.player, way[0], "the line starts somewhere else")
-                    self.assertEqual(objective, way[-1], "the line stops short of the thing")
-                    for here, next_one in zip(way, way[1:]):
-                        self.assertIn(next_one, game.neighbours(here),
-                                      f"the line steps from {here} to {next_one}, "
-                                      "which is through a wall")
-                    if len(game.collected) == len(game.items):
-                        break
-                    nxt = next(i for i in game.items if i not in game.collected)
-                    self.assertTrue(game.walk_to(nxt))
-                    while game.route:
-                        game.step()
-            game.cycle_scene()
-
-    def test_the_map_does_not_search_the_board_on_every_step(self):
-        """The help may not cost more than the thing it is helping.
-
-        Drawn the obvious way -- route_to(nearest_objective()) each redraw -- this measured
-        112ms a step on expert against a move timer that fires every 24ms, and a Pi is several
-        times slower again. nearest_objective alone searches the whole board once per
-        remaining thing: nine searches a frame.
-
-        So the search runs once per objective and the line walks downhill from what it found.
-        Counted rather than timed, because a clock on a busy machine makes a flaky test.
-        """
-        win, screen = self.window()
-        game = screen.game
-        searches = []
-        real = game.distances
-        game.distances = lambda *a, **k: (searches.append(1), real(*a, **k))[1]
-        self.addCleanup(lambda: setattr(game, "distances", real))
-        objective = screen.what_we_are_after()
-        for _ in range(25):
-            screen.the_way_to(objective)
-        self.assertLessEqual(len(searches), 1,
-                             f"the board was searched {len(searches)} times to redraw one "
-                             "line that never moved")
+        from salaah.mosque_maze import Screen
+        _win, screen = self.window()
+        for gone in ("_update_hint", "draw_the_way", "what_we_are_after", "the_way_to"):
+            with self.subTest(gone):
+                self.assertFalse(hasattr(Screen, gone) or hasattr(screen, gone),
+                                 f"Screen.{gone} is still there")
+        self.assertFalse(hasattr(screen, "hint"), "the little map is still on the panel")
+        self.assertTrue(hasattr(screen, "clock"), "nothing took the little map's place")
 
     def test_the_footprints_are_green_and_bigger_than_they_were(self):
         """Harry: "have the footprints in green colour and make slightly bigger." Green is the
@@ -28003,3 +28008,275 @@ class TheStripSaysWhereYouAreInBlueTest(unittest.TestCase):
                 where = said[:said.index("Bury")]
                 self.assertIn(theme.palette().lapis, where,
                               f"{mode}: the place name is not written in the theme's lapis")
+
+
+class TheCreditsPageTakesItselfToTheBottomTest(unittest.TestCase):
+    """Harry, 27 November 2026: "In 'where the words come from' page can it auto scroll to the
+    bottom slowly and stop."
+
+    EVERY TEST HERE WINDS THE SPEED UP AND THE PAUSE DOWN. At the real 34 pixels a second this
+    page takes about half a minute to reach its foot, and a suite that waited that out four
+    times over would have added two minutes to a run for no extra certainty. What is being
+    asked is that it crawls, stops at the bottom, and lets go when touched -- none of which
+    depends on the number. The number itself is checked once, separately, as a number.
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        w.begin()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def wait(ms):
+        end = time.monotonic() + ms / 1000
+        while time.monotonic() < end:
+            APP.processEvents()
+            QtCore.QThread.msleep(5)
+
+    def opened(self, speed=4000.0, pause=10):
+        """The credits page, with its crawl rebuilt fast enough to watch in a test."""
+        from salaah.ui import TakesItselfToTheBottom
+        w = self.window()
+        w.open_sources()
+        settle()
+        page = w.sources_page
+        scroll = [s for s in page.findChildren(QtWidgets.QScrollArea)
+                  if s.objectName() == "sourcesScroll"][0]
+        page.crawl.stop()                       # the real one, out of the way
+        page.crawl = TakesItselfToTheBottom(scroll, speed=speed, wait=pause)
+        return w, scroll, scroll.verticalScrollBar()
+
+    def test_it_goes_to_the_bottom_on_its_own_and_stays_there(self):
+        _w, _scroll, bar = self.opened()
+        self.assertGreater(bar.maximum(), 0, "this page fits, so there is nothing to test")
+        self.assertEqual(0, bar.value(), "it had already moved before anybody looked")
+        self.wait(900)
+        self.assertEqual(bar.maximum(), bar.value(), "it did not reach the bottom")
+        self.wait(200)
+        self.assertEqual(bar.maximum(), bar.value(), "it did not stay at the bottom")
+
+    def test_it_waits_before_it_sets_off(self):
+        """So the top of the page can be read standing still. Without the pause the first
+        thing the page does is slide out from under its own heading."""
+        _w, _scroll, bar = self.opened(speed=4000.0, pause=400)
+        self.wait(250)
+        self.assertEqual(0, bar.value(), "it set off before its pause was up")
+        self.wait(600)
+        self.assertGreater(bar.value(), 0, "it never set off at all")
+
+    def test_a_touch_stops_it_and_it_does_not_start_again(self):
+        """THE RULE THAT MATTERS. A page that resumes after a touch fights the person reading
+        it -- they drag back to a name they wanted to read again and are hauled forward out of
+        it."""
+        _w, scroll, bar = self.opened(speed=600.0)
+        self.wait(120)
+        moved = bar.value()
+        self.assertGreater(moved, 0, "it never started, so stopping it proves nothing")
+        self.assertLess(moved, bar.maximum(), "it finished before it could be interrupted")
+        press = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress,
+                                  QtCore.QPointF(10, 10), QtCore.QPointF(10, 10),
+                                  Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                                  Qt.KeyboardModifier.NoModifier)
+        APP.sendEvent(scroll.viewport(), press)
+        settle()
+        stopped = bar.value()
+        self.wait(400)
+        self.assertEqual(stopped, bar.value(), "it carried on after being touched")
+
+    def test_a_page_that_already_fits_does_nothing_at_all(self):
+        """A short credits page on a big screen should sit still rather than twitch.
+
+        COUNTED TICKS, NOT A STOPPED CLOCK, and the difference is the whole test. Asking
+        whether the clock is still running afterwards passes either way: a crawl that DOES
+        start on a page with nowhere to go reaches the end on its first tick and stops itself
+        thirty milliseconds later, so by the time anybody looks it is as quiet as one that
+        never set off. That version of this test was written first and sat through a sabotage
+        that took the guard out entirely without noticing.
+        """
+        from salaah.ui import TakesItselfToTheBottom
+        area = QtWidgets.QScrollArea()
+        area.setWidgetResizable(True)
+        inside = QtWidgets.QLabel("one line")
+        area.setWidget(inside)
+        area.resize(600, 600)
+        area.show()
+        settle()
+        self.addCleanup(area.close)
+        self.assertEqual(0, area.verticalScrollBar().maximum(),
+                         "this page does not fit, so it is the wrong page to test with")
+        crawl = TakesItselfToTheBottom(area, speed=4000.0, wait=10)
+        ticks = []
+        crawl.clock.timeout.connect(lambda: ticks.append(1))
+        self.wait(300)
+        self.assertEqual([], ticks, "it set off on a page with nowhere to go")
+        self.assertFalse(crawl.clock.isActive())
+        self.assertEqual(0, area.verticalScrollBar().value())
+
+    def test_leaving_the_page_stops_it(self):
+        """The crawl is parented to the page, which is rebuilt and deleted every time Sources
+        is opened. One left running would be scrolling something nobody is looking at."""
+        w, _scroll, bar = self.opened(speed=600.0)
+        self.wait(120)
+        self.assertGreater(bar.value(), 0)
+        w.open_settings()
+        settle()
+        moved = bar.value()
+        self.wait(400)
+        self.assertEqual(moved, bar.value(), "it kept scrolling a page that is not on screen")
+
+    def test_it_crawls_rather_than_jumps(self):
+        """At the real speed, checked as a number rather than by waiting half a minute for it.
+        Film-credit pace: about a line of this page a second. Fast enough to reach the foot of
+        it without being asked twice, slow enough to read on the way."""
+        from salaah import ui
+        self.assertTrue(20.0 <= ui.CREDITS_CRAWL <= 60.0,
+                        f"{ui.CREDITS_CRAWL} px/s is not a reading pace")
+        _w, _scroll, bar = self.opened(speed=ui.CREDITS_CRAWL, pause=10)
+        self.wait(1100)
+        went = bar.value()
+        self.assertGreater(went, 10, "it has not moved in a second; that is not a crawl")
+        self.assertLess(went, bar.maximum(),
+                        "it reached the bottom within a second, which is a jump")
+
+
+class TheSpeedRunOnTheSevenInchTest(unittest.TestCase):
+    """What the 7in does with a timed journey. The clock itself is in test_core; this is the
+    panel, the board, and what happens when the mat takes the screen away."""
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(1080, 1920)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def opened(self):
+        w = self.window()
+        w.open_a_game("mosque")
+        settle()
+        return w, w.games["mosque"]
+
+    @staticmethod
+    def walk_it(screen, each=0.5):
+        """Walk the whole journey, with the clock advancing a fixed amount per reading."""
+        from itertools import count
+        ticks = count(1000.0, each)
+        screen.game.now = lambda: next(ticks)
+        for _ in range(len(screen.game.items) + 2):
+            target = screen.game.nearest_objective()
+            if target is None or not screen.game.walk_to(target):
+                break
+            while screen.game.route:
+                screen.game.step()
+            screen.changed.emit()
+            settle(2)
+            if screen.game.finished:
+                break
+        return screen.game.finished
+
+    def test_the_little_map_is_gone_and_a_clock_is_in_its_place(self):
+        _w, screen = self.opened()
+        self.assertTrue(hasattr(screen, "clock"), "there is no clock on the panel")
+        self.assertFalse(hasattr(screen, "hint"), "the little map is still there")
+        self.assertIn("0:00.0", screen.clock.text(),
+                      "the clock does not read zero before anybody has moved")
+
+    def test_the_clock_is_the_biggest_thing_on_the_panel(self):
+        """It is read from a mat on the floor, at a glance, by somebody mid-run. The board of
+        best times under it is for looking at between runs and is deliberately smaller."""
+        _w, screen = self.opened()
+        self.assertGreater(screen.clock.font().pixelSize(), screen.title.font().pixelSize(),
+                           "the title is set larger than the clock")
+
+    def test_a_finished_run_goes_on_the_board_and_comes_back_next_time(self):
+        w, screen = self.opened()
+        self.assertTrue(self.walk_it(screen), "the journey could not be walked")
+        kept = w.settings.maze_records
+        self.assertIn("hedge", kept, f"nothing was saved: {kept}")
+        self.assertEqual(1, len(kept["hedge"]["times"]))
+        saved = kept["hedge"]["times"][0]
+        from salaah.mosque_maze import as_clock
+        self.assertIn(as_clock(saved), screen.clock.text(),
+                      "the time is not shown on the panel it was just set on")
+        screen.start_again()
+        settle()
+        self.assertIn(as_clock(saved), screen.clock.text(),
+                      "the board is empty again at the start of the next run")
+
+    def test_the_run_just_set_is_marked_without_a_word_being_written(self):
+        """"Record" and "New record!" would be two sentences in nine languages that nobody
+        qualified has read. The mosque's own green says it instead."""
+        from salaah import theme
+        _w, screen = self.opened()
+        self.assertTrue(self.walk_it(screen))
+        self.assertIn(theme.palette().green, screen.clock.text(),
+                      "nothing marks the run that was just set")
+        self.assertFalse(any(c.isalpha() for c in re.sub(r"<[^>]*>", "", screen.clock.text())),
+                         "there are words on the clock, so there is something to translate")
+
+    def test_each_scenery_shows_its_own_board(self):
+        w, screen = self.opened()
+        self.assertTrue(self.walk_it(screen, each=0.5))
+        hedge = w.settings.maze_records["hedge"]["times"][0]
+        from salaah.mosque_maze import as_clock
+        screen.cycle_scene()
+        settle()
+        self.assertNotEqual("hedge", screen.game.level["name"], "the scenery did not change")
+        self.assertNotIn(as_clock(hedge), screen.clock.text(),
+                         "the hedge's time is showing on another scenery's board")
+
+    def test_leaving_the_game_mid_run_costs_the_record_but_not_the_run(self):
+        """The azaan, a prayer-time notice, the sleep switch -- or simply going back to the
+        menu. The run carries on and still shows a figure; it just cannot be saved."""
+        w, screen = self.opened()
+        from itertools import count
+        ticks = count(1000.0, 0.5)
+        screen.game.now = lambda: next(ticks)
+        screen.game.walk_to(screen.game.nearest_objective())
+        screen.game.step()
+        screen.changed.emit()
+        settle()
+        self.assertTrue(screen.game.running)
+        screen.hide()
+        settle()
+        self.assertTrue(screen.game.spoiled, "leaving the game did not mark the run")
+        screen.show()
+        settle()
+        self.assertTrue(self.walk_it(screen), "a marked run could not be finished")
+        self.assertEqual({}, w.settings.maze_records,
+                         "an interrupted run was saved as a record")
+        self.assertIn("0:", screen.clock.text(), "the finished run shows no time at all")
+
+    def test_nothing_ticks_once_the_run_is_over(self):
+        """A timer left running on a finished game keeps a Pi repainting a panel nobody is
+        pressing, which is the same fault the quest's scanning highlight had."""
+        _w, screen = self.opened()
+        self.assertFalse(screen._tick.isActive(), "it is counting before anybody has moved")
+        self.assertTrue(self.walk_it(screen))
+        self.assertFalse(screen._tick.isActive(), "it is still counting after arriving")
+
+    def test_the_same_finish_cannot_be_put_on_the_board_twice(self):
+        """Everything that runs after a change runs on redraws, theme changes and language
+        changes too, and a finished game stays finished. The same trap winning.py documents."""
+        w, screen = self.opened()
+        self.assertTrue(self.walk_it(screen))
+        self.assertEqual(1, len(w.settings.maze_records["hedge"]["times"]))
+        for _ in range(4):
+            screen.changed.emit()
+            screen.follow_theme()
+            settle()
+        self.assertEqual(1, len(w.settings.maze_records["hedge"]["times"]),
+                         "the same run went on the board more than once")
