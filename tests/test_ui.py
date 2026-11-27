@@ -20148,6 +20148,101 @@ class QiblaQuestTest(unittest.TestCase):
         x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
         return (math.degrees(math.atan2(y, x)) + 360) % 360
 
+    def quest_window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1080)
+        w.show()
+        w.side.resize(1080, 1920)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    # ------------------------------------------------------------------ touch only, 2.58
+    #
+    # Harry, 27 November 2026: "qibla quest still has its ring control active for gameplay,
+    # touchscreen only."
+    #
+    # The same three guards the prayer day journey got when its ring went, for the same three
+    # faults. They are written here rather than shared with that class on purpose: a shared
+    # helper would make it one rule holding two screens, and the day somebody puts the ring
+    # back on one of them the other's guard should not go with it.
+
+    def test_the_ring_cannot_play_this_any_more(self):
+        """Both halves of the ring are gone from the rules -- step(), which moved the
+        highlight on by one, and press(), which acted on wherever it had got to -- so this
+        asks that they are NOT THERE rather than that they do nothing. A method kept and
+        neutered is a method somebody wires back up."""
+        from salaah.qibla_quest import QiblaQuest
+        for gone in ("step", "press"):
+            with self.subTest(gone):
+                self.assertFalse(hasattr(QiblaQuest, gone),
+                                 f"QiblaQuest.{gone} is still there: the ring can still play this")
+
+    def test_nothing_moves_the_highlight_on_its_own(self):
+        """The timer that walked it round the four answers every 1.35 seconds. With the ring
+        gone it is a thing to wait for rather than a thing to use, and it keeps a Pi
+        repainting a panel nobody is pressing."""
+        from salaah.qibla_quest import QiblaQuestScreen
+        w = self.quest_window()
+        w.open_a_game("qiblaquest")
+        settle()
+        screen = w.games["qiblaquest"]
+        self.assertFalse(hasattr(screen, "stepper"), "the scanning timer is still there")
+        self.assertFalse(hasattr(QiblaQuestScreen, "CYCLE"),
+                         "the scanning interval is still there")
+        running = [t for t in screen.findChildren(QtCore.QTimer) if t.isActive()]
+        self.assertEqual([], running,
+                         f"something is still ticking on this screen: {running}")
+
+    def test_no_answer_is_marked_before_anybody_touches_one(self):
+        """The ACTIVE border marked where the ring's highlight was resting. With the ring gone
+        it marks `active`, which starts at 0, from the moment the round opens -- an edge drawn
+        round one of four answers, meaning nothing, for a child to read as a hint."""
+        from salaah.qibla_quest import DirectionBox
+        w = self.quest_window()
+        w.open_a_game("qiblaquest")
+        settle()
+        screen = w.games["qiblaquest"]
+        marked = [b.text() for b in screen.boxes if b.state == DirectionBox.ACTIVE]
+        self.assertEqual([], marked,
+                         f"the game marked an answer before anybody touched one: {marked}")
+
+    def test_the_ring_only_leaves(self):
+        """BACK still works, as it does from every other game -- the ring is not dead on this
+        screen, only the playing of it. The same arrangement build_the_salaah has."""
+        from salaah.buttons import BACK, NEXT
+        w = self.quest_window()
+        w.open_a_game("qiblaquest")
+        settle()
+        screen = w.games["qiblaquest"]
+        left = []
+        screen.leave.connect(lambda: left.append(True))
+        before = (screen.game.at, screen.game.chosen, screen.game.locked)
+        screen.press(NEXT)
+        settle()
+        self.assertEqual(before, (screen.game.at, screen.game.chosen, screen.game.locked),
+                         "a ring press changed the game")
+        self.assertEqual([], left, "a ring press left the game")
+        screen.press(BACK)
+        settle()
+        self.assertEqual([True], left, "BACK no longer leaves the quest")
+
+    def test_a_touch_still_answers(self):
+        """The other half of it: taking the ring out must not take the game out. Without this
+        the four tests above all pass on a screen that cannot be played at all."""
+        w = self.quest_window()
+        w.open_a_game("qiblaquest")
+        settle()
+        screen = w.games["qiblaquest"]
+        screen.touched(screen.game.correct)
+        settle()
+        self.assertTrue(screen.game.locked, "touching the answer did nothing")
+        self.assertEqual(1, screen.game.score, "a right answer did not score")
+
     def test_every_answer_is_the_bearing_worked_out_again_from_the_coordinates(self):
         """Not read back off the table. The initial great-circle bearing to the Kaaba is
         computed here from each city's latitude and longitude and binned to eight points."""

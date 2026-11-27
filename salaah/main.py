@@ -182,6 +182,11 @@ def main(argv: list[str] | None = None) -> int:
     # Check a moment later that each window really is on its own screen, and say so if not.
     QtCore.QTimer.singleShot(1200, lambda: report_windows(win, main_screen, side_screen))
     win.begin()                     # the Qibla compass first, then the main screen
+    # COUNT WHAT THE PI'S OWN SOFTWARE HAS OUTSTANDING, and only count it. Two minutes from
+    # now and once a day after. Started HERE rather than in MainWindow.begin() on purpose: the
+    # suite builds hundreds of MainWindows, and not one of them should shell out to apt. This
+    # is the real app starting, which is the only place the question is worth asking.
+    win.start_watching_the_packages()
     if args.tap_timings:
         win.open_timing()
     if args.quit_after:

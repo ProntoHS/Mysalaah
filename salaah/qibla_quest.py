@@ -76,7 +76,11 @@ ROUNDS = (
     Round("istanbul", "se", (0.5240, 0.3731)),
 )
 DIRECTIONS = ("ne", "se", "sw", "nw")
-ANSWERED, AGAIN, NOTHING = "answered", "again", "nothing"
+#: AGAIN WENT WITH THE RING AT 2.58. It was what the model's press() returned when a press on
+#: the finished screen started the game over; nothing returns it now, because touching the
+#: finished screen goes straight to the screen's own start_again(). Removed rather than left
+#: sitting there: an unused third state in this tuple reads as a state the game can be in.
+ANSWERED, NOTHING = "answered", "nothing"
 
 
 class QiblaQuest:
@@ -125,15 +129,24 @@ class QiblaQuest:
     def right(self) -> bool | None:
         return None if self.chosen is None else self.chosen == self.correct
 
-    def step(self) -> None:
-        if not (self.locked or self.done):
-            self.active = (self.active + 1) % len(self.choices)
-
-    def press(self) -> str:
-        if self.done:
-            self.restart()
-            return AGAIN
-        return self.answer(self.active)
+    # THERE IS NO step() AND NO press(), AS OF 2.58, and this is the same removal
+    # prayer_day_journey and build_the_salaah already had. Harry, 27 November 2026: "qibla
+    # quest still has its ring control active for gameplay, touchscreen only."
+    #
+    # step() walked a highlight round the four answers every 1.35 seconds and press() answered
+    # whichever one it had reached -- the ring's one button, with no way to say WHICH answer,
+    # so the game had to offer them in turn and wait to be stopped. On a touchscreen a child
+    # presses the answer. Both of those are now only reachable by touch, through answer().
+    #
+    # REMOVING step() IS NOT TIDYING, IT IS THE POINT. A highlight crawling round four answers
+    # with nothing behind it any more is worse than a useless animation: it draws a border
+    # round one of four answers, by itself, before anybody has touched anything, and a child
+    # reads that as the game pointing at the answer. The same fault was found and written down
+    # on the prayer day journey when its ring went, and it is the reason the state goes rather
+    # than just the press.
+    #
+    # `active` stays. It is no longer a resting place that moves on its own -- it is simply
+    # the last thing a finger touched, which is what answer() sets it to.
 
     def answer(self, which: int) -> str:
         if self.done or self.locked or not 0 <= which < len(self.choices):
@@ -302,7 +315,8 @@ class MapPanel(QtWidgets.QFrame):
 class QiblaQuestScreen(QtWidgets.QWidget):
     """The map on the 16in, with the question and the four answers on the 7in companion."""
 
-    CYCLE = 1350
+    #: NO CYCLE SINCE 2.58. It was 1350 -- how often the ring's highlight moved to the next
+    #: answer. Nothing walks round the answers any more; see the note where step() used to be.
     SHOWN = 1900
     leave = Signal()
     won = Signal()
@@ -328,9 +342,9 @@ class QiblaQuestScreen(QtWidgets.QWidget):
 
         self.companion = self._build_companion()
 
-        self.stepper = QtCore.QTimer(self)
-        self.stepper.setInterval(self.CYCLE)
-        self.stepper.timeout.connect(self.step)
+        # ONE TIMER ON THIS SCREEN, NOT TWO. The other was the stepper, which moved the
+        # ring's highlight; `waiting` is how long the right answer stays up before the next
+        # round, which is touch's own business and stays.
         self.waiting = QtCore.QTimer(self)
         self.waiting.setSingleShot(True)
         self.waiting.timeout.connect(self.go_on)
@@ -423,23 +437,29 @@ class QiblaQuestScreen(QtWidgets.QWidget):
         self.game.restart()
         self.retell()
 
-    def step(self) -> None:
-        self.game.step()
-        self.show_boxes()
-
     def touched(self, which: int) -> None:
+        # Touching anything on the finished screen plays again, which is what the ring press
+        # used to do from here. It goes straight to start_again() now rather than through a
+        # model press() that no longer exists.
         if self.game.done:
-            self.press()
+            self.start_again()
         elif self.game.answer(which) == ANSWERED:
             self.settled()
 
     def press(self, action: str = "") -> None:
+        """BACK leaves. NOTHING ELSE DOES ANYTHING, and that is what Harry asked for.
+
+        Word for word the same as build_the_salaah.Screen.press and prayer_day_journey's, and
+        for the same reason: the ring's job on this mat is the prayer steps, and a game played
+        on two touchscreens has no one-button reading. Answering, playing again and leaving are
+        each a thing to touch on the panel beside the map.
+
+        The ring is not dead on this screen, only the playing of it -- BACK still gets you out,
+        as it does from every other game.
+        """
         from .buttons import BACK
-        if action == BACK:
+        if action == BACK or str(action).lower() in ("back", "exit", "escape"):
             self.leave.emit()
-            return
-        if self.game.press() in (ANSWERED, AGAIN):
-            self.settled()
 
     def settled(self) -> None:
         if self.game.locked:
@@ -501,7 +521,17 @@ class QiblaQuestScreen(QtWidgets.QWidget):
                 continue
             box.setText(self.win.t(f"qiblaquest.direction.{game.choices[i]}"))
             if not game.locked:
-                box.set_state(DirectionBox.ACTIVE if i == game.active else DirectionBox.IDLE)
+                # NO ACTIVE STATE BEFORE ANYBODY HAS TOUCHED ANYTHING, since 2.58. This marked
+                # where the ring's highlight was resting, and it moved on its own every 1.35
+                # seconds so it read as a thing in motion rather than a claim. With the ring
+                # gone it would mark `active` -- which starts at 0 -- from the moment the round
+                # opened: a border the game draws round one of four answers, before a finger
+                # has gone near it, for a child to read as a hint.
+                #
+                # Exactly the fault found on the prayer day journey when its ring went. Found
+                # there by a test rather than by looking, which is why the same test is on this
+                # screen now.
+                box.set_state(DirectionBox.IDLE)
             elif i == game.correct:
                 box.set_state(DirectionBox.RIGHT)
             elif i == game.chosen:
@@ -540,11 +570,9 @@ class QiblaQuestScreen(QtWidgets.QWidget):
 
     def showEvent(self, event):
         self.follow_theme()
-        self.stepper.start()
         super().showEvent(event)
 
     def hideEvent(self, event):
-        self.stepper.stop()
         self.waiting.stop()
         super().hideEvent(event)
 

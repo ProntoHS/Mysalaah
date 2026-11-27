@@ -91,6 +91,14 @@ VOLUME_WIDTH = 300
 VOLUME_LINE = 12
 VOLUME_KNOB = 36
 
+#: How large the percentage beside the volume bar is written. Harry, 27 November 2026: "remove
+#: it & increase number font size twice as big" -- it was 26 with a box round it, and this is
+#: the twice. ONE NUMBER, IN ONE PLACE, because it is used twice: the stylesheet writes the
+#: type and the label reserves the width of "100%" at that type so the popup cannot change
+#: width as the volume is dragged. Two copies of 52 would drift apart and the drift would show
+#: up as a bar that moves under a finger, which is a horrible thing to trace back to a number.
+VOLUME_READ_SIZE = 52
+
 #: Milliseconds the volume slider stays open with nothing happening, before it puts itself
 #: away. Restarted by every move of the slider, so it cannot close under a finger.
 #:
@@ -2664,16 +2672,29 @@ class MainWindow(QtWidgets.QWidget):
                                                           the first attempt drew. */
                                                        border-radius:{px(VOLUME_KNOB // 2)}px; }}
             QLabel#volumeRead {{ font-size:{px(22)}px; color:{c.stone}; }}
-            /* AND THE FIGURE IS BACK, in a box, which REVERSES 2.50. It was taken off then
-               because it was the one thing on the strip nobody was reading -- and the strip
-               is exactly where it no longer is. In a popup opened on purpose to set the
-               volume there is room for it and a reason to look at it, which is why Harry
-               drew it back in. */
+            /* AND THE FIGURE IS BACK, which REVERSES 2.50. It was taken off then because it
+               was the one thing on the strip nobody was reading -- and the strip is exactly
+               where it no longer is. In a popup opened on purpose to set the volume there is
+               room for it and a reason to look at it, which is why Harry drew it back in.
+
+               NO BOX ROUND IT, AND TWICE THE SIZE, SINCE 2.58. Harry, 27 November 2026: "i
+               have noticed the volume slider's percentage number is surround by its own box,
+               remove it & increase number font size twice as big."
+
+               The box came in with the figure at 2.56 and was never the point: it was there to
+               hold a 26px number together against a dark strip. At twice the size the number holds
+               itself, and the box was doing the opposite of what it looked like -- it drew the
+               eye to a border rather than to the figure inside it, on a control that is already
+               fenced by the slider's own edge a few pixels away.
+
+               WHAT THE SIZE COSTS, so it is known: the popup is as wide as its contents, and
+               this is the widest thing in it after the bar. The minimum width below grew with
+               the type to match, or the popup would change width between 9% and 100% and the
+               bar would jump under a finger that was still on it. */
             QLabel#volumeReadOnDark {{ background:transparent; color:{strip.ink};
-                                       border:{px(2)}px solid {strip.line};
-                                       border-radius:{px(8)}px;
-                                       padding:{px(4)}px {px(10)}px;
-                                       font-size:{px(26)}px; font-weight:bold; }}
+                                       border:none; padding:0;
+                                       font-size:{px(VOLUME_READ_SIZE)}px;
+                                       font-weight:bold; }}
             QLabel#compassBearing {{ font-size:{px(150)}px; font-weight:bold; color:{c.strong}; }}
             QLabel#compassStatus {{ font-size:{px(40)}px; font-weight:bold; }}
             QLabel#compassDetail {{ font-size:{px(24)}px; color:{c.hint}; }}
@@ -4670,6 +4691,35 @@ class MainWindow(QtWidgets.QWidget):
     def qibla_bearing(self) -> float:
         return bearing_to_kaaba(self.settings.latitude, self.settings.longitude)
 
+    def start_watching_the_packages(self) -> None:
+        """Count what the Pi's own software has outstanding, two minutes from now and once a
+        day after that, and write one line about it into the journal.
+
+        IT ONLY EVER COUNTS. See salaah/packages.py for why the mat does not update its own
+        packages alongside itself, which is the question this came out of.
+
+        The timer is kept on the window so it dies with the app, and the counting itself
+        happens on a thread: apt reading its lists off an SD card takes long enough to be felt
+        as a stutter on a screen somebody is touching.
+        """
+        from . import packages
+
+        self.package_watch = QtCore.QTimer(self)
+        self.package_watch.timeout.connect(packages.report_quietly)
+        # Single-shot for the first one, then its own interval: start(interval) would wait a
+        # whole day before saying anything, and a mat that is switched off at night would then
+        # never report at all.
+        self.package_watch.setSingleShot(True)
+        self.package_watch.timeout.connect(self._package_watch_settles)
+        self.package_watch.start(int(packages.FIRST_AFTER * 1000))
+
+    def _package_watch_settles(self) -> None:
+        from . import packages
+
+        self.package_watch.setSingleShot(False)
+        self.package_watch.timeout.disconnect(self._package_watch_settles)
+        self.package_watch.start(int(packages.THEN_EVERY * 1000))
+
     def begin(self) -> None:
         """What the app shows when it starts: the Qibla compass first, unless it is switched
         off, or a compass shows the display still faces the way it did when last lined up.
@@ -6577,6 +6627,20 @@ class MainWindow(QtWidgets.QWidget):
         # nothing at all and lets the layout show it along with everything else.
         read = QtWidgets.QLabel(f"{bar.value()}%")
         read.setObjectName("volumeReadOnDark" if dark else "volumeRead")
+        # WIDE ENOUGH FOR "100%" WHATEVER IT CURRENTLY SAYS, since 2.58. The box that went
+        # round this number until 2.58 had padding holding it at a near-constant width; the
+        # number on its own, at twice the type size, is three or four characters wide
+        # depending on the volume. The popup is as wide as its contents, so without this the
+        # strip's slider changes width as you drag it -- the bar moving sideways under the
+        # finger that is dragging it, which is the one thing a volume control must not do.
+        #
+        # Measured rather than guessed, and measured from VOLUME_READ_SIZE rather than from
+        # read.font(): the stylesheet has not been applied to this label yet at this point, so
+        # its font is still the window's and would measure a number half the size.
+        measure = QtGui.QFont(read.font())
+        measure.setPixelSize(self.px(VOLUME_READ_SIZE))
+        measure.setBold(True)
+        read.setMinimumWidth(QtGui.QFontMetrics(measure).horizontalAdvance("100%"))
         if not dark:
             read.hide()
         bar.valueChanged.connect(lambda v: self.volume_moved(v))
@@ -6607,6 +6671,12 @@ class MainWindow(QtWidgets.QWidget):
         row.addWidget(quiet, 0, Qt.AlignmentFlag.AlignVCenter)
         row.addWidget(bar)
         row.addWidget(loud, 0, Qt.AlignmentFlag.AlignVCenter)
+        # AIR BETWEEN THE SPEAKER AND THE FIGURE, since 2.58. The row's own 8px was enough
+        # when the figure had a box round it, because the box's padding held them apart; with
+        # the box gone and the type at twice the size the glyph and the first digit very
+        # nearly touch, and read as one mark rather than two things. This is the padding the
+        # box used to provide, kept, rather than the border, which was not wanted.
+        row.addSpacing(self.px(12))
         row.addWidget(read)
         return row
 

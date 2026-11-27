@@ -4,6 +4,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -8642,3 +8643,218 @@ class NoColouredFilmIsTurnedOverTest(unittest.TestCase):
                 self.assertFalse(has_colour(pix),
                                  f"{name} is being read as coloured artwork, so it would stay "
                                  f"white-on-black on a white page")
+
+
+class CountingWhatThePiHasOutstandingTest(unittest.TestCase):
+    """salaah/packages.py: it counts apt's outstanding updates and writes one line about them.
+
+    Harry, 27 November 2026: "could i have something in place that updates packages like sudo
+    update. i am thinking that if the mat is being updated, should packages/software on pi be
+    updated at same time?" -- and, when the answer was that it should not and that the mat
+    could report instead, "do it".
+
+    EVERY TEST HERE FEEDS IT CANNED apt OUTPUT. Running the real apt would make this suite's
+    result depend on the machine it runs on, which is the one thing a suite must not do.
+    """
+
+    REAL = (
+        "Reading package lists...\n"
+        "Building dependency tree...\n"
+        "The following packages have been kept back:\n"
+        "  fonts-crosextra-caladea\n"
+        "Inst libapt-pkg6.0t64 [2.8.3] (2.8.4 Debian:12/stable, Debian-Security:12/stable "
+        "[arm64])\n"
+        "Inst chromium [138.0] (139.0 Raspberry Pi Foundation:bookworm [arm64])\n"
+        "Inst libfreetype6 [2.12] (2.13 Debian-Security:12/stable [arm64])\n"
+        "Conf libapt-pkg6.0t64 (2.8.4 Debian:12/stable [arm64])\n"
+        "3 upgraded, 0 newly installed, 0 to remove and 1 not upgraded.\n"
+    )
+
+    def answers(self, stdout="", code=0, blow_up=None):
+        """A stand-in for subprocess.run that records how it was called."""
+        calls = []
+
+        def run(argv, **kw):
+            calls.append((argv, kw))
+            if blow_up is not None:
+                raise blow_up
+            return SimpleNamespace(returncode=code, stdout=stdout, stderr="")
+
+        run.calls = calls
+        return run
+
+    # ------------------------------------------------------------------ what it reads
+
+    def test_it_counts_the_updates_and_which_of_them_are_security(self):
+        from salaah import packages
+        out = packages.count(run=self.answers(self.REAL), lists=Path("/nonexistent-lists"))
+        self.assertEqual(3, out.total)
+        self.assertEqual(2, out.security, "the two from a security archive were not picked out")
+        self.assertEqual(1, out.held)
+
+    def test_the_security_count_does_not_depend_on_one_distribution_spelling_it(self):
+        """Raspberry Pi OS, Debian and Ubuntu all name their security archive differently and
+        the mat may yet be any of them, so this matches the word rather than an archive."""
+        from salaah import packages
+        for origin in ("Debian-Security:12/stable", "Raspbian-Security:11/oldstable",
+                       "Ubuntu:24.04/noble-security", "Debian:12/stable-security"):
+            with self.subTest(origin):
+                canned = (f"Inst thing [1] (2 {origin} [arm64])\n"
+                          "1 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n")
+                out = packages.count(run=self.answers(canned), lists=Path("/nonexistent-lists"))
+                self.assertEqual(1, out.security, f"{origin} was not read as security")
+
+    def test_an_upgrade_that_is_not_security_is_not_counted_as_one(self):
+        from salaah import packages
+        canned = ("Inst chromium [138] (139 Raspberry Pi Foundation:bookworm [arm64])\n"
+                  "1 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n")
+        out = packages.count(run=self.answers(canned), lists=Path("/nonexistent-lists"))
+        self.assertEqual(1, out.total)
+        self.assertEqual(0, out.security)
+
+    # ------------------------------------------------------------------ what it never does
+
+    def test_it_only_ever_simulates_and_never_needs_root(self):
+        """THE WHOLE POINT OF THE MODULE. -s simulates and Debug::NoLocking lets it run
+        without the dpkg lock, which is what lets it run as the app's own user. A version of
+        this that could install something would be a thing that installs something on a
+        child's mat at two minutes past boot, unattended."""
+        from salaah import packages
+        run = self.answers(self.REAL)
+        packages.count(run=run, lists=Path("/nonexistent-lists"))
+        argv, _kw = run.calls[0]
+        self.assertIn("-s", argv, "it is not simulating")
+        self.assertIn("Debug::NoLocking=true", argv, "it would want the dpkg lock, so root")
+        for dangerous in ("install", "upgrade -y", "-y", "--yes", "remove", "dist-upgrade",
+                          "full-upgrade", "autoremove", "sudo"):
+            self.assertNotIn(dangerous, argv, f"{dangerous!r} is in the command line")
+
+    def test_nothing_in_the_module_can_install_anything(self):
+        """Read on the source rather than on behaviour: the test above only proves what one
+        call did, and the thing worth ruling out is a second code path nobody is calling yet.
+
+        CODE ONLY, with the comments and docstrings taken out -- but NOT the string literals,
+        which is the distinction that makes this worth having. The prose explains at length
+        why the mat does not run `sudo apt update`, and quotes Harry asking for it, so a test
+        that read the whole file would fire on the explanation. A test that dropped every
+        string instead would be blind to `("sudo", "apt", "install")`, which is the one thing
+        it exists to catch. ast.unparse drops the comments and keeps the strings.
+        """
+        import ast
+        from salaah import packages
+        tree = ast.parse(Path(packages.__file__).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Module, ast.ClassDef,
+                                     ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            first = node.body[0] if node.body else None
+            if (len(node.body) > 1 and isinstance(first, ast.Expr)
+                    and isinstance(first.value, ast.Constant)
+                    and isinstance(first.value.value, str)):
+                node.body.pop(0)
+        code = ast.unparse(tree)
+        self.assertIn("apt-get", code, "the stripping took the command out too, so this "
+                                       "test would pass on any file at all")
+        # Whole words, because the parser legitimately contains "newly installed" -- apt's own
+        # summary line, which this module reads. A substring test fires on that and the honest
+        # fix is a tighter pattern, not a shorter list.
+        for dangerous in (r"\bsudo\b", r"\bpkexec\b", r"\binstall\b", r"--yes\b", r"\b-y\b",
+                          r"\bautoremove\b", r"\bdpkg\b", r"os\.system", r"shell\s*=\s*True",
+                          r"dist-upgrade", r"full-upgrade", r"\bPopen\b"):
+            self.assertIsNone(re.search(dangerous, code),
+                              f"{dangerous} appears in the CODE of packages.py")
+
+    def test_it_asks_apt_in_english_whatever_the_mat_is_set_to(self):
+        """apt's summary line is translated. On an Urdu mat the English words this parses
+        would simply not be there, every count would come back unknown, and the report would
+        be a decoration. Forcing the locale is what makes it a report."""
+        from salaah import packages
+        run = self.answers(self.REAL)
+        packages.count(run=run, lists=Path("/nonexistent-lists"))
+        _argv, kw = run.calls[0]
+        self.assertEqual("C", kw["env"]["LC_ALL"])
+        self.assertEqual("C", kw["env"]["LANG"])
+
+    def test_it_gives_up_rather_than_waits(self):
+        from salaah import packages
+        run = self.answers(self.REAL)
+        packages.count(run=run, lists=Path("/nonexistent-lists"))
+        _argv, kw = run.calls[0]
+        self.assertTrue(0 < kw["timeout"] <= 300, f"timeout is {kw.get('timeout')!r}")
+
+    # ------------------------------------------------------------------ when it cannot tell
+
+    def test_not_knowing_is_not_the_same_as_nothing_outstanding(self):
+        """Zero updates and "I could not ask" are opposite pieces of news. If a failure came
+        back as 0 the journal would say the mat was up to date on the day apt stopped
+        answering, which is the most misleading line this module could possibly print."""
+        from salaah import packages
+        for what, run in (
+                ("no apt", self.answers(blow_up=FileNotFoundError())),
+                ("apt failed", self.answers(code=100)),
+                ("no summary", self.answers("Reading package lists...\n")),
+                ("timed out", self.answers(
+                    blow_up=subprocess.TimeoutExpired(cmd="apt-get", timeout=1))),
+        ):
+            with self.subTest(what):
+                out = packages.count(run=run, lists=Path("/nonexistent-lists"))
+                self.assertFalse(out.known, "a failure was reported as a real count")
+                self.assertEqual(-1, out.total)
+                self.assertTrue(out.trouble, "it failed without saying why")
+                self.assertNotIn("nothing outstanding", packages.sentence(out))
+
+    def test_a_failure_never_reaches_the_app(self):
+        from salaah import packages
+        said = []
+        packages.report(log=said.append, run=self.answers(blow_up=RuntimeError("apt exploded")),
+                        lists=Path("/nonexistent-lists"))
+        self.assertEqual(1, len(said))
+        self.assertIn("apt exploded", said[0])
+
+    # ------------------------------------------------------------------ how old the answer is
+
+    def test_it_says_how_stale_the_package_lists_are(self):
+        """apt counts against whatever it last fetched, and fetching needs root, so this
+        module can never refresh them. "0 outstanding" could mean "nothing new since a fetch
+        a year ago", so the number is worthless without its age."""
+        import tempfile
+        from salaah import packages
+        with tempfile.TemporaryDirectory() as folder:
+            lists = Path(folder)
+            (lists / "something_Packages").write_text("x")
+            then = os.path.getmtime(lists / "something_Packages")
+            out = packages.count(run=self.answers(self.REAL), lists=lists,
+                                 now=lambda: then + 3 * 86400)
+            self.assertAlmostEqual(3.0, out.lists_age, places=2)
+            self.assertIn("3.0 days ago", packages.sentence(out))
+
+    def test_an_age_it_cannot_work_out_is_said_rather_than_guessed(self):
+        from salaah import packages
+        out = packages.count(run=self.answers(self.REAL), lists=Path("/nonexistent-lists"))
+        self.assertIsNone(out.lists_age)
+        self.assertIn("age unknown", packages.sentence(out))
+
+    # ------------------------------------------------------------------ the line itself
+
+    def test_the_line_says_it_changed_nothing(self):
+        """Read by Harry in a journal, possibly months later, possibly after something broke.
+        The one thing it must never be is ambiguous about whether the mat did anything."""
+        from salaah import packages
+        line = packages.report(log=lambda s: None, run=self.answers(self.REAL),
+                               lists=Path("/nonexistent-lists"))
+        self.assertIn("Nothing has been changed.", line)
+
+    def test_nothing_outstanding_reads_as_nothing_outstanding(self):
+        from salaah import packages
+        canned = "0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n"
+        out = packages.count(run=self.answers(canned), lists=Path("/nonexistent-lists"))
+        self.assertTrue(out.known)
+        self.assertEqual(0, out.total)
+        self.assertIn("nothing outstanding", packages.sentence(out))
+
+    def test_one_update_is_not_called_one_updates(self):
+        from salaah import packages
+        canned = ("Inst thing [1] (2 Debian:12/stable [arm64])\n"
+                  "1 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n")
+        out = packages.count(run=self.answers(canned), lists=Path("/nonexistent-lists"))
+        self.assertIn("1 update outstanding", packages.sentence(out))
