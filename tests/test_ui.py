@@ -5691,60 +5691,64 @@ class SwitchesAndTheBrightnessBoxTest(unittest.TestCase):
                             "the sun kept the light theme's colour on the dark page")
 
     def test_the_settings_run_in_the_order_harry_asked_for(self):
-        """2.56. Harry: "move 'show on this mat on the map' option to just under the call to
-        prayer option and move screen brightness option above play the recitation option."
+        """REWRITTEN AT 2.57, and this is the third arrangement in three days. Written out so
+        nobody mistakes it for an accident:
 
-        Which puts the right-hand column in three pairs of like with like:
+            2.56  brightness, recitation, call to prayer, on the map -- all in the right
+                  column, the map switch having moved there from the left
+            2.57  brightness moves to the LEFT, under Screen mode -- Harry, 27 November:
+                  "can you move the screen brightness slider to the left of the screen
+                  underneath screen mode"
 
-            brightness                      the one that is nothing to do with sound
-            recitation, call to prayer      the two that decide whether the mat makes a noise
-            on the map                      the two that reach outside the house
+        What is left is two pairs rather than one run of four, and each pair is a pair for a
+        reason: Screen mode with Screen brightness, the two settings about the screen; the
+        recitation with the call to prayer and the map switch, the two about sound and the one
+        about reaching outside the house.
 
-        THE MAP SWITCH CHANGED COLUMNS to get there, which reverses where it was put when it
-        was added -- the note then was that the left column had room under the credits. That
-        was an argument about space; this is an argument about what the thing is.
+        THE HEADING IS BACK, and that is not a reversal of 2.56 so much as the removal of its
+        cause: it came off to save 21px on an 800px screen. The first version of this note said
+        the box was leaving "the longer column" and so paid for itself, WHICH WAS WRONG -- at
+        2.56 the columns ended 9px apart, so the move made the left column the long one by 175
+        and put Chinese 7px over an 1080 screen. Who is shown went the other way to balance it;
+        the heading is affordable because of that, not because of this. Left standing as a
+        correction because a guess dressed as a measurement is worse than no note at all.
 
-        Asked by where the headings actually sit on the page, not by the order of the calls
-        that made them, because a layout is free to disagree with the order it was built in.
+        Asked for explicitly, the heading, because under Screen mode a headingless box reads as
+        part of Screen mode.
         """
         w = self.window()
-        wanted = ["settings.brightness", "settings.recitation", "settings.azaan",
-                  "settings.on_the_map"]
-        found = {}
-        for key in wanted:
-            if key == "settings.brightness":
-                # IT HAS NO HEADING ANY MORE, so this one is found by its control. The
-                # heading came off at 2.56 to make the page fit an 800px screen -- see
-                # build_settings -- and the control is the thing whose position matters
-                # anyway. Its accessible name is asked below, which is the part of a heading
-                # that was not allowed to go with it.
-                boxes = [c for c in w.findChildren(QtWidgets.QFrame)
-                         if c.objectName() == "brightnessBox" and c.isVisible()]
-                self.assertTrue(boxes, "the brightness control is not on the page")
-                self.assertEqual(w.t(key), boxes[0].accessibleName(),
-                                 "the brightness control lost its heading and its name with "
-                                 "it, so nothing reading the screen can say what it is")
-                spot = boxes[0].mapTo(w.settings_screen, QtCore.QPoint(0, 0))
-                found[key] = (spot.x(), spot.y())
-                continue
-            # The leading words only: the map's heading carries "approximate area only"
-            # after a dash, in the same label.
+        def heading(key):
+            # The leading words only: two of these carry a note after a dash in the same label.
             words = w.t(key).split("\u2014")[0].split(" - ")[0].strip()
             labels = [c for c in w.findChildren(QtWidgets.QLabel)
                       if c.isVisible() and words and words in c.text()]
             self.assertTrue(labels, f"no heading on the page reads {words!r}")
             spot = labels[0].mapTo(w.settings_screen, QtCore.QPoint(0, 0))
-            found[key] = (spot.x(), spot.y())
-        order = sorted(wanted, key=lambda k: found[k][1])
-        self.assertEqual(order, wanted,
-                         "the settings are in the order "
-                         + " then ".join(k.split(".")[1] for k in order))
-        # All four in the SAME column, which is the half of it that the vertical order alone
-        # would not catch: four headings can run top to bottom and still be split across two
-        # columns, which is exactly where the map switch came from.
-        columns = {found[k][0] for k in wanted}
-        self.assertEqual(len(columns), 1,
-                         f"the four are not all in one column: they start at {sorted(columns)}")
+            return spot.x(), spot.y()
+
+        on_the_right = ["settings.recitation", "settings.azaan", "settings.on_the_map"]
+        found = {k: heading(k) for k in on_the_right}
+        self.assertEqual(sorted(on_the_right, key=lambda k: found[k][1]), on_the_right,
+                         "the sound settings and the map switch are out of order")
+        self.assertEqual(1, len({found[k][0] for k in on_the_right}),
+                         "those three are not all in one column")
+
+        mode, bright = heading("settings.theme"), heading("settings.brightness")
+        self.assertEqual(mode[0], bright[0],
+                         "Screen brightness is not in the same column as Screen mode")
+        self.assertGreater(bright[1], mode[1],
+                           "Screen brightness is above Screen mode, not under it")
+        self.assertNotEqual(bright[0], found["settings.recitation"][0],
+                            "Screen brightness is still in the right-hand column")
+
+        # And its control is the thing directly under that heading, not something else.
+        boxes = [c for c in w.findChildren(QtWidgets.QFrame)
+                 if c.objectName() == "brightnessBox" and c.isVisible()]
+        self.assertTrue(boxes, "the brightness control is not on the page")
+        at = boxes[0].mapTo(w.settings_screen, QtCore.QPoint(0, 0))
+        self.assertEqual(at.x(), bright[0],
+                         "the brightness box is not under its own heading")
+        self.assertGreater(at.y(), bright[1])
 
     def test_the_two_ends_of_the_bar_are_told_apart_without_a_second_colour(self):
         """His drawing fills the part behind the knob and outlines the part in front of it.
@@ -5769,6 +5773,118 @@ class SwitchesAndTheBrightnessBoxTest(unittest.TestCase):
         self.assertGreater(hollow, len(ahead) * 0.5,
                            "the part of the bar in front of the knob is filled in too, so "
                            "there is nothing to say how far there is left to go")
+
+
+class FiveSecondsOfQuietTest(unittest.TestCase):
+    """2.57: anything open over the page puts itself away when nobody is touching it.
+
+    Harry, 27 November 2026: "when selecting any option box, the new box appears which is
+    fine but it will not disappear until an option is selected or a press is detected on
+    another part of the screen. could we have a timer, 10 seconds, if no press is detected,
+    option list disappears" -- then, asked whether the volume slider's four should match,
+    "make both 5 seconds".
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=True, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1200)
+        w.show()
+        settle(2)
+        self.addCleanup(lambda: shut(w))
+        w.begin()
+        settle(2)
+        return w
+
+    def test_one_number_covers_the_slider_and_the_lists(self):
+        """Two numbers for one situation is two things to get right and one to forget."""
+        from salaah.ui import QUIET_BEFORE_IT_CLOSES, VOLUME_POPUP_IDLE
+        self.assertEqual(5000, QUIET_BEFORE_IT_CLOSES)
+        self.assertEqual(QUIET_BEFORE_IT_CLOSES, VOLUME_POPUP_IDLE,
+                         "the volume slider waits a different length of time from the lists")
+
+    def test_an_option_list_closes_itself(self):
+        w = self.window()
+        w.open_settings()
+        settle(3)
+        boxes = [c for c in w.findChildren(QtWidgets.QComboBox)
+                 if c.objectName() == "picker" and c.isVisible()]
+        self.assertTrue(boxes, "no option list on the settings page")
+        box = boxes[0]
+        watch = getattr(box, "quiet_watch", None)
+        self.assertIsNotNone(watch, "the list has nothing watching it")
+        box.showPopup()
+        settle(2)
+        self.assertTrue(box.view().window().isVisible(), "the list did not open")
+        self.assertTrue(watch.clock.isActive(),
+                        "the list opened and nothing started counting")
+        # Fired by hand rather than waited out: five seconds in a suite of 1,300 is five
+        # seconds nobody gets back, and what is being tested is what happens when it fires.
+        watch.put_it_away()
+        settle(2)
+        self.assertFalse(box.view().window().isVisible(),
+                         "the list was still open after its timer went off")
+
+    def test_touching_it_starts_the_count_again(self):
+        """Someone scrolling a long list of languages is reading it. A list that shuts while
+        it is being read is worse than one that never shuts.
+
+        MEASURED BY WHETHER IT IS STILL OPEN, not by asking the timer how long it has left.
+        remainingTime() was the obvious way and it is useless here: under the offscreen
+        platform it returned the same number before and after the touch -- and the same
+        number before and after fifty milliseconds of sleeping -- so a test built on it
+        reported no restart whether there was one or not.
+        """
+        w = self.window()
+        w.open_settings()
+        settle(3)
+        box = [c for c in w.findChildren(QtWidgets.QComboBox)
+               if c.objectName() == "picker" and c.isVisible()][0]
+        watch = box.quiet_watch
+
+        def wait(ms):
+            end = time.monotonic() + ms / 1000
+            while time.monotonic() < end:
+                APP.processEvents()
+                QtCore.QThread.msleep(5)
+
+        watch.clock.setInterval(300)
+        box.showPopup()
+        settle(2)
+        wait(200)
+        self.assertTrue(box.view().window().isVisible(), "it shut before its time was up")
+        move = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseMove,
+                                 QtCore.QPointF(10, 10), QtCore.QPointF(10, 10),
+                                 Qt.MouseButton.NoButton, Qt.MouseButton.NoButton,
+                                 Qt.KeyboardModifier.NoModifier)
+        APP.sendEvent(box.view().viewport(), move)
+        wait(200)
+        # 400ms of being open, against a 300ms clock: only a restart explains it.
+        self.assertTrue(box.view().window().isVisible(),
+                        "touching the list did not put the clock back to the start, so it "
+                        "shut while somebody was reading it")
+        wait(400)
+        self.assertFalse(box.view().window().isVisible(),
+                         "it never shut at all, so the touch stopped the clock rather than "
+                         "restarting it")
+
+    def test_the_clock_stops_when_the_list_closes(self):
+        """Otherwise it fires later over whatever is on screen by then, and hidePopup on a
+        list nobody opened is a stray event at best."""
+        w = self.window()
+        w.open_settings()
+        settle(3)
+        box = [c for c in w.findChildren(QtWidgets.QComboBox)
+               if c.objectName() == "picker" and c.isVisible()][0]
+        watch = box.quiet_watch
+        box.showPopup()
+        settle(2)
+        self.assertTrue(watch.clock.isActive())
+        box.hidePopup()
+        settle(2)
+        self.assertFalse(watch.clock.isActive(),
+                         "the clock is still running after the list closed")
 
 
 class TheStripReadsFromTheMiddleTest(unittest.TestCase):
@@ -6025,6 +6141,71 @@ class TheVolumeSliderSitsBesideTheSpeakerTest(unittest.TestCase):
                 self.assertLessEqual(foot, rule,
                                      f"the slider's foot is at {foot} and the rule under the "
                                      f"strip starts at {rule}, so it is sitting across it")
+
+    def test_it_lives_in_the_strip_rather_than_in_a_window_of_its_own(self):
+        """THE 2.57 CHANGE, and the reason is Wayland.
+
+        It was a Qt popup window, which brought two things: Qt closed it on the next press
+        anywhere, and the app could place it. The second of those is not true on Wayland --
+        a client may not position its own surfaces, it asks and the compositor decides -- and
+        Harry's mat is Wayland. The slider sat with its foot across the rule under the banner
+        on 25 November, a fix for it passed on X11 and on the offscreen platform the suite
+        runs, and it was STILL wrong on the mat. He checked and said so.
+
+        A child of the banner cannot have that fault: Qt lays it out in the banner's own
+        coordinates, and the banner clips it, so there is nowhere below the rule for it to be
+        drawn even if the arithmetic were wrong. The fault is impossible rather than
+        corrected.
+        """
+        w = self.window()
+        key, popup = self.opened(w)
+        self.assertFalse(popup.isWindow(),
+                         "the slider is a window again, which is the thing Wayland would not "
+                         "let the app place")
+        strip = popup.parentWidget()
+        self.assertEqual("banner", strip.objectName(),
+                         f"the slider's parent is {strip.objectName()!r}, not the strip")
+        self.assertTrue(strip.rect().contains(popup.geometry()),
+                        f"the slider at {popup.geometry()} is not wholly inside a strip "
+                        f"{strip.width()}x{strip.height()}")
+
+    def test_a_press_anywhere_else_still_puts_it_away(self):
+        """The half a popup window did for free, done by hand.
+
+        On a mat with no keyboard and no back button this is the only way out of it, so it
+        is not a nicety. ClosesOnAPressElsewhere is what replaced Qt's popup grab, and
+        without a test it is the kind of thing that quietly stops working.
+        """
+        w = self.window()
+        key, popup = self.opened(w)
+        self.assertTrue(popup.isVisible())
+        far = w.mapToGlobal(QtCore.QPoint(w.width() // 2, int(w.height() * 0.8)))
+        press = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress,
+                                  QtCore.QPointF(10, 10), QtCore.QPointF(far),
+                                  Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                                  Qt.KeyboardModifier.NoModifier)
+        APP.sendEvent(w, press)
+        settle(2)
+        from salaah.ui import sip_deleted
+        self.assertTrue(sip_deleted(popup) or not popup.isVisible(),
+                        "the slider stayed open after a press somewhere else, so on a mat "
+                        "there is no way to put it away")
+
+    def test_a_press_on_the_speaker_closes_it_rather_than_opening_another(self):
+        """Pressing the key that opened it should shut it, not shut it and open it again --
+        which is what happens if the press is let through to the key after closing."""
+        w = self.window()
+        key, popup = self.opened(w)
+        on_key = key.mapToGlobal(QtCore.QPoint(key.width() // 2, key.height() // 2))
+        press = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress,
+                                  QtCore.QPointF(5, 5), QtCore.QPointF(on_key),
+                                  Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                                  Qt.KeyboardModifier.NoModifier)
+        taken = APP.sendEvent(key, press)
+        settle(2)
+        from salaah.ui import sip_deleted
+        self.assertTrue(sip_deleted(popup) or not popup.isVisible(),
+                        "pressing the speaker again did not close the slider")
 
     def test_the_figure_is_shown_in_the_popup_and_not_on_the_strip(self):
         """REVERSES 2.50, in one place only, and the distinction is the point.
@@ -11701,8 +11882,13 @@ class VolumeSliderLookTest(unittest.TestCase):
                     if read.objectName() == "volumeRead"]
         for read in on_pages:
             self.assertFalse(read.isVisible(), "the figure is back beside a page slider")
+        # THE SLIDER ITSELF IS INSIDE THE STRIP SINCE 2.57, so sweeping every label under
+        # home now finds the popup's own "70%" -- which is the one place 2.55 decided the
+        # figure belongs. Without this exception the test fails on the very thing it exists
+        # to allow. Anything else under the strip carrying a percentage is still a fault.
         said = " ".join(x.text() for x in w.home.findChildren(QtWidgets.QLabel)
-                        if x.text() and x.isVisible())
+                        if x.text() and x.isVisible()
+                        and not (popup.isAncestorOf(x) or x is popup))
         self.assertNotIn("%", said, "a percentage is still printed on the strip")
 
     def test_it_is_bigger_than_it_was(self):
@@ -11747,55 +11933,60 @@ class VolumeSliderLookTest(unittest.TestCase):
         self.assertEqual(popup.height(), key.height(),
                          f"the slider is {popup.height()} tall beside a {key.height()} key, "
                          f"so it is not sitting in the strip")
-        top = key.mapToGlobal(QtCore.QPoint(0, 0))
+        # MEASURED INSIDE THE STRIP SINCE 2.57, not on the screen: the slider is a child of
+        # the banner now, so its geometry is already in the banner's coordinates and the key
+        # is mapped into the same ones. Nothing about this is approximate any more.
+        strip = popup.parentWidget()
+        top = key.mapTo(strip, QtCore.QPoint(0, 0))
         self.assertEqual(popup.geometry().y(), top.y(),
                          f"the slider's top is {popup.geometry().y() - top.y()} pixels from "
                          f"the key's, so it is not on the same line as the strip")
-        side = key.mapToGlobal(QtCore.QPoint(key.width(), 0)).x()
-        flush = min(abs(popup.geometry().left() - side),
+        flush = min(abs(popup.geometry().left() - (top.x() + key.width())),
                     abs(popup.geometry().right() + 1 - top.x()))
         self.assertEqual(flush, 0,
                          f"the slider is {flush} pixels from either edge of the key it "
                          f"came from, so it is not hanging off it")
 
-    def test_it_lands_on_the_screen_and_not_off_the_edge(self):
-        """THE ONE NEW RISK IN HIDING IT. In Arabic and Urdu the window is laid out right to
-        left, so the key is hard against the far end of the strip -- and a popup placed at the
-        key's own left edge would start a slider's width from the end of a 1920 window and be
-        half off the screen, or entirely off it on a smaller one. open_the_volume pulls it back
-        inside; without that line this test fails in both languages, which is the only reason
-        the line is written down.
+    def test_it_stays_inside_the_strip_and_not_off_the_end(self):
+        """REPLACES test_it_lands_on_the_screen_and_not_off_the_edge AT 2.57, because what it
+        can run off has changed.
 
-        Asked in Arabic and Urdu rather than English because in English the key leads the strip
-        and the popup lands on screen whether anything clamps it or not. A test that passes
-        with the rule taken out is not testing the rule.
+        It used to be a window and the thing it could fall off was the SCREEN. It is now a
+        child of the banner -- Wayland would not let the app place a window of its own, see
+        open_the_volume -- so what it can run off is the end of the strip, and the strip is
+        what it is measured against.
+
+        Still asked in Arabic and Urdu rather than English: there the row mirrors and the key
+        is hard against the far end, so a slider hung off the wrong edge would start a
+        slider's width from the end and hang over it. In English the key leads the strip and
+        it lands correctly whether anything clamps it or not -- a test that passes with the
+        rule taken out is not testing the rule.
+
+        AND EXACT NOW, with no POPUP_NUDGE. That allowance existed because a compositor
+        placed the window and could shift it; nothing places this but Qt, inside its parent.
         """
         for lang in ("ar", "ur"):
             with self.subTest(lang):
                 w = self.window(lang=lang)
                 key, popup = self.dropped(w)
-                screen = w.screen().availableGeometry()
+                strip = popup.parentWidget()
+                self.assertEqual("banner", strip.objectName(),
+                                 "the slider is not inside the strip")
                 box = popup.geometry()
-                self.assertGreaterEqual(box.left(), screen.left(),
-                                        f"{lang}: the slider starts off the left of the screen")
-                self.assertLessEqual(box.right(), screen.right() + POPUP_NUDGE,
-                                     f"{lang}: the slider runs {box.right() - screen.right()} "
-                                     f"pixels off the right of the screen")
-                # WHAT HOLDS IT ON THE SCREEN CHANGED AT 2.54 and this comment changed with
-                # it, because a test that passes for a reason that has stopped being true is
-                # worse than one that fails. Until 2.54 the popup was placed at the key's own
-                # left edge and the clamp dragged it back inside. Now it is placed on the side
-                # the strip reads towards, which in these two languages is the left, so it is
-                # inside the glass before the clamp is consulted at all.
-                #
-                # The clamp is still here and still the last word -- a longer slider, a
-                # narrower screen or a fourth language could still need it -- which is what
-                # the two assertions above ask. This one asks the thing that is now true:
-                # the slider is on the far side of the key from the edge it would run off.
-                self.assertLess(box.left(), key.mapToGlobal(QtCore.QPoint(0, 0)).x(),
+                self.assertGreaterEqual(box.left(), 0,
+                                        f"{lang}: the slider starts off the near end")
+                self.assertLessEqual(box.right() + 1, strip.width(),
+                                     f"{lang}: the slider runs "
+                                     f"{box.right() + 1 - strip.width()} pixels off the end "
+                                     f"of the strip")
+                # The clamp in beside() is still the last word -- a longer slider, a narrower
+                # strip or a language nobody has added could still need it -- but in these two
+                # the slider is placed on the side the row reads towards, so it is inside
+                # before the clamp is consulted at all. This asks the thing that is true: it
+                # is on the far side of the key from the end it would run off.
+                self.assertLess(box.left(), key.mapTo(strip, QtCore.QPoint(0, 0)).x(),
                                 f"{lang}: the slider is on the wrong side of the key for a "
-                                f"strip that reads right to left, so only the clamp is "
-                                f"keeping it on the glass")
+                                f"strip that reads right to left")
 
     def test_it_still_sets_the_volume(self):
         w = self.window()

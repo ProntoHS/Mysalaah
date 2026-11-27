@@ -161,9 +161,26 @@ def main() -> int:
     ap.add_argument("--key", type=Path, default=DEFAULT_KEY, help="your private signing key")
     args = ap.parse_args()
 
+    # BOTH OF THESE BEFORE ANYTHING IS READ OR WRITTEN. Building the zip takes a couple of
+    # minutes and writes 137MB, and 2.56 spent both before stopping on a missing package:
+    # Harry had upgraded Python the night before, so the new interpreter had none of the old
+    # one's packages, and cryptography is imported inside sign(), which does not run until the
+    # zip is already on disk. Nothing here needs the zip to know the answer.
     if not args.key.exists():
         print(f"No signing key at {args.key}.", file=sys.stderr)
         print("Run tools/make_key.py first.", file=sys.stderr)
+        return 1
+
+    try:
+        from cryptography.hazmat.primitives import serialization   # noqa: F401
+    except ImportError:
+        print("\nThe cryptography package is not installed for this Python, so nothing",
+              file=sys.stderr)
+        print("could be signed. Install it and run this again:", file=sys.stderr)
+        print(f"\n    {sys.executable} -m pip install cryptography\n", file=sys.stderr)
+        print("If Python was upgraded recently, that is why: packages do not come across",
+              file=sys.stderr)
+        print("from the old version. Nothing has been built.", file=sys.stderr)
         return 1
 
     number = version()

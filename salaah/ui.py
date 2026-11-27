@@ -98,7 +98,116 @@ VOLUME_KNOB = 36
 #: deciding; too long and a child who has wandered off leaves the strip covered, on the one
 #: control that is in front of the place name and the times. Pressing anywhere else closes it
 #: at once in any case -- this is only for the press that never comes.
-VOLUME_POPUP_IDLE = 4000
+#: How long anything that opens over the page waits, with nobody touching it, before it puts
+#: itself away. Harry, 27 November 2026, asked for ten seconds on the option lists and was
+#: asked whether the volume slider's four should match: "make both 5 seconds".
+#:
+#: ONE NUMBER FOR BOTH, which is the point of it. A slider and a list of choices are the same
+#: situation from the mat's side -- something is open over the page and the child has walked
+#: off -- and two numbers for one situation is two things to get right and one to forget.
+QUIET_BEFORE_IT_CLOSES = 5000
+
+#: The old name, kept because the volume slider is where this started.
+VOLUME_POPUP_IDLE = QUIET_BEFORE_IT_CLOSES
+
+
+class ClosesOnAPressElsewhere(QtCore.QObject):
+    """Shuts [watch] when a press lands anywhere that is not [watch] or [key].
+
+    THIS IS THE HALF A POPUP WINDOW USED TO DO FOR FREE. Until 2.57 the volume slider was a
+    Qt popup, and a Qt popup takes the next press anywhere on the screen and closes on it --
+    which on a mat with no keyboard and no back button is the only way out of it.
+
+    It stopped being a window because of Wayland. A Wayland client is not allowed to place
+    its own windows: it asks, and the compositor decides. Harry's mat is Wayland, and the
+    slider's foot sat across the rule under the banner no matter what the app asked for --
+    first measured on 25 November, and still wrong after a fix that worked on X11 and on the
+    offscreen platform the suite uses. Neither of those is what he owns.
+
+    Inside the banner, Qt lays the slider out in the banner's own coordinates and no
+    compositor has a say, so it is exact everywhere -- and the banner CLIPS it, so even a
+    mistake cannot put it across the rule: there is nothing below the rule for it to be drawn
+    on. A worse position is now a worse-looking slider rather than one in the wrong place.
+
+    The press is not swallowed, so whatever was pressed still gets it -- except a press on
+    the key that opened the slider, which would otherwise close it and immediately reopen it.
+    """
+
+    def __init__(self, watch, key):
+        super().__init__(watch)
+        self.watch = watch
+        self.key = key
+
+    def eventFilter(self, who, event):
+        kinds = (QtCore.QEvent.Type.MouseButtonPress, QtCore.QEvent.Type.TouchBegin)
+        if event.type() not in kinds:
+            return False
+        watch = self.watch
+        if watch is None or sip_deleted(watch) or not watch.isVisible():
+            return False
+        where = event.globalPosition().toPoint()
+        if watch.rect().contains(watch.mapFromGlobal(where)):
+            return False
+        watch.close()
+        key = self.key
+        if key is not None and not sip_deleted(key) \
+                and key.rect().contains(key.mapFromGlobal(where)):
+            return True        # the key closed it; do not let the press open it again
+        return False
+
+
+class ClosesWhenNobodyTouchesIt(QtCore.QObject):
+    """Shuts an open option list after QUIET_BEFORE_IT_CLOSES with nothing touching it.
+
+    Harry, 27 November 2026: "when selecting any option box, the new box appears which is
+    fine but it will not disappear until an option is selected or a press is detected on
+    another part of the screen. could we have a timer, 10 seconds, if no press is detected,
+    option list disappears" -- and then, asked whether that should match the volume slider's
+    four: "make both 5 seconds".
+
+    A LIST LEFT OPEN IS A MAT WITH ITS SETTINGS COVERED UP. Qt's own answer is that the list
+    waits for ever, which is right for a mouse and wrong for a thing a child wanders away
+    from: the next person finds a list of languages over the page and no obvious way back
+    except pressing somewhere they were not aiming for.
+
+    ANY TOUCH RESTARTS IT, not just a press on a row. Someone scrolling a long list of
+    languages with a finger is reading it, and a list that shuts while being read is worse
+    than one that never shuts at all.
+    """
+
+    #: Everything that counts as somebody still being there.
+    TOUCHES = (QtCore.QEvent.Type.MouseButtonPress, QtCore.QEvent.Type.MouseButtonRelease,
+               QtCore.QEvent.Type.MouseMove, QtCore.QEvent.Type.Wheel,
+               QtCore.QEvent.Type.TouchBegin, QtCore.QEvent.Type.TouchUpdate,
+               QtCore.QEvent.Type.KeyPress)
+
+    def __init__(self, box):
+        super().__init__(box)
+        self.box = box
+        self.clock = QtCore.QTimer(self)
+        self.clock.setSingleShot(True)
+        self.clock.setInterval(QUIET_BEFORE_IT_CLOSES)
+        self.clock.timeout.connect(self.put_it_away)
+        view = box.view()
+        view.viewport().installEventFilter(self)
+        self.lid = view.window()
+        if self.lid is not None:
+            self.lid.installEventFilter(self)
+
+    def put_it_away(self) -> None:
+        if not sip_deleted(self.box):
+            self.box.hidePopup()
+
+    def eventFilter(self, who, event):
+        kind = event.type()
+        if who is self.lid:
+            if kind == QtCore.QEvent.Type.Show:
+                self.clock.start()
+            elif kind == QtCore.QEvent.Type.Hide:
+                self.clock.stop()
+        if kind in self.TOUCHES and self.clock.isActive():
+            self.clock.start()
+        return False
 
 
 def beside(key_left: int, key_width: int, popup_wide: int, screen, mirrored: bool) -> int:
@@ -2907,7 +3016,30 @@ class MainWindow(QtWidgets.QWidget):
         """
         if getattr(self, "volume_popup", None) is not None and not sip_deleted(self.volume_popup):
             self.volume_popup.close()
-        popup = QtWidgets.QWidget(self, Qt.WindowType.Popup)
+        # A CHILD OF THE BANNER, NOT A WINDOW OF ITS OWN, SINCE 2.57.
+        #
+        # It was a Qt popup window until now, for a good reason: a popup takes the next press
+        # anywhere on the screen and closes on it, which on a mat with no keyboard and no back
+        # button is the only way out of it. That reason still stands and is honoured below by
+        # ClosesOnAPressElsewhere, which does the same job by hand.
+        #
+        # WHAT BROKE IT WAS WAYLAND. Harry's mat runs a Wayland session -- found on
+        # 27 November, after the fact -- and a Wayland client may not place its own windows:
+        # it asks, the compositor decides, and `move()` on a shown window is simply ignored.
+        # So the slider sat two pixels low with its foot across the rule under the banner, a
+        # fix for that worked on X11 and on the offscreen platform the suite uses, and it was
+        # still wrong on the only platform he owns. He checked and said so twice.
+        #
+        # Inside the banner there is nothing to go wrong: Qt lays the slider out in the
+        # banner's own coordinates, and the banner clips it, so it CANNOT be drawn across the
+        # rule -- there is no banner below the rule to draw on. The old fault is now
+        # impossible rather than corrected, which is the difference worth having.
+        banner = under.parentWidget()
+        while banner is not None and banner.objectName() != "banner":
+            banner = banner.parentWidget()
+        if banner is None:                       # no strip to live in; nothing sensible to do
+            return
+        popup = QtWidgets.QWidget(banner)
         popup.setObjectName("volumePopup")
         # DESTROYED WHEN IT CLOSES, not merely hidden, and this is not tidiness. The slider
         # inside it registers itself in volume_bars so that it moves with every other volume
@@ -2915,10 +3047,6 @@ class MainWindow(QtWidgets.QWidget):
         # before this line existed: five presses left five popups parented to the window and
         # five sliders in volume_bars, every one of them walked by show_volume on every tick,
         # for the life of a mat that runs for weeks at a time.
-        #
-        # Closing it now deletes the slider with it, and volume_bars drops the dead wrapper the
-        # next time show_volume asks it to do its job -- the cure that has been in that method
-        # since 2.06, finally with something to cure.
         popup.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         lay = QtWidgets.QHBoxLayout(popup)
         lay.setContentsMargins(self.px(20), self.px(12), self.px(20), self.px(12))
@@ -2929,72 +3057,30 @@ class MainWindow(QtWidgets.QWidget):
         lay.addLayout(self.volume_slider(dark=True))
         popup.adjustSize()
 
-        # BESIDE THE SPEAKER SINCE 2.54, NOT UNDER IT, and exactly as tall as the key.
+        # EXACTLY THE KEY'S HEIGHT AND EXACTLY ITS TOP, in the banner's coordinates. No
+        # screen, no compositor, no reading the position back afterwards to see what happened
+        # to it: inside a parent, a widget is where it is put.
         #
-        # Harry, 25 November 2026: "i want it to display it on its right instead, this will
-        # obviously overlap with existing text which doesn't matter as the text will reappear
-        # when volume slider disappears, i want this volume slider to be same height as the
-        # speaker button itself, it will fit nicely as it appears and easier to press too."
-        #
-        # He is right about the pressing, and it is worth writing down why rather than just
-        # that it is so: under the key, the slider hangs below the strip over whatever screen
-        # is showing, so the thumb travels down off the bar and back. Beside it, the slider is
-        # in the bar, on the line the hand is already on, and the speaker that opened it is
-        # still under the other finger.
-        #
-        # IT COVERS THE PLACE NAME AND THE PRAYER TIMES while it is open. That is his call and
-        # it costs nothing: the strip is redrawn the moment the popup closes, and the popup
-        # closes on the next press anywhere or after VOLUME_POPUP_IDLE.
+        # Harry, 25 November: "i want this volume slider to be same height as the speaker
+        # button itself, it will fit nicely as it appears and easier to press too." It covers
+        # the place name and the times while it is open, which is his call and costs nothing:
+        # the strip is redrawn the moment it closes.
         popup.setFixedHeight(under.height())
-
+        corner = under.mapTo(banner, QtCore.QPoint(0, 0))
         mirrored = self.layoutDirection() == Qt.LayoutDirection.RightToLeft
-        top = under.mapToGlobal(QtCore.QPoint(0, 0))
-        screen = self.screen().availableGeometry() if self.screen() else QtCore.QRect(0, 0, 1920, 1080)
-        wanted = QtCore.QPoint(beside(top.x(), under.width(), popup.width(), screen, mirrored),
-                               top.y())
-        popup.move(wanted)
+        room = QtCore.QRect(0, 0, banner.width(), banner.height())
+        popup.move(beside(corner.x(), under.width(), popup.width(), room, mirrored), corner.y())
+        popup.raise_()
+
         self.volume_popup = popup
         shut = QtCore.QTimer(popup)
         shut.setSingleShot(True)
         shut.timeout.connect(popup.close)
         shut.start(VOLUME_POPUP_IDLE)
         self.volume_popup_timer = shut
+        self.volume_popup_watch = ClosesOnAPressElsewhere(popup, under)
+        QtWidgets.QApplication.instance().installEventFilter(self.volume_popup_watch)
         popup.show()
-
-        # AND THEN ASKED WHERE IT ACTUALLY WENT, because move() is a request.
-        #
-        # Harry, 25 November 2026: "even though the slider is the same height of the speaker
-        # button, it starts just slightly lower which makes its bottom edge overlap the
-        # banner's bottom edge. if they are the same size & start at the right vertical
-        # height, this should not happen."
-        #
-        # He is right, and the sizes were never the problem: the key is 70 tall, the popup is
-        # 70 tall and they are asked for the same top. A window manager is free to put a new
-        # window somewhere near where it was asked rather than exactly there, and both of the
-        # platforms this is run on do: the offscreen one the suite uses shifts a popup two
-        # pixels, which is why the tests carried a POPUP_NUDGE allowance for it. Two pixels is
-        # nothing anywhere else on the mat. Here it is exactly the height of the rule under
-        # the strip, so the slider's foot lands on the hairline and sits across it.
-        #
-        # So the position is read back and corrected once. Not a loop: if a window manager
-        # will not honour an explicit move it will not honour the fourth one either, and a
-        # loop here would be a loop on a mat with a child in front of it.
-        # ONCE THE EVENT LOOP HAS TURNED, not straight away, and this took two attempts.
-        #
-        # The first one read the position back immediately and pre-compensated: if it had
-        # landed two low, ask for two high. That worked by luck and only downwards. Traced
-        # on the offscreen platform, what actually happens is that the popup is placed where
-        # it was asked, and the shift arrives LATER, on the first turn of the event loop,
-        # and only on the y. Pre-compensating therefore fixed the y and pushed the x two
-        # pixels into the key.
-        #
-        # So the correction is a plain move to where it was always meant to be, scheduled
-        # for after the platform has had its say. Two pixels a frame late is not visible;
-        # the slider's foot on the hairline is.
-        def straighten():
-            if not sip_deleted(popup) and popup.pos() != wanted:
-                popup.move(wanted)
-        QtCore.QTimer.singleShot(0, straighten)
 
     def make_banner(self, gear: bool = True, home: bool = False) -> QtWidgets.QWidget:
         """The strip across the top: how loud the mat is, where you are, and the five prayer
@@ -5831,12 +5917,6 @@ class MainWindow(QtWidgets.QWidget):
                                              self.settings.lang, self.set_lang)
         left.addWidget(self.language_picker)
 
-        if len(self.content.figures) > 1:
-            section(left, "settings.figure")
-            left.addLayout(self.circles(
-                [(name, self.t(f"figure.{name}")) for name in self.content.figures],
-                self.settings.figure, self.set_figure, across=True))
-
         section(left, "settings.font", self.t("settings.font_hint"))
         self.font_picker = self.dropdown(
             [(key, self.t(f"font.{key}")) for key in FONTS if key in Fonts.families],
@@ -5898,6 +5978,40 @@ class MainWindow(QtWidgets.QWidget):
         # the app -- a test greps the shipped code to keep it that way. The switch records the
         # decision and creates or destroys the mat's name on the map (salaah/onthemap.py); the
         # heartbeat that would honour it comes later.
+        # BRIGHTNESS LIVES HERE AS OF 2.57, under Screen mode, and the heading is back.
+        #
+        # Harry, 27 November 2026: "can you move the screen brightness slider to the left of
+        # the screen underneath screen mode."
+        #
+        # It is the right place for it on its own merits -- Screen mode and screen brightness
+        # are the two settings about the screen, and they now sit together the way the
+        # recitation and the call to prayer do.
+        #
+        # THE HEADING COMES BACK, BUT NOT FOR THE REASON I FIRST WROTE HERE. What stood here
+        # said the box was leaving "the longer column", so the 21px the heading cost at 2.56
+        # came back by itself. THAT WAS WRONG, and the full suite said so: at 2.56 the two
+        # columns ended 9px apart -- they were as near equal as they have ever been -- so
+        # moving a 112px block from one to the other is a 224px swing, and it made the LEFT
+        # column the long one. Measured after the move: left 818, right 643, against a limit
+        # of 128. Chinese went 7px over an 1080 screen with it.
+        #
+        # So the heading is affordable because WHO IS SHOWN went the other way (see the right
+        # column), not because this box left a long column. Recorded as a correction rather
+        # than quietly fixed: the first version of this note was a guess dressed as a
+        # measurement, and it is the kind of guess that reads as fact a year later.
+        #
+        # The heading itself was asked for rather than assumed -- under Screen mode, a box
+        # with no heading of its own reads as part of Screen mode.
+        #
+        # The EXPLANATION does not come back. That went because Harry said so and no amount of
+        # room changes it: "no descriptive text required, leave out". What it used to say --
+        # that on a monitor which refuses to dim, the picture is veiled rather than the
+        # backlight lowered, so it looks dimmer and draws the same power -- is still true and
+        # the mat still does not say it. settings.brightness_veil stays in the nine packs,
+        # translated and unused.
+        section(left, "settings.brightness")
+        left.addLayout(self.brightness_slider())
+
         section(left, "settings.sources")
         self.sources_button = no_focus(QtWidgets.QPushButton(self.t("sources.title")))
         self.sources_button.setObjectName("pill")
@@ -5918,32 +6032,28 @@ class MainWindow(QtWidgets.QWidget):
         # Read down, it is three pairs of like with like instead of four things in the order
         # they happened to be written.
         #
-        # NO HEADING AND NO EXPLANATION, SINCE 2.56, AND THEY WENT FOR DIFFERENT REASONS.
+        # WHO IS SHOWN LIVES IN THIS COLUMN AS OF 2.57, and it is here to pay for the
+        # brightness box going the other way. Harry asked for brightness under Screen mode;
+        # that is 112px off this column and onto the left one, a 224px swing from columns that
+        # had ended 9px apart, and the page will not fit an 1080 screen in Chinese like that.
+        # Something had to come back. Measured, this is the block that balances it: left 706,
+        # right 755 in English, 733 and 824 in Chinese, against a limit of 128.
         #
-        # The explanation went because Harry said so, 26 November 2026: "underneath
-        # brightness, you have descriptive text, not required, remove it" and, asked whether
-        # he wanted a shorter version: "no descriptive text required, leave out". It only
-        # ever showed on a mat whose monitor refuses brightness commands -- his does -- and
-        # what it said is that the slider is not doing what it looks like: the picture is
-        # veiled rather than the backlight lowered, so it looks dimmer and draws the same
-        # power. That is still true and the mat no longer says so. Written down here because
-        # it is the kind of thing asked again in a year.
+        # AND IT IS THE RIGHT BLOCK ON ITS OWN MERITS, which is the only reason it is this one
+        # and not Sources. Sources was the obvious candidate -- its own note says it sits on
+        # the left for space rather than for sense -- but "where the words come from" belongs
+        # with Language and Arabic lettering far more than it belongs beside Wi-Fi, so moving
+        # it would have been the worse page as well as 10px short of balancing in Chinese.
+        # What is left on the left is then one idea: how the mat reads. Language, the Arabic
+        # lettering, the screen mode, the screen brightness, and whose words they are.
         #
-        # The HEADING went to make the page fit. Harry's reorder moved a block into the
-        # column that was already the longer one, and his new brightness control is taller
-        # than the bare slider it replaced; together they put the page 41px over an 800px
-        # screen, which a test has guarded since 1.95. Twenty of those came back by taking
-        # the padding out of the box. The last twenty-one were his choice between four, and
-        # he took this one: the control carries a sun and a percentage, so unlike every other
-        # setting on this page it says what it is without being told.
-        #
-        # IT IS STILL NAMED, just not in ink. The box answers to "Screen brightness" for
-        # anything that reads the screen rather than looks at it, which is the half of a
-        # heading that a drawing cannot replace.
-        #
-        # settings.brightness_veil is left in the nine packs, translated and unused. Deleting
-        # a sentence from nine languages to save nothing is the more expensive thing to undo.
-        right.addLayout(self.brightness_slider())
+        # Who is shown is the one setting there that was about neither words nor screen: it
+        # chooses the child in the prayer-step pictures.
+        if len(self.content.figures) > 1:
+            section(right, "settings.figure")
+            right.addLayout(self.circles(
+                [(name, self.t(f"figure.{name}")) for name in self.content.figures],
+                self.settings.figure, self.set_figure, across=True))
 
         if self.timings:
             # No explanation under it since 1.83. Harry: "remove the text under 'Play the
@@ -6396,6 +6506,9 @@ class MainWindow(QtWidgets.QWidget):
         # to 64px. One line, and it is the difference between a row a finger can hit and one it
         # cannot.
         box.view().setItemDelegate(QtWidgets.QStyledItemDelegate(box.view()))
+        # It closes itself if nobody touches it -- see ClosesWhenNobodyTouchesIt. Kept on the
+        # box so it lives exactly as long as the picker does.
+        box.quiet_watch = ClosesWhenNobodyTouchesIt(box)
         box.setCurrentIndex(max(0, [v for v, _ in options].index(current)
                                 if current in [v for v, _ in options] else 0))
         box.activated.connect(lambda i: on_pick(box.itemData(i)))
