@@ -5545,6 +5545,326 @@ class SleepTest(unittest.TestCase):
         self.assertEqual([False, True], w.outputs.calls)
 
 
+class SwitchesAndTheBrightnessBoxTest(unittest.TestCase):
+    """2.56: the settings switches and the brightness bar in Harry's two-colour design.
+
+    He sent pictures. The switch picture arrived with a stock library's watermark tiled over
+    it, so it could not have shipped as a picture even if that had been the plan -- and it
+    was not: this switch has always been drawn, for the reasons map_pin gives, "it keeps a
+    stock-library picture -- watermark and licence and all -- out of the mat".
+
+    One rule serves both of his versions, for the switch and the bar alike: the thing is the
+    page's own paper, and everything on it is the page's ink. These tests ask that rule
+    rather than two sets of colours, because the rule is what makes a third theme work
+    without a third picture.
+    """
+
+    def window(self, mode="light"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme=mode, recitation=True, place="Bury", brightness=75),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle(2)
+        self.addCleanup(lambda: shut(w))
+        w.begin()
+        settle(2)
+        w.open_settings()
+        settle(3)
+        return w
+
+    @staticmethod
+    def shot(widget):
+        image = QtGui.QImage(widget.size(), QtGui.QImage.Format.Format_ARGB32)
+        image.fill(0)
+        widget.render(image)
+        return image
+
+    def a_switch(self, w, on):
+        from salaah.render import Switch
+        found = [c for c in w.findChildren(Switch) if c.isVisible() and c.isChecked() == on]
+        self.assertTrue(found, f"no switch that is {'on' if on else 'off'} is on screen")
+        return found[0]
+
+    def test_the_switch_is_the_page_in_two_colours(self):
+        """Paper inside, ink for the knob -- so one drawing serves all three themes."""
+        from salaah import theme
+        for mode in ("light", "dark", "colour"):
+            with self.subTest(mode):
+                w = self.window(mode)
+                knob = self.a_switch(w, on=True)
+                image = self.shot(knob)
+                paper = QtGui.QColor(theme.palette().paper)
+                ink = QtGui.QColor(theme.palette().ink)
+                middle = image.height() // 2
+                # The knob is at the far end when it is on; the empty end is the other one.
+                at_knob = QtGui.QColor(image.pixel(int(image.width() * 0.82), middle))
+                at_empty = QtGui.QColor(image.pixel(int(image.width() * 0.25), middle))
+                self.assertLess(abs(at_knob.lightness() - ink.lightness()), 40,
+                                f"the knob is {at_knob.name()} and the page's ink is "
+                                f"{ink.name()}")
+                self.assertLess(abs(at_empty.lightness() - paper.lightness()), 40,
+                                f"inside the switch is {at_empty.name()} and the page's "
+                                f"paper is {paper.name()}")
+
+    def test_the_knob_changes_ends_and_nothing_else_does(self):
+        """Which end the knob is at is the whole of the difference, so it had better be a
+        difference you can see. Harry's design has no second colour to help it."""
+        w = self.window()
+        on, off = self.shot(self.a_switch(w, True)), self.shot(self.a_switch(w, False))
+        self.assertEqual(on.size(), off.size())
+        middle = on.height() // 2
+        near = int(on.width() * 0.25)
+        far = int(on.width() * 0.82)
+        self.assertNotEqual(QtGui.QColor(on.pixel(far, middle)).rgb(),
+                            QtGui.QColor(off.pixel(far, middle)).rgb(),
+                            "the far end of the switch looks the same on and off")
+        self.assertNotEqual(QtGui.QColor(on.pixel(near, middle)).rgb(),
+                            QtGui.QColor(off.pixel(near, middle)).rgb(),
+                            "the near end of the switch looks the same on and off")
+
+    def test_the_switch_has_an_edge_so_it_can_be_seen_on_its_own_page(self):
+        """THE ONE THING IN HIS DRAWING THAT HAD TO BE ADDED RATHER THAN COPIED.
+
+        His dark switch is a plain black pill -- on the white page of a picture. The mat's
+        dark page is near-black, and a black pill on it is not a switch, it is a floating
+        white dot with no sign of how far it travels or that there is anything to press. The
+        rim is the pill's edge, in the same ink as the knob, and his light drawing has one.
+        """
+        from salaah import theme
+        for mode in ("dark", "colour"):
+            with self.subTest(mode):
+                w = self.window(mode)
+                image = self.shot(self.a_switch(w, on=True))
+                paper = QtGui.QColor(theme.palette().paper)
+                # Down the middle of the empty end: paper inside, and something that is not
+                # paper at the top and bottom where the rim is.
+                near = int(image.width() * 0.25)
+                rim = max(abs(QtGui.QColor(image.pixel(near, y)).lightness()
+                              - paper.lightness())
+                          for y in (1, 2, image.height() - 3, image.height() - 2))
+                self.assertGreater(rim, 100,
+                                   f"the switch has no visible edge on the {mode} page, so "
+                                   f"it is a knob floating in the dark")
+
+    def test_the_brightness_bar_is_in_a_box_with_a_sun_and_a_figure(self):
+        w = self.window()
+        boxes = [c for c in w.findChildren(QtWidgets.QFrame)
+                 if c.objectName() == "brightnessBox" and c.isVisible()]
+        self.assertTrue(boxes, "the brightness bar is not in a box")
+        box = boxes[0]
+        suns = [c for c in box.findChildren(QtWidgets.QLabel)
+                if c.objectName() == "brightnessSun"]
+        self.assertTrue(suns and not suns[0].pixmap().isNull(), "there is no sun on the box")
+        reads = [c for c in box.findChildren(QtWidgets.QLabel)
+                 if c.objectName() == "brightnessRead"]
+        self.assertTrue(reads, "the box has no figure on it")
+        self.assertIn("%", reads[0].text())
+        bars = [c for c in box.findChildren(QtWidgets.QSlider)]
+        self.assertTrue(bars, "the box has no bar in it")
+        # In that order across the box, which is what his drawing shows.
+        order = sorted((suns[0], bars[0], reads[0]),
+                       key=lambda c: c.mapTo(box, QtCore.QPoint(0, 0)).x())
+        self.assertEqual([c.objectName() for c in order],
+                         ["brightnessSun", "brightness", "brightnessRead"])
+
+    def test_the_figure_follows_the_bar(self):
+        w = self.window()
+        bar = w.brightness_bar
+        read = [c for c in w.findChildren(QtWidgets.QLabel)
+                if c.objectName() == "brightnessRead"][0]
+        bar.setValue(42)
+        settle(2)
+        self.assertEqual("42%", read.text())
+
+    def test_the_sun_is_drawn_again_when_the_screen_changes(self):
+        """A pixmap is drawn once in the colour of the moment and does not follow a
+        stylesheet. The banner's pin learnt this at 2.50; the sun is the second of them."""
+        w = self.window("light")
+        sun = [c for c in w.findChildren(QtWidgets.QLabel)
+               if c.objectName() == "brightnessSun"][0]
+        was = sun.pixmap().toImage()
+        w.set_theme("dark")
+        settle(3)
+        now = sun.pixmap().toImage()
+        self.assertNotEqual(was, now,
+                            "the sun kept the light theme's colour on the dark page")
+
+    def test_the_settings_run_in_the_order_harry_asked_for(self):
+        """2.56. Harry: "move 'show on this mat on the map' option to just under the call to
+        prayer option and move screen brightness option above play the recitation option."
+
+        Which puts the right-hand column in three pairs of like with like:
+
+            brightness                      the one that is nothing to do with sound
+            recitation, call to prayer      the two that decide whether the mat makes a noise
+            on the map                      the two that reach outside the house
+
+        THE MAP SWITCH CHANGED COLUMNS to get there, which reverses where it was put when it
+        was added -- the note then was that the left column had room under the credits. That
+        was an argument about space; this is an argument about what the thing is.
+
+        Asked by where the headings actually sit on the page, not by the order of the calls
+        that made them, because a layout is free to disagree with the order it was built in.
+        """
+        w = self.window()
+        wanted = ["settings.brightness", "settings.recitation", "settings.azaan",
+                  "settings.on_the_map"]
+        found = {}
+        for key in wanted:
+            if key == "settings.brightness":
+                # IT HAS NO HEADING ANY MORE, so this one is found by its control. The
+                # heading came off at 2.56 to make the page fit an 800px screen -- see
+                # build_settings -- and the control is the thing whose position matters
+                # anyway. Its accessible name is asked below, which is the part of a heading
+                # that was not allowed to go with it.
+                boxes = [c for c in w.findChildren(QtWidgets.QFrame)
+                         if c.objectName() == "brightnessBox" and c.isVisible()]
+                self.assertTrue(boxes, "the brightness control is not on the page")
+                self.assertEqual(w.t(key), boxes[0].accessibleName(),
+                                 "the brightness control lost its heading and its name with "
+                                 "it, so nothing reading the screen can say what it is")
+                spot = boxes[0].mapTo(w.settings_screen, QtCore.QPoint(0, 0))
+                found[key] = (spot.x(), spot.y())
+                continue
+            # The leading words only: the map's heading carries "approximate area only"
+            # after a dash, in the same label.
+            words = w.t(key).split("\u2014")[0].split(" - ")[0].strip()
+            labels = [c for c in w.findChildren(QtWidgets.QLabel)
+                      if c.isVisible() and words and words in c.text()]
+            self.assertTrue(labels, f"no heading on the page reads {words!r}")
+            spot = labels[0].mapTo(w.settings_screen, QtCore.QPoint(0, 0))
+            found[key] = (spot.x(), spot.y())
+        order = sorted(wanted, key=lambda k: found[k][1])
+        self.assertEqual(order, wanted,
+                         "the settings are in the order "
+                         + " then ".join(k.split(".")[1] for k in order))
+        # All four in the SAME column, which is the half of it that the vertical order alone
+        # would not catch: four headings can run top to bottom and still be split across two
+        # columns, which is exactly where the map switch came from.
+        columns = {found[k][0] for k in wanted}
+        self.assertEqual(len(columns), 1,
+                         f"the four are not all in one column: they start at {sorted(columns)}")
+
+    def test_the_two_ends_of_the_bar_are_told_apart_without_a_second_colour(self):
+        """His drawing fills the part behind the knob and outlines the part in front of it.
+        That is what says how far there is left to go, on a box that has only one colour to
+        work with."""
+        from salaah import theme
+        w = self.window()
+        bar = w.brightness_bar
+        bar.setValue(50)
+        settle(2)
+        image = self.shot(bar)
+        ink = QtGui.QColor(theme.palette().ink)
+        middle = image.height() // 2
+        behind = [QtGui.QColor(image.pixel(x, middle))
+                  for x in range(int(image.width() * 0.1), int(image.width() * 0.3))]
+        solid = sum(1 for c in behind if abs(c.lightness() - ink.lightness()) < 40)
+        self.assertGreater(solid, len(behind) * 0.8,
+                           "the part of the bar behind the knob is not filled in")
+        ahead = [QtGui.QColor(image.pixel(x, middle))
+                 for x in range(int(image.width() * 0.75), int(image.width() * 0.9))]
+        hollow = sum(1 for c in ahead if abs(c.lightness() - ink.lightness()) >= 40)
+        self.assertGreater(hollow, len(ahead) * 0.5,
+                           "the part of the bar in front of the knob is filled in too, so "
+                           "there is nothing to say how far there is left to go")
+
+
+class TheStripReadsFromTheMiddleTest(unittest.TestCase):
+    """2.56: the pin, the place and the five times sit in the middle of the strip.
+
+    Harry, 26 November 2026: "can everything from the location icon to the end of isha text
+    sit in the centre of the banner, equal distance on either side, entering another location
+    still keeps everything in centre and distance on either side gets amended."
+    """
+
+    def window(self, lang="en", place="Bury"):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=False, place=place, lang=lang),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle(2)
+        self.addCleanup(lambda: shut(w))
+        w.begin()
+        settle(2)
+        # The front door carries no strip. The prayer screen is the one Harry is looking at.
+        w.go_to_prayers()
+        settle(2)
+        return w
+
+    def block(self, w):
+        """Where the run from the pin to the end of Isha starts and ends, and the strip."""
+        strips = [b for b in w.findChildren(QtWidgets.QWidget)
+                  if b.objectName() == "banner" and b.isVisible()]
+        self.assertTrue(strips, "no strip on screen")
+        strip = strips[0]
+        pins = [c for c in strip.findChildren(QtWidgets.QLabel)
+                if c.objectName() == "bannerPin" and c.isVisible()]
+        texts = [c for c in strip.findChildren(QtWidgets.QLabel)
+                 if c.objectName() == "bannerText" and c.isVisible()]
+        self.assertTrue(pins and texts, "the strip has no pin or no times")
+        # THE UNION OF THE TWO, not "the pin's left edge". In Arabic and Urdu the row is laid
+        # out the other way round and the pin is the RIGHT-hand end of the block -- which is
+        # how the first version of this measurement reported the mirrored strips as 1,275
+        # pixels out when they were centred to the pixel.
+        edges = []
+        for widget in (pins[0], texts[0]):
+            at = widget.mapTo(strip, QtCore.QPoint(0, 0)).x()
+            edges += [at, at + widget.width()]
+        return min(edges), max(edges), strip.width()
+
+    def test_it_sits_in_the_middle_of_the_strip(self):
+        """Equal distance from each edge of the strip -- not from its neighbours.
+
+        Those are two different places here, which is the whole difficulty. The strip's ends
+        are not the same weight: one is a single 70px speaker, the other a cog AND a house.
+        Two equal stretches centre the block between its neighbours and leave it 37px right
+        of the middle, which is near enough to look like a mistake.
+
+        One pixel of slack, and no more: with two stretches sharing an odd number of spare
+        pixels, one of them gets the extra. Two would let a real lean through.
+        """
+        for lang in ("en", "ar", "ur"):
+            with self.subTest(lang):
+                w = self.window(lang)
+                left, right, wide = self.block(w)
+                self.assertAlmostEqual(left, wide - right, delta=1,
+                                       msg=f"the block has {left}px to its left and "
+                                           f"{wide - right}px to its right")
+
+    def test_a_longer_place_name_takes_from_both_sides_at_once(self):
+        """Harry: "entering another location still keeps everything in centre and distance on
+        either side gets amended." So the block grows symmetrically rather than pushing
+        rightwards from where it starts."""
+        short = self.window(place="Bury")
+        narrow_left, narrow_right, wide = self.block(short)
+        long = self.window(place="Islamabad")
+        broad_left, broad_right, _ = self.block(long)
+        self.assertGreater(broad_right - broad_left, narrow_right - narrow_left,
+                           "the longer place name did not make the block any wider, so this "
+                           "test is not measuring what it claims to")
+        self.assertAlmostEqual(broad_left, wide - broad_right, delta=1,
+                               msg="the longer name is not centred")
+        # It grew at BOTH ends: the left edge moved left, not just the right edge right.
+        self.assertLess(broad_left, narrow_left,
+                        "the block grew to the right only, so it is anchored rather than "
+                        "centred")
+
+    def test_it_is_still_centred_when_there_is_no_cog(self):
+        """The ends differ from screen to screen -- the corners carry a cog and a house, and
+        other strips do not. The padding is worked out from the widgets actually in the row,
+        so this asks a second kind of strip rather than trusting that."""
+        w = self.window()
+        w.open_corner("knowledge")
+        settle(2)
+        left, right, wide = self.block(w)
+        self.assertAlmostEqual(left, wide - right, delta=1,
+                               msg=f"on a corner screen the block has {left}px to its left "
+                                   f"and {wide - right}px to its right")
+
+
 class TheVolumeSliderSitsBesideTheSpeakerTest(unittest.TestCase):
     """2.54: the slider opens alongside the speaker key rather than hanging below it.
 
@@ -6226,14 +6546,48 @@ class BrightnessTest(unittest.TestCase):
         w = self.window(answers=False, brightness=10)
         self.assertLessEqual(w.veil_percent(), 80)
 
-    def test_the_fallback_says_so_and_a_working_monitor_does_not(self):
-        """The words exist for the case where the slider cannot do what it appears to."""
-        for answers, wanted in ((False, True), (True, False)):
-            w = self.window(answers=answers)
-            hints = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
-                     if x.objectName() == "settingHint"]
-            said = any("monitor" in h.lower() for h in hints)
-            self.assertEqual(wanted, said, f"backlight available={answers}: hints were {hints}")
+    def test_the_fallback_still_works_even_though_it_no_longer_says_so(self):
+        """REPLACES test_the_fallback_says_so_and_a_working_monitor_does_not AT 2.56.
+
+        That test asked for a line of explanation under Screen brightness whenever the
+        monitor refuses brightness commands, and for no line when it does not. Harry,
+        26 November 2026: "underneath brightness, you have descriptive text, not required,
+        remove it", and when asked whether he wanted a shorter version: "no descriptive text
+        required, leave out".
+
+        So the half of it about the words is gone, by instruction. The half that MATTERS is
+        not about words at all and is kept: on a monitor that will not dim, the slider still
+        has to do something. It veils the picture instead -- which looks dimmer and draws the
+        same power -- and that fallback is the thing a person is actually relying on when
+        they move it. Losing the sentence is a choice; losing the behaviour would be a bug,
+        and nothing else in the suite was asking for it.
+
+        It now says nothing in either case, which is also asked, because "no explanation"
+        should mean no explanation rather than an explanation that moved somewhere else.
+        """
+        for answers in (False, True):
+            with self.subTest(f"monitor answers={answers}"):
+                w = self.window(answers=answers)
+                hints = [x.text() for x in w.settings_screen.findChildren(QtWidgets.QLabel)
+                         if x.objectName() == "settingHint"]
+                self.assertFalse(any("monitor" in h.lower() for h in hints),
+                                 f"there is still an explanation under the brightness: "
+                                 f"{hints}")
+                # And the slider does something either way.
+                bar = w.brightness_bar
+                bar.setValue(40)
+                APP.processEvents()
+                self.assertEqual(40, w.settings.brightness,
+                                 "moving the bar did not change the mat's brightness")
+                if answers:
+                    # A monitor that dims for real is not veiled as well, or it darkens twice.
+                    self.assertEqual(0, w.veil_percent(),
+                                     "a monitor that dims is being veiled on top of it")
+                else:
+                    self.assertGreater(w.veil_percent(), 0,
+                                       "on a monitor that will not dim, nothing veils the "
+                                       "picture -- so the bar now does nothing at all, and "
+                                       "no longer says so either")
 
 
 class CallToPrayerTest(unittest.TestCase):
@@ -18043,6 +18397,42 @@ class LetteringOnTheDomeTest(unittest.TestCase):
     """
 
     FOLDERS = ("mosque", "kalima", "welcome") + tuple(f"prayers/{p}" for p in PRAYERS)
+
+    #: The screens a child moves between by tapping an arch: the main one and the five
+    #: prayers. They are six separate drawings with six separate descriptions, and the time
+    #: is in the same place on all of them.
+    ONE_JOURNEY = ("mosque",) + tuple(f"prayers/{p}" for p in PRAYERS)
+
+    def test_the_time_does_not_move_as_you_tap_between_the_screens(self):
+        """2.56. Harry asked for the time to sit higher on the dome of "the main salaah
+        page", and was asked how far it should go: "all the prayer screens plus the main
+        one".
+
+        That answer is the rule now, because the six are one journey -- you tap an arch and
+        the mosque is redrawn with that prayer lit. Lifting one and not the others would put
+        a jump in the middle of it, and the jump would only show on a mat, to somebody
+        tapping, which is nobody who runs this suite.
+
+        The x is allowed a pixel of slack because the main screen's box and the prayers' have
+        differed by one since they were drawn; the height and the vertical placement are
+        asked exactly, because those are what a jump is made of.
+        """
+        import json
+        boxes = {}
+        for folder in self.ONE_JOURNEY:
+            box = json.loads((ASSETS / folder / "mosque.json").read_text(encoding="utf-8"))
+            boxes[folder] = box["clock"]["box"]
+        first = self.ONE_JOURNEY[0]
+        for folder in self.ONE_JOURNEY[1:]:
+            with self.subTest(folder):
+                here, there = boxes[first], boxes[folder]
+                self.assertEqual(here[1], there[1],
+                                 f"the time starts at y={there[1]} on {folder} and y={here[1]} "
+                                 f"on {first}, so it jumps when an arch is tapped")
+                self.assertEqual(here[3], there[3],
+                                 f"the time's box ends at a different height on {folder}")
+                self.assertAlmostEqual(here[0], there[0], delta=1)
+                self.assertAlmostEqual(here[2], there[2], delta=1)
 
     @classmethod
     def setUpClass(cls):

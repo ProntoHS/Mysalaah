@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sys
 import time
 from collections import OrderedDict
@@ -379,6 +380,52 @@ def map_pin(size: int, colour: str) -> QtGui.QPixmap:
     p.drawPath(body.subtracted(hole))
     p.end()
     return pin
+
+
+#: The sun beside the brightness bar: a ring and eight rays, as fractions of the box.
+SUN_RING = 0.19        # the ring's radius
+SUN_RAY_IN = 0.30      # where a ray starts, measured from the middle
+SUN_RAY_OUT = 0.46     # and where it ends
+SUN_STROKE = 0.075     # how thick ring and rays are drawn
+
+
+def sun_face(size: int, colour: str) -> QtGui.QPixmap:
+    """The brightness sun, drawn to fit a [size] box in [colour].
+
+    Harry, 26 November 2026, sending a picture of the slider he wants: "i also want to
+    replace the current screen brightness slider with the new one, i have enclosed 2
+    different theme versions."
+
+    DRAWN AND NOT LOADED, for the reasons map_pin above already gives and that this release
+    had to make again out loud: his switch picture arrived with a stock library's watermark
+    tiled across it. Drawn, there is no watermark, no licence to keep track of, one file
+    instead of two, and the thing takes the colour of whatever page it lands on -- which is
+    the whole of the difference between his light version and his dark one.
+
+    Eight rays rather than twelve, and a ring rather than a disc, because that is what he
+    drew and because at the size this sits on a settings row a filled disc with fine rays
+    turns into a blob.
+    """
+    face = QtGui.QPixmap(size, size)
+    face.fill(Qt.GlobalColor.transparent)
+    p = QtGui.QPainter(face)
+    p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+    pen = QtGui.QPen(QtGui.QColor(colour))
+    pen.setWidthF(max(1.0, SUN_STROKE * size))
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    middle = size / 2.0
+    p.drawEllipse(QtCore.QPointF(middle, middle), SUN_RING * size, SUN_RING * size)
+    for step in range(8):
+        angle = math.radians(step * 45)
+        across, down = math.cos(angle), math.sin(angle)
+        p.drawLine(QtCore.QPointF(middle + across * SUN_RAY_IN * size,
+                                  middle + down * SUN_RAY_IN * size),
+                   QtCore.QPointF(middle + across * SUN_RAY_OUT * size,
+                                  middle + down * SUN_RAY_OUT * size))
+    p.end()
+    return face
 
 
 def play_icon(size: int, colour: str, stop: bool = False) -> QtGui.QPixmap:
@@ -1409,6 +1456,15 @@ class MainWindow(QtWidgets.QWidget):
         lapis = QtGui.QColor(theme.palette().lapis)
         for pin in self.banner_pins:
             pin.setPixmap(trim_sides(map_pin(self.px(30), lapis)))
+        # AND THE BRIGHTNESS SUN, for the same reason and with the same dropping of the dead.
+        # It is drawn in the page's ink, which is the one colour that is certain to change
+        # when the theme does -- white on the dark page, black on the light one -- so a sun
+        # left alone is a sun the colour of the theme you just left.
+        self.brightness_suns = [s for s in getattr(self, "brightness_suns", ())
+                                if not sip_deleted(s)]
+        ink = QtGui.QColor(theme.palette().ink)
+        for sun in self.brightness_suns:
+            sun.setPixmap(sun_face(self.px(44), ink))
 
     def how_loud_it_looks(self) -> tuple[int, bool]:
         """The volume as the speaker draws it: how many arcs, and whether to cross it out.
@@ -2422,14 +2478,30 @@ class MainWindow(QtWidgets.QWidget):
                                   border:{px(2)}px solid {c.line}; border-radius:{px(10)}px;
                                   font-size:{px(22)}px; padding:{px(6)}px {px(14)}px; }}
             QPushButton#tongue:checked {{ background:{BRICK}; color:white; border-color:{BRICK}; }}
-            QSlider#brightness::groove:horizontal {{ height:{px(14)}px; background:{c.line};
-                                                     border-radius:{px(7)}px; }}
-            QSlider#brightness::sub-page:horizontal {{ background:{BRICK};
-                                                       border-radius:{px(7)}px; }}
-            QSlider#brightness::handle:horizontal {{ background:{c.strong};
-                                                     border:{px(2)}px solid {c.paper};
+            /* HARRY'S BRIGHTNESS SLIDER, 2.56. One rule for both of the versions he drew:
+               the box is the page's paper, everything on it is the page's ink. The part of
+               the bar behind the knob is filled solid and the part in front of it is drawn
+               as an outline -- which is what tells you how far there is left to go without
+               needing a second colour, and is exactly what his two pictures show. */
+            QFrame#brightnessBox {{ background:{c.paper}; border:{px(3)}px solid {c.ink};
+                                    border-radius:{px(26)}px; }}
+            QLabel#brightnessSun {{ background:transparent; border:none; }}
+            QLabel#brightnessRead {{ background:transparent; border:none; color:{c.ink};
+                                     font-size:{px(30)}px; font-weight:bold; }}
+            QSlider#brightness::groove:horizontal {{ height:{px(16)}px; background:transparent;
+                                                     border-radius:{px(8)}px; }}
+            QSlider#brightness::sub-page:horizontal {{ background:{c.ink};
+                                                       border:{px(3)}px solid {c.ink};
+                                                       border-radius:{px(8)}px; }}
+            /* Hollow, not a lighter fill: the far end of the bar is the page showing
+               through a line, so it reads the same on a white box and a black one. */
+            QSlider#brightness::add-page:horizontal {{ background:transparent;
+                                                       border:{px(3)}px solid {c.ink};
+                                                       border-radius:{px(8)}px; }}
+            QSlider#brightness::handle:horizontal {{ background:{c.ink};
+                                                     border:none;
                                                      width:{px(44)}px; height:{px(44)}px;
-                                                     margin:{-px(16)}px 0;
+                                                     margin:{-px(14)}px 0;
                                                      border-radius:{px(22)}px; }}
             /* The slider's own background, which the blanket QWidget rule paints paper-white.
                On the black banner that showed as a white rectangle with a bar across it rather
@@ -3018,6 +3090,13 @@ class MainWindow(QtWidgets.QWidget):
         # theme has to be redrawn when the theme does, or the pin keeps the old theme's blue.
         self.banner_pins = getattr(self, "banner_pins", [])
         self.banner_pins.append(pin)
+        # THE SECOND STRETCH, added at 2.56. There was one, after the times, and it was what
+        # the place name grew into. With a stretch on each side the block floats in the
+        # middle instead and the place name grows into both of them equally, which is what
+        # keeps it centred as the name changes length. The 28px above stays as the least the
+        # pin may come to the speaker if the name ever grows enough to squeeze the stretches
+        # flat -- a stretch can go to nothing, a spacing cannot.
+        row.addStretch(1)
         row.addWidget(pin, 0, Qt.AlignmentFlag.AlignVCenter)
         # TIGHT TO THE PIN. Harry: "in top banner, narrow the gap between location icon and
         # location text". The pin and the place name are one thing being read, not two.
@@ -3066,11 +3145,84 @@ class MainWindow(QtWidgets.QWidget):
             # accessible name and its tooltip, so a screen reader and a long press both still
             # say where it goes, in the language the mat is set to.
             row.addWidget(self.way_home_button(), 0, Qt.AlignmentFlag.AlignVCenter)
+        # THE PIN AND THE TIMES IN THE MIDDLE OF THE STRIP, SINCE 2.56.
+        #
+        # Harry, 26 November 2026: "can everything from the location icon to the end of isha
+        # text sit in the centre of the banner, equal distance on either side, entering
+        # another location still keeps everything in centre and distance on either side gets
+        # amended."
+        #
+        # Two equal stretches would NOT do it, and this is the whole of the problem. The ends
+        # of the strip are not the same weight: the speaker is one 70px square, and the other
+        # end carries a cog AND a house -- 144px with the gap between them. Equal stretches
+        # centre the block between its two NEIGHBOURS, which leaves it 37px right of the
+        # middle of the strip. Close enough to look like a mistake rather than a choice.
+        #
+        # So the lighter end is padded by the difference, and then two equal stretches put the
+        # block in the true centre: the gap from the left edge of the strip to the pin equals
+        # the gap from the end of Isha to the right edge. Measured off the widgets actually in
+        # this row, because which of them are there changes from screen to screen -- the main
+        # screen has a cog and no house, the corners have both.
+        #
+        # It mirrors by itself. In Arabic and Urdu the row is laid out the other way round,
+        # and "the lighter end" is still whichever end this arithmetic says it is: the
+        # arithmetic is in layout order and the mirroring flips the whole row together.
+        self.balance_the_strip(row, around=(pin, label))
         # Filled in now rather than at the next tick: see write_the_times. A strip built
         # between ticks -- which is every strip but the mosque's -- would otherwise come up
         # blank, and on a prayer's units that is a new one every time an arch is touched.
         self.write_the_times()
         return banner
+
+    @staticmethod
+    def balance_the_strip(row: QtWidgets.QHBoxLayout, around) -> None:
+        """Pad the lighter end of [row] so that [around] ends up centred in the whole width.
+
+        [around] is the run of widgets that should finish in the middle -- here the pin and
+        the times. Everything before the first of them is one end, everything after the last
+        is the other, and the two stretches already in the row share whatever is left. Equal
+        stretches with unequal ends centre the block between the ends and not in the strip,
+        so the shorter end is given the difference as fixed space first.
+        """
+        first, last = around[0], around[-1]
+        start = end = None
+        for index in range(row.count()):
+            if row.itemAt(index).widget() is first:
+                start = index
+            if row.itemAt(index).widget() is last:
+                end = index
+        if start is None or end is None:
+            return
+
+        def weigh(lo, hi):
+            total = 0
+            for index in range(lo, hi):
+                item = row.itemAt(index)
+                if item.widget() is not None:
+                    total += item.widget().sizeHint().expandedTo(
+                        item.widget().minimumSize()).width()
+                elif item.spacerItem() is not None and item.spacerItem().sizeHint().width() > 0:
+                    total += item.spacerItem().sizeHint().width()
+            return total + max(0, hi - lo - 1) * row.spacing()
+
+        before, after = weigh(0, start), weigh(end + 1, row.count())
+        if before == after:
+            return
+
+        # IT GIVES WAY BEFORE THE PLACE NAME DOES. insertSpacing makes a spacer that cannot
+        # shrink, and the first version of this used one: 74 fixed pixels taken out of the
+        # room the strip has for a long name. The suite caught it at once -- Arabic came down
+        # to 10px of slack against a floor of 40, with a place name people actually live at.
+        #
+        # So it is a Maximum spacer: 74 pixels when there is 74 to spare, less when there is
+        # not, nothing at all when the name needs all of it. The strip is then not quite
+        # centred, which is the right thing to lose. A centred strip with the end of Islamabad
+        # cut off it is worse than a strip a few pixels off centre, and the only person who
+        # could tell you that is the one whose town it is.
+        pad = QtWidgets.QSpacerItem(abs(after - before), 0,
+                                    QtWidgets.QSizePolicy.Policy.Maximum,
+                                    QtWidgets.QSizePolicy.Policy.Minimum)
+        row.insertItem(start if before < after else end + 1, pad)
 
     # The Knowledge Corner
 
@@ -5731,19 +5883,21 @@ class MainWindow(QtWidgets.QWidget):
         # parent reads the heading before deciding either way, and "Show this mat on the map"
         # answers the question that "MySalaah Community" did not.
         #
-        # IN THIS COLUMN AND NOT WITH THE OTHER SWITCHES. The right column already carries the
-        # recitation, the azaan, the brightness, the qibla and the four-row block of what the
-        # mat is attached to; the left ends at the credits with room under it.
+        # MOVED TO THE RIGHT COLUMN AT 2.56, which reverses where this was put when it was
+        # added. The note that stood here said it belonged in the left column because the
+        # right already carried the recitation, the azaan, the brightness and the rest, and
+        # the left ended at the credits with room under it. That was an argument about where
+        # there was SPACE.
+        #
+        # Harry, 26 November 2026: "move 'show on this mat on the map' option to just under
+        # the call to prayer option". Which is an argument about what the thing IS, and it
+        # wins: the azaan and the map switch are the two settings that reach outside the
+        # house, and a parent deciding about one is deciding about the other.
         #
         # NOTHING IS SENT ANYWHERE BY THIS RELEASE. There is no service yet and no address in
         # the app -- a test greps the shipped code to keep it that way. The switch records the
         # decision and creates or destroys the mat's name on the map (salaah/onthemap.py); the
         # heartbeat that would honour it comes later.
-        section(left, "settings.on_the_map")
-        left.addLayout(self.switch_row(self.settings.on_the_map,
-                                       lambda yes: self.set_on_the_map(yes),
-                                       "onTheMapSwitch"))
-
         section(left, "settings.sources")
         self.sources_button = no_focus(QtWidgets.QPushButton(self.t("sources.title")))
         self.sources_button.setObjectName("pill")
@@ -5752,6 +5906,45 @@ class MainWindow(QtWidgets.QWidget):
         left.addStretch(1)
 
         # Right column
+        # THE ORDER OF THIS COLUMN, SET AT 2.56. Harry: "move screen brightness option above
+        # play the recitation option" and "move 'show on this mat on the map' option to just
+        # under the call to prayer option". Which leaves:
+        #
+        #     brightness        -- the one that is nothing to do with sound
+        #     recitation        -- the two that decide whether the mat makes a noise,
+        #     call to prayer       together, as they have been since they were put together
+        #     on the map        -- the two that reach outside the house, likewise
+        #
+        # Read down, it is three pairs of like with like instead of four things in the order
+        # they happened to be written.
+        #
+        # NO HEADING AND NO EXPLANATION, SINCE 2.56, AND THEY WENT FOR DIFFERENT REASONS.
+        #
+        # The explanation went because Harry said so, 26 November 2026: "underneath
+        # brightness, you have descriptive text, not required, remove it" and, asked whether
+        # he wanted a shorter version: "no descriptive text required, leave out". It only
+        # ever showed on a mat whose monitor refuses brightness commands -- his does -- and
+        # what it said is that the slider is not doing what it looks like: the picture is
+        # veiled rather than the backlight lowered, so it looks dimmer and draws the same
+        # power. That is still true and the mat no longer says so. Written down here because
+        # it is the kind of thing asked again in a year.
+        #
+        # The HEADING went to make the page fit. Harry's reorder moved a block into the
+        # column that was already the longer one, and his new brightness control is taller
+        # than the bare slider it replaced; together they put the page 41px over an 800px
+        # screen, which a test has guarded since 1.95. Twenty of those came back by taking
+        # the padding out of the box. The last twenty-one were his choice between four, and
+        # he took this one: the control carries a sun and a percentage, so unlike every other
+        # setting on this page it says what it is without being told.
+        #
+        # IT IS STILL NAMED, just not in ink. The box answers to "Screen brightness" for
+        # anything that reads the screen rather than looks at it, which is the half of a
+        # heading that a drawing cannot replace.
+        #
+        # settings.brightness_veil is left in the nine packs, translated and unused. Deleting
+        # a sentence from nine languages to save nothing is the more expensive thing to undo.
+        right.addLayout(self.brightness_slider())
+
         if self.timings:
             # No explanation under it since 1.83. Harry: "remove the text under 'Play the
             # recitation' explaining, not required." It was three wrapped lines describing what
@@ -5767,17 +5960,18 @@ class MainWindow(QtWidgets.QWidget):
             # mat, not for whoever is praying on it. Start with --tap-timings to get at it.
 
         # Directly under the recitation: the two settings that decide whether the mat makes a
-        # sound now sit together, instead of one in each column with the page between them.
+        # sound sit together, instead of one in each column with the page between them.
         section(right, "settings.azaan")
         right.addLayout(self.switch_row(self.settings.azaan,
                                         lambda yes: self.set_azaan("1" if yes else "0"),
                                         "azaanSwitch"))
 
-        # No explanation when it works: a brightness slider explains itself. The words are for
-        # the case where it cannot do what it appears to, which is the one that needs saying.
-        section(right, "settings.brightness",
-                "" if self.backlight.available else self.t("settings.brightness_veil"))
-        right.addLayout(self.brightness_slider())
+        # And directly under the call to prayer, as of 2.56. See the note where this used to
+        # be, in the left column.
+        section(right, "settings.on_the_map")
+        right.addLayout(self.switch_row(self.settings.on_the_map,
+                                        lambda yes: self.set_on_the_map(yes),
+                                        "onTheMapSwitch"))
 
         if QIBLA:
             self.qibla_settings(right, section)
@@ -6372,6 +6566,41 @@ class MainWindow(QtWidgets.QWidget):
         that takes real instruction can sit anywhere on the range rather than at five stops."""
         from .backlight import LEAST
         row = QtWidgets.QHBoxLayout()
+
+        # IN A BOX, WITH A SUN AND THE FIGURE, SINCE 2.56. Harry, 26 November 2026: "i also
+        # want to replace the current screen brightness slider with the new one, i have
+        # enclosed 2 different theme versions."
+        #
+        # The two versions are one rule, the same rule his switch follows: the box is the
+        # page's own paper, everything on it -- the border, the sun, the bar, the knob, the
+        # figure -- is its ink. So the light page gets a white box with black lettering and
+        # the dark page a black one with white, and there is one thing to keep right rather
+        # than two pictures to keep in step.
+        #
+        # THE BOX IS WHAT MAKES THE SUN BELONG TO THE BAR. Loose on a settings page the sun
+        # would read as a heading beside an unrelated slider; the border says the three of
+        # them are one control, which is what his drawing says too.
+        box = QtWidgets.QFrame()
+        box.setObjectName("brightnessBox")
+        box.setAccessibleName(self.t("settings.brightness"))
+        inside = QtWidgets.QHBoxLayout(box)
+        # NO VERTICAL PADDING. The bar inside is already 56px tall -- a finger, not a mouse --
+        # and that height IS the box's height. Ten pixels above and below it bought nothing
+        # but twenty pixels of a settings page that has to fit an 800px screen without
+        # scrolling, and it very nearly did not.
+        inside.setContentsMargins(self.px(22), 0, self.px(22), 0)
+        inside.setSpacing(self.px(18))
+
+        sun = QtWidgets.QLabel()
+        sun.setObjectName("brightnessSun")
+        sun.setPixmap(sun_face(self.px(44), theme.palette().ink))
+        # KEPT, LIKE THE BANNER'S PIN. A pixmap is drawn once in the colour of the moment and
+        # does not follow a stylesheet, so it has to be drawn again when the theme changes or
+        # the sun stays the old theme's colour on the new theme's box.
+        self.brightness_suns = getattr(self, "brightness_suns", [])
+        self.brightness_suns.append(sun)
+        inside.addWidget(sun, 0, Qt.AlignmentFlag.AlignVCenter)
+
         bar = no_focus(QtWidgets.QSlider(Qt.Orientation.Horizontal))
         bar.setObjectName("brightness")
         bar.setRange(LEAST, 100)          # never to nothing: a dark mat cannot be turned back up
@@ -6380,12 +6609,14 @@ class MainWindow(QtWidgets.QWidget):
         bar.setValue(max(LEAST, min(100, self.settings.brightness)))
         bar.setMinimumHeight(self.px(56))     # a finger, not a mouse
         reading = QtWidgets.QLabel(f"{bar.value()}%")
-        reading.setObjectName("settingValue")
-        reading.setMinimumWidth(self.px(90))   # so the row does not twitch as the number changes
+        reading.setObjectName("brightnessRead")
+        reading.setMinimumWidth(self.px(110))  # so the box does not twitch as the number changes
+        reading.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bar.valueChanged.connect(lambda v: (reading.setText(f"{v}%"), self.set_brightness(v)))
         self.brightness_bar = bar
-        row.addWidget(bar, 1)
-        row.addWidget(reading)
+        inside.addWidget(bar, 1)
+        inside.addWidget(reading, 0, Qt.AlignmentFlag.AlignVCenter)
+        row.addWidget(box, 1)
         return row
 
     def set_azaan(self, v: str) -> None:

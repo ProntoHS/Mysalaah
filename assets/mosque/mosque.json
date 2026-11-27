@@ -1,112 +1,112 @@
 {
- "schema": 1,
- "image": "mosque.png",
- "drawn": "dark",
- "sky": true,
- "names": "drawn",
- "names_in_rtl": "same order",
- "size": [
-  1920,
-  1080
- ],
- "arches": {
-  "fajr": {
-   "box": [
-    178,
-    751,
-    455,
-    1040
-   ]
-  },
-  "dhuhr": {
-   "box": [
-    501,
-    751,
-    776,
-    1040
-   ]
-  },
-  "asr": {
-   "box": [
-    821,
-    751,
-    1099,
-    1040
-   ]
-  },
-  "maghrib": {
-   "box": [
-    1144,
-    751,
-    1421,
-    1040
-   ]
-  },
-  "isha": {
-   "box": [
-    1466,
-    752,
-    1742,
-    1040
-   ]
-  }
- },
- "text": {
-  "name": [
-   0.03,
-   0.518,
-   0.97,
-   0.842
-  ]
- },
- "clock": {
-  "box": [
-   696,
-   471,
-   1218,
-   630
-  ],
-  "ink": "dark"
- },
- "minarets": {
-  "left": [
-   63,
-   138,
-   176,
-   269
-  ],
-  "right": [
-   1745,
-   139,
-   1857,
-   270
-  ]
- },
- "images": {
-  "en": "mosque.png",
-  "fr": "mosque.fr.png",
-  "es": "mosque.es.png",
-  "ur": "mosque.ur.png",
-  "hi": "mosque.hi.png",
-  "zh": "mosque.zh.png",
-  "ar": "mosque.ar.png",
-  "bn": "mosque.bn.png",
-  "ru": "mosque.ru.png",
-  "pt": "mosque.pt.png"
- },
- "colour": {
-  "image": "mosque-colour.png",
-  "images": {},
+  "schema": 1,
+  "image": "mosque.png",
   "drawn": "dark",
-  "names": "app",
+  "sky": true,
+  "names": "drawn",
+  "names_in_rtl": "same order",
+  "size": [
+    1920,
+    1080
+  ],
+  "arches": {
+    "fajr": {
+      "box": [
+        178,
+        751,
+        455,
+        1040
+      ]
+    },
+    "dhuhr": {
+      "box": [
+        501,
+        751,
+        776,
+        1040
+      ]
+    },
+    "asr": {
+      "box": [
+        821,
+        751,
+        1099,
+        1040
+      ]
+    },
+    "maghrib": {
+      "box": [
+        1144,
+        751,
+        1421,
+        1040
+      ]
+    },
+    "isha": {
+      "box": [
+        1466,
+        752,
+        1742,
+        1040
+      ]
+    }
+  },
   "text": {
-   "label": [
-    0.518,
-    0.842
-   ]
+    "name": [
+      0.03,
+      0.518,
+      0.97,
+      0.842
+    ]
   },
   "clock": {
-   "ink": "light"
+    "box": [
+      696,
+      426,
+      1218,
+      585
+    ],
+    "ink": "dark"
+  },
+  "minarets": {
+    "left": [
+      63,
+      138,
+      176,
+      269
+    ],
+    "right": [
+      1745,
+      139,
+      1857,
+      270
+    ]
+  },
+  "images": {
+    "en": "mosque.png",
+    "fr": "mosque.fr.png",
+    "es": "mosque.es.png",
+    "ur": "mosque.ur.png",
+    "hi": "mosque.hi.png",
+    "zh": "mosque.zh.png",
+    "ar": "mosque.ar.png",
+    "bn": "mosque.bn.png",
+    "ru": "mosque.ru.png",
+    "pt": "mosque.pt.png"
+  },
+  "colour": {
+    "image": "mosque-colour.png",
+    "images": {},
+    "drawn": "dark",
+    "names": "app",
+    "text": {
+      "label": [
+        0.518,
+        0.842
+      ]
+    },
+    "clock": {
+      "ink": "light"
+    }
   }
- }
 }

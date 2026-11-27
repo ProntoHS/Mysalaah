@@ -1028,21 +1028,55 @@ class Switch(QtWidgets.QAbstractButton):
         self.setFixedSize(self.sizeHint())
         self.update()
 
+    #: How thick the rim round the switch is, as a share of its height.
+    RIM = 0.07
+
     def paintEvent(self, _):
+        """Harry's switch, 26 November 2026: a plain pill with a plain knob, in the mat's own
+        two colours rather than in blue.
+
+        He sent two pictures and described them by THEME, not by state: "there is 2 different
+        versions, one for light and the black background & white circle for the dark /
+        coloured theme." Which is the reading the pictures bear out -- taken as two states
+        they contradict themselves, the filled one having its knob on the left where a
+        switch that is on would have it on the right.
+
+        So one rule serves both: the pill is the page's own paper, the knob and the rim are
+        its ink. On the light theme that is exactly his second picture -- white pill, black
+        edge, black knob. On the dark and coloured themes it is his first -- a black pill
+        with a white knob.
+
+        THE RIM IS NOT IN HIS DRAWING AND IS NOT DECORATION. His dark switch is a black pill,
+        drawn on the white page of a picture. The mat's dark page is near-black, and a black
+        pill on it is not a switch, it is a white dot floating in the dark with no indication
+        of how far it can travel or that there is anything to press. The rim is the edge of
+        the pill, in the same ink as the knob, and on the light theme it is the edge his own
+        drawing has.
+
+        WHAT THIS GIVES UP, which is worth saying rather than discovering later: the colour
+        was doing work. Blue for on and grey for off could be read across a room without
+        reading anything; two identical pills differing only in which end the knob sits at
+        cannot. What carries it now is the knob's position and the word beside it, which
+        switch_row has always drawn and which was put there for exactly this reason -- "the
+        mat is read from a few feet away and a knob on its own is a small thing to judge at
+        that distance".
+        """
         colours = palette()
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        box = QtCore.QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        rim = max(1.0, self.RIM * self.height())
+        box = QtCore.QRectF(self.rect()).adjusted(rim / 2, rim / 2, -rim / 2, -rim / 2)
         radius = box.height() / 2
-        painter.setPen(Qt.PenStyle.NoPen)
-        # On: filled with the blue everything active is in. Off: the same grey as a border, so
-        # it reads as a thing that is off rather than a thing that is broken.
-        painter.setBrush(QtGui.QColor(colours.lapis if self.isChecked() else colours.line))
+        pen = QtGui.QPen(QtGui.QColor(colours.ink))
+        pen.setWidthF(rim)
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QColor(colours.paper))
         painter.drawRoundedRect(box, radius, radius)
         edge = max(1.0, self.EDGE * self.scale)
         knob = box.height() - 2 * edge
         left = box.right() - edge - knob if self.isChecked() else box.left() + edge
-        painter.setBrush(QtGui.QColor(colours.paper))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QtGui.QColor(colours.ink))
         painter.drawEllipse(QtCore.QRectF(left, box.top() + edge, knob, knob))
 
 

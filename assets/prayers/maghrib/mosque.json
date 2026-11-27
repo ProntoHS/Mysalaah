@@ -1,62 +1,62 @@
 {
- "schema": 1,
- "image": "mosque.png",
- "drawn": "dark",
- "sky": true,
- "size": [
-  1920,
-  1080
- ],
- "arches": {
-  "1": {
-   "box": [
-    234,
-    750,
-    662,
-    1039
-   ]
-  },
-  "2": {
-   "box": [
-    744,
-    749,
-    1176,
-    1039
-   ]
-  },
-  "3": {
-   "box": [
-    1258,
-    750,
-    1686,
-    1039
-   ]
-  }
- },
- "text": {
-  "number": [
-   0.3,
-   0.56
-  ],
-  "label": [
-   0.63,
-   0.86
-  ]
- },
- "clock": {
-  "box": [
-   695,
-   471,
-   1217,
-   630
-  ],
-  "ink": "dark"
- },
- "colour": {
-  "image": "mosque-colour.png",
+  "schema": 1,
+  "image": "mosque.png",
   "drawn": "dark",
+  "sky": true,
+  "size": [
+    1920,
+    1080
+  ],
+  "arches": {
+    "1": {
+      "box": [
+        234,
+        750,
+        662,
+        1039
+      ]
+    },
+    "2": {
+      "box": [
+        744,
+        749,
+        1176,
+        1039
+      ]
+    },
+    "3": {
+      "box": [
+        1258,
+        750,
+        1686,
+        1039
+      ]
+    }
+  },
+  "text": {
+    "number": [
+      0.3,
+      0.56
+    ],
+    "label": [
+      0.63,
+      0.86
+    ]
+  },
   "clock": {
-   "ink": "light"
+    "box": [
+      695,
+      426,
+      1217,
+      585
+    ],
+    "ink": "dark"
+  },
+  "colour": {
+    "image": "mosque-colour.png",
+    "drawn": "dark",
+    "clock": {
+      "ink": "light"
+    }
   }
- }
 }
