@@ -339,6 +339,7 @@
   "settings.qibla_bearing": "उत्तर से {degrees}°। क़ुतुबनुमा: {compass}",
   "settings.qibla_not_at_start": "न दिखाएँ",
   "settings.recitation": "तिलावत चलाएँ",
+  "settings.reset_scores": "सर्वोच्च स्कोर रीसेट करें",
   "settings.restarting": "बदलाव लागू करने के लिए फिर से शुरू हो रहा है…",
   "settings.sleep_after": "इतनी देर बाद स्लीप",
   "settings.sources": "स्रोत",

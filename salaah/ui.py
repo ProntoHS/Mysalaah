@@ -218,6 +218,215 @@ class ClosesWhenNobodyTouchesIt(QtCore.QObject):
         return False
 
 
+class Hourglass(QtWidgets.QWidget):
+    """An hourglass that empties as the update arrives, and turns over when it is full.
+
+    IT IS DRIVEN BY THE DOWNLOAD, NOT BY A TIMER, and that is the design rather than a
+    detail. The update runs on the UI thread -- apply_update says so in as many words, and
+    moving it off is a far larger change because the whole update path assumes it owns the
+    app. A QTimer cannot fire while that thread is inside install(), so a timer-driven
+    spinner would stand perfectly still for the entire download: a frozen spinner on a frozen
+    screen says "this has crashed" much louder than no spinner says anything.
+
+    IT DOES NOT SPIN, AND HARRY ASKED FOR SPINNING. "could i have a spinning hourglass in the
+    top right of the pop up box". It was built that way first and then looked at, and a small
+    hourglass at an arbitrary angle is not an hourglass -- it is a scribble. Rendered at
+    92px, six frames in a row, the shape was unreadable at every angle except upright, with
+    or without end caps. What is here instead stays upright, where it is unmistakable, and
+    moves by DRAINING: the sand falls from the top chamber into the bottom as the bytes
+    arrive, and when the bottom is full it turns over and starts again.
+
+    That is better than the spin in a way worth having rather than merely different. A
+    spinner says only "something is happening". This says HOW FAR ALONG IT IS -- the release
+    manifest carries the byte count, so the sand level is the real fraction of a real
+    download -- and it still says it without a single word, so there is nothing to translate.
+    If Harry would rather have the spin back, it is the two lines in paintEvent that were
+    taken out.
+    """
+
+    #: How often it is allowed to repaint, in milliseconds. A 137MB release arrives in about
+    #: two thousand 64KB lumps, and repainting on every one would have the mat spending its
+    #: time drawing an hourglass instead of reading its wifi.
+    EVERY = 80
+
+    #: How much sand a turn of unknown length moves per call, when nothing has told us how
+    #: big the job is -- unpacking, or a release whose manifest carries no byte count.
+    BLIND_STEP = 0.004
+
+    def __init__(self, size: int):
+        super().__init__()
+        self.setFixedSize(size, size)
+        self.run = 0.0              # 0 full at the top, 1 all fallen through
+        self.painted = 0.0
+        self.known = False          # whether `run` is a real fraction or just motion
+
+    def showing(self, got: int = 0, total: int = 0) -> None:
+        """Called as the work goes on. With a total, the sand is the true fraction; without
+        one it simply keeps falling, so the glass still moves while a zip is unpacked.
+
+        Must be cheap and must never raise: an hourglass is not allowed to be the reason an
+        update fails.
+        """
+        if total > 0:
+            self.known = True
+            self.run = min(1.0, max(0.0, got / total))
+        else:
+            self.run = (self.run + self.BLIND_STEP) % 1.0
+        now = time.monotonic()
+        if now - self.painted < self.EVERY / 1000:
+            return
+        self.painted = now
+        self.update()
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            # The download owns this thread. Without this the repaint is queued and never
+            # delivered until the whole update is over, which is the thing being fixed.
+            app.processEvents(QtCore.QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+
+    def paintEvent(self, _event):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        side = min(self.width(), self.height())
+        painter.translate(self.width() / 2, self.height() / 2)
+        white = QtGui.QColor("#FFFFFF")
+        half, neck = side * 0.29, side * 0.035
+        cap, lip = side * 0.36, side * 0.08
+        wide = half * 1.18
+
+        # The two end caps. Without them the glass reads as a bow tie.
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(white)
+        painter.drawRoundedRect(QtCore.QRectF(-cap, -half - lip, cap * 2, lip),
+                                lip / 2, lip / 2)
+        painter.drawRoundedRect(QtCore.QRectF(-cap, half, cap * 2, lip), lip / 2, lip / 2)
+
+        upper = QtGui.QPolygonF([QtCore.QPointF(-wide, -half), QtCore.QPointF(wide, -half),
+                                 QtCore.QPointF(neck, 0), QtCore.QPointF(-neck, 0)])
+        lower = QtGui.QPolygonF([QtCore.QPointF(-neck, 0), QtCore.QPointF(neck, 0),
+                                 QtCore.QPointF(wide, half), QtCore.QPointF(-wide, half)])
+
+        # THE SAND, clipped to each chamber so it cannot draw outside the glass. The top
+        # empties from its own top down; the bottom fills from its floor up.
+        left = 1.0 - self.run
+        painter.setBrush(white)
+        if left > 0.01:
+            painter.save()
+            shape = QtGui.QPainterPath()
+            shape.addPolygon(upper)
+            painter.setClipPath(shape)
+            painter.drawRect(QtCore.QRectF(-wide, -half * left, wide * 2, half * left + 1))
+            painter.restore()
+        if self.run > 0.01:
+            painter.save()
+            shape = QtGui.QPainterPath()
+            shape.addPolygon(lower)
+            painter.setClipPath(shape)
+            painter.drawRect(QtCore.QRectF(-wide, half - half * self.run,
+                                           wide * 2, half * self.run + 1))
+            painter.restore()
+            # A thread of sand still falling, while there is any left to fall.
+            if left > 0.01:
+                painter.drawRect(QtCore.QRectF(-neck * 0.5, 0, neck, half * 0.9))
+
+        # The glass itself, over the sand.
+        pen = QtGui.QPen(white)
+        pen.setWidthF(max(1.5, side * 0.065))
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPolygon(QtGui.QPolygonF([
+            QtCore.QPointF(-wide, -half), QtCore.QPointF(wide, -half),
+            QtCore.QPointF(neck, 0), QtCore.QPointF(wide, half),
+            QtCore.QPointF(-wide, half), QtCore.QPointF(-neck, 0)]))
+        painter.end()
+
+
+#: How long "Reset high scores" has to be held before it does anything.
+HOLD_TO_BE_SURE = 2000
+
+
+class HoldToBeSure(QtWidgets.QPushButton):
+    """A button that does nothing until it has been held down for two seconds, and fills from
+    the left while it is being held so that the holding is visibly doing something.
+
+    THIS IS AN "ARE YOU SURE" BOX THAT COSTS ONE STRING INSTEAD OF THREE. A dialog needs a
+    question and two answers, and this mat carries ten language packs of which nine are
+    translated by nobody qualified -- so three sentences is thirty entries and twenty-seven
+    unchecked ones, to guard a child's game scores. A hold cannot happen by accident, which is
+    the only thing the dialog was for.
+
+    It emits `held` once and then resets. Letting go early is simply nothing happening, with
+    no message to say so: the bar going back down says it.
+    """
+
+    held = Signal()
+
+    TICK = 40
+
+    def __init__(self, text: str, how_long: int = HOLD_TO_BE_SURE):
+        super().__init__(text)
+        self.how_long = how_long
+        self.filled = 0.0
+        self.since = 0.0
+        self.clock = QtCore.QTimer(self)
+        self.clock.setInterval(self.TICK)
+        self.clock.timeout.connect(self._fill)
+
+    def _fill(self) -> None:
+        # MEASURED AGAINST THE CLOCK, NOT COUNTED IN TICKS. Adding TICK/how_long each time
+        # assumes the timer fires exactly every TICK milliseconds, which ties the length of
+        # the hold to the timer's interval: change one and the other silently changes with
+        # it. It also makes the hold longer than it should be on a busy Pi, where a 40ms
+        # timer does not fire every 40ms. The credits crawl keeps its position as a float
+        # for the same reason, and this one was written the wrong way first -- it made my own
+        # test read a half-finished hold as empty, because the hold had already finished.
+        gone = (time.monotonic() - self.since) * 1000
+        self.filled = min(1.0, gone / max(1, self.how_long))
+        self.update()
+        if self.filled >= 1.0:
+            self.clock.stop()
+            self.filled = 0.0
+            self.update()
+            self.held.emit()
+
+    def _let_go(self) -> None:
+        self.clock.stop()
+        self.filled = 0.0
+        self.update()
+
+    def mousePressEvent(self, event):
+        self.filled = 0.0
+        self.since = time.monotonic()
+        self.clock.start()
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        # Deliberately NOT calling the base class's click: a tap on this button is a tap that
+        # did not finish, and the whole point is that it does nothing.
+        self._let_go()
+        event.accept()
+
+    def leaveEvent(self, event):
+        self._let_go()
+        super().leaveEvent(event)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.filled <= 0:
+            return
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        c = theme.palette()
+        across = round(self.width() * self.filled)
+        shape = QtGui.QPainterPath()
+        shape.addRoundedRect(QtCore.QRectF(self.rect()), self.height() / 2, self.height() / 2)
+        painter.setClipPath(shape)
+        tint = QtGui.QColor(c.progress_fill)
+        tint.setAlpha(90)
+        painter.fillRect(QtCore.QRect(0, 0, across, self.height()), tint)
+        painter.end()
+
+
 #: How fast "Where the words come from" takes itself to the bottom, in pixels a second, and
 #: how long it waits before setting off. Harry, 27 November 2026: "can it auto scroll to the
 #: bottom slowly and stop."
@@ -778,9 +987,23 @@ class Notice(QtWidgets.QDialog):
         lay.setContentsMargins(px(44), px(40), px(44), px(36))
         lay.setSpacing(px(20))
 
+        # THE TITLE AND, AT THE FAR END OF IT, AN HOURGLASS. Harry, 28 November 2026: "when
+        # applying update & the pop up box appears when downloading update, could i have a
+        # spinning hourglass in the top right of the pop up box, this will give a visual
+        # indication that it is being downloaded and be patient."
+        #
+        # It is hidden until something asks for it, so every other notice in the app looks
+        # exactly as it did.
+        crown = QtWidgets.QHBoxLayout()
+        crown.setContentsMargins(0, 0, 0, 0)
         head = QtWidgets.QLabel(title)
         head.setObjectName("noticeTitle")
-        lay.addWidget(head)
+        crown.addWidget(head)
+        crown.addStretch(1)
+        self.hourglass = Hourglass(px(46))
+        self.hourglass.hide()
+        crown.addWidget(self.hourglass, 0, Qt.AlignmentFlag.AlignTop)
+        lay.addLayout(crown)
 
         self.text = QtWidgets.QLabel("")
         self.text.setObjectName("noticeText")
@@ -4797,6 +5020,31 @@ class MainWindow(QtWidgets.QWidget):
     def qibla_bearing(self) -> float:
         return bearing_to_kaaba(self.settings.latitude, self.settings.longitude)
 
+    def refresh_reset(self) -> None:
+        """Show the reset button only when there is something it could reset."""
+        button = getattr(self, "reset_scores_button", None)
+        if button is None or sip_deleted(button):
+            return
+        button.setVisible(bool(getattr(self.settings, "maze_records", None)))
+
+    def wipe_the_high_scores(self) -> None:
+        """Clear every speed-run board, and write that down.
+
+        PERSISTED THE SAME WAY THE SCORES ARE, through persist(), which is the bug 2.59
+        shipped: a reset that only emptied memory would come back from the dead at the next
+        start, which is a worse fault than the one it would be repeating -- a person would
+        believe the scores were gone.
+        """
+        self.settings.maze_records = {}
+        self.persist()
+        self.refresh_reset()
+        # The game may be built and sitting behind this page with a board on its panel.
+        game = self.games.get("mosque") if hasattr(self, "games") else None
+        if game is not None and not sip_deleted(game):
+            shower = getattr(game, "_show_the_clock", None)
+            if callable(shower):
+                shower()
+
     def start_watching_the_packages(self) -> None:
         """Count what the Pi's own software has outstanding, two minutes from now and once a
         day after that, and write one line about it into the journal.
@@ -6187,6 +6435,29 @@ class MainWindow(QtWidgets.QWidget):
         self.sources_button.setObjectName("pill")
         self.sources_button.clicked.connect(self.open_sources)
         left.addWidget(self.sources_button)
+
+        # RESET HIGH SCORES. Harry, 28 November 2026: "an option in settings should be added
+        # to 'reset high scores'."
+        #
+        # NO HEADING, AND THAT IS THE PAGE'S DOING RATHER THAN A STYLE CHOICE. Measured, the
+        # left column ends at 733 against a 852 viewport in Chinese -- 119 pixels of room --
+        # and a heading with a button under it is about 130. The button's own words say what
+        # it is, which is more than most headings manage, so the heading is what gives way.
+        #
+        # IT IS HELD RATHER THAN PRESSED, and that is instead of an "are you sure" box. A
+        # confirmation needs a question and two buttons: three sentences in ten packs, nine of
+        # them translated by nobody qualified, to guard a child's game scores. A two-second
+        # hold costs one string, cannot be done by accident, and shows what it is doing while
+        # it does it. If Harry would rather it were a plain tap, that is one line.
+        #
+        # It is not here at all until there is something to reset -- see refresh_reset. A
+        # button that does nothing is worse than no button, and on a fresh mat it would be
+        # the only thing on this page that could not be used.
+        self.reset_scores_button = no_focus(HoldToBeSure(self.t("settings.reset_scores")))
+        self.reset_scores_button.setObjectName("pill")
+        self.reset_scores_button.held.connect(self.wipe_the_high_scores)
+        left.addWidget(self.reset_scores_button)
+        self.refresh_reset()
         left.addStretch(1)
 
         # Right column
@@ -6488,13 +6759,36 @@ class MainWindow(QtWidgets.QWidget):
         """
         from .update import Refused, install
         self.say(self.t("update.downloading", number=release.version))
+        # THE HOURGLASS IS TURNED BY THE DOWNLOAD ITSELF. Nothing of ours can move while
+        # install() has this thread, so a timer-driven spinner would be frozen for the whole
+        # of it -- which reads as a crash rather than as patience. install() calls this back
+        # once per 64KB lump instead, so the glass turns because bytes are arriving, and
+        # stops if they stop.
+        glass = self.notice.hourglass if self.notice is not None else None
+        if glass is not None:
+            glass.show()
         try:
-            install(release, self.root, stage=self.update_stage)
+            size = int(getattr(release, "bytes", 0) or 0)
+            install(release, self.root, stage=self.update_stage,
+                    tick=(lambda got: glass.showing(got, size)) if glass is not None else None)
         except Refused as why:
             # Nothing has been changed: install() only swaps once everything has checked out.
+            self.put_the_glass_away()
             return self.done_saying(self.t("update.failed", why=str(why)))
+        # NOTHING IS TURNING IT FROM HERE ON, so it goes. A still hourglass over "could not
+        # update" or "starting the new version" is the frozen-spinner fault this was built to
+        # avoid, just at the other end of the job.
+        self.put_the_glass_away()
         self.say(self.t("update.restarting"))
         QtCore.QTimer.singleShot(1200, self.restart)
+
+    def put_the_glass_away(self) -> None:
+        notice = getattr(self, "notice", None)
+        if notice is None or sip_deleted(notice):
+            return
+        glass = getattr(notice, "hourglass", None)
+        if glass is not None and not sip_deleted(glass):
+            glass.hide()
 
     #: What install() calls its stages, and what the mat says while each one runs. A stage
     #: with no entry here says nothing rather than raising: an updater that grew a fourth step

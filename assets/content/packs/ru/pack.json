@@ -339,6 +339,7 @@
   "settings.qibla_bearing": "{degrees}° от севера. Компас: {compass}",
   "settings.qibla_not_at_start": "Не показывать",
   "settings.recitation": "Воспроизводить чтение",
+  "settings.reset_scores": "Сбросить рекорды",
   "settings.restarting": "Перезапуск, чтобы изменение вступило в силу…",
   "settings.sleep_after": "Засыпать через",
   "settings.sources": "Источники",

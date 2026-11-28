@@ -6345,7 +6345,7 @@ class OneBoxAtATimeWhileUpdatingTest(unittest.TestCase):
         """The fault itself, as the person met it."""
         w = self.window()
         counted = []
-        def work(release, root, opener=None, stage=None):
+        def work(release, root, opener=None, stage=None, tick=None):
             stage("downloading", release); counted.append(len(self.boxes(w)))
             stage("installing", release);  counted.append(len(self.boxes(w)))
         self.run_update(w, work)
@@ -6357,7 +6357,7 @@ class OneBoxAtATimeWhileUpdatingTest(unittest.TestCase):
     def test_the_box_says_downloading_while_it_downloads(self):
         w = self.window()
         said = {}
-        def work(release, root, opener=None, stage=None):
+        def work(release, root, opener=None, stage=None, tick=None):
             stage("downloading", release)
             said["while downloading"] = self.boxes(w)[0].text.text()
             stage("installing", release)
@@ -6379,7 +6379,7 @@ class OneBoxAtATimeWhileUpdatingTest(unittest.TestCase):
         from salaah.qt import QtGui
         w = self.window()
         drawn = {}
-        def work(release, root, opener=None, stage=None):
+        def work(release, root, opener=None, stage=None, tick=None):
             stage("downloading", release)
             box = self.boxes(w)[0]
             shot = QtGui.QImage(box.size(), QtGui.QImage.Format.Format_ARGB32)
@@ -6421,7 +6421,7 @@ class OneBoxAtATimeWhileUpdatingTest(unittest.TestCase):
         """
         w = self.window()
         when = {}
-        def work(release, root, opener=None, stage=None):
+        def work(release, root, opener=None, stage=None, tick=None):
             when["offer still held"] = w.notice is offer
         import salaah.update
         was = salaah.update.install
@@ -28201,6 +28201,42 @@ class TheSpeedRunOnTheSevenInchTest(unittest.TestCase):
         self.assertGreater(screen.clock.font().pixelSize(), screen.title.font().pixelSize(),
                            "the title is set larger than the clock")
 
+    def test_a_finished_run_is_written_to_the_disk_and_not_just_remembered(self):
+        """THE TEST 2.59 SHOULD HAVE HAD. What it had instead asked whether the time was in
+        settings.maze_records, which is memory, and passed happily while the save line called
+        a name that was not a method -- `save_settings` is a bool on the window, `persist` is
+        the method -- so nothing was ever written and every record died at the next power cut.
+        Harry found it overnight: "if i power down / restart, the time record is gone."
+
+        Spying on persist() rather than looking for a file, because every window the suite
+        builds is made with save_settings=False precisely so that it cannot touch the real
+        ~/.config. The companion test in test_core takes the other half and writes a real file
+        to a temp path. Between them: the call happens, and what it writes survives.
+        """
+        w, screen = self.opened()
+        saves = []
+        real = w.persist
+        w.persist = lambda: (saves.append(dict(w.settings.maze_records)), real())[1]
+        self.assertTrue(self.walk_it(screen), "the journey could not be walked")
+        self.assertTrue(saves, "the run finished and nothing was ever saved to disk")
+        self.assertIn("hedge", saves[-1],
+                      f"the save happened before the time was recorded: {saves[-1]}")
+
+    def test_an_interrupted_run_is_not_written_either(self):
+        """The other side of it: a marked run must not reach the disk any more than it
+        reaches the board."""
+        w, screen = self.opened()
+        saves = []
+        w.persist = lambda: saves.append(1)
+        from itertools import count
+        ticks = count(1000.0, 0.5)
+        screen.game.now = lambda: next(ticks)
+        screen.game.walk_to(screen.game.nearest_objective())
+        screen.game.step()
+        screen.game.spoil()
+        self.assertTrue(self.walk_it(screen))
+        self.assertEqual([], saves, "an interrupted run was written to the disk")
+
     def test_a_finished_run_goes_on_the_board_and_comes_back_next_time(self):
         w, screen = self.opened()
         self.assertTrue(self.walk_it(screen), "the journey could not be walked")
@@ -28280,3 +28316,217 @@ class TheSpeedRunOnTheSevenInchTest(unittest.TestCase):
             settle()
         self.assertEqual(1, len(w.settings.maze_records["hedge"]["times"]),
                          "the same run went on the board more than once")
+
+
+class ResettingTheHighScoresTest(unittest.TestCase):
+    """Harry, 28 November 2026: "an option in settings should be added to 'reset high
+    scores'." """
+
+    RECORDS = {"hedge": {"maze": "a", "times": [38.9, 39.4, 41.2]},
+               "city": {"maze": "b", "times": [61.0]},
+               "cloud": {"maze": "c", "times": [55.5, 57.1]}}
+
+    def window(self, records=None, lang="en"):
+        s = Settings(theme="light", recitation=False, place="Bury", lang=lang)
+        s.maze_records = dict(records or {})
+        w = MainWindow(load(ASSETS), available_packs(ASSETS), s,
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        w.begin()
+        settle()
+        w.open_settings()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    @staticmethod
+    def hold(button, ms):
+        press = QtGui.QMouseEvent(QtCore.QEvent.Type.MouseButtonPress,
+                                  QtCore.QPointF(10, 10), QtCore.QPointF(10, 10),
+                                  Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                                  Qt.KeyboardModifier.NoModifier)
+        APP.sendEvent(button, press)
+        end = time.monotonic() + ms / 1000
+        while time.monotonic() < end:
+            APP.processEvents()
+            QtCore.QThread.msleep(3)
+
+    @staticmethod
+    def let_go(button):
+        APP.sendEvent(button, QtGui.QMouseEvent(
+            QtCore.QEvent.Type.MouseButtonRelease, QtCore.QPointF(10, 10),
+            QtCore.QPointF(10, 10), Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier))
+        settle()
+
+    def test_it_is_not_there_until_there_is_something_to_reset(self):
+        """A button that cannot do anything is worse than no button, and on a fresh mat it
+        would be the only thing on this page that does nothing when pressed."""
+        self.assertFalse(self.window().reset_scores_button.isVisible(),
+                         "a mat with no scores is offering to reset them")
+        self.assertTrue(self.window(self.RECORDS).reset_scores_button.isVisible(),
+                        "a mat with scores is not offering to reset them")
+
+    def test_a_tap_does_nothing_at_all(self):
+        """THE POINT OF THE HOLD. This stands in for an "are you sure" box, which would have
+        cost a question and two answers in ten packs -- thirty entries, twenty-seven of them
+        translated by nobody qualified -- to guard a child's game scores."""
+        w = self.window(self.RECORDS)
+        button = w.reset_scores_button
+        self.hold(button, 60)
+        self.let_go(button)
+        self.assertEqual(self.RECORDS, w.settings.maze_records,
+                         "a tap wiped the high scores")
+
+    def test_holding_it_clears_every_board_and_writes_that_down(self):
+        w = self.window(self.RECORDS)
+        button = w.reset_scores_button
+        button.how_long = 150
+        saves = []
+        w.persist = lambda: saves.append(dict(w.settings.maze_records))
+        self.hold(button, 320)
+        self.assertEqual({}, w.settings.maze_records, "the boards were not cleared")
+        self.assertTrue(saves, "the boards were cleared in memory only")
+        self.assertEqual({}, saves[-1], "it saved before it cleared")
+        self.assertFalse(button.isVisible(), "it is still offering to reset nothing")
+
+    def test_letting_go_early_leaves_the_scores_alone_and_empties_the_bar(self):
+        w = self.window(self.RECORDS)
+        button = w.reset_scores_button
+        button.how_long = 400
+        self.hold(button, 150)
+        self.assertGreater(button.filled, 0, "nothing showed while it was being held")
+        self.let_go(button)
+        self.assertEqual(0.0, button.filled, "the bar stayed filled after letting go")
+        self.assertEqual(self.RECORDS, w.settings.maze_records,
+                         "letting go early still wiped the scores")
+
+    def test_the_hold_is_measured_against_the_clock_not_counted_in_ticks(self):
+        """Written the wrong way first. Adding TICK/how_long per tick ties the length of the
+        hold to the timer's interval -- change one and the other silently changes with it --
+        and makes the hold longer than asked on a busy Pi, where a 40ms timer does not fire
+        every 40ms. It also made my own check read a half-finished hold as empty."""
+        from salaah.ui import HoldToBeSure
+        button = HoldToBeSure("x", how_long=400)
+        button.clock.setInterval(5)             # five times as often as it was built for
+        button.show()
+        self.addCleanup(button.close)
+        settle()
+        self.hold(button, 200)
+        self.assertTrue(0.3 < button.filled < 0.7,
+                        f"halfway through a 400ms hold it reads {button.filled:.2f}; "
+                        "the fill is following the tick rather than the clock")
+
+    def test_the_settings_page_still_fits_in_every_language_with_it_showing(self):
+        """THE GUARD THE OTHER LAYOUT TESTS CANNOT BE. Every one of them builds a window with
+        no records, so the button is hidden and they have never seen this page. Adding a row
+        to a page that had 119 pixels of headroom in Chinese, untested, is how 2.57 put the
+        settings 7px over an 1080 screen without anything going red.
+        """
+        for lang in sorted(available_packs(ASSETS)):
+            with self.subTest(lang):
+                w = self.window(self.RECORDS, lang=lang)
+                self.assertTrue(w.reset_scores_button.isVisible())
+                body = w.settings_scroll.widget()
+                room = w.settings_scroll.viewport().height()
+                self.assertLessEqual(body.sizeHint().height(), room,
+                                     f"settings scrolls in {lang} once the reset is showing")
+
+
+class TheHourglassOnTheUpdateBoxTest(unittest.TestCase):
+    """Harry, 28 November 2026: "when applying update & the pop up box appears when
+    downloading update, could i have a spinning hourglass in the top right of the pop up box,
+    this will give a visual indication that it is being downloaded and be patient."
+
+    IT DRAINS RATHER THAN SPINS, which is a deviation from what was asked and was told to
+    him as one. Built spinning first and then rendered: a small hourglass at an arbitrary
+    angle is not an hourglass, it is a scribble, and only the upright frame was readable.
+    Upright and draining is legible, and because the release manifest carries the byte count
+    the sand is the real fraction of a real download rather than an animation.
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="dark", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None)
+        w.resize(1920, 1080)
+        w.show()
+        settle()
+        w.begin()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_it_sits_in_the_top_right_of_the_box_and_is_hidden_until_wanted(self):
+        w = self.window()
+        w.say("Downloading…")
+        settle()
+        glass = w.notice.hourglass
+        self.assertFalse(glass.isVisible(), "every other notice now carries an hourglass")
+        glass.show()
+        settle()
+        self.assertGreater(glass.x(), w.notice.width() / 2, "it is not on the right")
+        self.assertLess(glass.y(), w.notice.height() / 2, "it is not at the top")
+
+    def test_the_sand_follows_the_download_rather_than_a_clock(self):
+        """The whole design. The update owns the UI thread -- apply_update says so -- so a
+        QTimer cannot fire during the download and a timer-driven spinner would stand still
+        for all of it. A frozen spinner on a frozen screen reads as a crash."""
+        from salaah.ui import Hourglass
+        glass = Hourglass(60)
+        glass.show()
+        self.addCleanup(glass.close)
+        settle()
+        seen = []
+        for got in (0, 250, 500, 750, 1000):
+            glass.painted = 0
+            glass.showing(got, 1000)
+            seen.append(glass.run)
+        self.assertEqual([0.0, 0.25, 0.5, 0.75, 1.0], seen,
+                         "the sand is not the fraction of the file that has arrived")
+
+    def test_with_no_total_it_still_moves(self):
+        """Unpacking has no byte count to divide by, and a glass that stopped there would
+        freeze exactly where somebody had started to trust it."""
+        from salaah.ui import Hourglass
+        glass = Hourglass(60)
+        glass.show()
+        self.addCleanup(glass.close)
+        settle()
+        was = glass.run
+        for _ in range(20):
+            glass.painted = 0
+            glass.showing(0, 0)
+        self.assertNotEqual(was, glass.run, "it stood still with nothing to measure")
+
+    def test_it_never_throws_into_the_download(self):
+        """It is called from inside install(), on the UI thread, with a widget that may have
+        been torn down by a theme change. An hourglass must not be able to fail an update."""
+        from salaah.ui import Hourglass
+        glass = Hourglass(60)
+        glass.showing(5, 10)            # never shown, never laid out
+        glass.close()
+        glass.showing(6, 10)            # and again after closing
+        self.assertTrue(True)
+
+    def test_the_glass_is_put_away_when_nothing_is_turning_it(self):
+        """A still hourglass over "could not update" is the frozen-spinner fault again, at
+        the other end of the job."""
+        w = self.window()
+        w.say("Downloading…")
+        settle()
+        w.notice.hourglass.show()
+        settle()
+        self.assertTrue(w.notice.hourglass.isVisible())
+        w.put_the_glass_away()
+        settle()
+        self.assertFalse(w.notice.hourglass.isVisible(), "it was left turning nothing")
+
+    def test_putting_it_away_when_there_is_no_box_does_nothing(self):
+        """apply_update's failure path can run after the notice has gone."""
+        w = self.window()
+        w.notice = None
+        w.put_the_glass_away()
+        self.assertTrue(True)

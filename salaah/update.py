@@ -171,7 +171,7 @@ def open_url(url: str, timeout: float | None = None):
 
 
 def fetch(url: str, into: Path | None = None, most: int = MOST, opener=None,
-          tries: int = TRIES, missing: str = "") -> bytes | Path:
+          tries: int = TRIES, missing: str = "", tick=None) -> bytes | Path:
     """Fetches a URL, giving up rather than filling the disk. Returns the bytes, or the path if
     [into] was given.
 
@@ -184,7 +184,7 @@ def fetch(url: str, into: Path | None = None, most: int = MOST, opener=None,
     last = None
     for attempt in range(1, max(1, tries) + 1):
         try:
-            return fetch_once(url, into, most, opener)
+            return fetch_once(url, into, most, opener, tick)
         except Refused:
             raise                       # our own refusals are decisions, not accidents
         except urllib.error.HTTPError as problem:
@@ -206,7 +206,7 @@ def fetch(url: str, into: Path | None = None, most: int = MOST, opener=None,
     raise Refused(f"could not reach the update: {last}")
 
 
-def fetch_once(url: str, into: Path | None, most: int, opener) -> bytes | Path:
+def fetch_once(url: str, into: Path | None, most: int, opener, tick=None) -> bytes | Path:
     """One attempt. Raises the underlying network error so fetch() can decide about trying
     again; raises Refused only for things that would happen again anyway."""
     with opener(url, timeout=TIMEOUT) as answer:
@@ -227,6 +227,18 @@ def fetch_once(url: str, into: Path | None, most: int, opener) -> bytes | Path:
                 if got > most:
                     raise Refused("the download is far larger than it should be")
                 out.write(lump)
+                # A SIGN OF LIFE, PER LUMP. The caller paints on this thread -- see
+                # MainWindow.apply_update -- so nothing of its own can move while this loop
+                # runs, and a 137MB release over home wifi is minutes of a screen that looks
+                # dead. Whatever [tick] is, it is the screen's business and not this
+                # module's; all that matters here is that it is called as bytes arrive, so
+                # that what it shows is true rather than animated. It must never be the
+                # reason an update fails.
+                if tick is not None:
+                    try:
+                        tick(got)
+                    except Exception:           # noqa: BLE001 - see above
+                        tick = None             # it broke once; do not call it again
         return into
 
 
@@ -325,8 +337,11 @@ class Installer:
     # watching their mat can lose the update by touching it.
     SETTLES = 10.0
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, tick=None):
         self.root = Path(root)
+        #: Called as each file is unpacked, so the screen can show that something is still
+        #: happening. Optional, and never allowed to break an install -- see unpack.
+        self.tick = tick
 
     @property
     def state_file(self) -> Path:
@@ -355,6 +370,16 @@ class Installer:
                 members = safe_members(zipped)
                 for item in members:
                     zipped.extract(item, staged)
+                    # The same sign of life the download gives. Unpacking 137MB on a Pi's SD
+                    # card is not quick either, and a screen that moved all through the
+                    # download and then froze for the unpack would look worse than one that
+                    # never moved: the freeze would land exactly where a person had started
+                    # to trust it.
+                    if self.tick is not None:
+                        try:
+                            self.tick(0)   # no total here: the glass just keeps falling
+                        except Exception:       # noqa: BLE001
+                            self.tick = None
             for name in REPLACES:
                 if not (staged / name).is_dir():
                     raise Refused(f"the update has no {name} folder in it")
@@ -415,7 +440,7 @@ class Installer:
         return True
 
 
-def install(release: Release, root: Path, opener=None, stage=None) -> None:
+def install(release: Release, root: Path, opener=None, stage=None, tick=None) -> None:
     """Fetch, check and put in place. Raises Refused, having changed nothing, if anything is
     wrong with what came down.
 
@@ -434,9 +459,10 @@ def install(release: Release, root: Path, opener=None, stage=None) -> None:
     try:
         announce("downloading", release)
         zip_path = fetch(release.url, into=hold / "release.zip", opener=opener,
-                         missing="this version was announced but its file is not there")
+                         missing="this version was announced but its file is not there",
+                         tick=tick)
         announce("installing", release)
-        installer = Installer(root)
+        installer = Installer(root, tick=tick)
         staged = installer.unpack(Path(zip_path), release)
         installer.swap(staged, release, __version__)
     finally:

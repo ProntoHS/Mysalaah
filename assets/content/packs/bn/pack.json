@@ -339,6 +339,7 @@
   "settings.qibla_bearing": "উত্তর থেকে {degrees}°। কম্পাস: {compass}",
   "settings.qibla_not_at_start": "দেখাবেন না",
   "settings.recitation": "তিলাওয়াত বাজান",
+  "settings.reset_scores": "সর্বোচ্চ স্কোর রিসেট করুন",
   "settings.restarting": "পরিবর্তন কার্যকর করতে আবার চালু হচ্ছে…",
   "settings.sleep_after": "এত পরে ঘুমাবে",
   "settings.sources": "উৎস",

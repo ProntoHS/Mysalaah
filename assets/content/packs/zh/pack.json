@@ -339,6 +339,7 @@
   "settings.qibla_bearing": "北偏{degrees}°。指南针：{compass}",
   "settings.qibla_not_at_start": "不显示",
   "settings.recitation": "播放诵读",
+  "settings.reset_scores": "重置最佳成绩",
   "settings.restarting": "正在重新启动以套用变更…",
   "settings.sleep_after": "无操作后休眠",
   "settings.sources": "来源",

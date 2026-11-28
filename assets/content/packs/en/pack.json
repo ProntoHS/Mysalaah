@@ -467,6 +467,7 @@
   "settings.qibla_bearing": "{degrees}° from north. Compass: {compass}",
   "settings.qibla_not_at_start": "Don't show",
   "settings.recitation": "Play the recitation",
+  "settings.reset_scores": "Reset high scores",
   "settings.restarting": "Starting again so the change takes effect…",
   "settings.sleep_after": "Go to sleep after",
   "settings.sources": "Sources",

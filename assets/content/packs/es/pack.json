@@ -339,6 +339,7 @@
   "settings.qibla_bearing": "{degrees}° del norte. Brújula: {compass}",
   "settings.qibla_not_at_start": "No mostrar",
   "settings.recitation": "Reproducir la recitación",
+  "settings.reset_scores": "Restablecer récords",
   "settings.restarting": "Reiniciando para aplicar el cambio…",
   "settings.sleep_after": "Suspender tras",
   "settings.sources": "Fuentes",

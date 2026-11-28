@@ -1770,7 +1770,7 @@ class UpdateSaysWhichStageItIsOnTest(unittest.TestCase):
             return Path(into) if into else Path("x.zip")
 
         class Pretend:
-            def __init__(self, root): pass
+            def __init__(self, root, tick=None): pass
             def unpack(self, zip_path, release):
                 happened.append("unpacked")
                 return Path("staged")
@@ -1801,7 +1801,7 @@ class UpdateSaysWhichStageItIsOnTest(unittest.TestCase):
                                         sha256="0" * 64, notes="")
 
         class Pretend:
-            def __init__(self, root): pass
+            def __init__(self, root, tick=None): pass
             def unpack(self, zip_path, release): return Path("staged")
             def swap(self, staged, release, running): done.append("swapped")
 
@@ -9071,3 +9071,143 @@ class TheSpeedRunClockTest(unittest.TestCase):
         for seconds in (0, 9.04, 65.55, 600):
             self.assertFalse(any(c.isalpha() for c in as_clock(seconds)),
                              "there are letters in the clock, so there is something to translate")
+
+    def test_a_board_survives_being_written_and_read_back(self):
+        """The other half of the fault Harry found overnight. The screen's half -- that the
+        save is actually called -- is in test_ui; this is whether what it writes comes back.
+
+        A REAL FILE, because the thing being doubted is the file. settings.json is JSON with
+        a dataclass either side of it, and a dict field is exactly the shape that quietly
+        does not survive: load() keeps only keys it recognises, and a field added without a
+        default, or one holding something json cannot write, would come back empty with no
+        error anywhere. This is cheap and it is the test that says the records really do
+        outlive a power cut.
+        """
+        import tempfile
+        from salaah.settings import Settings
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "settings.json"
+            before = Settings()
+            before.maze_records["hedge"] = {"maze": "abc123", "times": [38.9, 39.4, 41.2]}
+            before.maze_records["city"] = {"maze": "def456", "times": [61.0]}
+            before.save(path)
+            after = Settings.load(path)
+            self.assertEqual(before.maze_records, after.maze_records,
+                             "the boards did not survive the trip through the file")
+            self.assertEqual([38.9, 39.4, 41.2], after.maze_records["hedge"]["times"])
+
+    def test_two_settings_do_not_share_one_board(self):
+        """A mutable default on a dataclass is shared by every instance ever made, so one
+        mat's records would appear on another window's board and the suite would hand them
+        between tests. field(default_factory=dict) is what stops that, and this is what says
+        so."""
+        from salaah.settings import Settings
+        one, two = Settings(), Settings()
+        one.maze_records["hedge"] = {"maze": "abc", "times": [10.0]}
+        self.assertEqual({}, two.maze_records,
+                         "two Settings are sharing one records dictionary")
+
+    def test_an_older_settings_file_still_loads(self):
+        """Every mat updating to 2.59 has a settings.json written before maze_records
+        existed. It must open, not fall back to defaults and quietly lose the place name, the
+        theme and everything else somebody set."""
+        import json, tempfile
+        from salaah.settings import Settings
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "settings.json"
+            path.write_text(json.dumps({"place": "Bury", "theme": "colour",
+                                        "brightness": 70, "recitation": True}))
+            old = Settings.load(path)
+            self.assertEqual("Bury", old.place, "an older file did not load")
+            self.assertEqual("colour", old.theme)
+            self.assertEqual({}, old.maze_records, "it invented records from nowhere")
+
+
+class TheDownloadSaysItIsStillGoingTest(unittest.TestCase):
+    """install() reports as bytes arrive, so the screen can show it. Harry, 28 November 2026:
+    "could i have a spinning hourglass in the top right of the pop up box, this will give a
+    visual indication that it is being downloaded and be patient."
+
+    This half is update.py's: that the callback happens, carries the count, and can never be
+    the reason an update fails. What the screen draws with it is in test_ui.
+    """
+
+    def served(self, body: bytes):
+        """An opener handing the body back in small pieces, like a real connection."""
+        import io
+
+        class Answer(io.BytesIO):
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+
+        return lambda url, timeout=None: Answer(body)
+
+    def test_it_reports_as_the_bytes_arrive(self):
+        from salaah import update
+        got = []
+        body = b"x" * (update.CHUNK * 3 + 17)
+        with tempfile.TemporaryDirectory() as folder:
+            update.fetch("http://example/x", into=Path(folder) / "f.zip",
+                         opener=self.served(body), tick=got.append)
+        self.assertGreaterEqual(len(got), 3, f"only {len(got)} reports for four lumps")
+        self.assertEqual(sorted(got), got, "the running total went backwards")
+        self.assertEqual(len(body), got[-1], "the last report was not the whole file")
+
+    def test_the_count_is_what_has_arrived_not_what_is_left(self):
+        """The screen divides it by the release's byte count to fill the glass, so a count
+        running the other way would drain it backwards."""
+        from salaah import update
+        got = []
+        with tempfile.TemporaryDirectory() as folder:
+            update.fetch("http://example/x", into=Path(folder) / "f.zip",
+                         opener=self.served(b"y" * (update.CHUNK * 2)), tick=got.append)
+        self.assertEqual(update.CHUNK, got[0], "the first report was not one lump")
+
+    def test_a_download_with_nobody_watching_still_works(self):
+        from salaah import update
+        with tempfile.TemporaryDirectory() as folder:
+            where = update.fetch("http://example/x", into=Path(folder) / "f.zip",
+                                 opener=self.served(b"z" * 40))
+            self.assertEqual(b"z" * 40, Path(where).read_bytes())
+
+    def test_a_broken_watcher_cannot_stop_an_update(self):
+        """THE RULE THAT MATTERS MOST HERE. This callback paints on the UI thread, which is
+        the richest possible source of surprises -- a deleted widget, a theme mid-change. An
+        hourglass is not allowed to be the reason a mat fails to update."""
+        from salaah import update
+        tries = []
+
+        def explode(_got):
+            tries.append(1)
+            raise RuntimeError("the hourglass fell over")
+
+        with tempfile.TemporaryDirectory() as folder:
+            where = update.fetch("http://example/x", into=Path(folder) / "f.zip",
+                                 opener=self.served(b"q" * (update.CHUNK * 3)), tick=explode)
+            self.assertEqual(update.CHUNK * 3, Path(where).stat().st_size,
+                             "the download did not finish")
+        self.assertEqual(1, len(tries),
+                         "it kept calling a callback that had already thrown")
+
+    def test_unpacking_reports_too_so_the_screen_does_not_freeze_halfway(self):
+        """Unpacking 137MB onto an SD card is not quick either, and a screen that moved all
+        through the download and then froze for the unpack would be worse than one that never
+        moved: the freeze would land exactly where a person had started to trust it."""
+        import zipfile
+        from salaah.update import Installer, Release
+        seen = []
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            zip_path = root / "r.zip"
+            with zipfile.ZipFile(zip_path, "w") as z:
+                # Both folders, because unpack refuses a release that is missing either.
+                for n in range(3):
+                    z.writestr(f"salaah/thing{n}.py", "x = 1\n")
+                for n in range(2):
+                    z.writestr(f"assets/thing{n}.json", "{}\n")
+            import hashlib
+            said = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+            (root / "app").mkdir()          # unpack stages inside the root, which must exist
+            Installer(root / "app", tick=lambda _n: seen.append(1)).unpack(
+                zip_path, Release(version="9.9", url="u", sha256=said))
+        self.assertGreaterEqual(len(seen), 5, f"only {len(seen)} reports for five files")

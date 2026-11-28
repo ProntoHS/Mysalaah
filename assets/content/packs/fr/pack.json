@@ -339,6 +339,7 @@
   "settings.qibla_bearing": "{degrees}° du nord. Boussole : {compass}",
   "settings.qibla_not_at_start": "Ne pas afficher",
   "settings.recitation": "Jouer la récitation",
+  "settings.reset_scores": "Réinitialiser les records",
   "settings.restarting": "Redémarrage pour appliquer le changement…",
   "settings.sleep_after": "Se mettre en veille après",
   "settings.sources": "Sources",

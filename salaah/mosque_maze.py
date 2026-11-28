@@ -844,10 +844,19 @@ class Screen(QtWidgets.QWidget):
             return
         self._landed = remember(records, self.game.level["name"], self.game.fingerprint,
                                 self.game.elapsed, self.game.KEEPS)
-        saver = getattr(self.win, "save_settings", None)
+        # persist(), NOT save_settings. `save_settings` is a BOOLEAN on the window -- True on
+        # a real mat, False for every window the suite builds -- and persist() is the method
+        # that writes the file, checking that flag on the way. 2.59 shipped with
+        # `saver = getattr(self.win, "save_settings", None)` and `if callable(saver)`, which
+        # is never true of a bool, so every record lived in memory and died at the next power
+        # cut. Harry found it overnight: "if i power down / restart, the time record is gone."
+        #
+        # The wrong name was half of it. The other half was the test, which asked whether the
+        # time was in settings.maze_records -- memory -- and so passed without a byte reaching
+        # the disk. There are now two tests instead: one watches for the save actually being
+        # called, and one writes a real file and reads it back.
         try:
-            if callable(saver):
-                saver()
+            self.win.persist()
         except Exception:                       # noqa: BLE001 - see the docstring
             pass
 

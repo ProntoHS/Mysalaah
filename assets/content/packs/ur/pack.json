@@ -339,6 +339,7 @@
   "settings.qibla_bearing": "شمال سے {degrees}°۔ قطب نما: {compass}",
   "settings.qibla_not_at_start": "نہ دکھائیں",
   "settings.recitation": "تلاوت چلائیں",
+  "settings.reset_scores": "بہترین اسکور ری سیٹ کریں",
   "settings.restarting": "تبدیلی لاگو کرنے کے لیے دوبارہ شروع ہو رہا ہے…",
   "settings.sleep_after": "خود بخود بند ہونے کا وقت",
   "settings.sources": "مآخذ",
