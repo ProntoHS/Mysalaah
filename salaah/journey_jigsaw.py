@@ -58,6 +58,24 @@ class Rules:
         self.picture = (self.picture + 1) % self.PICTURE_COUNT
         self.restart()
 
+    def pick_a_picture(self, pick) -> None:
+        """Open on any of them rather than always the first.
+
+        Harry, 28 November 2026: "when launching the jigsaw game, can a random jigsaw be the
+        first, rather than the same one first" -- and then, of the games generally, "in fact
+        all the games should start on a random".
+
+        PURE RANDOM, REPEATS AND ALL. Offered the alternative -- never the same one twice
+        running, since with a short list chance hands you a repeat often enough to look
+        broken -- and he chose plain chance. He has watched a child play this and I have not.
+
+        THE PICTURE ONLY, NEVER THE DIFFICULTY. Asked about that separately and the answer
+        was the picture alone: a child handed expert at random gets a worse game rather than
+        a more varied one. Difficulty is chosen and then kept.
+        """
+        self.picture = pick(self.PICTURE_COUNT)
+        self.restart()
+
     def press(self, slot: int) -> str:
         """Tap once to select a tile and tap another tile to swap it."""
         if not 0 <= slot < len(self.order):
@@ -99,6 +117,9 @@ class Screen(QtWidgets.QWidget):
         super().__init__()
         self.win = window
         self.game = Rules(shuffle)
+        #: Which picture a fresh visit lands on. Injected so the suite is not at the mercy of
+        #: chance: a test that opens the jigsaw and asks what it is showing needs an answer.
+        self.pick = random.randrange
         self.setObjectName("journeyJigsawMain")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setAttribute(Qt.WidgetAttribute.WA_AcceptTouchEvents, True)
@@ -343,6 +364,19 @@ class Screen(QtWidgets.QWidget):
         )
         self._update_hint()
         self.update()
+
+    def open_on_a_random_one(self) -> None:
+        """Called by open_a_game, and deliberately NOT by start_again.
+
+        start_again is the New Game button. If the picture changed there, a child who wanted
+        another go at the one in front of them would be handed a different one every time --
+        and on the maze, where the same method sits beside a speed-run clock, it would move
+        the board out from under somebody trying to beat their own time. Opening the game is
+        a new visit; pressing New Game is another go at this.
+        """
+        self._down_slot = None
+        self.game.pick_a_picture(self.pick)
+        self.changed.emit()
 
     def cycle_picture(self) -> None:
         self._down_slot = None

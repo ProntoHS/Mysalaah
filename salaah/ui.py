@@ -218,6 +218,11 @@ class ClosesWhenNobodyTouchesIt(QtCore.QObject):
         return False
 
 
+#: How big the hourglass on the Downloading box is drawn, before px() scales it for the
+#: screen. It shipped at 46 in 2.60 and Harry asked for half as much again on the day.
+HOURGLASS_SIZE = round(46 * 1.5)
+
+
 class Hourglass(QtWidgets.QWidget):
     """An hourglass that empties as the update arrives, and turns over when it is full.
 
@@ -1000,7 +1005,11 @@ class Notice(QtWidgets.QDialog):
         head.setObjectName("noticeTitle")
         crown.addWidget(head)
         crown.addStretch(1)
-        self.hourglass = Hourglass(px(46))
+        # HALF AS BIG AGAIN AS IT FIRST SHIPPED. Harry, 28 November 2026: "can you make the
+        # hourglass a little bigger by 50%." It went in at 46 and this is 46 * 1.5, written
+        # as the sum so that the next person can see it is a deliberate enlargement of the
+        # original rather than a number somebody liked.
+        self.hourglass = Hourglass(px(HOURGLASS_SIZE))
         self.hourglass.hide()
         crown.addWidget(self.hourglass, 0, Qt.AlignmentFlag.AlignTop)
         lay.addLayout(crown)
@@ -4221,6 +4230,22 @@ class MainWindow(QtWidgets.QWidget):
     def open_a_game(self, which: str) -> None:
         """Any of the children's games, always from round one."""
         screen = self.build_a_game(which)
+        # A FRESH VISIT LANDS SOMEWHERE NEW, where a game has somewhere to land. Harry, 28
+        # November 2026: "in fact all the games should start on a random".
+        #
+        # IT TURNED OUT TO BE TWO GAMES, NOT ALL OF THEM, and that is worth writing down so
+        # nobody goes looking for the other four. Pillar Match, Build the Salaah, Qibla Quest
+        # and the prayer day journey all shuffle their contents on every single round already
+        # -- they have been random since they were written. Only the jigsaw and the maze held
+        # something fixed, because theirs is a choice of WHICH artwork or WHICH map rather
+        # than an order to deal out, and both of those opened on the first in the list every
+        # time. Those are the two he named.
+        #
+        # Asked here rather than in start_again, which is the New Game button: see either
+        # screen's open_on_a_random_one for why that distinction matters to a speed run.
+        fresh = getattr(screen, "open_on_a_random_one", None)
+        if callable(fresh):
+            fresh()
         screen.start_again()
         # The 7in is part of these games, not a decoration beside them: the jigsaw's hint, the
         # prayer-day question and its answer buttons, the maze's tally all live there. A game

@@ -7,6 +7,7 @@ progress, scenery, New Game and Exit. All state stays in memory.
 from __future__ import annotations
 
 import hashlib
+import random
 import time
 
 from .qt import QtCore, QtGui, QtWidgets, Qt, Signal
@@ -311,6 +312,20 @@ class Rules:
                     steps[near] = steps[current] + 1
                     queue.append(near)
         return frozenset(steps)
+
+    def pick_a_scene(self, pick) -> None:
+        """Open on any of the three sceneries rather than always the hedge garden.
+
+        PURE RANDOM, REPEATS AND ALL, which is Harry's choice over the alternative: with only
+        three mazes, plain chance gives you the same one again about a third of the time, and
+        I argued that reads as broken rather than random. He has watched a child play this.
+
+        IT MOVES THE SPEED-RUN BOARD WITH IT, because each scenery keeps its own three times.
+        Open the maze, land on City Streets, and the times on the 7in are City Streets'. The
+        scene button is one press away from whichever one is being chased.
+        """
+        self.scene = pick(len(self.BACKGROUNDS))
+        self.restart()
 
     def cycle_scene(self) -> None:
         self.scene = (self.scene + 1) % len(self.BACKGROUNDS)
@@ -690,6 +705,9 @@ class Screen(QtWidgets.QWidget):
         self._tick = QtCore.QTimer(self)
         self._tick.setInterval(100)          # tenths, which is all the clock shows
         self._tick.timeout.connect(self._show_the_clock)
+        #: Which scenery a fresh visit lands on. Injected so the suite is not at the mercy
+        #: of chance: a test that opens the maze and asks which one it got needs an answer.
+        self.pick = random.randrange
         #: Whether this finish has already been offered to the board, so that a redraw, a
         #: theme change or a language change cannot put the same run on it twice. The same
         #: shape winning.py uses for its Well Done, and for the same reason.
@@ -983,6 +1001,21 @@ class Screen(QtWidgets.QWidget):
     def start_again(self) -> None:
         self._move_timer.stop()
         self.game.restart()
+        self._kept = False
+        self._landed = False
+        self.changed.emit()
+
+    def open_on_a_random_one(self) -> None:
+        """Called by open_a_game, and deliberately NOT by start_again.
+
+        start_again is the New Game button, and on this screen it sits beside a speed-run
+        clock. If the scenery changed there, a child trying to beat their Hedge Garden time
+        would be thrown onto a different maze on every attempt -- and the board on the 7in
+        would change with it, because each scenery keeps its own three times. Opening the
+        game is a new visit; pressing New Game is another go at this one.
+        """
+        self._move_timer.stop()
+        self.game.pick_a_scene(self.pick)
         self._kept = False
         self._landed = False
         self.changed.emit()

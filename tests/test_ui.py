@@ -21741,6 +21741,11 @@ class WhatTheMazeDoesWithACollectedThingTest(unittest.TestCase):
         w.side.show()
         settle(2)
         self.addCleanup(lambda: shut(w))
+        # PINNED TO THE HEDGE GARDEN. From 2.61 the maze opens on a random scenery, and these
+        # tests are about what happens to a pickup, not about which map it is lying on. The
+        # three mazes hold their items in different places, so left to chance this class
+        # would pass or fail by scenery. The randomness is tested on its own elsewhere.
+        w.build_a_game("mosque").pick = lambda _n: 0
         w.open_a_game("mosque")
         settle(3)
         return w, w.games["mosque"]
@@ -28165,6 +28170,12 @@ class TheSpeedRunOnTheSevenInchTest(unittest.TestCase):
 
     def opened(self):
         w = self.window()
+        # PINNED TO THE HEDGE GARDEN. From 2.61 the maze opens on a scenery chosen at
+        # random, which is right for a child and useless for a test: these are about the
+        # speed-run board and what is saved, not about which map came up, and left to chance
+        # they fail about two times in three. The randomness has its own tests in
+        # EveryVisitStartsSomewhereNewTest; here it is held still on purpose.
+        w.build_a_game("mosque").pick = lambda _n: 0
         w.open_a_game("mosque")
         settle()
         return w, w.games["mosque"]
@@ -28470,6 +28481,44 @@ class TheHourglassOnTheUpdateBoxTest(unittest.TestCase):
         self.assertGreater(glass.x(), w.notice.width() / 2, "it is not on the right")
         self.assertLess(glass.y(), w.notice.height() / 2, "it is not at the top")
 
+    def test_it_is_clearly_bigger_than_the_lettering_beside_it(self):
+        """Harry, 28 November 2026: "can you make the hourglass a little bigger by 50%."
+
+        MEASURED AGAINST THE TITLE, NOT AGAINST THE NUMBER. Asserting that the constant is 69
+        would restate the code and guard nothing -- when I sabotaged the size by putting 46
+        back, every test in this class passed, because not one of them looked at how big it
+        is. What the request was actually about is being seen from a mat on the floor, so
+        what is checked is its size relative to the lettering it sits next to: 1.44 times the
+        title's cap height before, 2.16 after. The threshold sits between the two.
+        """
+        w = self.window()
+        w.say("Downloading…")
+        settle()
+        glass = w.notice.hourglass
+        glass.show()
+        settle()
+        head = [l for l in w.notice.findChildren(QtWidgets.QLabel)
+                if l.objectName() == "noticeTitle"][0]
+        cap = head.fontMetrics().capHeight()
+        self.assertGreaterEqual(glass.height(), cap * 1.8,
+                                "the hourglass is back to being smaller than the words")
+
+    def test_it_does_not_widen_the_box_or_wrap_the_title(self):
+        """The other end of the same request. It can be made bigger right up until it pushes
+        the box out or folds "Downloading version…" onto two lines."""
+        w = self.window()
+        w.say("Downloading version 2.62…")
+        settle()
+        shut_width = w.notice.width()
+        w.notice.hourglass.show()
+        settle()
+        self.assertLessEqual(w.notice.width(), shut_width,
+                             "the hourglass made the box wider")
+        head = [l for l in w.notice.findChildren(QtWidgets.QLabel)
+                if l.objectName() == "noticeTitle"][0]
+        self.assertLessEqual(head.height(), head.fontMetrics().height() * 1.6,
+                             "the title has wrapped onto a second line")
+
     def test_the_sand_follows_the_download_rather_than_a_clock(self):
         """The whole design. The update owns the UI thread -- apply_update says so -- so a
         QTimer cannot fire during the download and a timer-driven spinner would stand still
@@ -28530,3 +28579,124 @@ class TheHourglassOnTheUpdateBoxTest(unittest.TestCase):
         w.notice = None
         w.put_the_glass_away()
         self.assertTrue(True)
+
+
+class EveryVisitStartsSomewhereNewTest(unittest.TestCase):
+    """Harry, 28 November 2026: "when launching the jigsaw game, can a random jigsaw be the
+    first, rather than the same one first" and then "in fact all the games should start on a
+    random".
+
+    IT IS TWO GAMES, NOT SIX, and that is the finding rather than a shortcut. Pillar Match,
+    Build the Salaah, Qibla Quest and the prayer day journey all shuffle their contents on
+    every round and have since they were written -- they were already random every time. Only
+    the jigsaw and the maze held something fixed, because theirs is a choice of WHICH artwork
+    or WHICH map rather than an order to deal out. The last test here is what keeps that
+    claim honest.
+    """
+
+    def window(self):
+        w = MainWindow(load(ASSETS), available_packs(ASSETS),
+                       Settings(theme="light", recitation=False, place="Bury"),
+                       scale=1.0, save_settings=False, aspect=None, side=True)
+        w.resize(1920, 1200)
+        w.show()
+        w.side.resize(1080, 1920)
+        w.side.show()
+        w.tick()
+        settle()
+        self.addCleanup(lambda: shut(w))
+        return w
+
+    def test_opening_the_jigsaw_lands_on_whichever_one_came_up(self):
+        w = self.window()
+        w.open_a_game("jigsaw")
+        settle()
+        screen = w.games["jigsaw"]
+        for wanted in (3, 1, 4, 0):
+            with self.subTest(wanted):
+                screen.pick = lambda _n, it=wanted: it
+                w.open_a_game("jigsaw")
+                settle()
+                self.assertEqual(wanted, screen.game.picture)
+
+    def test_opening_the_maze_lands_on_whichever_scenery_came_up(self):
+        w = self.window()
+        w.open_a_game("mosque")
+        settle()
+        screen = w.games["mosque"]
+        for wanted in (2, 0, 1):
+            with self.subTest(wanted):
+                screen.pick = lambda _n, it=wanted: it
+                w.open_a_game("mosque")
+                settle()
+                self.assertEqual(wanted, screen.game.scene)
+
+    def test_it_picks_from_all_of_them_and_not_from_some(self):
+        """An off-by-one here would quietly make the last picture unreachable, which is the
+        kind of thing nobody notices for a year."""
+        w = self.window()
+        for game, attribute, how_many in (("jigsaw", "PICTURE_COUNT", None),
+                                          ("mosque", None, None)):
+            with self.subTest(game):
+                w.open_a_game(game)
+                settle()
+                screen = w.games[game]
+                asked = []
+                screen.pick = lambda n: asked.append(n) or 0
+                w.open_a_game(game)
+                settle()
+                self.assertTrue(asked, "nothing was picked at all")
+                if game == "jigsaw":
+                    self.assertEqual(len(screen.PICTURES), asked[0])
+                else:
+                    self.assertEqual(len(screen.game.BACKGROUNDS), asked[0])
+
+    def test_new_game_gives_you_another_go_at_this_one(self):
+        """THE DISTINCTION THAT MATTERS. start_again is the New Game button. If it rolled the
+        dice too, a child trying to beat their Hedge Garden time would be thrown onto a
+        different maze on every attempt -- and the speed-run board on the 7in would move with
+        them, because each scenery keeps its own three times."""
+        w = self.window()
+        for game, what in (("jigsaw", "picture"), ("mosque", "scene")):
+            with self.subTest(game):
+                w.open_a_game(game)
+                settle()
+                screen = w.games[game]
+                was = getattr(screen.game, what)
+                screen.pick = lambda _n: (was + 1) % 3      # would move it, if consulted
+                for _ in range(6):
+                    screen.start_again()
+                    settle()
+                self.assertEqual(was, getattr(screen.game, what),
+                                 "New Game moved you to a different one")
+
+    def test_the_difficulty_is_left_exactly_where_it_was(self):
+        """Asked separately and answered: the picture only. A child handed expert at random
+        gets a worse game rather than a more varied one."""
+        w = self.window()
+        w.open_a_game("jigsaw")
+        settle()
+        screen = w.games["jigsaw"]
+        screen.game.cycle_difficulty()
+        chosen = screen.game.difficulty
+        self.assertNotEqual(0, chosen, "this test needs a difficulty that is not the default")
+        for _ in range(5):
+            w.open_a_game("jigsaw")
+            settle()
+        self.assertEqual(chosen, screen.game.difficulty,
+                         "opening the game threw away the chosen difficulty")
+
+    def test_the_four_that_were_already_random_are_left_alone(self):
+        """Keeps the claim above honest. If one of these ever stops shuffling its own rounds
+        it needs adding to open_a_game, and this is what will say so."""
+        import inspect
+        from salaah import build_the_salaah, pillar_match, prayer_day_journey, qibla_quest
+        # Each game names its own rules class; there is no shared base to ask.
+        rules = ((pillar_match, "Rules"), (build_the_salaah, "RakahPuzzle"),
+                 (qibla_quest, "QiblaQuest"), (prayer_day_journey, "Rules"))
+        for module, named in rules:
+            with self.subTest(module.__name__):
+                body = inspect.getsource(getattr(module, named))
+                self.assertIn("self._shuffle", body,
+                              "this game no longer deals its own rounds out at random, so "
+                              "opening it now needs to pick something")
